@@ -9,8 +9,8 @@ import type { Session } from "./types";
  */
 export const ECO_HOMESERVER_URL = "https://eco.litteris.online";
 
-/** Identity provider id configured on Synapse for Google OIDC. */
-const GOOGLE_IDP_ID = "google";
+/** OIDC provider id configured on Synapse for Google (`oidc_providers[].idp_id`). */
+const GOOGLE_IDP_ID = "oidc-google";
 
 type SsoLoginErrorCode = "listener" | "login";
 

@@ -126,6 +126,13 @@ docker compose restart synapse
   - `eco_pgdata` → Postgres data.
 - **Config changes**: edit `homeserver.yaml.template`, re-render (step 3, including
   the `chown 991:991`), `docker compose restart synapse`.
+- **Label changes**: compose label changes (e.g. the Traefik
+  `X-Forwarded-Proto=https` middleware on the `eco` router) require
+  `docker compose up -d` to recreate the container — `docker compose restart`
+  does NOT apply label changes. The middleware exists because the
+  Traefik→Synapse hop is plain HTTP while `public_baseurl` is `https://...`:
+  without the injected header Synapse rebuilds SSO redirect URIs as `http://`
+  and login gets stuck in an infinite 302 loop.
 - **Gotchas learned on this host**:
   - When scripting `docker compose exec -T` inside a piped SSH script, ALWAYS
     append `< /dev/null` to the command — otherwise `exec -T` consumes the rest

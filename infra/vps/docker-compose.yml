@@ -29,6 +29,11 @@ services:
       - "traefik.http.routers.eco.rule=Host(`eco.litteris.online`) && PathPrefix(`/`)"
       - "traefik.http.routers.eco.entryPoints=http"
       - "traefik.http.services.eco.loadbalancer.server.port=8008"
+      # Traefik→Synapse hop is plain HTTP while public_baseurl is https://;
+      # without this header Synapse rebuilds SSO redirect URIs as http:// and
+      # the browser gets stuck in an infinite 302 loop on login.
+      - "traefik.http.middlewares.eco-proto.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.eco.middlewares=eco-proto@docker"
     logging:
       driver: json-file
       options:
