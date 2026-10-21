@@ -44,7 +44,7 @@ Marcados pelo usuário como escopo inicial:
 
 | Restrição | Detalhe |
 |---|---|
-| VPS | Oracle Cloud ARM Ampere A1 — **⚠ verificar**: desde jun/2026 o Always Free caiu para 2 OCPU / 12 GB RAM (instâncias acima do limite foram terminadas após 18/ago/2026). Se a sua ainda tem 4 OCPU/24 GB, ou é Pay-as-you-go ou precisa ser confirmada. Egress: 10 TB/mês grátis. |
+| VPS | Oracle Cloud ARM Ampere A1 — **4 OCPU / 24 GB RAM confirmados pelo usuário** (out/2026). Como o Always Free caiu para 2 OCPU/12 GB em jun/2026, a instância provavelmente está como Pay-as-you-go — conferir no console se há cobrança. Egress: 10 TB/mês grátis; block storage free tier: 200 GB. |
 | Deploy | Coolify (containers) na VPS |
 | Homeserver | Synapse + PostgreSQL |
 | Login | SSO Google (OIDC) para membros; conta admin local de emergência (break-glass) *\[minha decisão\]* |
