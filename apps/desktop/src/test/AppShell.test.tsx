@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import AppShell from "@/features/shell/AppShell";
@@ -72,5 +72,47 @@ describe("AppShell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abrir canais" }));
     expect(column("sidebar")).toBeTruthy();
     expect(column("rail")).toBeTruthy(); // the rail never disappears
+  });
+
+  it("removes the static sidebar but keeps the rail when resized from 1200px to 800px", () => {
+    setWidth(1200);
+    render(<AppShell />);
+    expect(column("sidebar")).toBeTruthy();
+
+    act(() => setWidth(800));
+
+    expect(column("rail")).toBeTruthy();
+    expect(column("sidebar")).toBeNull();
+    expect(screen.getByRole("button", { name: "Abrir canais" })).toBeTruthy();
+  });
+
+  it("resets open overlays when crossing breakpoints (800 -> 1200 -> 800)", async () => {
+    setWidth(800);
+    render(<AppShell />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Abrir canais" }));
+    await userEvent.click(screen.getByRole("button", { name: "Membros" }));
+    expect(column("sidebar")).toBeTruthy();
+    expect(column("members")).toBeTruthy();
+
+    act(() => setWidth(1200)); // static layout: overlays must reset
+    act(() => setWidth(800)); // back to overlay layout
+
+    expect(column("rail")).toBeTruthy();
+    expect(column("sidebar")).toBeNull(); // overlay does not reappear open
+    expect(column("members")).toBeNull();
+  });
+
+  it("resets the members overlay when crossing breakpoints (1000 -> 1200 -> 1000)", async () => {
+    setWidth(1000);
+    render(<AppShell />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Membros" }));
+    expect(column("members")).toBeTruthy();
+
+    act(() => setWidth(1200)); // docked member column: overlay state must reset
+    act(() => setWidth(1000)); // back below 1150px
+
+    expect(column("members")).toBeNull(); // overlay does not reappear open
   });
 });

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useBreakpoints } from "./useBreakpoints";
 import CommunityRail from "./CommunityRail";
 import ChannelSidebar from "./ChannelSidebar";
@@ -22,6 +22,16 @@ export default function AppShell({ children }: AppShellProps) {
   const { membersVisible, sidebarOverlay } = useBreakpoints();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+
+  // Crossing a breakpoint changes the layout mode; stale overlay
+  // state must not make panels reappear open on the way back.
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [sidebarOverlay]);
+
+  useEffect(() => {
+    setMembersOpen(false);
+  }, [membersVisible]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg font-ui text-txt">
