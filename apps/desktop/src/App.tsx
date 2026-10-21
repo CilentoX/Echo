@@ -1,5 +1,7 @@
+import AppShell from "@/features/shell/AppShell";
+
 function App() {
-  return <h1>Eco</h1>;
+  return <AppShell />;
 }
 
 export default App;

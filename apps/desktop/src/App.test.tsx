@@ -7,4 +7,10 @@ describe("App", () => {
     render(<App />);
     expect(screen.getByText("Eco")).toBeTruthy();
   });
+
+  it("renders the app shell layout", () => {
+    render(<App />);
+    expect(document.querySelector('[data-column="rail"]')).toBeTruthy();
+    expect(document.querySelector('[data-column="chat"]')).toBeTruthy();
+  });
 });
