@@ -227,6 +227,32 @@ describe("MatrixService", () => {
     );
   });
 
+  it("getSsoLoginUrl usa um client temporário quando não há sessão ativa", async () => {
+    const anonymous = createFakeClient();
+    anonymous.getSsoLoginUrl.mockReturnValueOnce("https://hs.example/sso-redirect");
+    const created: Array<{ opts: Parameters<typeof createClient>[0]; client: FakeClient }> = [];
+    const service = new MatrixService(BASE_URL, (opts) => {
+      created.push({ opts, client: anonymous });
+      return anonymous;
+    });
+
+    const url = service.getSsoLoginUrl("http://127.0.0.1:51000/callback", "google");
+
+    expect(url).toBe("https://hs.example/sso-redirect");
+    expect(created).toHaveLength(1);
+    expect(created[0].opts).toEqual({ baseUrl: BASE_URL });
+    expect(anonymous.getSsoLoginUrl).toHaveBeenCalledWith(
+      "http://127.0.0.1:51000/callback",
+      "m.login.sso",
+      "google",
+    );
+
+    // o client temporário NÃO vira a sessão ativa do service
+    await expect(service.sendMessage("!room:hs.example", "oi")).rejects.toThrow(
+      /no active session/,
+    );
+  });
+
   it("listGuilds transforma um Space joined em GuildSummary", async () => {
     const space = createFakeRoom({
       roomId: "!space:hs.example",

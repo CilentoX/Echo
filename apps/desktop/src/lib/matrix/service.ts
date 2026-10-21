@@ -77,10 +77,11 @@ export class MatrixService {
 
   /**
    * SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
-   * must not import matrix-js-sdk directly.
+   * must not import matrix-js-sdk directly. The URL is built before any login,
+   * so a temp anonymous client is created when there is no active session.
    */
   getSsoLoginUrl(redirectUrl: string, idpId?: string): string {
-    const client = this.requireClient();
+    const client = this.client ?? this.createClient({ baseUrl: this.baseUrl });
     return idpId
       ? client.getSsoLoginUrl(redirectUrl, "m.login.sso", idpId)
       : client.getSsoLoginUrl(redirectUrl);
