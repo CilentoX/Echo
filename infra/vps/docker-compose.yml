@@ -42,6 +42,8 @@ services:
     environment:
       POSTGRES_USER: synapse
       POSTGRES_DB: synapse
+      # Collation C is required by Synapse (IncorrectDatabaseSetup otherwise).
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env}
     networks:
       - eco_net

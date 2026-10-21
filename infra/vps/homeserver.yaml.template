@@ -22,7 +22,9 @@ listeners:
   - port: 8008
     type: http
     tls: false
-    bind_addresses: ['*']
+    # Traefik connects over IPv4 only: '*' breaks Twisted 26.4 (gaierror) and
+    # dual-stack ['0.0.0.0', '::'] causes EADDRINUSE on the same port.
+    bind_addresses: ['0.0.0.0']
     x_forwarded: true
     resources:
       - names:
@@ -35,7 +37,9 @@ database:
     user: synapse
     password: "${SYNAPSE_POSTGRES_PASSWORD}"
     dbname: synapse
-    host: postgres
+    # Host must be the unique container_name `eco-postgres`: the bare name
+    # `postgres` collides with coolify-db's alias on the shared coolify network.
+    host: eco-postgres
     port: 5432
     cp_min: 5
     cp_max: 10

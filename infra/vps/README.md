@@ -46,6 +46,8 @@ set -a; source .env; set +a
 mkdir -p synapse
 envsubst < homeserver.yaml.template > synapse/homeserver.yaml
 chmod 600 synapse/homeserver.yaml
+# Synapse runs as UID 991; the file is mode 600 and unreadable to it otherwise.
+sudo chown 991:991 synapse/homeserver.yaml
 ```
 
 Note: envsubst replaces **every** `${...}` occurrence. The template contains no
@@ -53,6 +55,16 @@ Note: envsubst replaces **every** `${...}` occurrence. The template contains no
 plain render is safe.
 
 ## 4. Start the stack
+
+First run only — the synapse_data volume starts root-owned; give it to Synapse
+(UID 991). Do NOT use `-R` (the read-only config mount breaks a recursive
+chown) and do not insert `--` as separator (compose v2 does not accept it):
+
+```bash
+docker compose run --rm --user root --entrypoint chown synapse 991:991 /data
+```
+
+Then:
 
 ```bash
 docker compose config   # sanity check: prints resolved config, no errors
@@ -94,11 +106,12 @@ only way in until invite-token registration ships (later phase).
 4. Uncomment the `oidc_providers` block in `homeserver.yaml.template`
    (no `localpart_template`: users pick their own username on first login,
    with a confirmation screen via `confirm_localpart: true`).
-5. Re-render and restart:
+5. Re-render and restart (same render + chown as step 3):
 
 ```bash
 set -a; source .env; set +a
 envsubst < homeserver.yaml.template > synapse/homeserver.yaml
+sudo chown 991:991 synapse/homeserver.yaml
 docker compose restart synapse
 ```
 
@@ -111,8 +124,15 @@ docker compose restart synapse
   - `eco_synapse_data` → `/data` in the Synapse container (config dir, media
     store, signing key).
   - `eco_pgdata` → Postgres data.
-- **Config changes**: edit `homeserver.yaml.template`, re-render (step 3),
-  `docker compose restart synapse`.
+- **Config changes**: edit `homeserver.yaml.template`, re-render (step 3, including
+  the `chown 991:991`), `docker compose restart synapse`.
+- **Gotchas learned on this host**:
+  - When scripting `docker compose exec -T` inside a piped SSH script, ALWAYS
+    append `< /dev/null` to the command — otherwise `exec -T` consumes the rest
+    of the script as stdin and silently runs garbage.
+  - Manual user cleanup in Synapse SQL: the `profiles` table keys on
+    `localpart`, while `user_directory`, `devices` and `access_tokens` key on
+    the full MXID (`@user:litteris.online`) — don't mix the two when deleting rows.
 - **Image upgrades**: bump the pinned tag in `docker-compose.yml`, check the
   Synapse upgrade notes, then `docker compose pull && docker compose up -d`.
 - **Backup** (design doc §8.1): rclone the `synapse_data` volume
