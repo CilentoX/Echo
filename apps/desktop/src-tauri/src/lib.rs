@@ -2,7 +2,6 @@
 mod keyring_cmds;
 mod sso;
 
-use tauri::Manager;
 use tauri_plugin_updater::UpdaterExt;
 
 #[tauri::command]
