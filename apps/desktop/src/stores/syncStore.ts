@@ -14,6 +14,16 @@ export interface SyncState {
   addPendingEvent(e: NormalizedEvent): void;
   /** Troca o placeholder `localId` pelo evento real quando sendMessage resolve (R2). */
   resolvePending(localId: string, event: NormalizedEvent): void;
+  /** Remove o placeholder `localId` (rollback de envio que falhou); no-op se ausente. */
+  removePending(roomId: string, localId: string): void;
+}
+
+/** Snapshot vazio compartilhado e congelado: useSyncExternalStore (zustand v5)
+ *  exige referência estável — `?? []` por chamada causaria loop infinito. */
+const EMPTY: readonly never[] = Object.freeze([]);
+
+function emptyOr<T>(list: T[] | undefined): T[] | readonly never[] {
+  return list ?? EMPTY;
 }
 
 /**
@@ -21,63 +31,73 @@ export interface SyncState {
  * MatrixService ↔ store é o SessionGate/bootstrap
  * (startSync(onEvent → applyEvent, onStatus → setStatus)).
  */
-export const useSyncStore = create<SyncState>()((set) => ({
-  status: "connecting",
-  guilds: [],
-  channelsByGuild: {},
-  timelineByChannel: {},
-
-  setGuilds: (list) => set({ guilds: [...list] }),
-
-  setChannels: (guildId, list) =>
-    set((state) => ({
-      channelsByGuild: { ...state.channelsByGuild, [guildId]: [...list] },
-    })),
-
-  setStatus: (status) => set({ status }),
-
+export const useSyncStore = create<SyncState>()((set) => {
   // Dedupe por eventId cobre os ecos do sync; placeholders pend-* nunca
-  // colidem com eventIds reais — são trocados via resolvePending (R2).
-  applyEvent: (e) =>
+  // colidem com eventIds reais — são trocados/removidos via resolvePending/
+  // removePending (R2). Corpo idêntico ao de addPendingEvent.
+  const appendEvent = (e: NormalizedEvent) =>
     set((state) => {
       const timeline = state.timelineByChannel[e.roomId] ?? [];
       if (timeline.some((m) => m.eventId === e.eventId)) return state;
       return {
         timelineByChannel: { ...state.timelineByChannel, [e.roomId]: [...timeline, e] },
       };
-    }),
+    });
 
-  addPendingEvent: (e) =>
-    set((state) => {
-      const timeline = state.timelineByChannel[e.roomId] ?? [];
-      if (timeline.some((m) => m.eventId === e.eventId)) return state;
-      return {
-        timelineByChannel: { ...state.timelineByChannel, [e.roomId]: [...timeline, e] },
-      };
-    }),
+  return {
+    status: "connecting",
+    guilds: [],
+    channelsByGuild: {},
+    timelineByChannel: {},
 
-  resolvePending: (localId, event) =>
-    set((state) => {
-      const timeline = state.timelineByChannel[event.roomId] ?? [];
-      const idx = timeline.findIndex((m) => m.eventId === localId);
-      const withoutPending = idx === -1 ? timeline : timeline.filter((_, i) => i !== idx);
-      const merged = withoutPending.some((m) => m.eventId === event.eventId)
-        ? withoutPending
-        : [...withoutPending, event];
-      return {
-        timelineByChannel: { ...state.timelineByChannel, [event.roomId]: merged },
-      };
-    }),
-}));
+    setGuilds: (list) => set({ guilds: [...list] }),
+
+    setChannels: (guildId, list) =>
+      set((state) => ({
+        channelsByGuild: { ...state.channelsByGuild, [guildId]: [...list] },
+      })),
+
+    setStatus: (status) => set({ status }),
+
+    addPendingEvent: appendEvent,
+
+    applyEvent: appendEvent,
+
+    resolvePending: (localId, event) =>
+      set((state) => {
+        const timeline = state.timelineByChannel[event.roomId] ?? [];
+        const idx = timeline.findIndex((m) => m.eventId === localId);
+        const withoutPending = idx === -1 ? timeline : timeline.filter((_, i) => i !== idx);
+        const merged = withoutPending.some((m) => m.eventId === event.eventId)
+          ? withoutPending
+          : [...withoutPending, event];
+        return {
+          timelineByChannel: { ...state.timelineByChannel, [event.roomId]: merged },
+        };
+      }),
+
+    removePending: (roomId, localId) =>
+      set((state) => {
+        const timeline = state.timelineByChannel[roomId];
+        if (!timeline || !timeline.some((m) => m.eventId === localId)) return state;
+        return {
+          timelineByChannel: {
+            ...state.timelineByChannel,
+            [roomId]: timeline.filter((m) => m.eventId !== localId),
+          },
+        };
+      }),
+  };
+});
 
 export const selectGuilds = (state: SyncState): GuildSummary[] => state.guilds;
 
 export const selectChannels =
   (guildId: string) =>
-  (state: SyncState): ChannelSummary[] =>
-    state.channelsByGuild[guildId] ?? [];
+  (state: SyncState): ChannelSummary[] | readonly never[] =>
+    emptyOr(state.channelsByGuild[guildId]);
 
 export const selectTimeline =
   (channelId: string) =>
-  (state: SyncState): NormalizedEvent[] =>
-    state.timelineByChannel[channelId] ?? [];
+  (state: SyncState): NormalizedEvent[] | readonly never[] =>
+    emptyOr(state.timelineByChannel[channelId]);

@@ -143,6 +143,17 @@ describe("syncStore", () => {
     expect(timeline.map((m) => m.eventId)).toEqual(["$ev-real"]);
   });
 
+  it("removePending apaga o placeholder e é no-op para id desconhecido", () => {
+    const { addPendingEvent, removePending } = useSyncStore.getState();
+    addPendingEvent(makeEvent({ eventId: "pending-1", roomId: "!room:hs.example" }));
+
+    removePending("!room:hs.example", "pending-inexistente");
+    expect(useSyncStore.getState().timelineByChannel["!room:hs.example"]).toHaveLength(1);
+
+    removePending("!room:hs.example", "pending-1");
+    expect(useSyncStore.getState().timelineByChannel["!room:hs.example"]).toHaveLength(0);
+  });
+
   it("seletores expõem guilds, canais e timeline", () => {
     const { setGuilds, setChannels, applyEvent } = useSyncStore.getState();
     setGuilds([makeGuild()]);
@@ -155,6 +166,21 @@ describe("syncStore", () => {
     expect(selectChannels("!inexistente:hs")(state)).toEqual([]);
     expect(selectTimeline("!chan:hs.example")(state)).toHaveLength(1);
     expect(selectTimeline("!inexistente:hs")(state)).toEqual([]);
+  });
+
+  it("seletores retornam snapshot vazio estável em miss (sem loop do useSyncExternalStore)", () => {
+    const state = useSyncStore.getState();
+
+    expect(selectChannels("!nope:hs")(state)).toBe(selectChannels("!nope:hs")(state));
+    expect(selectTimeline("!nope:hs")(state)).toBe(selectTimeline("!nope:hs")(state));
+  });
+
+  it("o snapshot vazio dos seletores é congelado (sem leak de mutação no estado)", () => {
+    const state = useSyncStore.getState();
+    const empty = selectChannels("!nope:hs")(state);
+
+    expect(Object.isFrozen(empty)).toBe(true);
+    expect(() => (empty as unknown as unknown[]).push({})).toThrow();
   });
 });
 
