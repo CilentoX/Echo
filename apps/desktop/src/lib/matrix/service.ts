@@ -44,21 +44,25 @@ export class MatrixService {
     this.clientFactory = clientFactory;
   }
 
-  /** Login with an SSO loginToken (m.login.token) and keep the client for later use. */
+  /** Login with an SSO loginToken (m.login.token); the returned Session is
+   *  also applied immediately, so the active client is credentialled. */
   async loginWithSsoToken(loginToken: string): Promise<Session> {
     const client = this.createClient({ baseUrl: this.baseUrl });
     const res = await client.loginRequest({ type: "m.login.token", token: loginToken });
     if (!res.access_token || !res.user_id) {
       throw new Error("matrix login failed: missing access_token or user_id");
     }
-    this.client = client;
-    return {
+    const session: Session = {
       baseUrl: this.baseUrl,
       accessToken: res.access_token,
       userId: res.user_id,
       deviceId: res.device_id ?? null,
       ...(res.refresh_token ? { refreshToken: res.refresh_token } : {}),
     };
+    // loginRequest is a raw POST /login and does not store credentials on the
+    // client instance; discard the anonymous client and create a credentialled one.
+    this.restoreSession(session);
+    return session;
   }
 
   /** Recreate a client from a persisted session (no request is made). */

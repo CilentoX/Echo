@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { createClient } from "matrix-js-sdk";
 import { MatrixService } from "./service";
 import {
   createFakeClient,
@@ -66,6 +67,44 @@ describe("MatrixService", () => {
       userId: "@nina:hs.example",
       deviceId: null,
     });
+  });
+
+  it("loginWithSsoToken troca o client anônimo por um client com credenciais", async () => {
+    const anonymous = createFakeClient();
+    anonymous.loginRequest.mockResolvedValueOnce({
+      access_token: "syt-at-3",
+      user_id: "@nina:hs.example",
+      device_id: "DEV123",
+    });
+    const created: Array<{ opts: Parameters<typeof createClient>[0]; client: FakeClient }> = [];
+    const service = new MatrixService(BASE_URL, (opts) => {
+      const client = created.length === 0 ? anonymous : createFakeClient();
+      created.push({ opts, client });
+      return client;
+    });
+
+    const session = await service.loginWithSsoToken("LT-3");
+
+    // 1º client: anônimo (só baseUrl); 2º client: criado com credenciais da sessão
+    expect(created).toHaveLength(2);
+    expect(created[0].opts).toEqual({ baseUrl: BASE_URL });
+    expect(created[1].opts).toEqual({
+      baseUrl: BASE_URL,
+      accessToken: "syt-at-3",
+      userId: "@nina:hs.example",
+      deviceId: "DEV123",
+    });
+    expect(session).toEqual({
+      baseUrl: BASE_URL,
+      accessToken: "syt-at-3",
+      userId: "@nina:hs.example",
+      deviceId: "DEV123",
+    });
+
+    // o client ativo pós-login é o NOVO (credenciado), não o anônimo
+    created[1].client.sendMessage.mockResolvedValueOnce({ event_id: "$sent-cred" });
+    await expect(service.sendMessage("!room:hs.example", "oi")).resolves.toBe("$sent-cred");
+    expect(anonymous.sendMessage).not.toHaveBeenCalled();
   });
 
   it("startSync usa os parâmetros do startClient e entrega evento m.room.message normalizado", () => {
