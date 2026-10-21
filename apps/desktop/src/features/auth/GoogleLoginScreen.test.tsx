@@ -60,7 +60,6 @@ describe("GoogleLoginScreen", () => {
   });
 
   it("sucesso → chama onSession com a Session e volta ao estado idle", async () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     mockedRunSsoLogin.mockResolvedValueOnce(SESSION);
     const onSession = vi.fn();
     render(<GoogleLoginScreen service={makeService()} onSession={onSession} />);
@@ -68,10 +67,7 @@ describe("GoogleLoginScreen", () => {
     await userEvent.click(screen.getByRole("button", { name: /Entrar com Google/ }));
 
     await waitFor(() => expect(onSession).toHaveBeenCalledWith(SESSION));
-    // LOG temporário do userId (validação manual da Task 6)
-    expect(logSpy).toHaveBeenCalledWith("[eco] Sessão iniciada: @nina:eco.litteris.online");
     expect(screen.getByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
-    logSpy.mockRestore();
   });
 
   it("rejeição → mensagem de erro PT-BR + 'Tentar de novo' refaz o fluxo", async () => {

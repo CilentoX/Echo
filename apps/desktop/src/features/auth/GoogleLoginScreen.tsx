@@ -43,8 +43,6 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
     setStatus("loading");
     try {
       const session = await runSsoLogin(activeService);
-      // LOG temporário do userId (validação manual — removido na Task de persistência)
-      console.log(`[eco] Sessão iniciada: ${session.userId}`);
       onSession?.(session);
       setStatus("idle");
     } catch {

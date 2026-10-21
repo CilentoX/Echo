@@ -1,7 +1,7 @@
-import AppShell from "@/features/shell/AppShell";
+import SessionGate from "@/features/auth/SessionGate";
 
 function App() {
-  return <AppShell />;
+  return <SessionGate />;
 }
 
 export default App;

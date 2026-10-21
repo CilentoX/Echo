@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod keyring_cmds;
 mod sso;
 
 #[tauri::command]
@@ -18,6 +19,24 @@ async fn finish_sso_listener(port: u16) -> Result<String, String> {
     sso::finish_sso_listener(port).await
 }
 
+/// Stores the session token in the OS keyring (service "eco", entry = userId).
+#[tauri::command]
+fn store_token(user_id: String, token: String) -> Result<(), String> {
+    keyring_cmds::store_token(&user_id, &token)
+}
+
+/// Loads the persisted session token, if any.
+#[tauri::command]
+fn load_token() -> Result<Option<keyring_cmds::StoredToken>, String> {
+    keyring_cmds::load_token()
+}
+
+/// Removes the persisted session token from the keyring (idempotent).
+#[tauri::command]
+fn clear_token() -> Result<(), String> {
+    keyring_cmds::clear_token()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -25,7 +44,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             begin_sso_listener,
-            finish_sso_listener
+            finish_sso_listener,
+            store_token,
+            load_token,
+            clear_token
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

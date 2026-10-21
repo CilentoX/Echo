@@ -1,16 +1,18 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/storage/keyring", () => ({
+  loadSession: vi.fn(async () => null),
+  saveSession: vi.fn(),
+  clearSession: vi.fn(),
+}));
+
 import App from "@/App";
 
 describe("App", () => {
-  it("renders the Eco heading", () => {
+  it("sem sessão salva, mostra a tela de login com o Eco", async () => {
     render(<App />);
+    expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
     expect(screen.getByText("Eco")).toBeTruthy();
-  });
-
-  it("renders the app shell layout", () => {
-    render(<App />);
-    expect(document.querySelector('[data-column="rail"]')).toBeTruthy();
-    expect(document.querySelector('[data-column="chat"]')).toBeTruthy();
   });
 });
