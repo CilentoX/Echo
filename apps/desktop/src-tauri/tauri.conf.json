@@ -14,7 +14,9 @@
       {
         "title": "Eco",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "minWidth": 700,
+        "minHeight": 500
       }
     ],
     "security": {
@@ -23,7 +25,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -31,5 +33,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://ecoapp.litteris.online/latest.json"],
+      "pubkey": "dVBVQktFWS1QTEFDRUhPTERFUi1SRVBMQUNFLUJFRk9SRS1SRUxFQVNFA=="
+    }
   }
 }

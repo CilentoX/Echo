@@ -1,5 +1,5 @@
 import { CircleNotch } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
 import AppShell from "@/features/shell/AppShell";
 import { matrixService } from "@/lib/matrix/instance";
@@ -7,6 +7,11 @@ import type { Session, SyncStatus } from "@/lib/matrix/types";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 
 type GateView = "booting" | "shell" | "login";
+
+export interface SessionGateProps {
+  /** Conteúdo renderizado no shell autenticado; omitido, renderiza <AppShell /> vazio. */
+  shell?: ReactNode;
+}
 
 const NOOP_ON_EVENT = () => {};
 
@@ -19,7 +24,7 @@ const NOOP_ON_EVENT = () => {};
  *   limpa do keyring e a tela de login volta (Review Focus 1).
  * - Login bem-sucedido → sessão persistida no keyring antes de entrar.
  */
-export default function SessionGate() {
+export default function SessionGate({ shell }: SessionGateProps) {
   const [view, setView] = useState<GateView>("booting");
   // false após o primeiro sync confirmado; erros antes disso significam
   // credenciais restauradas rejeitadas pelo Synapse.
@@ -101,5 +106,5 @@ export default function SessionGate() {
     return <GoogleLoginScreen service={matrixService} onSession={handleSession} />;
   }
 
-  return <AppShell />;
+  return shell ?? <AppShell />;
 }
