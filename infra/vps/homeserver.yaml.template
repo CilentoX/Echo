@@ -30,7 +30,7 @@ listeners:
       - names:
           - client
 
-# PostgreSQL (container "postgres" on eco_net). Password from .env via envsubst.
+# PostgreSQL (container "eco-postgres" on eco_net). Password from .env via envsubst.
 database:
   name: psycopg2
   args:
