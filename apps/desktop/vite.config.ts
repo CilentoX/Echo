@@ -41,5 +41,7 @@ export default defineConfig(() => ({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // Process the Tailwind entry so tests can assert generated utilities
+    css: { include: [/styles\.css$/] },
   },
 }));

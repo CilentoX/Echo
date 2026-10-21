@@ -1,0 +1,39 @@
+/*
+ * Eco design tokens — dark-first semantic palette.
+ * Single source of truth for colors and fonts.
+ *
+ * `@theme inline` is used because every value references another CSS
+ * variable: Tailwind inlines `var(--bg)` (etc.) directly into the
+ * generated utilities, so overriding a token at runtime still works.
+ */
+
+:root {
+  --bg: #0D1017;
+  --rail: #12151C;
+  --surf: #171B24;
+  --surf2: #1D222D;
+  --bd: #2A3546;
+  --txt: #E9EDF2;
+  --mut: #97A2B0;
+  --acc: #14B8A6;
+  --acc-press: #0D9488;
+  --online: #34D399;
+  --err: #F87171;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-rail: var(--rail);
+  --color-surf: var(--surf);
+  --color-surf2: var(--surf2);
+  --color-bd: var(--bd);
+  --color-txt: var(--txt);
+  --color-mut: var(--mut);
+  --color-acc: var(--acc);
+  --color-acc-press: var(--acc-press);
+  --color-online: var(--online);
+  --color-err: var(--err);
+
+  --font-display: "Space Grotesk", sans-serif;
+  --font-ui: "Inter", sans-serif;
+}
