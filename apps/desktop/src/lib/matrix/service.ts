@@ -7,6 +7,7 @@ import type {
   RoomLike,
   SendEventResponseLike,
   Session,
+  SyncErrorInfo,
   SyncStatus,
   TimelineEventLike,
 } from "./types";
@@ -87,12 +88,20 @@ export class MatrixService {
       : client.getSsoLoginUrl(redirectUrl);
   }
 
-  startSync(onEvent: (e: NormalizedEvent) => void, onStatus: (s: SyncStatus) => void): void {
+  startSync(
+    onEvent: (e: NormalizedEvent) => void,
+    onStatus: (s: SyncStatus, error?: SyncErrorInfo) => void,
+  ): void {
     const client = this.requireClient();
 
     this.syncListener = (...args: unknown[]) => {
       const status = SYNC_STATE_STATUS[args[0] as string];
-      if (status) onStatus(status);
+      if (!status) return;
+      // O SDK entrega (state, prevState, data) no evento "sync"; em ERROR,
+      // data.error.errcode identifica falha de auth vs. rede.
+      const error = extractSyncError(args[2]);
+      if (error) onStatus(status, error);
+      else onStatus(status);
     };
     this.timelineListener = (...args: unknown[]) => {
       const normalized = normalizeTimelineEvent(args[0] as TimelineEventLike);
@@ -183,6 +192,21 @@ function stateEventName(room: RoomLike, eventType: string): string | null {
   const ev = room.currentState.getStateEvents(eventType)[0];
   const name = ev?.getContent().name;
   return typeof name === "string" && name.length > 0 ? name : null;
+}
+
+/**
+ * Extrai o errcode do payload do evento "sync" em estado ERROR.
+ * Formato do SDK: `data.error.errcode` (fallback: `data.errcode`).
+ * undefined quando não há erro identificável (ex.: ERROR sem data).
+ */
+function extractSyncError(data: unknown): SyncErrorInfo | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const container = data as { error?: unknown; errcode?: unknown };
+  const err =
+    container.error && typeof container.error === "object"
+      ? (container.error as { errcode?: unknown }).errcode
+      : container.errcode;
+  return typeof err === "string" ? { errcode: err } : undefined;
 }
 
 function normalizeTimelineEvent(event: TimelineEventLike): NormalizedEvent | null {

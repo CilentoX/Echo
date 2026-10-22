@@ -1,19 +1,16 @@
 import { X } from "@phosphor-icons/react";
 
-/** Static placeholder members — real Matrix presence arrives in Tasks 8-9. */
-const MEMBERS = [
-  { id: "lucas", name: "Lucas", online: true },
-  { id: "maria", name: "Maria", online: true },
-  { id: "joao", name: "João", online: false },
-];
-
 export interface MemberListProps {
   /** `overlay` floats above the chat below 1150px; `static` is the docked column. */
   variant?: "static" | "overlay";
   onClose?: () => void;
 }
 
-/** Member list: the rightmost 224px column. */
+/**
+ * Member list: the rightmost 224px column.
+ * Fase 1: vazia até o sync carregar os membros reais (presença/directory
+ * chegam na Fase 2) — sem membros falsos hardcodados.
+ */
 export default function MemberList({
   variant = "static",
   onClose,
@@ -31,9 +28,7 @@ export default function MemberList({
       }`}
     >
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-bd px-4">
-        <h2 className="font-display text-sm font-semibold text-txt">
-          Membros — {MEMBERS.length}
-        </h2>
+        <h2 className="font-display text-sm font-semibold text-txt">Membros</h2>
         {overlay && (
           <button
             type="button"
@@ -47,22 +42,9 @@ export default function MemberList({
       </header>
 
       <ul className="flex-1 overflow-y-auto px-2 py-3">
-        {MEMBERS.map((member) => (
-          <li
-            key={member.id}
-            className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-surf2"
-          >
-            <span
-              aria-hidden="true"
-              className={`h-2 w-2 shrink-0 rounded-full ${
-                member.online ? "bg-online" : "bg-mut"
-              }`}
-            />
-            <span className={member.online ? "text-txt" : "text-mut"}>
-              {member.name}
-            </span>
-          </li>
-        ))}
+        <li className="px-2 py-1.5 text-xs text-mut">
+          Os membros aparecem aqui quando o canal carrega.
+        </li>
       </ul>
     </aside>
   );

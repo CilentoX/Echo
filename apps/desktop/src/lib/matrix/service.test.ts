@@ -167,6 +167,32 @@ describe("MatrixService", () => {
     expect(onStatus).toHaveBeenCalledWith("error");
   });
 
+  it("ERROR com M_UNKNOWN_TOKEN no data entrega o errcode ao onStatus", () => {
+    const fake = createFakeClient();
+    const service = makeService(fake);
+    service.restoreSession(makeSession());
+
+    const onStatus = vi.fn();
+    service.startSync(vi.fn(), onStatus);
+
+    fake.emit("sync", "ERROR", null, { error: { errcode: "M_UNKNOWN_TOKEN" } });
+
+    expect(onStatus).toHaveBeenCalledWith("error", { errcode: "M_UNKNOWN_TOKEN" });
+  });
+
+  it("ERROR com errcode direto no data também é extraído", () => {
+    const fake = createFakeClient();
+    const service = makeService(fake);
+    service.restoreSession(makeSession());
+
+    const onStatus = vi.fn();
+    service.startSync(vi.fn(), onStatus);
+
+    fake.emit("sync", "ERROR", null, { errcode: "M_UNKNOWN_TOKEN" });
+
+    expect(onStatus).toHaveBeenCalledWith("error", { errcode: "M_UNKNOWN_TOKEN" });
+  });
+
   it("client.on('sync') com PREPARED reporta onStatus('syncing')", () => {
     const fake = createFakeClient();
     const service = makeService(fake);

@@ -36,6 +36,16 @@ export interface ChannelSummary {
 export type SyncStatus = "connecting" | "syncing" | "error";
 
 /**
+ * Dados do erro de sync (evento "sync" com estado ERROR do SDK).
+ * `errcode` permite distinguir falha de autenticação (ex.: M_UNKNOWN_TOKEN,
+ * token revogado → limpar a sessão) de erro de rede (manter a sessão e
+ * reconectar). Presente só quando o SDK entrega o erro.
+ */
+export interface SyncErrorInfo {
+  errcode: string;
+}
+
+/**
  * Structural subset of matrix-js-sdk's MatrixClient that MatrixService uses.
  * Lets tests inject a fake client without loading the real SDK.
  */

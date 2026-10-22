@@ -2,6 +2,8 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import AppShell from "@/features/shell/AppShell";
+import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 
 /** Column lookup helper for the `data-column` layout contract. */
 const column = (name: string): Element | null =>
@@ -22,6 +24,8 @@ const setWidth = (width: number) => {
 
 afterEach(() => {
   setWidth(1024); // jsdom default
+  useSyncStore.getState().reset();
+  useUiStore.setState({ myUserId: null, activeGuildId: null, activeChannelId: null });
 });
 
 describe("AppShell", () => {
@@ -38,12 +42,27 @@ describe("AppShell", () => {
     expect(screen.queryByRole("button", { name: "Membros" })).toBeNull();
   });
 
-  it("renders placeholder chat content", () => {
+  it("header do chat mostra o nome do canal ativo (nada hardcodado)", () => {
+    setWidth(1200);
+    useSyncStore.setState({
+      channelsByGuild: {
+        "!space:hs": [{ channelId: "!chan:hs", name: "geral", unreadCount: 0 }],
+      },
+    });
+    useUiStore.getState().setActiveChannel("!chan:hs");
+    render(<AppShell />);
+
+    expect(screen.getByText("#geral")).toBeTruthy();
+    // Sem dados reais, nenhum conteúdo falso de scaffold aparece.
+    expect(screen.queryByText("Bem-vinda, galera!")).toBeNull();
+    expect(screen.getByText("Os membros aparecem aqui quando o canal carrega.")).toBeTruthy();
+  });
+
+  it("sem canal ativo o header do chat fica vazio (sem canal fake)", () => {
     setWidth(1200);
     render(<AppShell />);
 
-    expect(screen.getByText("# geral")).toBeTruthy();
-    expect(screen.getByText("Bem-vinda, galera!")).toBeTruthy();
+    expect(screen.queryByText("#geral")).toBeNull();
   });
 
   it("hides the member list and shows a members toggle at 1000px", () => {

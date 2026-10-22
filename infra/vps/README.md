@@ -106,11 +106,14 @@ only way in until invite-token registration ships (later phase).
 4. Uncomment the `oidc_providers` block in `homeserver.yaml.template`
    (no `localpart_template`: users pick their own username on first login,
    with a confirmation screen via `confirm_localpart: true`).
-5. Re-render and restart (same render + chown as step 3):
+5. Re-render and restart (render to `/tmp` first — the live file is owned by
+   991 with mode 600 and cannot be overwritten in place, then move + re-secure):
 
 ```bash
 set -a; source .env; set +a
-envsubst < homeserver.yaml.template > synapse/homeserver.yaml
+envsubst < homeserver.yaml.template > /tmp/homeserver.yaml
+sudo mv /tmp/homeserver.yaml synapse/homeserver.yaml
+sudo chmod 600 synapse/homeserver.yaml
 sudo chown 991:991 synapse/homeserver.yaml
 docker compose restart synapse
 ```
@@ -124,8 +127,10 @@ docker compose restart synapse
   - `eco_synapse_data` → `/data` in the Synapse container (config dir, media
     store, signing key).
   - `eco_pgdata` → Postgres data.
-- **Config changes**: edit `homeserver.yaml.template`, re-render (step 3, including
-  the `chown 991:991`), `docker compose restart synapse`.
+- **Config changes**: edit `homeserver.yaml.template`, re-render (use the
+  `/tmp` + `sudo mv` procedure from step 7 — the rendered file is owned by
+  991:991 with mode 600 and envsubst cannot overwrite it in place),
+  `docker compose restart synapse`.
 - **Label changes**: compose label changes (e.g. the Traefik
   `X-Forwarded-Proto=https` middleware on the `eco` router) require
   `docker compose up -d` to recreate the container — `docker compose restart`

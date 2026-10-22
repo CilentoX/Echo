@@ -55,12 +55,26 @@ export default function ChatPane({
     return null;
   }, [channelsByGuild, activeChannelId]);
 
-  // Acompanha o fim da timeline quando novas mensagens chegam.
+  // Acompanha o fim da timeline apenas quando o usuário está no fim;
+  // rolando para cima (lendo histórico), novas mensagens não roubam a posição.
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const atBottomRef = useRef(true);
+  const lastChannelRef = useRef<string | null>(activeChannelId);
+  if (lastChannelRef.current !== activeChannelId) {
+    lastChannelRef.current = activeChannelId;
+    atBottomRef.current = true; // troca de canal volta a acompanhar o fim
+  }
+
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [timeline.length]);
+    if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
+  }, [timeline.length, activeChannelId]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  };
 
   const toggleReaction = (eventId: string, emoji: string) => {
     setMine((prev) => {
@@ -115,7 +129,7 @@ export default function ChatPane({
       aria-label="Mensagens"
       className="flex min-w-0 flex-1 flex-col bg-bg font-ui"
     >
-      <div ref={scrollRef} className="flex-1 overflow-y-auto py-4">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-4">
         {timeline.length === 0 && (
           <p className="px-4 text-sm text-mut">Nenhuma mensagem ainda. Diga olá!</p>
         )}

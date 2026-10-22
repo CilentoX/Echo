@@ -1,9 +1,11 @@
 import { CircleNotch } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
 import AppShell from "@/features/shell/AppShell";
 import { matrixService } from "@/lib/matrix/instance";
-import type { Session, SyncStatus } from "@/lib/matrix/types";
+import type { Session } from "@/lib/matrix/types";
+import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
+import { useUiStore } from "@/stores/uiStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 
 type GateView = "booting" | "shell" | "login";
@@ -13,50 +15,36 @@ export interface SessionGateProps {
   shell?: ReactNode;
 }
 
-const NOOP_ON_EVENT = () => {};
-
 /**
  * Portão de boot: decide entre splash, tela de login e AppShell.
  *
  * - Boot sem sessão salva → tela de login.
- * - Boot com sessão salva → restoreSession + startSync; se o Synapse
- *   rejeitar (erro no restore/sync antes do primeiro sync), a sessão é
- *   limpa do keyring e a tela de login volta (Review Focus 1).
- * - Login bem-sucedido → sessão persistida no keyring antes de entrar.
+ * - Boot com sessão salva → restoreSession + startSyncWiring. Erro de sync
+ *   antes do primeiro sync só limpa o keyring quando é falha de
+ *   autenticação (M_UNKNOWN_TOKEN/M_MISSING_TOKEN); erro de rede mantém a
+ *   sessão — o SDK reconecta sozinho e o indicador mostra "Reconectando…"
+ *   (a decisão auth vs. rede é do wiring).
+ * - Login bem-sucedido → sessão persistida no keyring antes de entrar;
+ *   loginWithSsoToken já deixou o client credentialled ativo, então
+ *   enterShell não restaura a sessão de novo.
  */
 export default function SessionGate({ shell }: SessionGateProps) {
   const [view, setView] = useState<GateView>("booting");
-  // false após o primeiro sync confirmado; erros antes disso significam
-  // credenciais restauradas rejeitadas pelo Synapse.
-  const syncedRef = useRef(false);
 
   const rejectSession = useCallback(async () => {
-    matrixService.stopSync();
+    stopSyncWiring();
     await clearSession().catch(() => {});
     setView("login");
   }, []);
 
-  const handleStatus = useCallback(
-    (status: SyncStatus) => {
-      if (status === "syncing") {
-        syncedRef.current = true;
-        return;
-      }
-      if (status === "error" && !syncedRef.current) {
-        void rejectSession();
-      }
-    },
-    [rejectSession],
-  );
-
   const enterShell = useCallback(
-    (session: Session) => {
-      matrixService.restoreSession(session);
-      syncedRef.current = false;
-      matrixService.startSync(NOOP_ON_EVENT, handleStatus);
+    (session: Session, clientActive = false) => {
+      if (!clientActive) matrixService.restoreSession(session);
+      useUiStore.getState().setMyUserId(session.userId);
+      startSyncWiring(rejectSession);
       setView("shell");
     },
-    [handleStatus],
+    [rejectSession],
   );
 
   const handleSession = useCallback(
@@ -64,7 +52,9 @@ export default function SessionGate({ shell }: SessionGateProps) {
       void (async () => {
         try {
           await saveSession(session);
-          enterShell(session);
+          // O client credentialled já está ativo (loginWithSsoToken aplica
+          // a sessão) — restaurar de novo criaria um segundo client.
+          enterShell(session, true);
         } catch {
           await rejectSession();
         }

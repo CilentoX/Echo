@@ -4,6 +4,7 @@ import CommunityRail from "./CommunityRail";
 import ChannelSidebar from "./ChannelSidebar";
 import ChatPane from "./ChatPane";
 import MemberList from "./MemberList";
+import SyncStatusIndicator from "./SyncStatusIndicator";
 
 export interface AppShellProps {
   /** Chat area content; placeholder messages are shown when omitted. */
@@ -64,6 +65,8 @@ export default function AppShell({ children }: AppShellProps) {
           <MemberList variant="overlay" onClose={() => setMembersOpen(false)} />
         )
       )}
+
+      <SyncStatusIndicator />
     </div>
   );
 }

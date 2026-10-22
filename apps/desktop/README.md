@@ -26,10 +26,10 @@ a atualização entra em vigor no próximo restart.
 
 - Endpoint publicado: `https://ecoapp.litteris.online/latest.json`
   (configurado em `src-tauri/tauri.conf.json` → `plugins.updater.endpoints`).
-- Comando Rust `check_updates` expõe `{ update_available, current_version,
-  latest_version }` usando `tauri-plugin-updater`.
-- Frontend: `src/lib/updater.ts` (`checkForUpdate`, `downloadAndInstall`,
-  `runStartupUpdateCheck`).
+- Caminho único: `src/lib/updater.ts` (`runStartupUpdateCheck` →
+  `downloadAndInstall`) usa `tauri-plugin-updater`, que consulta o endpoint,
+  compara versões e instala — sem fetch manual do `latest.json` no frontend
+  (o fetch duplo foi removido na revisão da Fase 1).
 
 ### Checklist de release (passos manuais)
 
@@ -76,6 +76,14 @@ a atualização entra em vigor no próximo restart.
      }
    }
    ```
+
+5. **CSP** (configurada desde a revisão da Fase 1, em
+   `src-tauri/tauri.conf.json` → `app.security.csp`):
+   `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+   img-src 'self' data: blob: https:; font-src 'self' data:;
+   connect-src 'self' https://eco.litteris.online ipc: http://ipc.localhost`.
+   Ao adicionar novos domínios de API/mídia (ex.: proxy de mídia Matrix da
+   Fase 2), atualize `connect-src`/`img-src` — nunca reabra `default-src`.
 
 > Sem a chave privada real e o `createUpdaterArtifacts`, o build de
 > desenvolvimento funciona normalmente; apenas a instalação de updates

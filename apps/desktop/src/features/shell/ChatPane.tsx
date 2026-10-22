@@ -1,24 +1,7 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { List, Users } from "@phosphor-icons/react";
-
-/** Static placeholder messages — real Matrix timelines arrive in Tasks 8-9. */
-const PLACEHOLDER_MESSAGES = [
-  {
-    id: "maria",
-    author: "Maria",
-    body: "Bem-vinda, galera!",
-  },
-  {
-    id: "lucas",
-    author: "Lucas",
-    body: "Fase 1: fundação do shell pronta.",
-  },
-  {
-    id: "joao",
-    author: "João",
-    body: "Adorei o tema escuro.",
-  },
-];
+import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface ChatPaneProps {
   children?: ReactNode;
@@ -30,7 +13,7 @@ export interface ChatPaneProps {
   onToggleMembers?: () => void;
 }
 
-/** Chat area: the flexible middle column. */
+/** Chat area: the flexible middle column. Header shows the active channel. */
 export default function ChatPane({
   children,
   showSidebarToggle,
@@ -38,6 +21,20 @@ export default function ChatPane({
   onToggleSidebar,
   onToggleMembers,
 }: ChatPaneProps) {
+  const activeChannelId = useUiStore((s) => s.activeChannelId);
+  const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
+
+  // Sem canal ativo (ou canal ainda não sincronizado) o header fica vazio —
+  // nada de canal falso hardcodado.
+  const channelName = useMemo(() => {
+    if (!activeChannelId) return null;
+    for (const channels of Object.values(channelsByGuild)) {
+      const found = channels.find((c) => c.channelId === activeChannelId);
+      if (found) return found.name;
+    }
+    return null;
+  }, [channelsByGuild, activeChannelId]);
+
   return (
     <main
       data-column="chat"
@@ -54,9 +51,11 @@ export default function ChatPane({
             <List size={20} />
           </button>
         )}
-        <h2 className="font-display text-sm font-semibold text-txt">
-          # geral
-        </h2>
+        {channelName && (
+          <h2 className="font-display text-sm font-semibold text-txt">
+            #{channelName}
+          </h2>
+        )}
         <div className="flex-1" />
         {showMembersToggle && (
           <button
@@ -70,15 +69,7 @@ export default function ChatPane({
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {children ??
-          PLACEHOLDER_MESSAGES.map((message) => (
-            <div key={message.id} className="mb-3">
-              <p className="text-sm font-semibold text-acc">{message.author}</p>
-              <p className="text-sm text-txt">{message.body}</p>
-            </div>
-          ))}
-      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
     </main>
   );
 }

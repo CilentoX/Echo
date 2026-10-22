@@ -12,6 +12,8 @@ vi.mock("@/lib/matrix/instance", () => ({
     restoreSession: vi.fn(),
     startSync: vi.fn(),
     stopSync: vi.fn(),
+    listGuilds: vi.fn(async () => []),
+    listChannels: vi.fn(async () => []),
   },
 }));
 vi.mock("@/lib/matrix/sso", () => ({
@@ -22,7 +24,9 @@ vi.mock("@/lib/matrix/sso", () => ({
 import { matrixService } from "@/lib/matrix/instance";
 import { runSsoLogin } from "@/lib/matrix/sso";
 import type { Session, SyncStatus } from "@/lib/matrix/types";
+import { stopSyncWiring } from "@/lib/matrix/wiring";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
+import { useUiStore } from "@/stores/uiStore";
 import SessionGate from "./SessionGate";
 
 const mockedLoadSession = vi.mocked(loadSession);
@@ -40,13 +44,13 @@ const SESSION: Session = {
   deviceId: null,
 };
 
-/** Captura o callback de status passado ao startSync. */
-function captureStatusCallback(): (status: SyncStatus) => void {
-  let onStatus: ((status: SyncStatus) => void) | undefined;
+/** Captura o callback de status passado ao startSync (com dados de erro opcionais). */
+function captureStatusCallback(): (status: SyncStatus, error?: { errcode: string }) => void {
+  let onStatus: ((status: SyncStatus, error?: { errcode: string }) => void) | undefined;
   mockedStartSync.mockImplementation((_onEvent, callback) => {
     onStatus = callback;
   });
-  return (status) => onStatus?.(status);
+  return (status, error) => onStatus?.(status, error);
 }
 
 beforeEach(() => {
@@ -57,6 +61,11 @@ beforeEach(() => {
   mockedSaveSession.mockResolvedValue(undefined);
   mockedClearSession.mockResolvedValue(undefined);
   mockedStopSync.mockReturnValue(undefined);
+  // Desliga o wiring da sessão anterior (flags internas + stores).
+  stopSyncWiring();
+  // As asserções sobre stopSync valem para o corpo do teste, não para o reset acima.
+  mockedStopSync.mockClear();
+  useUiStore.setState({ myUserId: null, activeGuildId: null, activeChannelId: null });
 });
 
 describe("SessionGate", () => {
@@ -81,6 +90,8 @@ describe("SessionGate", () => {
     expect(mockedRestore).toHaveBeenCalledWith(SESSION);
     expect(mockedStartSync).toHaveBeenCalledTimes(1);
     expect(mockedRunSsoLogin).not.toHaveBeenCalled();
+    // Sessão registrada no uiStore (sender das mensagens otimistas).
+    expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
   });
 
   it("sessão rejeitada pelo Synapse (erro no restore) → login com clearSession", async () => {
@@ -96,14 +107,30 @@ describe("SessionGate", () => {
     expect(mockedStartSync).not.toHaveBeenCalled();
   });
 
-  it("sync inicial rejeitado (status error antes do primeiro syncing) → login com clearSession", async () => {
+  it("erro de rede no sync antes do primeiro syncing → mantém a sessão (sem logout)", async () => {
     mockedLoadSession.mockResolvedValueOnce(SESSION);
-    mockedStartSync.mockImplementation((_onEvent, onStatus) => {
-      onStatus("connecting");
-      onStatus("error");
-    });
+    const emitStatus = captureStatusCallback();
 
     render(<SessionGate />);
+    await waitFor(() => expect(mockedStartSync).toHaveBeenCalledTimes(1));
+
+    emitStatus("error", { errcode: "network" });
+
+    // Sessão válida preservada; o indicador mostra Reconectando… e o SDK
+    // reconecta sozinho.
+    expect(await screen.findByText("Reconectando…")).toBeTruthy();
+    expect(mockedClearSession).not.toHaveBeenCalled();
+    expect(mockedStopSync).not.toHaveBeenCalled();
+  });
+
+  it("M_UNKNOWN_TOKEN antes do primeiro syncing → login com clearSession", async () => {
+    mockedLoadSession.mockResolvedValueOnce(SESSION);
+    const emitStatus = captureStatusCallback();
+
+    render(<SessionGate />);
+    await waitFor(() => expect(mockedStartSync).toHaveBeenCalledTimes(1));
+
+    emitStatus("error", { errcode: "M_UNKNOWN_TOKEN" });
 
     expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
     await waitFor(() => expect(mockedClearSession).toHaveBeenCalledTimes(1));
@@ -122,7 +149,7 @@ describe("SessionGate", () => {
     expect(mockedClearSession).not.toHaveBeenCalled();
   });
 
-  it("login bem-sucedido → saveSession + AppShell", async () => {
+  it("login bem-sucedido → saveSession + AppShell, sem restaurar a sessão de novo", async () => {
     mockedRunSsoLogin.mockResolvedValueOnce(SESSION);
 
     render(<SessionGate />);
@@ -132,8 +159,11 @@ describe("SessionGate", () => {
     await waitFor(() => {
       expect(document.querySelector('[data-column="rail"]')).toBeTruthy();
     });
-    expect(mockedRestore).toHaveBeenCalledWith(SESSION);
+    // loginWithSsoToken já deixou o client ativo — enterShell NÃO cria um
+    // segundo client com restoreSession (twin do duplo startSync).
+    expect(mockedRestore).not.toHaveBeenCalled();
     expect(mockedStartSync).toHaveBeenCalledTimes(1);
+    expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
   });
 
   it("falha ao salvar a sessão após o login → volta ao login com clearSession", async () => {

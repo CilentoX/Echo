@@ -10,6 +10,8 @@ export interface SyncState {
   setChannels(guildId: string, list: ChannelSummary[]): void;
   applyEvent(e: NormalizedEvent): void;
   setStatus(s: SyncStatus): void;
+  /** Volta ao estado inicial (logout/troca de conta; usado pelo wiring). */
+  reset(): void;
   /** Anexa placeholder otimista (id local `pending-*`) na timeline. */
   addPendingEvent(e: NormalizedEvent): void;
   /** Troca o placeholder `localId` pelo evento real quando sendMessage resolve (R2). */
@@ -58,6 +60,9 @@ export const useSyncStore = create<SyncState>()((set) => {
       })),
 
     setStatus: (status) => set({ status }),
+
+    reset: () =>
+      set({ status: "connecting", guilds: [], channelsByGuild: {}, timelineByChannel: {} }),
 
     addPendingEvent: appendEvent,
 
