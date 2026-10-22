@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ECO_HOMESERVER_URL } from "@/lib/matrix/sso";
+import { ECHO_HOMESERVER_URL } from "@/lib/matrix/sso";
 import type { Session } from "@/lib/matrix/types";
 
 /**
@@ -21,7 +21,7 @@ export async function loadSession(): Promise<Session | null> {
   const stored = await invoke<{ userId: string; token: string } | null>("load_token");
   if (!stored) return null;
   return {
-    baseUrl: ECO_HOMESERVER_URL,
+    baseUrl: ECHO_HOMESERVER_URL,
     accessToken: stored.token,
     userId: stored.userId,
     deviceId: null,

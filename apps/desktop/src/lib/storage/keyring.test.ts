@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-// sso.ts (fonte do ECO_HOMESERVER_URL) importa o plugin-opener em módulo.
+// sso.ts (fonte do ECHO_HOMESERVER_URL) importa o plugin-opener em módulo.
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { ECO_HOMESERVER_URL } from "@/lib/matrix/sso";
+import { ECHO_HOMESERVER_URL } from "@/lib/matrix/sso";
 import type { Session } from "@/lib/matrix/types";
 import { clearSession, loadSession, saveSession } from "./keyring";
 
 const mockedInvoke = vi.mocked(invoke);
 
 const SESSION: Session = {
-  baseUrl: ECO_HOMESERVER_URL,
+  baseUrl: ECHO_HOMESERVER_URL,
   accessToken: "syt-at-1",
-  userId: "@nina:eco.litteris.online",
+  userId: "@nina:echo.litteris.online",
   deviceId: "DEV123",
 };
 
@@ -44,7 +44,7 @@ describe("keyring storage", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("load_token");
     expect(session).toEqual({
-      baseUrl: ECO_HOMESERVER_URL,
+      baseUrl: ECHO_HOMESERVER_URL,
       accessToken: SESSION.accessToken,
       userId: SESSION.userId,
       deviceId: null,

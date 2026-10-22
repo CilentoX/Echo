@@ -18,7 +18,7 @@ vi.mock("@/lib/matrix/instance", () => ({
 }));
 vi.mock("@/lib/matrix/sso", () => ({
   runSsoLogin: vi.fn(),
-  ECO_HOMESERVER_URL: "https://eco.litteris.online",
+  ECHO_HOMESERVER_URL: "https://echo.litteris.online",
 }));
 
 import { matrixService } from "@/lib/matrix/instance";
@@ -38,9 +38,9 @@ const mockedStartSync = vi.mocked(matrixService.startSync);
 const mockedStopSync = vi.mocked(matrixService.stopSync);
 
 const SESSION: Session = {
-  baseUrl: "https://eco.litteris.online",
+  baseUrl: "https://echo.litteris.online",
   accessToken: "syt-at-1",
-  userId: "@nina:eco.litteris.online",
+  userId: "@nina:echo.litteris.online",
   deviceId: null,
 };
 

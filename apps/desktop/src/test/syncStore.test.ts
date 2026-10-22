@@ -17,7 +17,7 @@ function makeEvent(overrides: Partial<NormalizedEvent> = {}): NormalizedEvent {
 function makeGuild(overrides: Partial<GuildSummary> = {}): GuildSummary {
   return {
     guildId: "!space:hs.example",
-    name: "Eco Guild",
+    name: "Echo Guild",
     avatarUrl: null,
     unreadCount: 0,
     ...overrides,

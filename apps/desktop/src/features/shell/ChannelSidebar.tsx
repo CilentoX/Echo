@@ -59,7 +59,7 @@ export default function ChannelSidebar({
       <header className="flex items-center justify-between border-b border-bd px-4 py-3 group">
         <div className="flex items-center gap-2">
           <h1 className="truncate font-display text-base font-semibold text-txt">
-            {activeGuild ? activeGuild.name : "Eco"}
+            {activeGuild ? activeGuild.name : "Echo"}
           </h1>
           {activeGuild && (
             <button
@@ -67,7 +67,7 @@ export default function ChannelSidebar({
               aria-label="Editar guilda"
               title="Editar guilda"
               onClick={() => setEditGuildOpen(true)}
-              className="flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors"
+              className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
             >
               <Pencil size={14} weight="bold" aria-hidden />
             </button>
@@ -78,7 +78,7 @@ export default function ChannelSidebar({
             type="button"
             aria-label="Fechar canais"
             onClick={onClose}
-            className="flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
+            className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
           >
             <X size={18} />
           </button>
@@ -89,7 +89,7 @@ export default function ChannelSidebar({
             aria-label="Criar canal"
             title="Criar canal"
             onClick={() => setCreateChannelOpen(true)}
-            className="flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors"
+            className="cursor-pointer flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
           >
             <Plus size={16} weight="bold" aria-hidden />
           </button>
@@ -127,7 +127,7 @@ export default function ChannelSidebar({
                         type="button"
                         aria-current={active ? "true" : undefined}
                         onClick={() => setActiveChannel(channel.channelId)}
-                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-all duration-200 ${
+                        className={`cursor-pointer flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-all duration-200 ${
                           active
                             ? "bg-surf2 text-txt"
                             : "text-mut hover:bg-surf2 hover:text-txt"

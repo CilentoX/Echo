@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Fundo opaco #0F1114 -->
+  <rect width="1024" height="1024" fill="#0F1114" />
+
+  <!-- Símbolo Echo: E abstrato com 3 faixas geométricas #14B8A6 -->
+  <!-- Barra superior -->
+  <rect x="230" y="230" width="564" height="154" rx="77" fill="#14B8A6" />
+  <!-- Barra média -->
+  <rect x="230" y="435" width="423" height="154" rx="77" fill="#14B8A6" />
+  <!-- Barra inferior -->
+  <rect x="230" y="640" width="564" height="154" rx="77" fill="#14B8A6" />
+</svg>

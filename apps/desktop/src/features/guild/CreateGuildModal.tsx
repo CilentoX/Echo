@@ -56,7 +56,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
             type="button"
             aria-label="Fechar"
             onClick={onClose}
-            className="rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
+            className="cursor-pointer rounded p-1 text-mut hover:bg-surf2 hover:text-txt active:scale-95"
           >
             <X size={18} />
           </button>
@@ -90,7 +90,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           type="button"
           onClick={() => void handleSubmit()}
           disabled={loading}
-          className="mt-5 w-full rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer mt-5 w-full rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Criando…" : "Criar guilda"}
         </button>

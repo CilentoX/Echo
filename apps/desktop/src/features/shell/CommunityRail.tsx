@@ -50,7 +50,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
               aria-label={guild.name}
               aria-current={active ? "true" : undefined}
               onClick={() => setActiveGuild(guild.guildId)}
-              className={`flex h-12 w-12 items-center justify-center rounded-full font-display text-sm transition-colors ${
+              className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full font-display text-sm transition-colors ${
                 active
                   ? "bg-acc text-bg"
                   : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
@@ -76,7 +76,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
         aria-label="Criar guilda"
         title="Criar guilda"
         onClick={() => setCreateOpen(true)}
-        className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-bd text-mut transition-colors hover:border-acc hover:text-acc"
+        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-bd text-mut transition-colors hover:border-acc hover:text-acc active:scale-95"
       >
         <Plus size={20} weight="bold" />
       </button>
@@ -89,7 +89,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
           type="button"
           aria-label="Perfil"
           onClick={onOpenProfile}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors"
+          className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors active:scale-95"
         >
           <User size={16} weight="bold" />
         </button>
@@ -97,7 +97,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
           type="button"
           aria-label="Configurações"
           onClick={onOpenSettings}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors"
+          className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors active:scale-95"
         >
           <Gear size={16} weight="bold" />
         </button>

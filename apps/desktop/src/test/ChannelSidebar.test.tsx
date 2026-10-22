@@ -8,7 +8,7 @@ import { useUiStore } from "@/stores/uiStore";
 
 const GUILD: GuildSummary = {
   guildId: "!g1:hs",
-  name: "Eco Guild",
+  name: "Echo Guild",
   avatarUrl: null,
   unreadCount: 0,
 };
@@ -54,7 +54,7 @@ describe("ChannelSidebar", () => {
     useUiStore.getState().setActiveGuild(GUILD.guildId);
     render(<ChannelSidebar />);
 
-    expect(screen.getByText("Eco Guild")).toBeTruthy();
+    expect(screen.getByText("Echo Guild")).toBeTruthy();
   });
 
   it("clique no canal o seleciona no uiStore (activeChannelId)", async () => {

@@ -97,7 +97,7 @@ export default function MessageBubble({
                 aria-pressed={chip.active ? "true" : "false"}
                 aria-label={`Reagir com ${chip.emoji}`}
                 onClick={() => onToggleReaction?.(event.eventId, chip.emoji)}
-                className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs ${
+                className={`cursor-pointer flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs ${
                   chip.active
                     ? "border-acc/60 bg-acc/10 text-txt"
                     : "border-bd bg-surf2 text-mut hover:border-acc/40"
@@ -111,7 +111,7 @@ export default function MessageBubble({
               <button
                 type="button"
                 aria-label="Abrir tópico"
-                className="flex items-center gap-1 rounded-full border border-bd bg-surf2 px-1.5 py-0.5 text-[11px] text-mut hover:border-acc/40 hover:text-txt"
+                className="cursor-pointer flex items-center gap-1 rounded-full border border-bd bg-surf2 px-1.5 py-0.5 text-[11px] text-mut hover:border-acc/40 hover:text-txt active:scale-95"
               >
                 <Chats size={12} aria-hidden />
                 <span>

@@ -87,7 +87,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
           type="button"
           aria-label="Fechar perfil"
           onClick={onClose}
-          className="flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors"
+          className="cursor-pointer flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
         >
           <span aria-hidden>✕</span>
         </button>
@@ -103,7 +103,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
               role="tab"
               aria-selected={tab === key}
               onClick={() => setTab(key)}
-              className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`cursor-pointer -mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
                 tab === key
                   ? "border-acc text-txt"
                   : "border-transparent text-mut hover:text-txt hover:bg-surf2"
@@ -136,7 +136,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                   <button
                     type="button"
                     aria-label="Alterar avatar"
-                    className="absolute bottom-1 right-1 w-10 h-10 rounded-full bg-acc flex items-center justify-center text-sm text-bg shadow-lg hover:bg-acc-press transition-all active:scale-95"
+                    className="cursor-pointer absolute bottom-1 right-1 w-10 h-10 rounded-full bg-acc flex items-center justify-center text-sm text-bg shadow-lg hover:bg-acc-press transition-all active:scale-95"
                   >
                     <Pencil size={16} />
                   </button>
@@ -234,7 +234,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                         <button
                           type="button"
                           onClick={() => handleRemoveLink(i)}
-                          className="p-1.5 text-err hover:bg-err/10 rounded transition-colors"
+                          className="cursor-pointer p-1.5 text-err hover:bg-err/10 rounded transition-colors active:scale-95"
                           aria-label="Remover ligação"
                         >
                           <span aria-hidden>✕</span>
@@ -263,7 +263,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="w-full bg-acc text-bg font-display font-semibold py-3.5 rounded-xl hover:bg-acc-press transition-all active:scale-95 shadow-lg shadow-acc/20"
+                  className="cursor-pointer w-full bg-acc text-bg font-display font-semibold py-3.5 rounded-xl hover:bg-acc-press transition-all active:scale-95 shadow-lg shadow-acc/20"
                 >
                   Salvar alterações
                 </button>
@@ -276,7 +276,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                     setDraftLinks([...links]);
                     setEditing(false);
                   }}
-                  className="w-full bg-transparent border border-bd text-mut font-display py-3.5 rounded-xl hover:bg-surf2 transition-colors active:scale-95"
+                  className="cursor-pointer w-full bg-transparent border border-bd text-mut font-display py-3.5 rounded-xl hover:bg-surf2 transition-colors active:scale-95"
                 >
                   Cancelar
                 </button>
@@ -292,7 +292,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                   setDraftLinks([...links]);
                   setEditing(true);
                 }}
-                className="w-full bg-transparent border border-bd text-mut py-3.5 rounded-xl hover:bg-surf2 hover:text-txt transition-colors active:scale-95 text-sm font-medium"
+                className="cursor-pointer w-full bg-transparent border border-bd text-mut py-3.5 rounded-xl hover:bg-surf2 hover:text-txt transition-colors active:scale-95 text-sm font-medium"
               >
                 <Pencil size={16} className="mr-2" />
                 Editar perfil
@@ -354,7 +354,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                   ) : (
                     <button
                       type="button"
-                      className="text-xs text-acc hover:text-acc-press underline underline-offset-4 transition-colors"
+                      className="cursor-pointer text-xs text-acc hover:text-acc-press underline underline-offset-4 transition-colors active:scale-95"
                     >
                       Conectar
                     </button>

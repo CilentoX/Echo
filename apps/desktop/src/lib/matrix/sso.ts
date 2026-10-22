@@ -7,7 +7,7 @@ import type { Session } from "./types";
  * Live homeserver of the private Eco network.
  * Single source of truth — build services with this unless tests inject another.
  */
-export const ECO_HOMESERVER_URL = "https://eco.litteris.online";
+export const ECHO_HOMESERVER_URL = "https://echo.litteris.online";
 
 /** OIDC provider id configured on Synapse for Google (`oidc_providers[].idp_id`). */
 const GOOGLE_IDP_ID = "oidc-google";

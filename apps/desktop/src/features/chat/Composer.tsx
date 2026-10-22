@@ -126,7 +126,7 @@ export default function Composer({ roomId, sendMessage, channelName }: ComposerP
           type="button"
           onClick={() => void sendText(draft.trim())}
           disabled={draft.trim() === ""}
-          className="flex items-center gap-1.5 rounded bg-acc px-2.5 py-1.5 text-sm font-semibold text-bg hover:bg-acc-press disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-pointer flex items-center gap-1.5 rounded bg-acc px-2.5 py-1.5 text-sm font-semibold text-bg hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <PaperPlaneTilt size={16} weight="bold" aria-hidden />
           Enviar

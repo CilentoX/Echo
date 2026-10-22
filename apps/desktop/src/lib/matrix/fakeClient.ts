@@ -92,9 +92,10 @@ export function createFakeRoom(opts: FakeRoomOptions = {}): RoomLike {
     );
   }
   if (opts.spaceName !== undefined) {
+    // m.space.name não existe na spec Matrix (bug B4) — Spaces usam m.room.name.
     stateEvents.set(
-      "m.space.name",
-      [createFakeStateEvent("m.space.name", "", { name: opts.spaceName })],
+      "m.room.name",
+      [createFakeStateEvent("m.room.name", "", { name: opts.spaceName })],
     );
   }
   if (opts.children) {

@@ -182,7 +182,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
           type="button"
           aria-label="Fechar configurações"
           onClick={onClose}
-          className="flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors"
+          className="flex items-center rounded p-1.5 cursor-pointer text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
         >
           <span aria-hidden>✕</span>
         </button>
@@ -286,7 +286,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
               </div>
               <button
                 type="button"
-                className="text-xs text-acc hover:text-acc-press underline underline-offset-4 transition-colors"
+                className="cursor-pointer text-xs text-acc hover:text-acc-press underline underline-offset-4 transition-colors active:scale-95"
               >
                 Ver detalhes
               </button>
@@ -295,7 +295,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
           <div className="space-y-3">
             <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
+              className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Desconectar de outros dispositivos</span>
               <span className="text-mut text-xs">Encerrar todas as sessões exceto esta</span>
@@ -309,14 +309,14 @@ export default function Settings({ open, onClose }: SettingsProps) {
           <div className="space-y-3">
             <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
+              className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Gerenciar conta Google (SSO)</span>
               <span className="text-mut text-xs">Login e senha são gerenciados pelo Google</span>
             </button>
             <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
+              className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Exportar meus dados</span>
               <span className="text-mut text-xs">Baixar histórico e configurações</span>
@@ -324,7 +324,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             <button
               type="button"
               onClick={performLogout}
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors active:scale-95"
+              className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors active:scale-95"
             >
               <X size={14} weight="bold" className="mr-2" />
               <span>Sair da conta</span>

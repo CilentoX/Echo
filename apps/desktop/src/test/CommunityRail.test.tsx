@@ -9,7 +9,7 @@ import { useUiStore } from "@/stores/uiStore";
 function makeGuild(overrides: Partial<GuildSummary> = {}): GuildSummary {
   return {
     guildId: "!g1:hs",
-    name: "Eco Guild",
+    name: "Echo Guild",
     avatarUrl: null,
     unreadCount: 0,
     ...overrides,
@@ -31,12 +31,12 @@ describe("CommunityRail", () => {
 
   it("renderiza as guildas do store pelo nome", () => {
     useSyncStore.getState().setGuilds([
-      makeGuild({ name: "Eco Guild" }),
+      makeGuild({ name: "Echo Guild" }),
       makeGuild({ guildId: "!g2:hs", name: "Litteris" }),
     ]);
     render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "Eco Guild" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Echo Guild" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Litteris" })).toBeTruthy();
   });
 
@@ -77,7 +77,7 @@ describe("CommunityRail", () => {
     const active = screen.getByRole("button", { name: "Litteris" });
     expect(active.getAttribute("aria-current")).toBe("true");
     expect(
-      screen.getByRole("button", { name: "Eco Guild" }).getAttribute("aria-current"),
+      screen.getByRole("button", { name: "Echo Guild" }).getAttribute("aria-current"),
     ).toBeNull();
   });
 });

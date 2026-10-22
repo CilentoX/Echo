@@ -50,16 +50,16 @@ describe("App", () => {
     loadSession.mockResolvedValue(null);
   });
 
-  it("sem sessão salva, mostra a tela de login com o Eco", async () => {
+  it("sem sessão salva, mostra a tela de login com o Echo", async () => {
     render(<App />);
     expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
-    expect(screen.getByText("Eco")).toBeTruthy();
+    expect(screen.getByText("Echo")).toBeTruthy();
   });
 
   it("com sessão + guildas → shell com rail, sidebar, canal selecionado e composer", async () => {
     loadSession.mockResolvedValue(SESSION);
     fakeService.listGuilds.mockResolvedValue([
-      { guildId: "!space:hs", name: "Eco Dev", avatarUrl: null, unreadCount: 0 },
+      { guildId: "!space:hs", name: "Echo Dev", avatarUrl: null, unreadCount: 0 },
     ]);
     fakeService.listChannels.mockResolvedValue([
       { channelId: "!chan:hs", name: "geral", unreadCount: 0 },
@@ -71,7 +71,7 @@ describe("App", () => {
     // Wiring Task 11 Step 2: primeiro "syncing" dispara o carregamento inicial.
     emitStatus("syncing");
 
-    expect(await screen.findByRole("button", { name: "Eco Dev" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Echo Dev" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "geral" })).toBeTruthy();
     expect(screen.getByLabelText("Mensagem")).toBeTruthy();
 

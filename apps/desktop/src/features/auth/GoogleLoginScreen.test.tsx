@@ -8,15 +8,15 @@ import GoogleLoginScreen from "./GoogleLoginScreen";
 
 vi.mock("@/lib/matrix/sso", () => ({
   runSsoLogin: vi.fn(),
-  ECO_HOMESERVER_URL: "https://eco.test",
+  ECHO_HOMESERVER_URL: "https://echo.test",
 }));
 
 const mockedRunSsoLogin = vi.mocked(runSsoLogin);
 
 const SESSION: Session = {
-  baseUrl: "https://eco.litteris.online",
+  baseUrl: "https://echo.litteris.online",
   accessToken: "syt-at-1",
-  userId: "@nina:eco.litteris.online",
+  userId: "@nina:echo.litteris.online",
   deviceId: "DEV123",
 };
 
@@ -32,10 +32,10 @@ beforeEach(() => {
 });
 
 describe("GoogleLoginScreen", () => {
-  it("renderiza a logo Eco e o botão 'Entrar com Google'", () => {
+  it("renderiza a logo Echo e o botão 'Entrar com Google'", () => {
     render(<GoogleLoginScreen service={makeService()} />);
 
-    expect(screen.getByRole("heading", { name: "Eco" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Echo" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
   });
 

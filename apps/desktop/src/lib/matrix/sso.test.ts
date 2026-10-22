@@ -6,16 +6,16 @@ vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { MatrixService } from "./service";
-import { ECO_HOMESERVER_URL, runSsoLogin, SsoLoginError } from "./sso";
+import { ECHO_HOMESERVER_URL, runSsoLogin, SsoLoginError } from "./sso";
 import type { Session } from "./types";
 
 const mockedInvoke = vi.mocked(invoke);
 const mockedOpenUrl = vi.mocked(openUrl);
 
 const SESSION: Session = {
-  baseUrl: "https://eco.litteris.online",
+  baseUrl: "https://echo.litteris.online",
   accessToken: "syt-at-1",
-  userId: "@nina:eco.litteris.online",
+  userId: "@nina:echo.litteris.online",
   deviceId: "DEV123",
 };
 
@@ -85,6 +85,6 @@ describe("runSsoLogin", () => {
   });
 
   it("expõe o homeserver da rede Eco como constante única", () => {
-    expect(ECO_HOMESERVER_URL).toBe("https://eco.litteris.online");
+    expect(ECHO_HOMESERVER_URL).toBe("https://echo.litteris.online");
   });
 });

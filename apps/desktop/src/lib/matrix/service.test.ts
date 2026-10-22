@@ -283,7 +283,7 @@ describe("MatrixService", () => {
     const space = createFakeRoom({
       roomId: "!space:hs.example",
       type: "m.space",
-      spaceName: "Guilda Eco",
+      spaceName: "Guilda Echo",
       unreadCount: 2,
     });
     const fake = createFakeClient();
@@ -296,7 +296,7 @@ describe("MatrixService", () => {
     expect(guilds).toEqual([
       {
         guildId: "!space:hs.example",
-        name: "Guilda Eco",
+        name: "Guilda Echo",
         avatarUrl: null,
         unreadCount: 2,
       },
@@ -323,7 +323,7 @@ describe("MatrixService", () => {
     const space = createFakeRoom({
       roomId: "!space:hs.example",
       type: "m.space",
-      spaceName: "Guilda Eco",
+      spaceName: "Guilda Echo",
       children: [
         { roomId: "!chan1:hs.example", via: ["hs.example"] },
         { roomId: "!ghost:hs.example" }, // sem via: não é filho recomendado

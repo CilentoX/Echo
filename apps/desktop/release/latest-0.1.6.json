@@ -1,0 +1,11 @@
+{
+  "version": "0.1.6",
+  "notes": "Echo v0.1.6: nova identidade visual (logo oficial), hook de migracao que remove o Eco antigo, instalador em ingles, animacoes de UI.",
+  "pub_date": "2026-10-22T23:06:28.904Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1ZnNFJFUnVjR3BzUkhRd1duZE9WMnh4TUhrNU5rbG5hWFV2UlVaNlZXTnpaR0pFTkZWbVJGWnhRbXRvUnpoVGIyMXBXV05EWkc1TVNrdGFPVGN4ZDNZclVrdFRkMnROWjBkSE9FNHlaMFZFVldkbFRHZEZQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpreU56RXdNRFk1Q1dacGJHVTZSV05vYjE4d0xqRXVObDk0TmpRdGMyVjBkWEF1WlhobENYWmxjbk5wYjI0Nk1DNHhMallLVUV3eGF6QnhUbWx5V25saVYzZENlazFPU1hKTWN6bFFMMDQ1VUVJME1EZGFWM1F3ZW5WbmVqTXlSbFF5VFc1RVdHZGpNVmRvUlVaSFR6VkZhMUJ3TWsxUGMyWnZXRGw0TjFSMU16bHpaRUZKWWt0M1FVRTlQUW89",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.6/Echo_0.1.6_x64-setup.exe"
+    }
+  }
+}

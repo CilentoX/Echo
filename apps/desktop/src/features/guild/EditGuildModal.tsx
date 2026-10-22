@@ -52,7 +52,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
             type="button"
             aria-label="Fechar"
             onClick={onClose}
-            className="rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
+            className="cursor-pointer rounded p-1 text-mut hover:bg-surf2 hover:text-txt active:scale-95"
           >
             <X size={18} />
           </button>
@@ -87,7 +87,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-mut hover:bg-surf2 transition-colors active:scale-95"
+            className="cursor-pointer flex-1 rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-mut hover:bg-surf2 transition-colors active:scale-95"
           >
             Cancelar
           </button>
@@ -95,7 +95,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
             type="button"
             onClick={() => void handleSave()}
             disabled={loading}
-            className="flex-1 rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press disabled:cursor-not-allowed disabled:opacity-60 active:scale-95"
+            className="cursor-pointer flex-1 rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Salvando…" : "Salvar alterações"}
           </button>
@@ -104,7 +104,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-err hover:bg-err/10 transition-colors active:scale-95"
+          className="cursor-pointer mt-4 w-full rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-err hover:bg-err/10 transition-colors active:scale-95"
         >
           <Pencil size={14} className="mr-2" />
           Deletar guilda

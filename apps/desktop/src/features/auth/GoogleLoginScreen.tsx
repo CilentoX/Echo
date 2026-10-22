@@ -1,7 +1,7 @@
 import { CircleNotch, GoogleLogo } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { MatrixService } from "@/lib/matrix/service";
-import { ECO_HOMESERVER_URL, runSsoLogin } from "@/lib/matrix/sso";
+import { ECHO_HOMESERVER_URL, runSsoLogin } from "@/lib/matrix/sso";
 import type { Session } from "@/lib/matrix/types";
 
 type Status = "idle" | "loading" | "error";
@@ -35,7 +35,7 @@ function EcoLogo() {
 export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScreenProps) {
   const [status, setStatus] = useState<Status>("idle");
   const activeService = useMemo(
-    () => service ?? new MatrixService(ECO_HOMESERVER_URL),
+    () => service ?? new MatrixService(ECHO_HOMESERVER_URL),
     [service],
   );
 
@@ -57,7 +57,7 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
       <div className="flex flex-col items-center gap-4">
         <EcoLogo />
         <div className="text-center">
-          <h1 className="font-display text-4xl font-bold tracking-tight">Eco</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight">Echo</h1>
           <p className="mt-2 text-sm text-mut">
             Entre para conversar na sua rede privada.
           </p>
@@ -72,7 +72,7 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
           <button
             type="button"
             onClick={handleLogin}
-            className="flex items-center gap-2 rounded-lg bg-acc px-5 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-acc-press"
+            className="cursor-pointer flex items-center gap-2 rounded-lg bg-acc px-5 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95"
           >
             Tentar de novo
           </button>
@@ -82,7 +82,7 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
           type="button"
           onClick={handleLogin}
           disabled={loading}
-          className="flex items-center gap-2 rounded-lg bg-acc px-5 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-acc-press disabled:opacity-60"
+          className="cursor-pointer flex items-center gap-2 rounded-lg bg-acc px-5 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-acc-press disabled:opacity-60 active:scale-95"
         >
           {loading ? (
             <CircleNotch size={18} weight="bold" className="animate-spin" />
