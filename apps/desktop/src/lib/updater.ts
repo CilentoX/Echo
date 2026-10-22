@@ -1,26 +1,30 @@
 import { check as checkPluginUpdate } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
+
+import { useUpdateStore } from "@/stores/updateStore";
 
 /**
- * Auto-atualização silenciosa (Task 12) — caminho único.
+ * Auto-atualização (Task 12) — caminho único via tauri-plugin-updater.
  *
- * Todo o fluxo passa pelo tauri-plugin-updater: o plugin consulta o endpoint
- * configurado em `src-tauri/tauri.conf.json` (`plugins.updater.endpoints`),
- * compara com a versão do app e baixa/instala em background; a atualização
- * entra em vigor no próximo restart. Não há fetch manual do `latest.json`
- * no frontend (o plugin já faz a checagem — um segundo fetch era código
- * morto e foi removido na revisão da Fase 1).
+ * O plugin consulta o endpoint configurado em `src-tauri/tauri.conf.json`
+ * (`plugins.updater.endpoints` → latest.json), compara com a versão do app e
+ * baixa/instala em background; a atualização entra em vigor no próximo
+ * restart. O progresso é anunciado ao `updateStore` para o banner visual
+ * (UpdateBanner) — o boot nunca quebra, falhas são silenciosas.
  */
 
-/** Baixa e instala a atualização silenciosamente (sem diálogo/progresso);
- *  aplica no próximo restart. Retorna true se instalou, false se não havia
- *  update ou falhou — nunca lança. */
+/** Baixa e instala a atualização, anunciando o progresso ao store.
+ * Retorna true se instalou, false se não havia update ou falhou — nunca lança. */
 export async function downloadAndInstall(): Promise<boolean> {
   try {
     const update = await checkPluginUpdate();
     if (!update) return false;
+    useUpdateStore.getState().beginDownload(update.version);
     await update.downloadAndInstall();
+    useUpdateStore.getState().markReady();
     return true;
   } catch {
+    useUpdateStore.getState().reset();
     return false;
   }
 }
@@ -33,4 +37,11 @@ function isTauri(): boolean {
 export async function runStartupUpdateCheck(): Promise<void> {
   if (!isTauri()) return;
   await downloadAndInstall(); // downloadAndInstall nunca lança
+}
+
+/** Reinicia o app já atualizado (botão "Reiniciar agora" do banner).
+ * Fora do runtime Tauri é um no-op silencioso. */
+export async function restartApp(): Promise<void> {
+  if (!isTauri()) return;
+  await relaunch();
 }

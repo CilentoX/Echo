@@ -6,7 +6,12 @@ vi.mock("@tauri-apps/plugin-updater", () => ({
   check: checkMock,
 }));
 
-import { downloadAndInstall, runStartupUpdateCheck } from "./updater";
+vi.mock("@tauri-apps/plugin-process", () => ({
+  relaunch: vi.fn(async () => {}),
+}));
+
+import { downloadAndInstall, restartApp, runStartupUpdateCheck } from "./updater";
+import { useUpdateStore } from "@/stores/updateStore";
 
 type InternalsWindow = { __TAURI_INTERNALS__?: unknown };
 
@@ -60,10 +65,30 @@ describe("runStartupUpdateCheck", () => {
     expect(checkMock).toHaveBeenCalledTimes(1);
   });
 
+  it("update disponível → store anuncia downloading e depois ready com a versão", async () => {
+    setTauri(true);
+    const update = { version: "0.1.2", downloadAndInstall: vi.fn(async () => {}) };
+    checkMock.mockResolvedValue(update);
+
+    await runStartupUpdateCheck();
+
+    const state = useUpdateStore.getState();
+    expect(state.status).toBe("ready");
+    expect(state.version).toBe("0.1.2");
+    useUpdateStore.getState().reset();
+  });
+
   it("falha jamais quebra o boot", async () => {
     setTauri(true);
     checkMock.mockRejectedValue(new Error("boom"));
 
     await expect(runStartupUpdateCheck()).resolves.toBeUndefined();
+    expect(useUpdateStore.getState().status).toBe("idle");
+  });
+
+  it("restartApp não lança fora do runtime Tauri", async () => {
+    setTauri(false);
+
+    await expect(restartApp()).resolves.toBeUndefined();
   });
 });

@@ -28,6 +28,7 @@ hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
 keyring = { version = "3", features = ["windows-native"] }
+tauri-plugin-process = "2.4.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

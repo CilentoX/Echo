@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import SessionGate from "@/features/auth/SessionGate";
 import AppShell from "@/features/shell/AppShell";
 import ChatPane from "@/features/chat/ChatPane";
+import UpdateBanner from "@/features/shell/UpdateBanner";
 import { matrixService } from "@/lib/matrix/instance";
 import { runStartupUpdateCheck } from "@/lib/updater";
 
@@ -28,10 +29,17 @@ function Shell() {
 }
 
 export default function App() {
-  // Task 12: checagem silenciosa de atualização no boot (best-effort, sem UI).
+  // Task 12: checagem de atualização no boot (best-effort, UI no UpdateBanner).
   useEffect(() => {
     void runStartupUpdateCheck();
   }, []);
 
-  return <SessionGate shell={<Shell />} />;
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <UpdateBanner />
+      <div className="min-h-0 flex-1">
+        <SessionGate shell={<Shell />} />
+      </div>
+    </div>
+  );
 }
