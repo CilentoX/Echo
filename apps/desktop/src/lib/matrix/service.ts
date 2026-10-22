@@ -1,4 +1,4 @@
-import { createClient } from "matrix-js-sdk";
+import { createClient, Preset, Visibility } from "matrix-js-sdk";
 import type {
   ChannelSummary,
   GuildSummary,
@@ -145,6 +145,24 @@ export class MatrixService {
         avatarUrl: room.getMxcAvatarUrl() ?? null,
         unreadCount: room.getUnreadNotificationCount() ?? 0,
       }));
+  }
+
+  /**
+   * Cria uma nova guilda (Space m.space) com o nome dado.
+   * Retorna o resumo da guilda criada para o chamador adicionar ao store.
+   */
+  async createGuild(name: string): Promise<GuildSummary> {
+    const client = this.requireClient();
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error("createGuild: nome é obrigatório");
+    const res = await client.createRoom({
+      name: trimmed,
+      creation_content: { type: "m.space" },
+      visibility: Visibility.Private,
+      preset: Preset.PrivateChat,
+    });
+    if (!res?.room_id) throw new Error("createGuild: resposta sem room_id");
+    return { guildId: res.room_id, name: trimmed, avatarUrl: null, unreadCount: 0 };
   }
 
   /** Channels (children declared via m.space.child) of a Space. */

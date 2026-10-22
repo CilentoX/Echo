@@ -48,7 +48,10 @@ export interface SyncErrorInfo {
 /**
  * Structural subset of matrix-js-sdk's MatrixClient that MatrixService uses.
  * Lets tests inject a fake client without loading the real SDK.
+ * (ICreateRoomOpts é import type-only: zero custo em runtime.)
  */
+import type { ICreateRoomOpts } from "matrix-js-sdk";
+
 export interface MatrixClientLike {
   loginRequest(req: { type: "m.login.token"; token: string }): Promise<LoginResponseLike>;
   getSsoLoginUrl(redirectUrl: string, loginType?: string, idpId?: string, action?: string): string;
@@ -59,6 +62,7 @@ export interface MatrixClientLike {
   sendMessage(roomId: string, content: { msgtype: string; body: string }): Promise<SendEventResponseLike>;
   getRooms(): RoomLike[];
   getRoom(roomId: string): RoomLike | null;
+  createRoom(opts: ICreateRoomOpts): Promise<{ room_id: string }>;
 }
 
 export type SendEventResponseLike = string | { event_id: string };

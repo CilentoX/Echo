@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
-import { Gear, User } from "@phosphor-icons/react";
+import { Gear, Plus, User } from "@phosphor-icons/react";
+import CreateGuildModal from "@/features/guild/CreateGuildModal";
+import { matrixService } from "@/lib/matrix/instance";
 
 /** Iniciais do nome da guilda (até 2 palavras) — guildas sem avatar (avatarUrl vem de mxc://, render na Fase 2). */
 function initials(name: string): string {
@@ -23,6 +26,13 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
   const guilds = useSyncStore((state) => state.guilds);
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const handleCreated = (guild: { guildId: string; name: string }) => {
+    // Adiciona ao store (sem perder as existentes) e seleciona a nova guilda.
+    useSyncStore.getState().setGuilds([...guilds, { ...guild, avatarUrl: null, unreadCount: 0 }]);
+    setActiveGuild(guild.guildId);
+  };
 
   return (
     <nav
@@ -60,6 +70,17 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
         );
       })}
 
+      {/* Botão + cria guilda própria */}
+      <button
+        type="button"
+        aria-label="Criar guilda"
+        title="Criar guilda"
+        onClick={() => setCreateOpen(true)}
+        className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-bd text-mut transition-colors hover:border-acc hover:text-acc"
+      >
+        <Plus size={20} weight="bold" />
+      </button>
+
       {/* Espaço empurra os itens de fundo para baixo */}
       <div className="flex-1" />
 
@@ -81,6 +102,13 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
           <Gear size={16} weight="bold" />
         </button>
       </div>
+
+      <CreateGuildModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreate={(name) => matrixService.createGuild(name)}
+        onCreated={handleCreated}
+      />
     </nav>
   );
 }
