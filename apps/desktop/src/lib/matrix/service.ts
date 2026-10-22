@@ -141,7 +141,7 @@ export class MatrixService {
       .filter((room) => room.getMyMembership() === "join" && isSpace(room))
       .map((room) => ({
         guildId: room.roomId,
-        name: stateEventName(room, "m.space.name") ?? room.roomId,
+        name: stateEventName(room, "m.room.name") ?? room.roomId,
         avatarUrl: room.getMxcAvatarUrl() ?? null,
         unreadCount: room.getUnreadNotificationCount() ?? 0,
       }));

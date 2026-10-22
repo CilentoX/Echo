@@ -9,9 +9,10 @@ import { useUiStore } from "@/stores/uiStore";
  * - `onEvent` → `syncStore.applyEvent` (dedupe por eventId cobre os ecos).
  * - `onStatus` → `syncStore.setStatus` + carregamento inicial: no primeiro
  *   "syncing" busca guildas/canais e auto-seleciona o primeiro de cada.
- * - Erro de sync ANTES do primeiro sync: só desloga quando é falha de
- *   autenticação (M_UNKNOWN_TOKEN/M_MISSING_TOKEN) — erro de rede mantém a
- *   sessão, o SDK reconecta sozinho e o indicador mostra "Reconectando…".
+ * - Erro de sync: só desloga quando é falha de autenticação
+ *   (M_UNKNOWN_TOKEN/M_MISSING_TOKEN), em qualquer momento da sessão —
+ *   erro de rede mantém a sessão, o SDK reconecta sozinho e o indicador
+ *   mostra "Reconectando…".
  * - Troca de guilda ativa carrega os canais dela sob demanda.
  *
  * Idempotente: `startSyncWiring` não reinicia listeners já ativos (evita o
@@ -22,7 +23,6 @@ import { useUiStore } from "@/stores/uiStore";
 const AUTH_ERRCODES = new Set(["M_UNKNOWN_TOKEN", "M_MISSING_TOKEN"]);
 
 let started = false;
-let hasSynced = false;
 let initialDataLoaded = false;
 let unsubscribeUi: (() => void) | null = null;
 /** Guildas com canais já carregados (evita refetch a cada sync/troca). */
@@ -73,12 +73,13 @@ async function handleStatus(
   useSyncStore.getState().setStatus(status);
 
   if (status === "syncing") {
-    hasSynced = true;
     if (!initialDataLoaded) await loadInitialData();
     return;
   }
 
-  if (status === "error" && !hasSynced && isAuthError(error)) {
+  if (status === "error" && isAuthError(error)) {
+    // Token inválido/expirado: desloga sempre — mesmo depois de syncs
+    // bem-sucedidos (o server pode revogar o access token a qualquer momento).
     onAuthFailure();
   }
 }
@@ -109,7 +110,6 @@ export function stopSyncWiring(): void {
   unsubscribeUi?.();
   unsubscribeUi = null;
   started = false;
-  hasSynced = false;
   initialDataLoaded = false;
   loadedGuilds.clear();
 

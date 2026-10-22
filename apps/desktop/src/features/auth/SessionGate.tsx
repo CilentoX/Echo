@@ -1,6 +1,7 @@
 import { CircleNotch } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
+import { registerLogoutHandler } from "@/features/auth/logout";
 import AppShell from "@/features/shell/AppShell";
 import { matrixService } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
@@ -36,6 +37,12 @@ export default function SessionGate({ shell }: SessionGateProps) {
     await clearSession().catch(() => {});
     setView("login");
   }, []);
+
+  // O botão "Sair da conta" (Settings) executa este handler via logout.ts.
+  useEffect(() => {
+    registerLogoutHandler(() => void rejectSession());
+    return () => registerLogoutHandler(null);
+  }, [rejectSession]);
 
   const enterShell = useCallback(
     (session: Session, clientActive = false) => {

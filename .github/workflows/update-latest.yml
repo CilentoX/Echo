@@ -1,0 +1,63 @@
+name: Update latest.json on eco-site
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout eco-site
+        uses: actions/checkout@v4
+        with:
+          repository: CilentoX/eco-site
+          token: ${{ secrets.ECOSITE_PAT }}
+          path: eco-site
+
+      - name: Get release info
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = await github.rest.repos.getLatestReleaseForAuthenticatedUser({
+              owner: 'CilentoX',
+              repo: 'eco'
+            });
+            const exe = release.data.assets.find(a => a.name.endsWith('_x64-setup.exe'));
+            const sig = release.data.assets.find(a => a.name.endsWith('.exe.sig'));
+            core.setOutput('exe_url', exe.browser_download_url);
+            core.setOutput('sig_url', sig.browser_download_url);
+            core.setOutput('version', release.data.tag_name.replace('v', ''));
+            core.setOutput('notes', release.data.body || '');
+
+      - name: Download signature
+        run: |
+          curl -sL "${{ steps.release.outputs.sig_url }}" -o eco-site/Eco_${{ steps.release.outputs.version }}_x64-setup.exe.sig
+          base64 -w0 eco-site/Eco_${{ steps.release.outputs.version }}_x64-setup.exe.sig > eco-site/sig.b64
+
+      - name: Write latest.json
+        run: |
+          cat > eco-site/latest.json <<EOF
+          {
+            "version": "${{ steps.release.outputs.version }}",
+            "notes": "${{ steps.release.outputs.notes }}",
+            "pubkey": "${{ secrets.MINISIGN_PUBKEY }}",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "$(cat eco-site/sig.b64)",
+                "url": "${{ steps.release.outputs.exe_url }}"
+              }
+            }
+          }
+          EOF
+          rm eco-site/sig.b64
+
+      - name: Commit and push
+        working-directory: eco-site
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add latest.json
+          git commit -m "chore: update latest.json for v${{ steps.release.outputs.version }}" || true
+          git push

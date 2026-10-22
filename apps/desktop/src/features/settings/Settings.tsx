@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { DEFAULT_DEVICES } from "@/stores/settingsStore";
+import { performLogout } from "@/features/auth/logout";
 
 export interface SettingsProps {
   open: boolean;
@@ -322,6 +323,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             </button>
             <button
               type="button"
+              onClick={performLogout}
               className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors active:scale-95"
             >
               <X size={14} weight="bold" className="mr-2" />

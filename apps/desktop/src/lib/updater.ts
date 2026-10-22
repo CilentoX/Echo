@@ -18,12 +18,18 @@ import { useUpdateStore } from "@/stores/updateStore";
 export async function downloadAndInstall(): Promise<boolean> {
   try {
     const update = await checkPluginUpdate();
-    if (!update) return false;
+    if (!update) {
+      // Sem atualização disponível: o banner de "verificando" some.
+      useUpdateStore.getState().reset();
+      return false;
+    }
     useUpdateStore.getState().beginDownload(update.version);
     await update.downloadAndInstall();
     useUpdateStore.getState().markReady();
     return true;
   } catch {
+    // Falha de rede/endpoint: aborta silenciosamente, sem banner eterno.
+    console.warn("[updater] download da atualização falhou");
     useUpdateStore.getState().reset();
     return false;
   }
