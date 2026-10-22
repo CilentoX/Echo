@@ -1,0 +1,32 @@
+{% extends "_base.html" %}
+{% block title %}Criar conta — Eco{% endblock %}
+{% block body %}
+<div class="eco-sso-page">
+  <div class="eco-sso-header">
+    <div class="eco-logo">
+      <svg width="48" height="48" viewBox="0 0 72 72" fill="none">
+        <circle cx="36" cy="36" r="10" stroke="currentColor" strokeWidth="3" />
+        <circle cx="36" cy="36" r="20" stroke="currentColor" strokeWidth="3" strokeOpacity="0.6" />
+        <circle cx="36" cy="36" r="30" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+        <circle cx="36" cy="36" r="4" fill="currentColor" />
+      </svg>
+    </div>
+    <h1>Entrar com convite</h1>
+  </div>
+
+  <p class="eco-sso-subtitle">Informe o token de convite da sua comunidade.</p>
+
+  {% if error is defined %}
+  <div class="eco-error">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST">
+    <div class="eco-form-field">
+      <label for="token">Token de convite</label>
+      <input type="text" id="token" name="token" required autocomplete="off">
+    </div>
+
+    <button type="submit" class="eco-primary-button">Validar convite</button>
+  </form>
+</div>
+{% endblock %}

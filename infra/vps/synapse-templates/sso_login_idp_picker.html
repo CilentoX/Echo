@@ -1,0 +1,32 @@
+{% extends "_base.html" %}
+{% block title %}Entrar — Eco{% endblock %}
+{% block body %}
+<div class="eco-sso-page">
+  <div class="eco-sso-header">
+    <div class="eco-logo">
+      <svg width="48" height="48" viewBox="0 0 72 72" fill="none">
+        <circle cx="36" cy="36" r="10" stroke="currentColor" strokeWidth="3" />
+        <circle cx="36" cy="36" r="20" stroke="currentColor" strokeWidth="3" strokeOpacity="0.6" />
+        <circle cx="36" cy="36" r="30" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+        <circle cx="36" cy="36" r="4" fill="currentColor" />
+      </svg>
+    </div>
+    <h1>Entrar no Eco</h1>
+  </div>
+
+  <p class="eco-sso-subtitle">Escolha como deseja entrar:</p>
+
+  <form method="GET">
+    <input type="hidden" name="redirectUrl" value="{{ redirect_url }}">
+
+    {% for provider in providers %}
+    <button type="submit" name="idp" value="{{ provider.idp_id }}" class="eco-idp-button">
+      {% if provider.idp_icon %}
+      <img src="{{ provider.idp_icon }}" alt="{{ provider.idp_name }}" class="eco-idp-icon">
+      {% endif %}
+      {{ provider.idp_name }}
+    </button>
+    {% endfor %}
+  </form>
+</div>
+{% endblock %}

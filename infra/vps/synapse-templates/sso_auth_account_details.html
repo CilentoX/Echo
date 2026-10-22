@@ -1,0 +1,31 @@
+{% extends "_base.html" %}
+{% block title %}Escolher usuário — Eco{% endblock %}
+{% block body %}
+<div class="eco-sso-page">
+  <div class="eco-sso-header">
+    <div class="eco-logo">
+      <svg width="48" height="48" viewBox="0 0 72 72" fill="none">
+        <circle cx="36" cy="36" r="10" stroke="currentColor" strokeWidth="3" />
+        <circle cx="36" cy="36" r="20" stroke="currentColor" strokeWidth="3" strokeOpacity="0.6" />
+        <circle cx="36" cy="36" r="30" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+        <circle cx="36" cy="36" r="4" fill="currentColor" />
+      </svg>
+    </div>
+    <h1>Escolha seu usuário</h1>
+  </div>
+
+  <p class="eco-sso-subtitle">Este será seu nome de usuário permanente no Eco.</p>
+
+  <form method="POST">
+    <input type="hidden" name="username" value="{{ user_attributes.localpart }}">
+
+    <div class="eco-form-field">
+      <label for="username">Usuário</label>
+      <input type="text" id="username" name="username" value="{{ user_attributes.localpart }}" required autocomplete="username">
+      <span class="eco-suffix">@{{ server_name }}</span>
+    </div>
+
+    <button type="submit" class="eco-primary-button">Confirmar e entrar</button>
+  </form>
+</div>
+{% endblock %}

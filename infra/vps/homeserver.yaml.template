@@ -67,6 +67,12 @@ suppress_key_server_warning: true
 report_stats: false
 enable_metrics: false
 
+# Custom templates for login/registration pages (Eco branding).
+# Templates live in infra/vps/synapse-templates/ and are rendered by Synapse
+# with Jinja2. Mount this directory into the synapse container at /data/templates.
+templates:
+  custom_template_directory: "/data/templates"
+
 # --- Google OIDC (DISABLED — enable later) ---------------------------------
 # To enable later:
 #   1. Create an OAuth client (type: Web application) in Google Cloud Console.
