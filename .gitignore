@@ -20,3 +20,4 @@ Thumbs.db
 
 # Tauri generated
 apps/desktop/src-tauri/gen/
+minisign-secret.key
