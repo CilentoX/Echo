@@ -197,7 +197,7 @@ Surgiram do revisor independente que leu o documento antes da entrega; resolvi p
 
 1. **Administração:** criação de guildas, categorias e canais **in-app** (botão `+` do mockup aprovado), convites de comunidade in-app, moderação (kick/ban) in-app — barata via APIs do Matrix. Painel admin completo: fora de escopo.
 2. **Notificações:** badges de não-lidas in-app no MVP (já nos mockups); notificações nativas do SO (banner + click-to-focus) na Fase 2; sons e badge no dock/taskbar depois.
-3. **Sync:** comunidade fechada, esperamos dezenas de usuários → `/sync` clássico com cache local (IndexedDB) desde a Fase 1; Sliding Sync fica como otimização futura se a rede escalar.
+3. **Sync:** comunidade fechada, esperamos dezenas de usuários → `/sync` clássico; Sliding Sync fica como otimização futura se a rede escalar. **Revisão da Fase 1 (2026-10-21): o cache local via IndexedDB (`IndexedDBStore` do matrix-js-sdk) foi movido para a Fase 2**, junto com a paginação de histórico (`/messages`). Na Fase 1 o sync é em memória com `initialSyncLimit: 20`, então cada restart recarrega apenas as últimas ~20 mensagens por canal. Motivo: `restoreSession` do `MatrixService` é síncrono e o `MatrixClientLike` de teste não modela store assíncrono — wire o `IndexedDBStore` exigiria async no caminho de restore + double de teste novo, risco desproporcional para o ganho nesta fase.
 
 ## 12. Pendências (só o usuário pode responder)
 

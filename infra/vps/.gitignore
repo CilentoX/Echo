@@ -1,0 +1,5 @@
+# Real secrets — never commit.
+.env
+
+# Rendered config (contains secrets) and local scratch.
+synapse/

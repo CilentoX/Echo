@@ -1,1 +1,22 @@
-﻿.superpowers/
+﻿# SDD planning artifacts
+.superpowers/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+target/
+
+# Logs
+logs/
+*.log
+
+# Editor/OS
+.idea/
+.DS_Store
+Thumbs.db
+
+# Tauri generated
+apps/desktop/src-tauri/gen/
