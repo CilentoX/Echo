@@ -1,14 +1,13 @@
-import { useState } from "react";
 import {
   Bell,
-  Eye,
-  Keyboard,
-  ShieldCheck,
   Clock,
+  Eye,
   Lock,
+  ShieldCheck,
   X,
 } from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { DEFAULT_DEVICES } from "@/stores/settingsStore";
 
 export interface SettingsProps {
   open: boolean;
@@ -17,40 +16,32 @@ export interface SettingsProps {
 
 /**
  * Sheet de configurações do app.
- * Aparência, notificações, voz/vídeo, privacidade, sessões e conta.
+ * Notificações, voz/vídeo, privacidade, sessões e conta.
  */
 export default function Settings({ open, onClose }: SettingsProps) {
   const {
-    compactMode, setCompactMode,
-    density, setDensity,
     nativeNotifications, setNativeNotifications,
     messageSound, setMessageSound,
     mentionOnly, setMentionOnly,
-    microphoneEnabled, setMicrophoneEnabled,
-    cameraEnabled, setCameraEnabled,
-    headphonesEnabled, setHeadphonesEnabled,
+    microphoneEnabled, setMicrophoneEnabled, microphoneDevice, setMicrophoneDevice,
+    cameraEnabled, setCameraEnabled, cameraDevice, setCameraDevice,
+    headphonesEnabled, setHeadphonesEnabled, headphonesDevice, setHeadphonesDevice,
     onlineStatusVisible, setOnlineStatusVisible,
     readReceipts, setReadReceipts,
     typingVisible, setTypingVisible,
   } = useSettingsStore();
-
-  const [draftDensity, setDraftDensity] = useState(density);
-
-  const handleSaveDensity = () => {
-    setDensity(draftDensity);
-  };
 
   const toggleRow = (
     label: string,
     desc: string,
     checked: boolean,
     onChange: (v: boolean) => void,
-    Icon: React.ComponentType<React.ComponentProps<typeof Bell>>
+    Icon: React.ComponentType<{ size?: number; weight?: "bold" }>
   ) => (
-    <div className="border-b border-bd last:border-0 py-4">
+    <div className="border-b border-bd last:border-0 py-4 group">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+          <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut group-hover:bg-surf group-hover:text-txt transition-colors">
             <Icon size={16} weight="bold" />
           </div>
           <div>
@@ -63,12 +54,12 @@ export default function Settings({ open, onClose }: SettingsProps) {
           role="switch"
           aria-checked={checked}
           onClick={() => onChange(!checked)}
-          className={`relative inline-flex w-10 h-5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${
+          className={`relative inline-flex w-10 h-5 shrink-0 cursor-pointer rounded-full transition-colors duration-300 ${
             checked ? "bg-acc" : "bg-surf2 border border-bd"
           }`}
         >
           <span
-            className={`block w-3 h-3 rounded-full bg-bg shadow transition-transform duration-200 ${
+            className={`block w-3 h-3 rounded-full bg-bg shadow-md transition-transform duration-300 ease-out ${
               checked ? "translate-x-5" : "translate-x-0"
             }`}
           />
@@ -105,13 +96,83 @@ export default function Settings({ open, onClose }: SettingsProps) {
     </svg>
   );
 
+  const DeviceKindIcon = ({ kind }: { kind: "microphone" | "camera" | "headphones" }) => {
+    if (kind === "microphone") return <MicIcon />;
+    if (kind === "camera") return <VideoIcon />;
+    return <HeadphonesIcon />;
+  };
+
+  /** Select de dispositivo de áudio/vídeo (simulado — Fase 2 liga na API real do SO). */
+  const deviceSelect = (
+    label: string,
+    enabled: boolean,
+    setEnabled: (v: boolean) => void,
+    deviceId: string | null,
+    setDevice: (id: string | null) => void,
+    kind: "microphone" | "camera" | "headphones"
+  ) => {
+    const options = DEFAULT_DEVICES[kind];
+    return (
+      <div className="border-b border-bd last:border-0 py-4 group">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut group-hover:bg-surf group-hover:text-txt transition-colors">
+              <DeviceKindIcon kind={kind} />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-txt">{label}</div>
+              <div className="text-xs text-mut">
+                {enabled ? "Dispositivo ativo" : "Desativado"}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={deviceId ?? ""}
+              disabled={!enabled}
+              onChange={(e) => setDevice(e.target.value || null)}
+              className={`bg-${enabled ? "bg" : "surf2"} border border-${enabled ? "bd" : "mut"}/50 rounded-lg px-3 py-1.5 text-sm text-txt outline-none focus:border-acc disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200`}
+            >
+              <option value="">Padrão do sistema</option>
+              {options.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              onClick={() => {
+                const next = !enabled;
+                setEnabled(next);
+                if (next && !deviceId) setDevice(options[0].id);
+                else if (!next) setDevice(null);
+              }}
+              className={`relative inline-flex w-10 h-5 shrink-0 cursor-pointer rounded-full transition-colors duration-300 ${
+                enabled ? "bg-acc" : "bg-surf2 border border-bd"
+              }`}
+            >
+              <span
+                className={`block w-3 h-3 rounded-full bg-bg shadow-md transition-transform duration-300 ease-out ${
+                  enabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!open) return null;
 
   return (
     <aside
       data-column="settings"
       aria-label="Configurações"
-      className="fixed inset-y-0 right-0 z-50 w-[560px] bg-surf border-l border-bd flex flex-col"
+      className="fixed inset-y-0 right-0 z-50 w-[560px] bg-surf border-l border-bd flex flex-col animate-[fadeIn_0.3s_ease-out]"
     >
       {/* Header */}
       <header className="flex items-center justify-between border-b border-bd px-5 py-4 bg-surf/50 backdrop-blur">
@@ -127,46 +188,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
       </header>
 
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-8">
-        {/* Aparência */}
-        <section>
-          <h3 className="font-display text-base font-semibold text-txt mb-4">Aparência</h3>
-          {toggleRow(
-            "Modo compacto",
-            "Mensagens e lista de canais mais enxutas",
-            compactMode,
-            setCompactMode,
-            Keyboard
-          )}
-          <div className="border-t border-bd pt-4 mt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
-                  <Keyboard size={16} weight="bold" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-txt">Densidade</div>
-                  <div className="text-xs text-mut">Confortável ou compacto</div>
-                </div>
-              </div>
-              <select
-                value={draftDensity}
-                onChange={(e) => setDraftDensity(e.target.value as any)}
-                className="bg-bg border border-bd rounded-lg px-3 py-1.5 text-sm text-txt outline-none focus:border-acc"
-              >
-                <option value="confortavel">Confortável</option>
-                <option value="compacto">Compacto</option>
-              </select>
-            </div>
-            <button
-              type="button"
-              onClick={handleSaveDensity}
-              className="mt-3 text-xs text-acc hover:text-acc-press underline underline-offset-4"
-            >
-              Aplicar
-            </button>
-          </div>
-        </section>
-
         {/* Notificações */}
         <section>
           <h3 className="font-display text-base font-semibold text-txt mb-4">Notificações</h3>
@@ -182,7 +203,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             "Tocar áudio ao receber mensagem",
             messageSound,
             setMessageSound,
-            VolumeIcon
+            VolumeIcon as any
           )}
           {toggleRow(
             "Apenas menções",
@@ -196,26 +217,29 @@ export default function Settings({ open, onClose }: SettingsProps) {
         {/* Voz e vídeo */}
         <section>
           <h3 className="font-display text-base font-semibold text-txt mb-4">Voz e vídeo</h3>
-          {toggleRow(
+          {deviceSelect(
             "Microfone",
-            "Permitir uso do microfone em chamadas",
             microphoneEnabled,
             setMicrophoneEnabled,
-            MicIcon
+            microphoneDevice,
+            setMicrophoneDevice,
+            "microphone"
           )}
-          {toggleRow(
+          {deviceSelect(
             "Câmera",
-            "Permitir uso da câmera em chamadas",
             cameraEnabled,
             setCameraEnabled,
-            VideoIcon
+            cameraDevice,
+            setCameraDevice,
+            "camera"
           )}
-          {toggleRow(
+          {deviceSelect(
             "Fones de ouvido",
-            "Usar fones de ouvido por padrão",
             headphonesEnabled,
             setHeadphonesEnabled,
-            HeadphonesIcon
+            headphonesDevice,
+            setHeadphonesDevice,
+            "headphones"
           )}
         </section>
 
@@ -261,7 +285,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
               </div>
               <button
                 type="button"
-                className="text-xs text-acc hover:text-acc-press underline underline-offset-4"
+                className="text-xs text-acc hover:text-acc-press underline underline-offset-4 transition-colors"
               >
                 Ver detalhes
               </button>
@@ -270,7 +294,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
           <div className="space-y-3">
             <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Desconectar de outros dispositivos</span>
               <span className="text-mut text-xs">Encerrar todas as sessões exceto esta</span>
@@ -284,21 +308,21 @@ export default function Settings({ open, onClose }: SettingsProps) {
           <div className="space-y-3">
             <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Gerenciar conta Google (SSO)</span>
               <span className="text-mut text-xs">Login e senha são gerenciados pelo Google</span>
             </button>
             <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Exportar meus dados</span>
               <span className="text-mut text-xs">Baixar histórico e configurações</span>
             </button>
             <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors active:scale-95"
             >
               <X size={14} weight="bold" className="mr-2" />
               <span>Sair da conta</span>

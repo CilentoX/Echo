@@ -1,8 +1,11 @@
-import { Hash, MagnifyingGlass, X } from "@phosphor-icons/react";
-import { useMemo } from "react";
+import { Hash, MagnifyingGlass, Pencil, Plus, X } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
 import EmptyState from "./EmptyState";
 import { selectChannels, selectGuilds, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { matrixService } from "@/lib/matrix/instance";
+import CreateChannelModal from "@/features/guild/CreateChannelModal";
+import EditGuildModal from "@/features/guild/EditGuildModal";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
@@ -22,12 +25,26 @@ export default function ChannelSidebar({
   const activeChannelId = useUiStore((state) => state.activeChannelId);
   const setActiveChannel = useUiStore((state) => state.setActiveChannel);
 
+  const [createChannelOpen, setCreateChannelOpen] = useState(false);
+  const [editGuildOpen, setEditGuildOpen] = useState(false);
+
   // Seletores devolvem snapshot vazio estável em miss (sem loop no useSyncExternalStore).
   const channels = useSyncStore(
     useMemo(() => selectChannels(activeGuildId ?? ""), [activeGuildId]),
   );
 
   const activeGuild = guilds.find((g) => g.guildId === activeGuildId) ?? null;
+
+  const handleEditGuild = async (updates: { name: string }) => {
+    if (!activeGuildId) return;
+    await matrixService.editGuild(activeGuildId, updates.name);
+    // Atualiza o nome localmente no store para feedback imediato.
+    useSyncStore.getState().setGuilds(
+      guilds.map((g) =>
+        g.guildId === activeGuildId ? { ...g, name: updates.name } : g,
+      ),
+    );
+  };
 
   return (
     <aside
@@ -39,10 +56,23 @@ export default function ChannelSidebar({
           : "h-full"
       }`}
     >
-      <header className="flex items-center justify-between border-b border-bd px-4 py-3">
-        <h1 className="truncate font-display text-base font-semibold text-txt">
-          {activeGuild ? activeGuild.name : "Eco"}
-        </h1>
+      <header className="flex items-center justify-between border-b border-bd px-4 py-3 group">
+        <div className="flex items-center gap-2">
+          <h1 className="truncate font-display text-base font-semibold text-txt">
+            {activeGuild ? activeGuild.name : "Eco"}
+          </h1>
+          {activeGuild && (
+            <button
+              type="button"
+              aria-label="Editar guilda"
+              title="Editar guilda"
+              onClick={() => setEditGuildOpen(true)}
+              className="flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors"
+            >
+              <Pencil size={14} weight="bold" aria-hidden />
+            </button>
+          )}
+        </div>
         {overlay && (
           <button
             type="button"
@@ -53,6 +83,17 @@ export default function ChannelSidebar({
             <X size={18} />
           </button>
         )}
+        {!overlay && activeGuild && (
+          <button
+            type="button"
+            aria-label="Criar canal"
+            title="Criar canal"
+            onClick={() => setCreateChannelOpen(true)}
+            className="flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors"
+          >
+            <Plus size={16} weight="bold" aria-hidden />
+          </button>
+        )}
       </header>
 
       {guilds.length === 0 ? (
@@ -60,13 +101,13 @@ export default function ChannelSidebar({
       ) : (
         <>
           <div className="border-b border-bd px-3 py-2">
-            <div className="flex items-center gap-2 rounded bg-surf2 px-2 py-1.5 text-mut">
+            <div className="flex items-center gap-2 rounded bg-surf2 px-2 py-1.5 text-mut group">
               <MagnifyingGlass size={14} aria-hidden />
               <input
                 type="search"
                 placeholder="Buscar canais"
                 aria-label="Buscar canais"
-                className="w-full bg-transparent text-sm text-txt outline-none placeholder:text-mut"
+                className="w-full bg-transparent text-sm text-txt outline-none placeholder:text-mut group-focus-within:text-txt"
               />
             </div>
           </div>
@@ -86,7 +127,7 @@ export default function ChannelSidebar({
                         type="button"
                         aria-current={active ? "true" : undefined}
                         onClick={() => setActiveChannel(channel.channelId)}
-                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${
+                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-all duration-200 ${
                           active
                             ? "bg-surf2 text-txt"
                             : "text-mut hover:bg-surf2 hover:text-txt"
@@ -111,6 +152,22 @@ export default function ChannelSidebar({
           </div>
         </>
       )}
+
+      <CreateChannelModal
+        open={createChannelOpen}
+        onClose={() => setCreateChannelOpen(false)}
+        guildId={activeGuildId ?? ""}
+        onCreate={(name) => matrixService.createChannel(activeGuildId ?? "", name)}
+        onCreated={(channel) => {
+          setActiveChannel(channel.channelId);
+        }}
+      />
+      <EditGuildModal
+        open={editGuildOpen}
+        onClose={() => setEditGuildOpen(false)}
+        guild={activeGuild ?? { guildId: "", name: "" }}
+        onSave={handleEditGuild}
+      />
     </aside>
   );
 }

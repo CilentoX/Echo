@@ -16,6 +16,7 @@ export interface FakeClient {
   getRooms: Mock;
   getRoom: Mock;
   createRoom: Mock;
+  sendStateEvent: Mock;
   emit(event: string, ...args: unknown[]): void;
 }
 
@@ -47,6 +48,7 @@ export function createFakeClient(): FakeClient {
     getRooms: vi.fn(() => []),
     getRoom: vi.fn(() => null),
     createRoom: vi.fn(async () => ({ room_id: "!created:hs" })),
+    sendStateEvent: vi.fn(async () => ({ event_id: "$fake-state" })),
     emit(event: string, ...args: unknown[]) {
       for (const listener of listeners.get(event) ?? []) listener(...args);
     },

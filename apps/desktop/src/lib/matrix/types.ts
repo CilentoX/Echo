@@ -63,6 +63,12 @@ export interface MatrixClientLike {
   getRooms(): RoomLike[];
   getRoom(roomId: string): RoomLike | null;
   createRoom(opts: ICreateRoomOpts): Promise<{ room_id: string }>;
+  sendStateEvent(
+    roomId: string,
+    eventType: string,
+    content: Record<string, unknown>,
+    stateKey?: string,
+  ): Promise<{ event_id: string }>;
 }
 
 export type SendEventResponseLike = string | { event_id: string };

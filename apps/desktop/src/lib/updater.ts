@@ -33,9 +33,11 @@ function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-/** Hook de boot do App: checa e instala silenciosamente, sem jamais quebrar o boot. */
+/** Hook de boot do App: checa e instala silenciosamente, sem jamais quebrar o boot.
+ * Anuncia o estado "checking" no store para o UpdateBanner mostrar o banner. */
 export async function runStartupUpdateCheck(): Promise<void> {
   if (!isTauri()) return;
+  useUpdateStore.getState().beginCheck();
   await downloadAndInstall(); // downloadAndInstall nunca lança
 }
 

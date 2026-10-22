@@ -165,6 +165,35 @@ export class MatrixService {
     return { guildId: res.room_id, name: trimmed, avatarUrl: null, unreadCount: 0 };
   }
 
+  /** Cria um canal de texto (sala m.room) dentro de uma guilda (Space). */
+  async createChannel(guildId: string, name: string): Promise<ChannelSummary> {
+    const client = this.requireClient();
+    const trimmed = name.trim().toLowerCase().replace(/\s+/g, "-");
+    if (!trimmed) throw new Error("createChannel: nome é obrigatório");
+    const space = client.getRoom(guildId);
+    if (!space || !isSpace(space)) throw new Error("createChannel: guilda não encontrada");
+    const res = await client.createRoom({
+      name: trimmed,
+      visibility: Visibility.Private,
+      preset: Preset.PrivateChat,
+      creation_content: {
+        "m.federate": false,
+      },
+    });
+    if (!res?.room_id) throw new Error("createChannel: resposta sem room_id");
+    // Declara o novo canal como filho da guilda (m.space.child).
+    await client.sendStateEvent(guildId, "m.space.child", { via: [guildId] }, res.room_id);
+    return { channelId: res.room_id, name: trimmed, unreadCount: 0 };
+  }
+
+  /** Renomeia uma guilda própria (atualiza m.space.name). */
+  async editGuild(guildId: string, name: string): Promise<void> {
+    const client = this.requireClient();
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error("editGuild: nome é obrigatório");
+    await client.sendStateEvent(guildId, "m.space.name", { name: trimmed });
+  }
+
   /** Channels (children declared via m.space.child) of a Space. */
   async listChannels(guildId: string): Promise<ChannelSummary[]> {
     const client = this.requireClient();
