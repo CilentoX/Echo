@@ -176,7 +176,7 @@ Referência visual: mockups em `.superpowers/brainstorm/959-1792535699/content/`
 
 1. **Fase 1 — Fundação:** repo, design tokens, layout de 4 colunas, login via Google (SSO) + escolha de username, sync, lista de guildas/canais, chat básico em tempo real.
 2. **Fase 2 — MVP completo:** reações, threads, presença, typing, uploads com preview (plano de mídia da §8.1), voz (UI nativa sobre LiveKit), convites de comunidade, roles e permissões estilo Discord, deploy Synapse+Postgres no Coolify.
-3. **Fase 3 — Bots:** sistema de bots (matrix-bot-sdk), primeiro bot do servidor, Application Services.
+3. **Fase 3 — Bots:** sistema de bots (matrix-bot-sdk), primeiro bot do servidor, Application Services. Inclui **painel de criação de bots no próprio app Eco**: o dono do servidor cria o usuário-bot pelo app (via Admin API do Synapse), o app exibe o access token + credenciais (user/pass) para copiar, e o bot pode ser hospedado em qualquer máquina (a própria do dono, a VPS via Coolify, etc.) — o bot só precisa do token e da URL do homeserver para conectar.
 4. **Futuro:** E2EE (verificação de dispositivos + backup e recuperação de chaves), emoji packs, bridges, refinamentos visuais (usuário sinalizou que vai querer mexer na identidade).
 
 ## 10. Deixado ao builder
