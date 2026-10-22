@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GuildSummary } from "@/lib/matrix/types";
 import CommunityRail from "@/features/shell/CommunityRail";
 import { useSyncStore } from "@/stores/syncStore";
@@ -34,7 +34,7 @@ describe("CommunityRail", () => {
       makeGuild({ name: "Eco Guild" }),
       makeGuild({ guildId: "!g2:hs", name: "Litteris" }),
     ]);
-    render(<CommunityRail />);
+    render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Eco Guild" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Litteris" })).toBeTruthy();
@@ -42,14 +42,14 @@ describe("CommunityRail", () => {
 
   it("mostra badge de não-lidas quando unreadCount > 0", () => {
     useSyncStore.getState().setGuilds([makeGuild({ unreadCount: 3 })]);
-    render(<CommunityRail />);
+    render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
     expect(screen.getByText("3")).toBeTruthy();
   });
 
   it("não mostra badge quando unreadCount === 0", () => {
     useSyncStore.getState().setGuilds([makeGuild({ unreadCount: 0 })]);
-    render(<CommunityRail />);
+    render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
     expect(screen.queryByText("0")).toBeNull();
   });
@@ -59,7 +59,7 @@ describe("CommunityRail", () => {
       makeGuild(),
       makeGuild({ guildId: "!g2:hs", name: "Litteris" }),
     ]);
-    render(<CommunityRail />);
+    render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Litteris" }));
 
@@ -72,7 +72,7 @@ describe("CommunityRail", () => {
       makeGuild({ guildId: "!g2:hs", name: "Litteris" }),
     ]);
     useUiStore.getState().setActiveGuild("!g2:hs");
-    render(<CommunityRail />);
+    render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
     const active = screen.getByRole("button", { name: "Litteris" });
     expect(active.getAttribute("aria-current")).toBe("true");

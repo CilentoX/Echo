@@ -1,5 +1,6 @@
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { Gear, User } from "@phosphor-icons/react";
 
 /** Iniciais do nome da guilda (até 2 palavras) — guildas sem avatar (avatarUrl vem de mxc://, render na Fase 2). */
 function initials(name: string): string {
@@ -12,8 +13,13 @@ function initials(name: string): string {
   );
 }
 
+export interface CommunityRailProps {
+  onOpenProfile: () => void;
+  onOpenSettings: () => void;
+}
+
 /** Community rail: the leftmost 72px column. It never disappears. */
-export default function CommunityRail() {
+export default function CommunityRail({ onOpenProfile, onOpenSettings }: CommunityRailProps) {
   const guilds = useSyncStore((state) => state.guilds);
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
@@ -53,6 +59,28 @@ export default function CommunityRail() {
           </div>
         );
       })}
+
+      {/* Espaço empurra os itens de fundo para baixo */}
+      <div className="flex-1" />
+
+      <div className="flex flex-col items-center gap-2 px-2 pb-4">
+        <button
+          type="button"
+          aria-label="Perfil"
+          onClick={onOpenProfile}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors"
+        >
+          <User size={16} weight="bold" />
+        </button>
+        <button
+          type="button"
+          aria-label="Configurações"
+          onClick={onOpenSettings}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors"
+        >
+          <Gear size={16} weight="bold" />
+        </button>
+      </div>
     </nav>
   );
 }

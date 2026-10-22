@@ -5,6 +5,8 @@ import ChannelSidebar from "./ChannelSidebar";
 import ChatPane from "./ChatPane";
 import MemberList from "./MemberList";
 import SyncStatusIndicator from "./SyncStatusIndicator";
+import Profile from "@/features/profile/Profile";
+import Settings from "@/features/settings/Settings";
 
 export interface AppShellProps {
   /** Chat area content; placeholder messages are shown when omitted. */
@@ -18,11 +20,14 @@ export interface AppShellProps {
  * - The rail never disappears.
  * - Below 900px the sidebar becomes an overlay opened from the chat header.
  * - Below 1150px the member list is hidden (toggleable as an overlay).
+ * - Profile and Settings are right-edge sheets opened from the rail.
  */
 export default function AppShell({ children }: AppShellProps) {
   const { membersVisible, sidebarOverlay } = useBreakpoints();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Crossing a breakpoint changes the layout mode; stale overlay
   // state must not make panels reappear open on the way back.
@@ -36,7 +41,10 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg font-ui text-txt">
-      <CommunityRail />
+      <CommunityRail
+        onOpenProfile={() => setProfileOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       {sidebarOverlay ? (
         sidebarOpen && (
@@ -67,6 +75,9 @@ export default function AppShell({ children }: AppShellProps) {
       )}
 
       <SyncStatusIndicator />
+
+      <Profile open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
