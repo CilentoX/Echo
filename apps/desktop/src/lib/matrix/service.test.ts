@@ -269,7 +269,7 @@ describe("MatrixService", () => {
     expect(created[0].opts).toEqual({ baseUrl: BASE_URL });
     expect(anonymous.getSsoLoginUrl).toHaveBeenCalledWith(
       "http://127.0.0.1:51000/callback",
-      "m.login.sso",
+      "sso",
       "google",
     );
 

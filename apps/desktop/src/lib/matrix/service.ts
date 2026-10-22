@@ -84,7 +84,7 @@ export class MatrixService {
   getSsoLoginUrl(redirectUrl: string, idpId?: string): string {
     const client = this.client ?? this.createClient({ baseUrl: this.baseUrl });
     return idpId
-      ? client.getSsoLoginUrl(redirectUrl, "m.login.sso", idpId)
+      ? client.getSsoLoginUrl(redirectUrl, "sso", idpId)
       : client.getSsoLoginUrl(redirectUrl);
   }
 
