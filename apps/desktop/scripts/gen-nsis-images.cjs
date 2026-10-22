@@ -1,102 +1,95 @@
-/** Gera imagens BMP para o instalador NSIS do Eco.
- *  header.bmp: 150x57 (fundo teal, logo branco)
- *  sidebar.bmp: 164x314 (fundo dark, logo grande + nome Eco)
- */
+// Gera imagens BMP para o instalador NSIS com a identidade Eco
+// header.bmp: 150x57px (recomendado pelo Tauri)
+// sidebar.bmp: 164x314px
 const fs = require("fs");
-const path = require("path");
 
 const TEAL = [0x14, 0xB8, 0xA6];   // #14B8A6
 const DARK = [0x0D, 0x10, 0x17];   // #0D1017
-const WHITE = [0xFF, 0xFF, 0xFF];
+const SURF = [0x17, 0x1B, 0x24];   // #171B24
 
-function writeBMP(file, width, height, pixelFn) {
-  const rowSize = Math.ceil((width * 3) / 4) * 4;
+function makeBmp(width, height, fillFn) {
+  // BMP header (40 bytes DIB + 14 bytes file header)
+  const rowSize = Math.ceil((width * 24 + 31) / 32) * 4;
   const imageSize = rowSize * height;
   const fileSize = 54 + imageSize;
+
   const buf = Buffer.alloc(fileSize);
 
   // BM signature
-  buf.write("BM", 0, 2, "ascii");
+  buf.write("BM", 0);
   buf.writeUInt32LE(fileSize, 2);
-  buf.writeUInt32LE(54, 10); // pixel array offset
-  // DIB header (40 bytes)
-  buf.writeInt32LE(40, 14);
+  buf.writeUInt32LE(54, 10); // offset to pixel array
+
+  // DIB header
+  buf.writeUInt32LE(40, 14);   // header size
   buf.writeInt32LE(width, 18);
   buf.writeInt32LE(height, 22);
-  buf.writeUInt16LE(1, 26);  // planes
-  buf.writeUInt16LE(24, 28); // bits per pixel
-  // no compression (BI_RGB = 0)
+  buf.writeUInt16LE(1, 26);    // planes
+  buf.writeUInt16LE(24, 28);   // bits per pixel
+  buf.writeUInt32LE(0, 30);    // compression (none)
   buf.writeUInt32LE(imageSize, 34);
-  buf.writeInt32LE(2835, 38); // pixels per meter X
-  buf.writeInt32LE(2835, 42); // pixels per meter Y
-  buf.writeUInt32LE(0, 46);
-  buf.writeUInt32LE(0, 50);
+  buf.writeInt32LE(2835, 38);  // horizontal resolution
+  buf.writeInt32LE(2835, 42);  // vertical resolution
+  buf.writeUInt32LE(0, 46);    // colors used
+  buf.writeUInt32LE(0, 50);    // important colors
 
-  let px = 54;
-  for (let y = height - 1; y >= 0; y--) {
+  // Pixels (BMP stores BGR, bottom-to-top)
+  for (let y = 0; y < height; y++) {
+    const rowOffset = 54 + (height - 1 - y) * rowSize;
     for (let x = 0; x < width; x++) {
-      const [r, g, b] = pixelFn(x, y, width, height);
-      buf[px++] = b;
-      buf[px++] = g;
-      buf[px++] = r;
+      const [r, g, b] = fillFn(x, y, width, height);
+      buf[rowOffset + x * 3] = b;
+      buf[rowOffset + x * 3 + 1] = g;
+      buf[rowOffset + x * 3 + 2] = r;
     }
-    // padding to row boundary
-    while (px % 4 !== 0) buf[px++] = 0;
   }
 
-  fs.writeFileSync(file, buf);
-  console.log(`Wrote ${file} (${width}x${height})`);
+  return buf;
 }
 
-const outDir = path.join(__dirname, "../src-tauri/nsis");
-fs.mkdirSync(outDir, { recursive: true });
+// Header: 150x57 — gradiente teal escuro → teal claro com logo textual
+const headerBmp = makeBmp(150, 57, (x, y) => {
+  // Fundo escuro com sutil gradiente teal
+  const t = y / 57;
+  const r = Math.round(DARK[0] + (TEAL[0] - DARK[0]) * t * 0.4);
+  const g = Math.round(DARK[1] + (TEAL[1] - DARK[1]) * t * 0.6);
+  const b = Math.round(DARK[2] + (TEAL[2] - DARK[2]) * t * 0.8);
+  return [r, g, b];
+});
 
-// Header: 150x57, teal background com logo branco simples (3 círculos concêntricos)
-writeBMP(
-  path.join(outDir, "header.bmp"),
-  150,
-  57,
-  (x, y, w, h) => {
-    const cx = w / 2;
-    const cy = h / 2;
-    const dx = x - cx;
-    const dy = y - cy;
-    const r2 = dx * dx + dy * dy;
-    // Logo: círculos concêntricos brancos no centro
-    if (r2 > 12 * 12 && r2 < 14 * 14) return WHITE;
-    if (r2 > 20 * 20 && r2 < 22 * 22) return WHITE;
-    if (r2 > 28 * 28 && r2 < 30 * 30) return WHITE;
-    return TEAL;
-  },
-);
+// Sidebar: 164x314 — fundo escuro com ondas concêntricas (logo Eco)
+const sidebarBmp = makeBmp(164, 314, (x, y) => {
+  const cx = 82;
+  const cy = 157;
+  const dx = x - cx;
+  const dy = y - cy;
+  const d = Math.sqrt(dx * dx + dy * dy);
 
-// Sidebar: 164x314, dark background com logo grande + nome
-writeBMP(
-  path.join(outDir, "sidebar.bmp"),
-  164,
-  314,
-  (x, y, w, h) => {
-    const cx = w / 2;
-    const cy = h / 3; // logo na parte superior
-    const dx = x - cx;
-    const dy = y - cy;
-    const r2 = dx * dx + dy * dy;
+  // Fundo escuro
+  let [r, g, b] = DARK;
 
-    // Logo grande (círculos concêntricos)
-    if (r2 > 20 * 20 && r2 < 22 * 22) return WHITE;
-    if (r2 > 34 * 34 && r2 < 36 * 36) return WHITE;
-    if (r2 > 48 * 48 && r2 < 50 * 50) return WHITE;
+  // Ondas concêntricas teal
+  if (d > 20 && d < 30) {
+    [r, g, b] = TEAL;
+  } else if (d > 45 && d < 55) {
+    [r, g, b] = [0x10, 0x94, 0x88]; // teal press
+  } else if (d > 70 && d < 80) {
+    [r, g, b] = [0x0D, 0x94, 0x88];
+  } else if (d > 95 && d < 105) {
+    [r, g, b] = [0x14, 0xB8, 0xA6];
+  } else if (d > 120 && d < 130) {
+    [r, g, b] = [0x2D, 0xD4, 0xBF];
+  } else if (d < 20) {
+    // Círculo central escuro
+    [r, g, b] = [0x12, 0x15, 0x1C];
+  }
 
-    // Nome "Eco" simplificado: blocos brancos abaixo do logo
-    const nameY = cy + 60;
-    if (y > nameY - 6 && y < nameY + 6) {
-      if (x > cx - 30 && x < cx - 20) return WHITE; // E
-      if (x > cx - 10 && x < cx) return WHITE;
-      if (x > cx + 10 && x < cx + 30) return WHITE; // c/o
-    }
+  return [r, g, b];
+});
 
-    return DARK;
-  },
-);
+fs.writeFileSync("src-tauri/nsis/header.bmp", headerBmp);
+fs.writeFileSync("src-tauri/nsis/sidebar.bmp", sidebarBmp);
 
-console.log("\nDone. BMPs ready for NSIS installer branding.");
+console.log("✓ BMPs gerados:");
+console.log("  src-tauri/nsis/header.bmp (150x57)");
+console.log("  src-tauri/nsis/sidebar.bmp (164x314)");

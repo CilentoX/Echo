@@ -10,6 +10,10 @@ export interface SettingsState {
   nativeNotifications: boolean;   // banners do SO + click-to-focus
   messageSound: boolean;          // áudio ao receber mensagem
   mentionOnly: boolean;           // notificar apenas menções
+  /** Voz e vídeo */
+  microphoneEnabled: boolean;     // permitir uso do microfone em chamadas
+  cameraEnabled: boolean;         // permitir uso da câmera em chamadas
+  headphonesEnabled: boolean;     // usar fones de ouvido por padrão
   /** Privacidade */
   onlineStatusVisible: boolean;   // outros veem se você está online
   readReceipts: boolean;          // enviar recibos de leitura
@@ -22,6 +26,9 @@ export interface SettingsState {
   setNativeNotifications(v: boolean): void;
   setMessageSound(v: boolean): void;
   setMentionOnly(v: boolean): void;
+  setMicrophoneEnabled(v: boolean): void;
+  setCameraEnabled(v: boolean): void;
+  setHeadphonesEnabled(v: boolean): void;
   setOnlineStatusVisible(v: boolean): void;
   setReadReceipts(v: boolean): void;
   setTypingVisible(v: boolean): void;
@@ -36,6 +43,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   nativeNotifications: true,
   messageSound: true,
   mentionOnly: false,
+  microphoneEnabled: true,
+  cameraEnabled: true,
+  headphonesEnabled: true,
   onlineStatusVisible: true,
   readReceipts: true,
   typingVisible: true,
@@ -46,6 +56,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   setNativeNotifications: (v) => set({ nativeNotifications: v }),
   setMessageSound: (v) => set({ messageSound: v }),
   setMentionOnly: (v) => set({ mentionOnly: v }),
+  setMicrophoneEnabled: (v) => set({ microphoneEnabled: v }),
+  setCameraEnabled: (v) => set({ cameraEnabled: v }),
+  setHeadphonesEnabled: (v) => set({ headphonesEnabled: v }),
   setOnlineStatusVisible: (v) => set({ onlineStatusVisible: v }),
   setReadReceipts: (v) => set({ readReceipts: v }),
   setTypingVisible: (v) => set({ typingVisible: v }),
@@ -57,6 +70,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
       nativeNotifications: true,
       messageSound: true,
       mentionOnly: false,
+      microphoneEnabled: true,
+      cameraEnabled: true,
+      headphonesEnabled: true,
       onlineStatusVisible: true,
       readReceipts: true,
       typingVisible: true,

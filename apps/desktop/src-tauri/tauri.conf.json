@@ -39,7 +39,7 @@
         "headerImage": "./nsis/header.bmp",
         "sidebarImage": "./nsis/sidebar.bmp",
         "startMenuFolder": "Eco",
-        "languages": ["English"]
+        "languages": ["PortugueseBrazilian", "English"]
       }
     }
   },

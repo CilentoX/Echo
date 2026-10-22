@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Bell, Eye, Keyboard, ShieldCheck, Clock, Lock } from "@phosphor-icons/react";
+import {
+  Bell,
+  Eye,
+  Keyboard,
+  ShieldCheck,
+  Clock,
+  Lock,
+  X,
+} from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 export interface SettingsProps {
@@ -9,7 +17,7 @@ export interface SettingsProps {
 
 /**
  * Sheet de configurações do app.
- * Aparência, notificações, privacidade, sessões e conta.
+ * Aparência, notificações, voz/vídeo, privacidade, sessões e conta.
  */
 export default function Settings({ open, onClose }: SettingsProps) {
   const {
@@ -18,6 +26,9 @@ export default function Settings({ open, onClose }: SettingsProps) {
     nativeNotifications, setNativeNotifications,
     messageSound, setMessageSound,
     mentionOnly, setMentionOnly,
+    microphoneEnabled, setMicrophoneEnabled,
+    cameraEnabled, setCameraEnabled,
+    headphonesEnabled, setHeadphonesEnabled,
     onlineStatusVisible, setOnlineStatusVisible,
     readReceipts, setReadReceipts,
     typingVisible, setTypingVisible,
@@ -52,14 +63,46 @@ export default function Settings({ open, onClose }: SettingsProps) {
           role="switch"
           aria-checked={checked}
           onClick={() => onChange(!checked)}
-          className={`relative inline-flex w-10 h-5 shrink-0 cursor-pointer rounded-full border-bd ${checked ? "bg-acc" : ""} transition-colors`}
+          className={`relative inline-flex w-10 h-5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ${
+            checked ? "bg-acc" : "bg-surf2 border border-bd"
+          }`}
         >
           <span
-            className={`block w-3 h-3 rounded-full bg-bg shadow ${checked ? "translate-x-5" : ""} transition-transform`}
+            className={`block w-3 h-3 rounded-full bg-bg shadow transition-transform duration-200 ${
+              checked ? "translate-x-5" : "translate-x-0"
+            }`}
           />
         </button>
       </div>
     </div>
+  );
+
+  // SVGs inline para ícones não disponíveis no @phosphor-icons/react v2.1.10
+  const VolumeIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M19 5l12 7 12-7" />
+    </svg>
+  );
+  const MicIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" x2="12" y1="19" y2="19" />
+    </svg>
+  );
+  const VideoIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+  );
+  const HeadphonesIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 18v-6a9 9 0 0 1 9 9v0a9 9 0 0 1 9-9v6" />
+      <path d="M20 22v-6a9 9 0 0 0-9-9v0a9 9 0 0 0-9 9v6" />
+      <circle cx="12" cy="4" r="2" />
+    </svg>
   );
 
   if (!open) return null;
@@ -139,7 +182,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             "Tocar áudio ao receber mensagem",
             messageSound,
             setMessageSound,
-            Bell
+            VolumeIcon
           )}
           {toggleRow(
             "Apenas menções",
@@ -147,6 +190,32 @@ export default function Settings({ open, onClose }: SettingsProps) {
             mentionOnly,
             setMentionOnly,
             Clock
+          )}
+        </section>
+
+        {/* Voz e vídeo */}
+        <section>
+          <h3 className="font-display text-base font-semibold text-txt mb-4">Voz e vídeo</h3>
+          {toggleRow(
+            "Microfone",
+            "Permitir uso do microfone em chamadas",
+            microphoneEnabled,
+            setMicrophoneEnabled,
+            MicIcon
+          )}
+          {toggleRow(
+            "Câmera",
+            "Permitir uso da câmera em chamadas",
+            cameraEnabled,
+            setCameraEnabled,
+            VideoIcon
+          )}
+          {toggleRow(
+            "Fones de ouvido",
+            "Usar fones de ouvido por padrão",
+            headphonesEnabled,
+            setHeadphonesEnabled,
+            HeadphonesIcon
           )}
         </section>
 
@@ -231,7 +300,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
               type="button"
               className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors"
             >
-              <span style={{ display: "inline-block", width: "14px", height: "14px" }} aria-hidden>↗</span>
+              <X size={14} weight="bold" className="mr-2" />
               <span>Sair da conta</span>
             </button>
           </div>
