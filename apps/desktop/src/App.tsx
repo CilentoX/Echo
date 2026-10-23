@@ -3,23 +3,26 @@ import AppShell from "@/features/shell/AppShell";
 import ChatPane from "@/features/chat/ChatPane";
 import UpdateBanner from "@/features/shell/UpdateBanner";
 import { matrixService } from "@/lib/matrix/instance";
+import { useUiStore } from "@/stores/uiStore";
 
-/** R2: envio real via MatrixService; o Composer cuida do otimismo/rollback. */
+/** R2: envio real via MatrixService; o Composer cuida do envio síncrono (P10). */
 const sendMessage = (roomId: string, body: string): Promise<string> =>
   matrixService.sendMessage(roomId, body);
 
-/** Wiring Task 11: stubs store-driven — presence, reações agregadas e threads
- *  chegam com o sync loop completo na Fase 2. */
-const TYPING_USERS: string[] = [];
+/** BOT_SENDERS: sender IDs tratados como bot (selo BOT teal). */
 const BOT_SENDERS = ["@eco:eco"];
 
 /** Shell autenticado: AppShell (T3) com o ChatPane real (T10) no slot de children. */
 function Shell() {
+  const typingUsers = useUiStore((s) => s.typingUsers);
+  const activeChannelId = useUiStore((s) => s.activeChannelId ?? "");
+  const names = typingUsers[activeChannelId] ?? [];
+
   return (
     <AppShell>
       <ChatPane
         sendMessage={sendMessage}
-        typingUsers={TYPING_USERS}
+        typingUsers={names}
         botSenders={BOT_SENDERS}
       />
     </AppShell>

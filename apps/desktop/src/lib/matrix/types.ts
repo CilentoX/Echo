@@ -20,6 +20,27 @@ export interface NormalizedEvent {
   originServerTs: number;
 }
 
+/** Reação m.reaction (m.annotation) normalizada. */
+export interface NormalizedReaction {
+  /** eventId do próprio evento de reação (necessário p/ redact no toggle). */
+  eventId: string;
+  roomId: string;
+  sender: string;
+  /** eventId da mensagem alvo. */
+  targetEventId: string;
+  emoji: string;
+}
+
+/** Presença sintetizada a partir do User do SDK. */
+export type PresenceState = "online" | "offline" | "unavailable";
+
+/** Membro de canal normalizado (join). */
+export interface MemberSummary {
+  userId: string;
+  displayName: string;
+  presence: PresenceState;
+}
+
 export interface GuildSummary {
   guildId: string;
   name: string;
@@ -60,6 +81,27 @@ export interface MatrixClientLike {
   startClient(opts?: Record<string, unknown>): void;
   stopClient(): void;
   sendMessage(roomId: string, content: { msgtype: string; body: string }): Promise<SendEventResponseLike>;
+  /** Envia qualquer evento de timeline (usado p/ m.reaction). */
+  sendEvent(
+    roomId: string,
+    eventType: string,
+    content: Record<string, unknown>,
+  ): Promise<{ event_id: string }>;
+  /** Notificação de digitação (m.typing ephemeral). */
+  sendTyping(roomId: string, isTyping: boolean, timeout?: number): Promise<unknown>;
+  /** Exclui um evento (m.room.redaction). */
+  redactEvent(roomId: string, eventId: string): Promise<{ event_id: string }>;
+  /** Sai de uma sala/guilda (usado p/ excluir guilda própria). */
+  leave(roomId: string): Promise<unknown>;
+  /** Marca o canal como lido até o evento dado (leitura real no server). */
+  sendReadReceipt(event: unknown, receiptType?: string, unthreaded?: boolean): Promise<unknown>;
+  /** Pagina histórico antigo (API pública de alto nível do SDK). */
+  scrollback(room: unknown, limit?: number): Promise<unknown>;
+  /** Perfil de um usuário (sem args = próprio usuário). */
+  getProfileInfo(userId?: string): Promise<{ displayname?: string; avatar_url?: string }>;
+  setDisplayName(name: string): Promise<unknown>;
+  /** Define o avatar do próprio usuário (mxc:// URI). */
+  setAvatarUrl(url: string): Promise<unknown>;
   getRooms(): RoomLike[];
   getRoom(roomId: string): RoomLike | null;
   createRoom(opts: ICreateRoomOpts): Promise<{ room_id: string }>;
@@ -69,6 +111,11 @@ export interface MatrixClientLike {
     content: Record<string, unknown>,
     stateKey?: string,
   ): Promise<{ event_id: string }>;
+  /** Envio de arquivo/mídia (avatar, banner, anexo). Devolve mxc:// URI. */
+  uploadContent(
+    body: BodyInit,
+    opts?: { name?: string; type?: string },
+  ): Promise<{ content_uri: string }>;
 }
 
 export type SendEventResponseLike = string | { event_id: string };
@@ -86,6 +133,18 @@ export interface RoomStateEventLike {
   getContent(): Record<string, unknown>;
 }
 
+export interface EventTimelineLike {
+  getEvents(): TimelineEventLike[];
+}
+
+export interface RoomMemberLike {
+  userId: string;
+  name: string;
+  membership: string;
+  /** Objeto User do SDK; presença vem daqui. */
+  user?: { presence?: string } | null;
+}
+
 export interface RoomLike {
   roomId: string;
   getMyMembership(): string;
@@ -93,8 +152,13 @@ export interface RoomLike {
   getType(): string | null | undefined;
   getMxcAvatarUrl(): string | null;
   getUnreadNotificationCount(type?: string): number;
+  /** Timeline ao vivo (mensagens já sincronizadas + recebidas). */
+  getLiveTimeline(): EventTimelineLike;
+  /** Membros com membership "join". */
+  getJoinedMembers(): RoomMemberLike[];
   currentState: {
     getStateEvents(eventType: string): RoomStateEventLike[];
+    roomId?: string;
   };
 }
 
@@ -103,6 +167,8 @@ export interface TimelineEventLike {
   getId(): string;
   getRoomId(): string | null;
   getSender(): string;
-  getContent(): { body?: string };
+  getContent(): Record<string, unknown>;
   getTs(): number;
+  /** true quando o evento foi redactado (excluído) — não renderizar. */
+  isRedacted?(): boolean;
 }

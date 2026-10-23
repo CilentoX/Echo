@@ -4,12 +4,14 @@ import type {
   GuildSummary,
   MatrixClientLike,
   NormalizedEvent,
+  NormalizedReaction,
   RoomLike,
   SendEventResponseLike,
   Session,
   SyncErrorInfo,
   SyncStatus,
   TimelineEventLike,
+  PresenceState,
 } from "./types";
 
 /**
@@ -30,7 +32,17 @@ const SYNC_STATE_STATUS: Record<string, SyncStatus> = {
 };
 
 function defaultClientFactory(opts: Parameters<typeof createClient>[0]): MatrixClientLike {
-  return createClient(opts);
+  return createClient(opts) as unknown as MatrixClientLike;
+}
+
+export interface SyncHandlers {
+  onEvent: (e: NormalizedEvent) => void;
+  onStatus: (s: SyncStatus, error?: SyncErrorInfo) => void;
+  onTyping?: (roomId: string, userId: string, isTyping: boolean) => void;
+  onPresence?: (userId: string, state: PresenceState) => void;
+  onMembers?: (roomId: string, members: import("./types").MemberSummary[]) => void;
+  onReaction?: (r: NormalizedReaction) => void;
+  onReadReceipt?: (roomId: string, userId: string, eventId: string) => void;
 }
 
 export class MatrixService {
@@ -39,6 +51,9 @@ export class MatrixService {
   private client: MatrixClientLike | null = null;
   private syncListener: ((...args: unknown[]) => void) | null = null;
   private timelineListener: ((...args: unknown[]) => void) | null = null;
+  private typingListener: ((...args: unknown[]) => void) | null = null;
+  private presenceListener: ((...args: unknown[]) => void) | null = null;
+  private membersListener: ((...args: unknown[]) => void) | null = null;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
@@ -76,11 +91,9 @@ export class MatrixService {
     });
   }
 
-  /**
-   * SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
-   * must not import matrix-js-sdk directly. The URL is built before any login,
-   * so a temp anonymous client is created when there is no active session.
-   */
+  /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
+   *  must not import matrix-js-sdk directly. The URL is built before any login,
+   *  so a temp anonymous client is created when there is no active session. */
   getSsoLoginUrl(redirectUrl: string, idpId?: string): string {
     const client = this.client ?? this.createClient({ baseUrl: this.baseUrl });
     return idpId
@@ -88,28 +101,72 @@ export class MatrixService {
       : client.getSsoLoginUrl(redirectUrl);
   }
 
-  startSync(
-    onEvent: (e: NormalizedEvent) => void,
-    onStatus: (s: SyncStatus, error?: SyncErrorInfo) => void,
-  ): void {
+  /**
+   * Liga o sync loop aos handlers. Chamar uma única vez por sessão ativa.
+   * Handlers:
+   * - onEvent → cada m.room.message ao vivo
+   * - onStatus → estado do sync (connecting/syncing/error)
+   * - onTyping → quem está digitando em cada sala
+   * - onPresence → presença de cada usuário
+   * - onMembers → membros de uma sala (mudança de membro join)
+   * - onReaction → cada evento m.reaction
+   * - onReadReceipt → cada recibo de leitura
+   */
+  startSyncHandlers(handlers: SyncHandlers): void {
     const client = this.requireClient();
 
     this.syncListener = (...args: unknown[]) => {
       const status = SYNC_STATE_STATUS[args[0] as string];
       if (!status) return;
-      // O SDK entrega (state, prevState, data) no evento "sync"; em ERROR,
-      // data.error.errcode identifica falha de auth vs. rede.
       const error = extractSyncError(args[2]);
-      if (error) onStatus(status, error);
-      else onStatus(status);
+      if (error) handlers.onStatus(status, error);
+      else handlers.onStatus(status);
     };
     this.timelineListener = (...args: unknown[]) => {
       const normalized = normalizeTimelineEvent(args[0] as TimelineEventLike);
-      if (normalized) onEvent(normalized);
+      if (normalized) handlers.onEvent(normalized);
+    };
+    this.typingListener = (...args: unknown[]) => {
+      // RoomMember.typing: (event, member) — event.getRoomId() + member.typing + member.userId
+      const event = args[0] as { getRoomId?: () => string | null } | undefined;
+      const member = args[1] as { userId?: string; typing?: boolean } | undefined;
+      const roomId = event?.getRoomId?.() ?? null;
+      if (!roomId || !member || !member.userId || typeof member.typing !== "boolean") return;
+      if (handlers.onTyping) {
+        handlers.onTyping(roomId, member.userId, member.typing);
+      }
+    };
+    this.presenceListener = (...args: unknown[]) => {
+      // User.presence: (event, user) — user.presence string + user.userId
+      const user = args[1] as { userId?: string; presence?: string } | undefined;
+      if (!user || !user.userId || !user.presence) return;
+      if (handlers.onPresence) handlers.onPresence(user.userId, mapPresence(user.presence));
+    };
+    this.membersListener = (...args: unknown[]) => {
+      // RoomStateEvent.Members: (event, member) — membro mudou de sala
+      const member = args[1] as {
+        userId?: string;
+        name?: string;
+        membership?: string;
+        user?: { presence?: string } | null;
+      } | undefined;
+      if (!member || !member.userId) return;
+      if (handlers.onMembers) {
+        handlers.onMembers(member.userId, [
+          {
+            userId: member.userId,
+            displayName: member.name ?? member.userId,
+            presence: mapPresence(member.user?.presence ?? "offline"),
+          },
+        ]);
+      }
     };
 
     client.on("sync", this.syncListener);
     client.on("Room.timeline", this.timelineListener);
+    client.on("RoomMember.typing", this.typingListener);
+    client.on("User.presence", this.presenceListener);
+    client.on("RoomStateEvent.Members", this.membersListener);
     client.startClient(DEFAULT_START_CLIENT_OPTS);
   }
 
@@ -117,9 +174,16 @@ export class MatrixService {
     if (!this.client) return;
     if (this.syncListener) this.client.removeListener("sync", this.syncListener);
     if (this.timelineListener) this.client.removeListener("Room.timeline", this.timelineListener);
+    if (this.typingListener) this.client.removeListener("RoomMember.typing", this.typingListener);
+    if (this.presenceListener) this.client.removeListener("User.presence", this.presenceListener);
+    if (this.membersListener)
+      this.client.removeListener("RoomStateEvent.Members", this.membersListener);
     this.client.stopClient();
     this.syncListener = null;
     this.timelineListener = null;
+    this.typingListener = null;
+    this.presenceListener = null;
+    this.membersListener = null;
   }
 
   /** Send an m.text message; resolves with the resulting event id. */
@@ -133,7 +197,94 @@ export class MatrixService {
     return res.event_id;
   }
 
-  /** Joined Spaces (m.space) as guild summaries. */
+  /** Envia uma reação m.reaction (m.annotation com m.relates_to) a um evento. */
+  async sendReaction(roomId: string, targetEventId: string, emoji: string): Promise<string> {
+    const res = await this.requireClient().sendEvent(roomId, "m.reaction", {
+      "m.relates_to": {
+        rel_type: "m.annotation",
+        event_id: targetEventId,
+      },
+      "m.annotation": {
+        emoji,
+      },
+    });
+    if (!res?.event_id) throw new Error("sendReaction failed: missing event_id");
+    return res.event_id;
+  }
+
+  /** Remove a própria reação de um evento (redige o evento de reação). */
+  async removeReaction(roomId: string, reactionEventId: string): Promise<void> {
+    await this.requireClient().redactEvent(roomId, reactionEventId);
+  }
+
+  /** Marca o canal como lido até o evento dado (recibo de leitura real no server). */
+  async markAsRead(roomId: string, eventId: string): Promise<void> {
+    await this.requireClient().sendReadReceipt(
+      { getId: () => eventId, getRoomId: () => roomId } as unknown as Parameters<
+        MatrixClientLike["sendReadReceipt"]
+      >[0],
+    );
+  }
+
+  /** Redige (exclui) um evento próprio. */
+  async redact(roomId: string, eventId: string): Promise<void> {
+    await this.requireClient().redactEvent(roomId, eventId);
+  }
+
+  /** Define o estado de digitação em uma sala (m.typing ephemeral). */
+  async setTyping(roomId: string, isTyping: boolean): Promise<void> {
+    await this.requireClient().sendTyping(roomId, isTyping);
+  }
+
+  /** Carrega histórico antigo de uma sala (scrollback) e retorna os eventos. */
+  async loadOlder(roomId: string, limit = 20): Promise<NormalizedEvent[]> {
+    const client = this.requireClient();
+    const room = client.getRoom(roomId);
+    if (!room) return [];
+    const scrollbacked = await client.scrollback(room, limit);
+    const events = (scrollbacked as { getLiveTimeline: () => { getEvents: () => TimelineEventLike[] } }).getLiveTimeline().getEvents();
+    return events
+      .map((e) => normalizeTimelineEvent(e))
+      .filter((e): e is NormalizedEvent => e !== null);
+  }
+
+  /** Perfil de um usuário (sem args = próprio usuário). */
+  async getDisplayName(userId?: string): Promise<string | null> {
+    const res = await this.requireClient().getProfileInfo(userId);
+    return res.displayname ?? null;
+  }
+
+  /** Altera o nome de exibição da própria conta. */
+  async setDisplayName(name: string): Promise<void> {
+    await this.requireClient().setDisplayName(name);
+  }
+
+  /** Envia um arquivo de mídia (avatar, banner, anexo) e devolve o mxc:// URI. */
+  async uploadMedia(file: File): Promise<string> {
+    const res = await this.requireClient().uploadContent(file, {
+      name: file.name,
+      type: file.type,
+    });
+    if (!res?.content_uri) throw new Error("uploadMedia: resposta sem content_uri");
+    return res.content_uri;
+  }
+
+  /** Define o avatar do próprio usuário (mxc:// URI ou null para remover). */
+  async setAvatarUrl(url: string | null): Promise<void> {
+    if (!url) {
+      await this.requireClient().setAvatarUrl("");
+      return;
+    }
+    await this.requireClient().setAvatarUrl(url);
+  }
+
+  /** Devolve o avatar_url de um usuário (sem args = próprio usuário). */
+  async getAvatarUrl(userId?: string): Promise<string | null> {
+    const res = await this.requireClient().getProfileInfo(userId);
+    return res.avatar_url ?? null;
+  }
+
+  /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
   async listGuilds(): Promise<GuildSummary[]> {
     const client = this.requireClient();
     return client
@@ -147,10 +298,7 @@ export class MatrixService {
       }));
   }
 
-  /**
-   * Cria uma nova guilda (Space m.space) com o nome dado.
-   * Retorna o resumo da guilda criada para o chamador adicionar ao store.
-   */
+  /** Cria uma nova guilda (Space m.space) com o nome dado e o canal # geral automático. */
   async createGuild(name: string): Promise<GuildSummary> {
     const client = this.requireClient();
     const trimmed = name.trim();
@@ -162,7 +310,27 @@ export class MatrixService {
       preset: Preset.PrivateChat,
     });
     if (!res?.room_id) throw new Error("createGuild: resposta sem room_id");
+    // Criar canal # geral automaticamente dentro da guilda (P5)
+    try {
+      const geralRes = await client.createRoom({
+        name: "geral",
+        visibility: Visibility.Private,
+        preset: Preset.PrivateChat,
+        creation_content: { "m.federate": false },
+      });
+      if (geralRes?.room_id) {
+        await client.sendStateEvent(res.room_id, "m.space.child", { via: [res.room_id] }, geralRes.room_id);
+      }
+    } catch {
+      // Se falhar criar o # geral, a guilda já existe — não bloqueia
+    }
     return { guildId: res.room_id, name: trimmed, avatarUrl: null, unreadCount: 0 };
+  }
+
+  /** Sai (deleta) uma guilda própria. */
+  async deleteGuild(guildId: string): Promise<void> {
+    const client = this.requireClient();
+    await client.leave(guildId);
   }
 
   /** Cria um canal de texto (sala m.room) dentro de uma guilda (Space). */
@@ -181,20 +349,19 @@ export class MatrixService {
       },
     });
     if (!res?.room_id) throw new Error("createChannel: resposta sem room_id");
-    // Declara o novo canal como filho da guilda (m.space.child).
     await client.sendStateEvent(guildId, "m.space.child", { via: [guildId] }, res.room_id);
     return { channelId: res.room_id, name: trimmed, unreadCount: 0 };
   }
 
-  /** Renomeia uma guilda própria (atualiza m.space.name). */
+  /** Renomeia uma guilda própria (atualiza m.room.name — fix B4). */
   async editGuild(guildId: string, name: string): Promise<void> {
     const client = this.requireClient();
     const trimmed = name.trim();
     if (!trimmed) throw new Error("editGuild: nome é obrigatório");
-    await client.sendStateEvent(guildId, "m.space.name", { name: trimmed });
+    await client.sendStateEvent(guildId, "m.room.name", { name: trimmed });
   }
 
-  /** Channels (children declared via m.space.child) of a Space. */
+  /** Canais (filhos declarados via m.space.child) de um Space. */
   async listChannels(guildId: string): Promise<ChannelSummary[]> {
     const client = this.requireClient();
     const space = client.getRoom(guildId);
@@ -219,6 +386,23 @@ export class MatrixService {
     });
   }
 
+  /** Membros com membership "join" de uma sala, com presença. */
+  async listMembers(roomId: string): Promise<import("./types").MemberSummary[]> {
+    const client = this.requireClient();
+    const room = client.getRoom(roomId);
+    if (!room) return [];
+    const members = room.getJoinedMembers();
+    const out: import("./types").MemberSummary[] = [];
+    for (const m of members) {
+      out.push({
+        userId: m.userId,
+        displayName: m.name ?? m.userId,
+        presence: m.user?.presence ? mapPresence(m.user.presence) : "offline",
+      });
+    }
+    return out;
+  }
+
   private createClient(opts: Parameters<typeof createClient>[0]): MatrixClientLike {
     return this.clientFactory(opts);
   }
@@ -227,7 +411,7 @@ export class MatrixService {
     if (!this.client) {
       throw new Error("MatrixService: no active session — call loginWithSsoToken or restoreSession first");
     }
-    return this.client;
+    return this.client as unknown as MatrixClientLike;
   }
 }
 
@@ -241,11 +425,6 @@ function stateEventName(room: RoomLike, eventType: string): string | null {
   return typeof name === "string" && name.length > 0 ? name : null;
 }
 
-/**
- * Extrai o errcode do payload do evento "sync" em estado ERROR.
- * Formato do SDK: `data.error.errcode` (fallback: `data.errcode`).
- * undefined quando não há erro identificável (ex.: ERROR sem data).
- */
 function extractSyncError(data: unknown): SyncErrorInfo | undefined {
   if (!data || typeof data !== "object") return undefined;
   const container = data as { error?: unknown; errcode?: unknown };
@@ -257,7 +436,9 @@ function extractSyncError(data: unknown): SyncErrorInfo | undefined {
 }
 
 function normalizeTimelineEvent(event: TimelineEventLike): NormalizedEvent | null {
+  // Ignora eventos de reação (vem pelo handler próprio) e redactados.
   if (event.getType() !== "m.room.message") return null;
+  if (event.isRedacted?.()) return null;
   const body = event.getContent().body;
   const eventId = event.getId();
   const roomId = event.getRoomId();
@@ -269,4 +450,17 @@ function normalizeTimelineEvent(event: TimelineEventLike): NormalizedEvent | nul
     body,
     originServerTs: event.getTs(),
   };
+}
+
+function mapPresence(presence: string): PresenceState {
+  switch (presence) {
+    case "online":
+      return "online";
+    case "offline":
+      return "offline";
+    case "unavailable":
+      return "unavailable";
+    default:
+      return "offline";
+  }
 }

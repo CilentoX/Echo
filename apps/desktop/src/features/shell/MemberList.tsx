@@ -34,7 +34,7 @@ export default function MemberList({
             type="button"
             aria-label="Fechar membros"
             onClick={onClose}
-            className="flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
+            className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
           >
             <X size={18} />
           </button>

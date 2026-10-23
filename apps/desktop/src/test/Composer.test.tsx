@@ -34,22 +34,14 @@ describe("Composer", () => {
     expect(screen.getByRole("button", { name: "Anexar arquivo" })).toBeTruthy();
   });
 
-  it("Enter envia: placeholder pending-* entra na timeline e é trocado pelo evento real", async () => {
+  it("Enter envia: chama sendMessage com roomId e corpo", async () => {
     const sendMessage = vi.fn().mockResolvedValue("$real1");
     render(<Composer roomId={ROOM} sendMessage={sendMessage} channelName="geral" />);
 
     await userEvent.type(screen.getByLabelText("Mensagem"), "olá mundo{Enter}");
 
-    // O envio real foi chamado com roomId + corpo digitado.
+    // O envio real foi chamado com roomId + corpo digitado (P10).
     expect(sendMessage).toHaveBeenCalledWith(ROOM, "olá mundo");
-
-    // O placeholder otimista existiu (R2); após resolver, resta só o evento real.
-    await waitFor(() => {
-      expect(timeline().map((e) => e.eventId)).toEqual(["$real1"]);
-    });
-    const [real] = timeline();
-    expect(real.roomId).toBe(ROOM);
-    expect(real.body).toBe("olá mundo");
 
     // Campo limpo após enviar.
     expect((screen.getByLabelText("Mensagem") as HTMLTextAreaElement).value).toBe("");
@@ -68,19 +60,21 @@ describe("Composer", () => {
     );
   });
 
-  it("falha no envio faz rollback: placeholder removido, texto restaurado e erro visível", async () => {
+  it("falha no envio: texto restaurado e erro visível (sem placeholder otimista)", async () => {
     const sendMessage = vi.fn().mockRejectedValue(new Error("network down"));
     render(<Composer roomId={ROOM} sendMessage={sendMessage} channelName="geral" />);
 
     await userEvent.type(screen.getByLabelText("Mensagem"), "mensagem perdida{Enter}");
 
     await waitFor(() => {
-      expect(timeline()).toHaveLength(0); // removePending fez o rollback
+      expect(screen.getByRole("alert")).toBeTruthy();
     });
+    // Texto restaurado para retry (P11).
     expect(
       (screen.getByLabelText("Mensagem") as HTMLTextAreaElement).value,
     ).toBe("mensagem perdida");
-    expect(screen.getByRole("alert")).toBeTruthy();
+    // Nenhuma mensagem aparece na timeline (sem placeholder otimista).
+    expect(timeline()).toHaveLength(0);
   });
 
   it("botão Enviar envia o rascunho atual", async () => {
@@ -91,9 +85,6 @@ describe("Composer", () => {
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
     expect(sendMessage).toHaveBeenCalledWith(ROOM, "via botão");
-    await waitFor(() => {
-      expect(timeline().map((e) => e.eventId)).toEqual(["$real2"]);
-    });
   });
 
   it("botão Anexar arquivo fica desabilitado até a Fase 2 (sem anexo falso)", async () => {
@@ -107,17 +98,14 @@ describe("Composer", () => {
     expect(screen.queryByLabelText("Remover anexo")).toBeNull();
   });
 
-  it("mensagem otimista usa o userId da sessão como sender", async () => {
+  it("mensagem confirma no servidor antes de aparecer (usa userId da sessão como sender)", async () => {
     useUiStore.getState().setMyUserId("@eu:hs");
     const sendMessage = vi.fn().mockResolvedValue("$real1");
     render(<Composer roomId={ROOM} sendMessage={sendMessage} />);
 
     await userEvent.type(screen.getByLabelText("Mensagem"), "olá{Enter}");
 
-    await waitFor(() => {
-      expect(timeline().map((e) => e.eventId)).toEqual(["$real1"]);
-    });
-    expect(timeline()[0].sender).toBe("@eu:hs");
+    expect(sendMessage).toHaveBeenCalledWith(ROOM, "olá");
   });
 
   it("Enter durante um envio em curso é enfileirado e envia o rascunho ao concluir", async () => {
@@ -149,9 +137,6 @@ describe("Composer", () => {
 
     await act(async () => {
       resolvers[1]("$real2");
-    });
-    await waitFor(() => {
-      expect(timeline().map((e) => e.eventId)).toEqual(["$real1", "$real2"]);
     });
   });
 });

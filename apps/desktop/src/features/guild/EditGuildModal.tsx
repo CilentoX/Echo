@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { Pencil, X } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { Trash, X } from "@phosphor-icons/react";
+import { matrixService } from "@/lib/matrix/instance";
+import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface EditGuildModalProps {
   open: boolean;
@@ -16,8 +19,25 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
   const [name, setName] = useState(guild.name);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  if (!open) return null;
+  // Re-sync do input quando a guilda muda (ex: renomeada de outro lugar)
+  useEffect(() => {
+    setName(guild.name);
+  }, [guild.name]);
+
+  // Fecha o modal ao pressionar Esc
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const setActiveGuild = useUiStore((state) => state.setActiveGuild);
+  const setActiveChannel = useUiStore((state) => state.setActiveChannel);
+  const setGuilds = useSyncStore((state) => state.setGuilds);
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -36,6 +56,30 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
       setLoading(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Tem certeza que deseja excluir a guilda "${guild.name}"?`)) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await matrixService.deleteGuild(guild.guildId);
+      // Remove da store e desliga a seleção se era a ativa
+      const current = useSyncStore.getState().guilds;
+      setGuilds(current.filter((g) => g.guildId !== guild.guildId));
+      const ui = useUiStore.getState();
+      if (ui.activeGuildId === guild.guildId) {
+        setActiveGuild(null);
+        setActiveChannel(null);
+      }
+      onClose();
+    } catch {
+      setError("Não foi possível excluir a guilda. Tente de novo.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (!open) return null;
 
   return (
     <div
@@ -103,11 +147,11 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
 
         <button
           type="button"
-          onClick={onClose}
-          className="cursor-pointer mt-4 w-full rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-err hover:bg-err/10 transition-colors active:scale-95"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="cursor-pointer mt-4 w-full rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-err hover:bg-err/10 transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Pencil size={14} className="mr-2" />
-          Deletar guilda
+          {deleting ? "Excluindo…" : <Trash size={14} className="mr-2" />} Excluir guilda
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Pencil, Link, ShieldCheck, Users, Gift } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { Pencil, Link, ShieldCheck, Users, Gift, X, Image } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
+import { matrixService } from "@/lib/matrix/instance";
 
 export interface ProfileProps {
   /** Quando verdadeiro, a sheet fica aberta. Controlada pelo pai. */
@@ -17,23 +18,31 @@ export default function Profile({ open, onClose }: ProfileProps) {
   const {
     displayName,
     username,
+    nickname,
     avatarUrl,
+    bannerUrl,
     bio,
     role,
     joinedAt,
     links,
     setDisplayName,
+    setNickname,
     setBio,
     setRole,
+    setAvatarUrl,
+    setBannerUrl,
     setLinks,
   } = useProfileStore();
 
   const [tab, setTab] = useState<string>("profile");
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(displayName);
+  const [draftNickname, setDraftNickname] = useState(nickname ?? "");
   const [draftBio, setDraftBio] = useState(bio ?? "");
   const [draftRole, setDraftRole] = useState(role ?? "");
   const [draftLinks, setDraftLinks] = useState([...links]);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   const initials = (name: string) =>
     name
@@ -44,8 +53,9 @@ export default function Profile({ open, onClose }: ProfileProps) {
       .map((p) => p[0]?.toUpperCase() ?? "")
       .join("") || "?";
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setDisplayName(draftName);
+    setNickname(draftNickname || null);
     setBio(draftBio || null);
     setRole(draftRole || null);
     setLinks(draftLinks);
@@ -66,7 +76,49 @@ export default function Profile({ open, onClose }: ProfileProps) {
     setDraftLinks(next);
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    setUploadingAvatar(true);
+    try {
+      const uri = await matrixService.uploadMedia(file);
+      await matrixService.setAvatarUrl(uri);
+      setAvatarUrl(uri);
+    } catch {
+      // falha silenciosa — o usuário pode tentar novamente
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    setUploadingBanner(true);
+    try {
+      const uri = await matrixService.uploadMedia(file);
+      await setBannerUrl(uri);
+    } catch {
+      // falha silenciosa
+    } finally {
+      setUploadingBanner(false);
+      e.target.value = "";
+    }
+  };
+
   if (!open) return null;
+
+  // Fecha a sheet ao pressionar Esc
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   const TABS: Array<[string, string]> = [
     ["profile", "Perfil"],
@@ -78,7 +130,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
     <aside
       data-column="profile"
       aria-label="Perfil"
-      className="fixed inset-y-0 right-0 z-50 w-[460px] bg-surf border-l border-bd flex flex-col animate-[fadeIn_0.3s_ease-out]"
+      className="fixed inset-y-0 right-0 z-50 w-[460px] bg-surf border-l border-bd flex flex-col"
     >
       {/* Header */}
       <header className="flex items-center justify-between border-b border-bd px-5 py-4 bg-surf/50 backdrop-blur">
@@ -89,7 +141,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
           onClick={onClose}
           className="cursor-pointer flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
         >
-          <span aria-hidden>✕</span>
+          <X size={18} />
         </button>
       </header>
 
@@ -116,8 +168,53 @@ export default function Profile({ open, onClose }: ProfileProps) {
 
         {tab === "profile" && (
           <>
+            {/* Banner */}
+            {bannerUrl && (
+              <div
+                className="w-full h-24 rounded-xl bg-bg border border-bd overflow-hidden relative mb-2"
+                style={{ backgroundImage: `url(${bannerUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+              >
+                {editing && (
+                  <button
+                    type="button"
+                    aria-label="Alterar banner"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      document.getElementById("banner-input")?.click();
+                    }}
+                    className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 transition-colors group"
+                  >
+                    <Image size={24} className="text-white" />
+                    <span className="mt-2 text-xs text-white font-medium bg-black/60 px-2 py-1 rounded">
+                      Alterar banner
+                    </span>
+                  </button>
+                )}
+                <input
+                  id="banner-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleBannerChange}
+                />
+              </div>
+            )}
+            {editing && !bannerUrl && (
+              <button
+                type="button"
+                aria-label="Adicionar banner"
+                onClick={() => document.getElementById("banner-input")?.click()}
+                className="w-full h-24 rounded-xl bg-surf2 border border-bd/50 flex items-center justify-center cursor-pointer hover:border-acc transition-colors active:scale-95 group"
+              >
+                <Image size={20} className="text-mut group-hover:text-acc transition-colors" />
+                <span className="mt-2 text-xs text-mut group-hover:text-acc transition-colors">
+                  Adicionar banner de perfil
+                </span>
+              </button>
+            )}
+
             {/* Avatar */}
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center mt-4">
               <div
                 className="relative"
                 aria-label="Avatar do perfil"
@@ -131,26 +228,50 @@ export default function Profile({ open, onClose }: ProfileProps) {
                     : undefined}
                 >
                   {avatarUrl ? null : initials(displayName || username)}
+                  <input
+                    id="avatar-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+                  {editing && (
+                    <button
+                      type="button"
+                      aria-label="Alterar avatar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        document.getElementById("avatar-input")?.click();
+                      }}
+                      className={`cursor-pointer absolute bottom-1 right-1 w-10 h-10 rounded-full flex items-center justify-center text-sm text-bg shadow-lg hover:bg-acc-press transition-all active:scale-95 ${
+                        uploadingAvatar ? "opacity-50 cursor-not-allowed" : "bg-acc"
+                      }`}
+                    >
+                      {uploadingAvatar ? (
+                        <span className="text-[10px] animate-spin">⟳</span>
+                      ) : (
+                        <Pencil size={16} />
+                      )}
+                    </button>
+                  )}
                 </div>
-                {editing && (
-                  <button
-                    type="button"
-                    aria-label="Alterar avatar"
-                    className="cursor-pointer absolute bottom-1 right-1 w-10 h-10 rounded-full bg-acc flex items-center justify-center text-sm text-bg shadow-lg hover:bg-acc-press transition-all active:scale-95"
-                  >
-                    <Pencil size={16} />
-                  </button>
+                <p className="mt-4 font-display text-2xl font-bold text-txt">
+                  {displayName || username}
+                </p>
+                {nickname && (
+                  <p className="text-sm text-acc font-medium">
+                    @{nickname}
+                  </p>
+                )}
+                {!nickname && (
+                  <p className="text-sm text-mut">{username}</p>
+                )}
+                {role && (
+                  <p className="mt-1 text-xs text-acc bg-acc/10 px-2 py-0.5 rounded-full border border-acc/30">
+                    {role}
+                  </p>
                 )}
               </div>
-              <p className="mt-4 font-display text-2xl font-bold text-txt">
-                {displayName || username}
-              </p>
-              <p className="text-sm text-mut">{username}</p>
-              {role && (
-                <p className="mt-1 text-xs text-acc bg-acc/10 px-2 py-0.5 rounded-full border border-acc/30">
-                  {role}
-                </p>
-              )}
             </div>
 
             {/* Bio */}
@@ -173,8 +294,23 @@ export default function Profile({ open, onClose }: ProfileProps) {
               )}
             </div>
 
-            {/* Cargo + entrada */}
+            {/* Nickname + cargo */}
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
+                  Apelido (nickname)
+                </label>
+                {editing ? (
+                  <input
+                    value={draftNickname}
+                    onChange={(e) => setDraftNickname(e.target.value)}
+                    className="w-full bg-bg border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none transition-colors"
+                    placeholder="Seu apelido"
+                  />
+                ) : (
+                  <p className="text-sm text-txt">{nickname || "—"}</p>
+                )}
+              </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
                   Cargo
@@ -190,6 +326,8 @@ export default function Profile({ open, onClose }: ProfileProps) {
                   <p className="text-sm text-txt">{role || "—"}</p>
                 )}
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
                   Entrou em
@@ -237,7 +375,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                           className="cursor-pointer p-1.5 text-err hover:bg-err/10 rounded transition-colors active:scale-95"
                           aria-label="Remover ligação"
                         >
-                          <span aria-hidden>✕</span>
+                          <X size={14} weight="bold" />
                         </button>
                       </>
                     ) : (
@@ -263,14 +401,16 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="cursor-pointer w-full bg-acc text-bg font-display font-semibold py-3.5 rounded-xl hover:bg-acc-press transition-all active:scale-95 shadow-lg shadow-acc/20"
+                  disabled={uploadingAvatar || uploadingBanner}
+                  className={`cursor-pointer w-full ${uploadingAvatar || uploadingBanner ? "opacity-50 cursor-not-allowed" : "bg-acc text-bg font-display font-semibold py-3.5 rounded-xl hover:bg-acc-press transition-all active:scale-95 shadow-lg shadow-acc/20"}`}
                 >
-                  Salvar alterações
+                  {uploadingAvatar || uploadingBanner ? "Atualizando…" : "Salvar alterações"}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setDraftName(displayName);
+                    setDraftNickname(nickname ?? "");
                     setDraftBio(bio ?? "");
                     setDraftRole(role ?? "");
                     setDraftLinks([...links]);
@@ -287,6 +427,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 type="button"
                 onClick={() => {
                   setDraftName(displayName);
+                  setDraftNickname(nickname ?? "");
                   setDraftBio(bio ?? "");
                   setDraftRole(role ?? "");
                   setDraftLinks([...links]);

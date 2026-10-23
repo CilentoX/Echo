@@ -24,6 +24,7 @@ export default function ChannelSidebar({
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const activeChannelId = useUiStore((state) => state.activeChannelId);
   const setActiveChannel = useUiStore((state) => state.setActiveChannel);
+  const setChannels = useSyncStore((state) => state.setChannels);
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const [editGuildOpen, setEditGuildOpen] = useState(false);
@@ -160,6 +161,10 @@ export default function ChannelSidebar({
         onCreate={(name) => matrixService.createChannel(activeGuildId ?? "", name)}
         onCreated={(channel) => {
           setActiveChannel(channel.channelId);
+          setChannels(activeGuildId ?? "", [
+            { ...channel, unreadCount: 0 },
+            ...(Array.isArray(channels) ? channels : []),
+          ]);
         }}
       />
       <EditGuildModal

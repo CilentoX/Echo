@@ -1,357 +1,364 @@
-import { describe, expect, it, vi } from "vitest";
-import type { createClient } from "matrix-js-sdk";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { MatrixClient } from "matrix-js-sdk";
 import { MatrixService } from "./service";
-import {
-  createFakeClient,
-  createFakeRoom,
-  createFakeTimelineEvent,
-  type FakeClient,
-} from "./fakeClient";
-import type { Session } from "./types";
 
-const BASE_URL = "https://hs.example";
+const BASE_URL = "https://echo.litteris.online";
 
-function makeService(fake: FakeClient): MatrixService {
-  return new MatrixService(BASE_URL, () => fake);
-}
+// Objeto client compartilhado entre todos os testes
+const mockClient: Record<string, ReturnType<typeof vi.fn>> = {
+  loginRequest: vi.fn(),
+  getSsoLoginUrl: vi.fn(() => "https://mock/sso"),
+  on: vi.fn(),
+  removeListener: vi.fn(),
+  startClient: vi.fn(),
+  stopClient: vi.fn(),
+  sendMessage: vi.fn(),
+  sendEvent: vi.fn(),
+  sendTyping: vi.fn(),
+  redactEvent: vi.fn(),
+  sendReadReceipt: vi.fn(),
+  scrollback: vi.fn(),
+  getProfileInfo: vi.fn(),
+  setDisplayName: vi.fn(),
+  getRooms: vi.fn(() => []),
+  getRoom: vi.fn(),
+  createRoom: vi.fn(),
+  sendStateEvent: vi.fn(),
+  uploadContent: vi.fn(),
+  setAvatarUrl: vi.fn(),
+};
 
-function makeSession(): Session {
+vi.mock("matrix-js-sdk", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("matrix-js-sdk")>();
   return {
-    baseUrl: BASE_URL,
-    accessToken: "syt-restored",
-    userId: "@user:hs.example",
-    deviceId: "FAKEDEV",
+    ...actual,
+    createClient: vi.fn(() => mockClient),
+    Preset: actual.Preset,
+    Visibility: actual.Visibility,
   };
-}
+});
 
-describe("MatrixService", () => {
-  it("loginWithSsoToken chama loginRequest com m.login.token e devolve Session", async () => {
-    const fake = createFakeClient();
-    fake.loginRequest.mockResolvedValueOnce({
-      access_token: "syt-at-1",
-      user_id: "@nina:hs.example",
-      device_id: "DEV123",
-      refresh_token: "rt-1",
+import { createClient } from "matrix-js-sdk";
+
+const mockCreateClient = vi.mocked(createClient);
+
+beforeEach(() => {
+  mockCreateClient.mockClear();
+  Object.values(mockClient).forEach((fn) => {
+    if (typeof fn === "function" && "mockClear" in fn) {
+      fn.mockClear();
+    }
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("MatrixService (SDK mockado)", () => {
+  let service: MatrixService;
+
+  beforeEach(() => {
+    service = new MatrixService(BASE_URL);
+  });
+
+  describe("loginWithSsoToken", () => {
+    it("aplica a sessão e devolve as credenciais", async () => {
+      mockClient.loginRequest.mockResolvedValue({
+        access_token: "tok-1",
+        user_id: "@alice:hs",
+        device_id: "DEV1",
+        refresh_token: "rt-1",
+      });
+      const session = await service.loginWithSsoToken("login-token");
+
+      expect(session).toEqual({
+        baseUrl: BASE_URL,
+        accessToken: "tok-1",
+        userId: "@alice:hs",
+        deviceId: "DEV1",
+        refreshToken: "rt-1",
+      });
+      expect(mockClient.loginRequest).toHaveBeenCalledWith({
+        type: "m.login.token",
+        token: "login-token",
+      });
     });
-    const service = makeService(fake);
 
-    const session = await service.loginWithSsoToken("LT-1");
-
-    expect(fake.loginRequest).toHaveBeenCalledWith({
-      type: "m.login.token",
-      token: "LT-1",
-    });
-    expect(session).toEqual({
-      baseUrl: BASE_URL,
-      accessToken: "syt-at-1",
-      userId: "@nina:hs.example",
-      deviceId: "DEV123",
-      refreshToken: "rt-1",
+    it("lança erro quando não há access_token", async () => {
+      mockClient.loginRequest.mockResolvedValue({});
+      await expect(service.loginWithSsoToken("bad-token")).rejects.toThrow("missing access_token");
     });
   });
 
-  it("loginWithSsoToken devolve Session sem refreshToken quando ausente", async () => {
-    const fake = createFakeClient();
-    fake.loginRequest.mockResolvedValueOnce({
-      access_token: "syt-at-2",
-      user_id: "@nina:hs.example",
-      device_id: null,
+  describe("sendMessage", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
     });
-    const service = makeService(fake);
 
-    const session = await service.loginWithSsoToken("LT-2");
+    it("envia m.text e resolve com o eventId", async () => {
+      mockClient.sendMessage.mockResolvedValue({ event_id: "$evt:hs" });
+      const id = await service.sendMessage("!room:hs", "oi");
 
-    expect(session).toEqual({
-      baseUrl: BASE_URL,
-      accessToken: "syt-at-2",
-      userId: "@nina:hs.example",
-      deviceId: null,
+      expect(id).toBe("$evt:hs");
+      expect(mockClient.sendMessage).toHaveBeenCalledWith("!room:hs", {
+        msgtype: "m.text",
+        body: "oi",
+      });
     });
   });
 
-  it("loginWithSsoToken troca o client anônimo por um client com credenciais", async () => {
-    const anonymous = createFakeClient();
-    anonymous.loginRequest.mockResolvedValueOnce({
-      access_token: "syt-at-3",
-      user_id: "@nina:hs.example",
-      device_id: "DEV123",
-    });
-    const created: Array<{ opts: Parameters<typeof createClient>[0]; client: FakeClient }> = [];
-    const service = new MatrixService(BASE_URL, (opts) => {
-      const client = created.length === 0 ? anonymous : createFakeClient();
-      created.push({ opts, client });
-      return client;
+  describe("sendReaction", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
     });
 
-    const session = await service.loginWithSsoToken("LT-3");
+    it("envia m.reaction com m.relates_to e m.annotation", async () => {
+      mockClient.sendEvent.mockResolvedValue({ event_id: "$reaction:hs" });
+      const id = await service.sendReaction("!room:hs", "$target:hs", "👍");
 
-    // 1º client: anônimo (só baseUrl); 2º client: criado com credenciais da sessão
-    expect(created).toHaveLength(2);
-    expect(created[0].opts).toEqual({ baseUrl: BASE_URL });
-    expect(created[1].opts).toEqual({
-      baseUrl: BASE_URL,
-      accessToken: "syt-at-3",
-      userId: "@nina:hs.example",
-      deviceId: "DEV123",
-    });
-    expect(session).toEqual({
-      baseUrl: BASE_URL,
-      accessToken: "syt-at-3",
-      userId: "@nina:hs.example",
-      deviceId: "DEV123",
-    });
-
-    // o client ativo pós-login é o NOVO (credenciado), não o anônimo
-    created[1].client.sendMessage.mockResolvedValueOnce({ event_id: "$sent-cred" });
-    await expect(service.sendMessage("!room:hs.example", "oi")).resolves.toBe("$sent-cred");
-    expect(anonymous.sendMessage).not.toHaveBeenCalled();
-  });
-
-  it("startSync usa os parâmetros do startClient e entrega evento m.room.message normalizado", () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const onEvent = vi.fn();
-    const onStatus = vi.fn();
-    service.startSync(onEvent, onStatus);
-
-    expect(fake.startClient).toHaveBeenCalledWith({
-      initialSyncLimit: 20,
-      threadSupport: true,
-    });
-
-    fake.emit(
-      "Room.timeline",
-      createFakeTimelineEvent({
-        eventId: "$evt-1",
-        roomId: "!room:hs.example",
-        sender: "@ana:hs.example",
-        body: "olá mundo",
-        ts: 1700000123456,
-      }),
-    );
-
-    expect(onEvent).toHaveBeenCalledWith({
-      eventId: "$evt-1",
-      roomId: "!room:hs.example",
-      sender: "@ana:hs.example",
-      body: "olá mundo",
-      originServerTs: 1700000123456,
+      expect(id).toBe("$reaction:hs");
+      expect(mockClient.sendEvent).toHaveBeenCalledWith("!room:hs", "m.reaction", {
+        "m.relates_to": { rel_type: "m.annotation", event_id: "$target:hs" },
+        "m.annotation": { emoji: "👍" },
+      });
     });
   });
 
-  it("startSync ignora eventos que não são m.room.message", () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const onEvent = vi.fn();
-    service.startSync(onEvent, vi.fn());
-
-    fake.emit("Room.timeline", createFakeTimelineEvent({ type: "m.room.member" }));
-
-    expect(onEvent).not.toHaveBeenCalled();
-  });
-
-  it("client.on('sync') com ERROR reporta onStatus('error')", () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const onStatus = vi.fn();
-    service.startSync(vi.fn(), onStatus);
-
-    fake.emit("sync", "ERROR");
-
-    expect(onStatus).toHaveBeenCalledWith("error");
-  });
-
-  it("ERROR com M_UNKNOWN_TOKEN no data entrega o errcode ao onStatus", () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const onStatus = vi.fn();
-    service.startSync(vi.fn(), onStatus);
-
-    fake.emit("sync", "ERROR", null, { error: { errcode: "M_UNKNOWN_TOKEN" } });
-
-    expect(onStatus).toHaveBeenCalledWith("error", { errcode: "M_UNKNOWN_TOKEN" });
-  });
-
-  it("ERROR com errcode direto no data também é extraído", () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const onStatus = vi.fn();
-    service.startSync(vi.fn(), onStatus);
-
-    fake.emit("sync", "ERROR", null, { errcode: "M_UNKNOWN_TOKEN" });
-
-    expect(onStatus).toHaveBeenCalledWith("error", { errcode: "M_UNKNOWN_TOKEN" });
-  });
-
-  it("client.on('sync') com PREPARED reporta onStatus('syncing')", () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const onStatus = vi.fn();
-    service.startSync(vi.fn(), onStatus);
-
-    fake.emit("sync", "PREPARED");
-
-    expect(onStatus).toHaveBeenCalledWith("syncing");
-  });
-
-  it("stopSync remove os listeners e para o client", () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const onEvent = vi.fn();
-    const onStatus = vi.fn();
-    service.startSync(onEvent, onStatus);
-    service.stopSync();
-
-    fake.emit("sync", "PREPARED");
-    fake.emit("Room.timeline", createFakeTimelineEvent());
-
-    expect(onStatus).not.toHaveBeenCalled();
-    expect(onEvent).not.toHaveBeenCalled();
-    expect(fake.stopClient).toHaveBeenCalled();
-  });
-
-  it("sendMessage monta m.text e resolve com o eventId", async () => {
-    const fake = createFakeClient();
-    fake.sendMessage.mockResolvedValueOnce({ event_id: "$sent-1" });
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const eventId = await service.sendMessage("!room:hs.example", "oi");
-
-    expect(fake.sendMessage).toHaveBeenCalledWith("!room:hs.example", {
-      msgtype: "m.text",
-      body: "oi",
-    });
-    expect(eventId).toBe("$sent-1");
-  });
-
-  it("getSsoLoginUrl delega ao client (wrapper p/ sso.ts)", () => {
-    const fake = createFakeClient();
-    fake.getSsoLoginUrl.mockReturnValueOnce("https://hs.example/sso-redirect");
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
-
-    const url = service.getSsoLoginUrl("http://localhost:1420/sso-callback");
-
-    expect(url).toBe("https://hs.example/sso-redirect");
-    expect(fake.getSsoLoginUrl).toHaveBeenCalledWith(
-      "http://localhost:1420/sso-callback",
-    );
-  });
-
-  it("getSsoLoginUrl usa um client temporário quando não há sessão ativa", async () => {
-    const anonymous = createFakeClient();
-    anonymous.getSsoLoginUrl.mockReturnValueOnce("https://hs.example/sso-redirect");
-    const created: Array<{ opts: Parameters<typeof createClient>[0]; client: FakeClient }> = [];
-    const service = new MatrixService(BASE_URL, (opts) => {
-      created.push({ opts, client: anonymous });
-      return anonymous;
+  describe("markAsRead", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
     });
 
-    const url = service.getSsoLoginUrl("http://127.0.0.1:51000/callback", "google");
+    it("envia recibo de leitura", async () => {
+      mockClient.sendReadReceipt.mockResolvedValue(undefined);
+      await service.markAsRead("!room:hs", "$evt:hs");
 
-    expect(url).toBe("https://hs.example/sso-redirect");
-    expect(created).toHaveLength(1);
-    expect(created[0].opts).toEqual({ baseUrl: BASE_URL });
-    expect(anonymous.getSsoLoginUrl).toHaveBeenCalledWith(
-      "http://127.0.0.1:51000/callback",
-      "sso",
-      "google",
-    );
-
-    // o client temporário NÃO vira a sessão ativa do service
-    await expect(service.sendMessage("!room:hs.example", "oi")).rejects.toThrow(
-      /no active session/,
-    );
+      expect(mockClient.sendReadReceipt).toHaveBeenCalled();
+    });
   });
 
-  it("listGuilds transforma um Space joined em GuildSummary", async () => {
-    const space = createFakeRoom({
-      roomId: "!space:hs.example",
-      type: "m.space",
-      spaceName: "Guilda Echo",
-      unreadCount: 2,
+  describe("redact", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
     });
-    const fake = createFakeClient();
-    fake.getRooms.mockReturnValueOnce([space]);
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
 
-    const guilds = await service.listGuilds();
+    it("redige um evento próprio", async () => {
+      mockClient.redactEvent.mockResolvedValue({ event_id: "$redact:hs" });
+      await service.redact("!room:hs", "$evt:hs");
 
-    expect(guilds).toEqual([
-      {
-        guildId: "!space:hs.example",
+      expect(mockClient.redactEvent).toHaveBeenCalledWith("!room:hs", "$evt:hs");
+    });
+  });
+
+  describe("setTyping", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+    });
+
+    it("envia notificação de digitação", async () => {
+      mockClient.sendTyping.mockResolvedValue(undefined);
+      await service.setTyping("!room:hs", true);
+
+      expect(mockClient.sendTyping).toHaveBeenCalledWith("!room:hs", true);
+    });
+  });
+
+  describe("getDisplayName / setDisplayName", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+    });
+
+    it("getDisplayName devolve o nome do perfil", async () => {
+      mockClient.getProfileInfo.mockResolvedValue({ displayname: "Alice" });
+      const name = await service.getDisplayName("@alice:hs");
+      expect(name).toBe("Alice");
+      expect(mockClient.getProfileInfo).toHaveBeenCalledWith("@alice:hs");
+    });
+
+    it("setDisplayName altera o nome de exibição", async () => {
+      mockClient.setDisplayName.mockResolvedValue(undefined);
+      await service.setDisplayName("Alice");
+      expect(mockClient.setDisplayName).toHaveBeenCalledWith("Alice");
+    });
+  });
+
+  describe("createGuild", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+    });
+
+    it("cria uma Space com m.space na creation_content", async () => {
+      mockClient.createRoom.mockResolvedValue({ room_id: "!space:hs" });
+      const guild = await service.createGuild("Guilda Echo");
+
+      expect(guild).toEqual({ guildId: "!space:hs", name: "Guilda Echo", avatarUrl: null, unreadCount: 0 });
+      expect(mockClient.createRoom).toHaveBeenCalledWith({
         name: "Guilda Echo",
-        avatarUrl: null,
-        unreadCount: 2,
-      },
-    ]);
+        creation_content: { type: "m.space" },
+        visibility: "private",
+        preset: "private_chat",
+      });
+    });
+
+    it("rejeita nome vazio", async () => {
+      await expect(service.createGuild("   ")).rejects.toThrow("nome é obrigatório");
+    });
   });
 
-  it("listGuilds ignora rooms que não são Space", async () => {
-    const channel = createFakeRoom({ roomId: "!chan:hs.example" });
-    const fake = createFakeClient();
-    fake.getRooms.mockReturnValueOnce([channel]);
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
+  describe("createChannel", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+      mockClient.getRoom.mockReturnValue({
+        getType: () => "m.space",
+        currentState: { getStateEvents: () => [] },
+      });
+    });
 
-    expect(await service.listGuilds()).toEqual([]);
+    it("cria uma sala m.room e declara m.space.child", async () => {
+      mockClient.createRoom.mockResolvedValue({ room_id: "!chan:hs" });
+      const channel = await service.createChannel("!guild:hs", "geral");
+
+      expect(channel).toEqual({ channelId: "!chan:hs", name: "geral", unreadCount: 0 });
+      expect(mockClient.sendStateEvent).toHaveBeenCalledWith(
+        "!guild:hs",
+        "m.space.child",
+        { via: ["!guild:hs"] },
+        "!chan:hs",
+      );
+    });
   });
 
-  it("listChannels lê os filhos do Space via m.space.child", async () => {
-    const geral = createFakeRoom({
-      roomId: "!chan1:hs.example",
-      name: "#geral",
-      unreadCount: 3,
+  describe("editGuild (fix B4: m.room.name, não m.space.name)", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
     });
-    const dev = createFakeRoom({ roomId: "!chan2:hs.example", name: "#dev" });
-    const space = createFakeRoom({
-      roomId: "!space:hs.example",
-      type: "m.space",
-      spaceName: "Guilda Echo",
-      children: [
-        { roomId: "!chan1:hs.example", via: ["hs.example"] },
-        { roomId: "!ghost:hs.example" }, // sem via: não é filho recomendado
-        { roomId: "!chan2:hs.example", via: ["hs.example"] },
-      ],
-    });
-    const fake = createFakeClient();
-    fake.getRoom.mockImplementation((roomId: string) => {
-      if (roomId === "!chan1:hs.example") return geral;
-      if (roomId === "!chan2:hs.example") return dev;
-      return space;
-    });
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
 
-    const channels = await service.listChannels("!space:hs.example");
+    it("escreve m.room.name no estado da guilda", async () => {
+      mockClient.sendStateEvent.mockResolvedValue({ event_id: "$rename:hs" });
+      await service.editGuild("!guild:hs", "Novo Nome");
 
-    expect(channels).toEqual([
-      { channelId: "!chan1:hs.example", name: "#geral", unreadCount: 3 },
-      { channelId: "!chan2:hs.example", name: "#dev", unreadCount: 0 },
-    ]);
+      expect(mockClient.sendStateEvent).toHaveBeenCalledWith(
+        "!guild:hs",
+        "m.room.name",
+        { name: "Novo Nome" },
+      );
+    });
   });
 
-  it("listChannels devolve [] quando o guildId não é um room conhecido", async () => {
-    const fake = createFakeClient();
-    const service = makeService(fake);
-    service.restoreSession(makeSession());
+  describe("listGuilds / listChannels / listMembers (sem sync)", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+      mockClient.getRoom.mockReturnValue({
+        getJoinedMembers: vi.fn(() => []),
+        currentState: { getStateEvents: () => [] },
+      });
+    });
 
-    expect(await service.listChannels("!desconhecido")).toEqual([]);
+    it("listGuilds devolve [] sem sync prévio", async () => {
+      expect(await service.listGuilds()).toEqual([]);
+    });
+
+    it("listChannels devolve [] quando a guilda não existe", async () => {
+      expect(await service.listChannels("!nao-existe")).toEqual([]);
+    });
+
+    it("listMembers devolve [] quando o canal não existe", async () => {
+      expect(await service.listMembers("!nao-existe")).toEqual([]);
+    });
+  });
+
+  describe("getSsoLoginUrl", () => {
+    it("constrói a URL de redirect do provider OIDC", () => {
+      mockClient.getSsoLoginUrl.mockReturnValue(
+        "https://mock/sso?redirectUrl=http://localhost:1420/callback&idpId=oidc-google",
+      );
+      const url = service.getSsoLoginUrl("http://localhost:1420/callback", "oidc-google");
+      expect(mockClient.getSsoLoginUrl).toHaveBeenCalledWith(
+        "http://localhost:1420/callback",
+        "sso",
+        "oidc-google",
+      );
+      expect(url).toContain("idpId=oidc-google");
+    });
+  });
+
+  describe("startSyncHandlers / stopSync", () => {
+    let onSpy: ReturnType<typeof vi.spyOn>;
+    let startSpy: ReturnType<typeof vi.spyOn>;
+    let stopSpy: ReturnType<typeof vi.spyOn>;
+    let removeListenerSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      onSpy = vi.spyOn(MatrixClient.prototype, "on");
+      startSpy = vi.spyOn(MatrixClient.prototype, "startClient");
+      stopSpy = vi.spyOn(MatrixClient.prototype, "stopClient");
+      removeListenerSpy = vi.spyOn(MatrixClient.prototype, "removeListener");
+    });
+
+    afterEach(() => {
+      onSpy.mockRestore();
+      startSpy.mockRestore();
+      stopSpy.mockRestore();
+      removeListenerSpy.mockRestore();
+    });
+
+    it("registra listeners e chama startClient com as opções corretas", () => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+      service.startSyncHandlers({
+        onEvent: vi.fn(),
+        onStatus: vi.fn(),
+        onTyping: vi.fn(),
+        onPresence: vi.fn(),
+        onMembers: vi.fn(),
+        onReaction: vi.fn(),
+        onReadReceipt: vi.fn(),
+      });
+
+      expect(mockClient.on).toHaveBeenCalledWith("sync", expect.any(Function));
+      expect(mockClient.on).toHaveBeenCalledWith("Room.timeline", expect.any(Function));
+      expect(mockClient.on).toHaveBeenCalledWith("RoomMember.typing", expect.any(Function));
+      expect(mockClient.on).toHaveBeenCalledWith("User.presence", expect.any(Function));
+      expect(mockClient.on).toHaveBeenCalledWith("RoomStateEvent.Members", expect.any(Function));
+      expect(mockClient.startClient).toHaveBeenCalledWith({ initialSyncLimit: 20, threadSupport: true });
+    });
+
+    it("stopSync remove listeners e chama stopClient", () => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+      service.startSyncHandlers({ onEvent: vi.fn(), onStatus: vi.fn() });
+      service.stopSync();
+
+      expect(mockClient.removeListener).toHaveBeenCalledWith("sync", expect.any(Function));
+      expect(mockClient.removeListener).toHaveBeenCalledWith("Room.timeline", expect.any(Function));
+      expect(mockClient.stopClient).toHaveBeenCalled();
+    });
+  });
+
+  describe("uploadMedia / avatar", () => {
+    beforeEach(() => {
+      service.restoreSession({ baseUrl: BASE_URL, accessToken: "tok", userId: "@alice:hs", deviceId: null });
+    });
+
+    it("uploadMedia envia o arquivo e devolve o mxc:// URI", async () => {
+      mockClient.uploadContent.mockResolvedValue({ content_uri: "mxc://hs/abc123" });
+      const file = new File(["dummy"], "avatar.png", { type: "image/png" });
+      const uri = await service.uploadMedia(file);
+
+      expect(uri).toBe("mxc://hs/abc123");
+      expect(mockClient.uploadContent).toHaveBeenCalledWith(file, expect.anything());
+    });
+
+    it("setAvatarUrl altera o avatar do próprio usuário", async () => {
+      mockClient.setAvatarUrl.mockResolvedValue(undefined);
+      await service.setAvatarUrl("mxc://hs/avatar");
+      expect(mockClient.setAvatarUrl).toHaveBeenCalledWith("mxc://hs/avatar");
+    });
+
+    it("getProfileInfo devolve o avatar_url do usuário", async () => {
+      mockClient.getProfileInfo.mockResolvedValue({ avatar_url: "mxc://hs/avatar", displayname: "Alice" });
+      const info = await service.getAvatarUrl("@alice:hs");
+      expect(info).toBe("mxc://hs/avatar");
+      expect(mockClient.getProfileInfo).toHaveBeenCalledWith("@alice:hs");
+    });
   });
 });

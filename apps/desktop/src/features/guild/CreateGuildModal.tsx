@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
 
 export interface CreateGuildModalProps {
@@ -20,6 +20,15 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
   const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
+
+  // Fecha o modal ao pressionar Esc
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   const handleSubmit = async () => {
     const trimmed = name.trim();

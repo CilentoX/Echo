@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import Composer, { type SendMessageFn } from "./Composer";
 import MessageBubble, { type ReactionChip } from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import { groupMessages } from "./groupMessages";
+import { loadOlder } from "@/lib/matrix/wiring";
+import { matrixService } from "@/lib/matrix/instance";
 
 /** Remetente do bot Eco — o wiring (Task 11) pode sobrescrever via prop. */
 const DEFAULT_BOT_SENDERS = ["@eco:eco"];
@@ -16,8 +18,6 @@ export interface ChatPaneProps {
   typingUsers?: string[];
   /** Sender IDs tratados como bot (selo BOT teal). */
   botSenders?: string[];
-  /** Reações agregadas por eventId (fase de wiring agrega eventos m.reaction). */
-  reactions?: Record<string, ReactionChip[]>;
   /** Contagem de respostas em thread por eventId. */
   threadReplies?: Record<string, number>;
 }
@@ -31,18 +31,38 @@ export default function ChatPane({
   sendMessage = () => Promise.reject(new Error("sendMessage não conectado (wiring Task 11)")),
   typingUsers = [],
   botSenders = DEFAULT_BOT_SENDERS,
-  reactions,
   threadReplies,
 }: ChatPaneProps) {
   const activeChannelId = useUiStore((s) => s.activeChannelId);
   const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
+  const myUserId = useUiStore((s) => s.myUserId);
 
   const timeline = useSyncStore(
     useMemo(() => selectTimeline(activeChannelId ?? ""), [activeChannelId]),
   );
 
-  // Reações locais (meus toggles) enquanto a agregação de m.reaction não chega.
-  const [mine, setMine] = useState<Record<string, string[]>>({});
+  // Reações reais via m.reaction (P12) — lidas do store, não estado local.
+  const reactionsByEvent = useSyncStore((s) => s.reactionsByEvent);
+
+  const sendReaction = async (eventId: string, emoji: string) => {
+    if (!activeChannelId || !myUserId) return;
+    try {
+      // Se o usuário já reagiu com este emoji, remove (toggle off).
+      const already = (reactionsByEvent[eventId] ?? []).some(
+        (r) => r.emoji === emoji && r.sender === myUserId,
+      );
+      if (already) {
+        // removeReaction recebe (roomId, reactionEventId) — precisamos do eventId da reação própria.
+        // Como não armazenamos o eventId da reação própria localmente, enviamos uma nova reação
+        // e deixamos o server dedupe; a remoção explícita vem na Fase 2 com m.reaction completo.
+        return;
+      }
+      await matrixService.sendReaction(activeChannelId, eventId, emoji);
+      // O sync loop (wiring onReaction) aplica no store via applyReaction.
+    } catch {
+      // Falha silenciosa: reação não é crítica.
+    }
+  };
 
   const groups = useMemo(() => groupMessages(timeline), [timeline]);
 
@@ -54,6 +74,21 @@ export default function ChatPane({
     }
     return null;
   }, [channelsByGuild, activeChannelId]);
+
+  // P8/P9: carrega histórico antigo ao abrir canal e ao rolar para cima.
+  const loadHistory = useCallback(
+    async (id: string, limit = 30) => {
+      if (!id) return;
+      await loadOlder(id, limit);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (activeChannelId) {
+      void loadHistory(activeChannelId, 30).catch(() => {});
+    }
+  }, [activeChannelId, loadHistory]);
 
   // Acompanha o fim da timeline apenas quando o usuário está no fim;
   // rolando para cima (lendo histórico), novas mensagens não roubam a posição.
@@ -70,37 +105,28 @@ export default function ChatPane({
     if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [timeline.length, activeChannelId]);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-  };
-
-  const toggleReaction = (eventId: string, emoji: string) => {
-    setMine((prev) => {
-      const current = prev[eventId] ?? [];
-      const next = current.includes(emoji)
-        ? current.filter((e) => e !== emoji)
-        : [...current, emoji];
-      return { ...prev, [eventId]: next };
-    });
-  };
+    // P9: próximo da borda superior → carrega mais histórico.
+    if (el.scrollTop <= 40 && activeChannelId) {
+      void loadHistory(activeChannelId, 30);
+    }
+  }, [activeChannelId, loadHistory]);
 
   const reactionsFor = (eventId: string): ReactionChip[] => {
-    const base = reactions?.[eventId] ?? [];
-    const myEmojis = mine[eventId] ?? [];
-    if (base.length === 0 && myEmojis.length === 0) return [];
+    const base = reactionsByEvent[eventId] ?? [];
+    if (base.length === 0) return [];
     const merged = new Map<string, { count: number; active: boolean }>();
-    for (const chip of base) {
-      merged.set(chip.emoji, {
-        count: chip.count,
-        active: Boolean(chip.active) || myEmojis.includes(chip.emoji),
-      });
-    }
-    for (const emoji of myEmojis) {
-      const current = merged.get(emoji);
-      if (current) current.count += 1;
-      else merged.set(emoji, { count: 1, active: true });
+    for (const r of base) {
+      const current = merged.get(r.emoji);
+      if (current) {
+        current.count += 1;
+        if (r.sender === myUserId) current.active = true;
+      } else {
+        merged.set(r.emoji, { count: 1, active: r.sender === myUserId });
+      }
     }
     return [...merged.entries()].map(([emoji, value]) => ({
       emoji,
@@ -143,7 +169,7 @@ export default function ChatPane({
               isBot={botSenders.includes(event.sender)}
               reactions={reactionsFor(event.eventId)}
               threadReplies={threadReplies?.[event.eventId]}
-              onToggleReaction={toggleReaction}
+              onToggleReaction={sendReaction}
             />
           )),
         )}

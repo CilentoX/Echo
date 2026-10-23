@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChannelSummary, NormalizedEvent } from "@/lib/matrix/types";
 import ChatPane from "@/features/chat/ChatPane";
+import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -87,24 +88,20 @@ describe("ChatPane", () => {
     expect(screen.queryByText(/está digitando/)).toBeNull();
   });
 
-  it("clicar em uma reação alterna a contagem (toggle)", async () => {
+  it("clicar em uma reação envia m.reaction via MatrixService (P12)", async () => {
     setTimeline([ev({ eventId: "e1" })]);
-    render(
-      <ChatPane
-        sendMessage={vi.fn()}
-        reactions={{ e1: [{ emoji: "👍", count: 1 }] }}
-      />,
-    );
+    useSyncStore.setState({
+      reactionsByEvent: { e1: [{ eventId: "r1", roomId: ROOM, sender: "@outro:hs", targetEventId: "e1", emoji: "👍" }] },
+    });
+    useUiStore.setState({ myUserId: "@minha:hs" });
+    const sendReactionSpy = vi.spyOn(matrixService, "sendReaction").mockResolvedValue("r2");
+    render(<ChatPane sendMessage={vi.fn()} />);
 
     const chip = screen.getByRole("button", { name: /👍/ });
     expect(chip.getAttribute("aria-pressed")).toBe("false");
 
     await userEvent.click(chip);
-    expect(screen.getByRole("button", { name: /👍/ }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: /👍/ }).textContent).toContain("2");
-
-    await userEvent.click(screen.getByRole("button", { name: /👍/ }));
-    expect(screen.getByRole("button", { name: /👍/ }).textContent).toContain("1");
+    expect(sendReactionSpy).toHaveBeenCalledWith(ROOM, "e1", "👍");
   });
 
   it("chip de tópico aparece quando o evento tem respostas em thread", () => {

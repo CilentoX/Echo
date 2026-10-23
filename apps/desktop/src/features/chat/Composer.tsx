@@ -1,11 +1,7 @@
 import { Paperclip, PaperPlaneTilt } from "@phosphor-icons/react";
 import { useRef, useState, type KeyboardEvent } from "react";
-import type { NormalizedEvent } from "@/lib/matrix/types";
-import { useSyncStore } from "@/stores/syncStore";
-import { useUiStore } from "@/stores/uiStore";
 
-/** Contrato R2: Task 11 passa `(roomId, body) => matrixService.sendMessage(...)`,
- *  que resolve com o eventId real. */
+/** Contrato P10: envio espera o servidor responder. Não há placeholder otimista. */
 export type SendMessageFn = (roomId: string, body: string) => Promise<string>;
 
 export interface ComposerProps {
@@ -15,34 +11,20 @@ export interface ComposerProps {
   channelName?: string;
 }
 
-/** Sender fallback quando a sessão ainda não está no uiStore (testes). */
-const FALLBACK_SENDER = "Você";
-
 /**
- * Campo de mensagem com envio otimista (R2): placeholder `pending-*` entra
- * na timeline imediatamente; sucesso troca por `resolvePending`, falha faz
- * rollback com `removePending`, restaura o texto e mostra o erro.
- *
+ * Campo de mensagem com envio síncrono (P10): só mostra a mensagem depois que
+ * o servidor confirma. Falha (P11) mantém o rascunho e mostra erro com retry.
  * Enter durante um envio em curso é enfileirado: ao concluir, o rascunho
  * corrente é enviado (nada é engolido silenciosamente). Anexo fica
- * desabilitado até a Fase 2 (MediaPreview pronto, mas sem upload real).
+ * desabilitado até a Fase 2.
  */
 export default function Composer({ roomId, sendMessage, channelName }: ComposerProps) {
-  const myUserId = useUiStore((s) => s.myUserId);
   const [draft, setDraft] = useState("");
   const [failed, setFailed] = useState(false);
   const sendingRef = useRef(false);
   const queuedRef = useRef(false);
-  const counterRef = useRef(0);
-  // Espelho do draft para leitura fora do closure (envio enfileirado).
   const draftRef = useRef("");
   draftRef.current = draft;
-
-  const addPendingEvent = useSyncStore((s) => s.addPendingEvent);
-  const resolvePending = useSyncStore((s) => s.resolvePending);
-  const removePending = useSyncStore((s) => s.removePending);
-
-  const sender = myUserId ?? FALLBACK_SENDER;
 
   const sendText = async (body: string) => {
     if (!body || sendingRef.current) return;
@@ -50,22 +32,13 @@ export default function Composer({ roomId, sendMessage, channelName }: ComposerP
     setFailed(false);
     setDraft("");
 
-    const localId = `pending-${Date.now()}-${++counterRef.current}`;
-    const optimistic: NormalizedEvent = {
-      eventId: localId,
-      roomId,
-      sender,
-      body,
-      originServerTs: Date.now(),
-    };
-    addPendingEvent(optimistic);
-
     try {
       const eventId = await sendMessage(roomId, body);
-      resolvePending(localId, { ...optimistic, eventId });
+      // Mensagem só aparece na timeline após confirmação do servidor (via sync → applyEvent).
+      // Não há placeholder otimista (P10).
+      void eventId;
     } catch {
-      removePending(roomId, localId);
-      // Restaura o rascunho só se o usuário não digitou algo novo enquanto isso.
+      // Mantém o rascunho para retry (P11).
       setDraft((prev) => (prev === "" ? body : prev));
       setFailed(true);
     } finally {
@@ -116,10 +89,17 @@ export default function Composer({ roomId, sendMessage, channelName }: ComposerP
           aria-label="Mensagem"
           rows={1}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            // Auto-grow: ajusta a altura conforme o conteúdo
+            const ta = e.target as HTMLTextAreaElement;
+            ta.style.height = "auto";
+            ta.style.height = `${ta.scrollHeight}px`;
+          }}
           onKeyDown={handleKeyDown}
           placeholder={channelName ? `Conversar em #${channelName}` : "Mensagem"}
           className="max-h-32 flex-1 resize-none bg-transparent text-sm text-txt outline-none placeholder:text-mut"
+          style={{ height: draft ? "auto" : undefined }}
         />
 
         <button

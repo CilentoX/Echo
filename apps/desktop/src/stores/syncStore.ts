@@ -1,14 +1,28 @@
 import { create } from "zustand";
-import type { ChannelSummary, GuildSummary, NormalizedEvent, SyncStatus } from "@/lib/matrix/types";
+import type {
+  ChannelSummary,
+  GuildSummary,
+  MemberSummary,
+  NormalizedEvent,
+  NormalizedReaction,
+  SyncStatus,
+} from "@/lib/matrix/types";
 
 export interface SyncState {
   status: SyncStatus;
   guilds: GuildSummary[];
   channelsByGuild: Record<string, ChannelSummary[]>;
   timelineByChannel: Record<string, NormalizedEvent[]>;
+  reactionsByEvent: Record<string, NormalizedReaction[]>;
+  membersByRoom: Record<string, MemberSummary[]>;
+  readByChannel: Record<string, { userId: string; eventId: string }[]>;
   setGuilds(list: GuildSummary[]): void;
   setChannels(guildId: string, list: ChannelSummary[]): void;
+  setMembers(roomId: string, members: MemberSummary[]): void;
   applyEvent(e: NormalizedEvent): void;
+  prependEvents(channelId: string, events: NormalizedEvent[]): void;
+  applyReaction(r: NormalizedReaction): void;
+  markRead(roomId: string, userId: string, eventId: string): void;
   setStatus(s: SyncStatus): void;
   /** Volta ao estado inicial (logout/troca de conta; usado pelo wiring). */
   reset(): void;
@@ -31,12 +45,12 @@ function emptyOr<T>(list: T[] | undefined): T[] | readonly never[] {
 /**
  * Store de dados vindos do sync loop. Não fala com o SDK: quem liga
  * MatrixService ↔ store é o SessionGate/bootstrap
- * (startSync(onEvent → applyEvent, onStatus → setStatus)).
+ * (startSyncHandlers → applyEvent / applyReaction / markRead / setMembers).
  */
 export const useSyncStore = create<SyncState>()((set) => {
   // Dedupe por eventId cobre os ecos do sync; placeholders pend-* nunca
   // colidem com eventIds reais — são trocados/removidos via resolvePending/
-  // removePending (R2). Corpo idêntico ao de addPendingEvent.
+  // removePending (R2).
   const appendEvent = (e: NormalizedEvent) =>
     set((state) => {
       const timeline = state.timelineByChannel[e.roomId] ?? [];
@@ -51,6 +65,9 @@ export const useSyncStore = create<SyncState>()((set) => {
     guilds: [],
     channelsByGuild: {},
     timelineByChannel: {},
+    reactionsByEvent: {},
+    membersByRoom: {},
+    readByChannel: {},
 
     setGuilds: (list) => set({ guilds: [...list] }),
 
@@ -59,14 +76,62 @@ export const useSyncStore = create<SyncState>()((set) => {
         channelsByGuild: { ...state.channelsByGuild, [guildId]: [...list] },
       })),
 
+    setMembers: (roomId, members) =>
+      set((state) => ({
+        membersByRoom: { ...state.membersByRoom, [roomId]: [...members] },
+      })),
+
     setStatus: (status) => set({ status }),
 
     reset: () =>
-      set({ status: "connecting", guilds: [], channelsByGuild: {}, timelineByChannel: {} }),
+      set({
+        status: "connecting",
+        guilds: [],
+        channelsByGuild: {},
+        timelineByChannel: {},
+        reactionsByEvent: {},
+        membersByRoom: {},
+        readByChannel: {},
+      }),
 
     addPendingEvent: appendEvent,
 
     applyEvent: appendEvent,
+
+    prependEvents: (channelId, events) =>
+      set((state) => {
+        const timeline = state.timelineByChannel[channelId] ?? [];
+        const existingIds = new Set(timeline.map((m) => m.eventId));
+        const newestFirst = [...events].reverse(); // eventos antigos primeiro → novos depois
+        const merged = [...newestFirst, ...timeline.filter((m) => !existingIds.has(m.eventId))];
+        return {
+          timelineByChannel: { ...state.timelineByChannel, [channelId]: merged },
+        };
+      }),
+
+    applyReaction: (r) =>
+      set((state) => {
+        const byEvent = state.reactionsByEvent[r.targetEventId] ?? [];
+        if (byEvent.some((x) => x.eventId === r.eventId)) return state;
+        return {
+          reactionsByEvent: {
+            ...state.reactionsByEvent,
+            [r.targetEventId]: [...byEvent, r],
+          },
+        };
+      }),
+
+    markRead: (roomId, userId, eventId) =>
+      set((state) => {
+        const reads = state.readByChannel[roomId] ?? [];
+        if (reads.some((x) => x.userId === userId && x.eventId === eventId)) return state;
+        return {
+          readByChannel: {
+            ...state.readByChannel,
+            [roomId]: [...reads, { userId, eventId }],
+          },
+        };
+      }),
 
     resolvePending: (localId, event) =>
       set((state) => {
@@ -106,3 +171,18 @@ export const selectTimeline =
   (channelId: string) =>
   (state: SyncState): NormalizedEvent[] | readonly never[] =>
     emptyOr(state.timelineByChannel[channelId]);
+
+export const selectReactions =
+  (eventId: string) =>
+  (state: SyncState): NormalizedReaction[] | readonly never[] =>
+    emptyOr(state.reactionsByEvent[eventId]);
+
+export const selectMembers =
+  (roomId: string) =>
+  (state: SyncState): MemberSummary[] | readonly never[] =>
+    emptyOr(state.membersByRoom[roomId]);
+
+export const selectReadByChannel =
+  (roomId: string) =>
+  (state: SyncState): { userId: string; eventId: string }[] | readonly never[] =>
+    emptyOr(state.readByChannel[roomId]);

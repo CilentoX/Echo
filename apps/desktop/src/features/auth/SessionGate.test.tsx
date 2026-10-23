@@ -10,7 +10,7 @@ vi.mock("@/lib/storage/keyring", () => ({
 vi.mock("@/lib/matrix/instance", () => ({
   matrixService: {
     restoreSession: vi.fn(),
-    startSync: vi.fn(),
+    startSyncHandlers: vi.fn(),
     stopSync: vi.fn(),
     listGuilds: vi.fn(async () => []),
     listChannels: vi.fn(async () => []),
@@ -34,7 +34,7 @@ const mockedSaveSession = vi.mocked(saveSession);
 const mockedClearSession = vi.mocked(clearSession);
 const mockedRunSsoLogin = vi.mocked(runSsoLogin);
 const mockedRestore = vi.mocked(matrixService.restoreSession);
-const mockedStartSync = vi.mocked(matrixService.startSync);
+const mockedStartSyncHandlers = vi.mocked(matrixService.startSyncHandlers);
 const mockedStopSync = vi.mocked(matrixService.stopSync);
 
 const SESSION: Session = {
@@ -44,11 +44,11 @@ const SESSION: Session = {
   deviceId: null,
 };
 
-/** Captura o callback de status passado ao startSync (com dados de erro opcionais). */
+/** Captura o callback de status passado ao startSyncHandlers (com dados de erro opcionais). */
 function captureStatusCallback(): (status: SyncStatus, error?: { errcode: string }) => void {
   let onStatus: ((status: SyncStatus, error?: { errcode: string }) => void) | undefined;
-  mockedStartSync.mockImplementation((_onEvent, callback) => {
-    onStatus = callback;
+  mockedStartSyncHandlers.mockImplementation((handlers) => {
+    onStatus = handlers.onStatus;
   });
   return (status, error) => onStatus?.(status, error);
 }
@@ -76,7 +76,7 @@ describe("SessionGate", () => {
 
     expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
     expect(mockedRestore).not.toHaveBeenCalled();
-    expect(mockedStartSync).not.toHaveBeenCalled();
+    expect(mockedStartSyncHandlers).not.toHaveBeenCalled();
   });
 
   it("sessão salva válida → restoreSession + startSync e renderiza o AppShell", async () => {
@@ -88,7 +88,7 @@ describe("SessionGate", () => {
       expect(document.querySelector('[data-column="rail"]')).toBeTruthy();
     });
     expect(mockedRestore).toHaveBeenCalledWith(SESSION);
-    expect(mockedStartSync).toHaveBeenCalledTimes(1);
+    expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1);
     expect(mockedRunSsoLogin).not.toHaveBeenCalled();
     // Sessão registrada no uiStore (sender das mensagens otimistas).
     expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
@@ -104,7 +104,7 @@ describe("SessionGate", () => {
 
     expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
     await waitFor(() => expect(mockedClearSession).toHaveBeenCalledTimes(1));
-    expect(mockedStartSync).not.toHaveBeenCalled();
+    expect(mockedStartSyncHandlers).not.toHaveBeenCalled();
   });
 
   it("erro de rede no sync antes do primeiro syncing → mantém a sessão (sem logout)", async () => {
@@ -112,7 +112,7 @@ describe("SessionGate", () => {
     const emitStatus = captureStatusCallback();
 
     render(<SessionGate />);
-    await waitFor(() => expect(mockedStartSync).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1));
 
     emitStatus("error", { errcode: "network" });
 
@@ -128,7 +128,7 @@ describe("SessionGate", () => {
     const emitStatus = captureStatusCallback();
 
     render(<SessionGate />);
-    await waitFor(() => expect(mockedStartSync).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1));
 
     emitStatus("error", { errcode: "M_UNKNOWN_TOKEN" });
 
@@ -143,7 +143,7 @@ describe("SessionGate", () => {
 
     render(<SessionGate />);
 
-    await waitFor(() => expect(mockedStartSync).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1));
     emitStatus("connecting");
     expect(document.querySelector('[data-column="rail"]')).toBeTruthy();
     expect(mockedClearSession).not.toHaveBeenCalled();
@@ -162,7 +162,7 @@ describe("SessionGate", () => {
     // loginWithSsoToken já deixou o client ativo — enterShell NÃO cria um
     // segundo client com restoreSession (twin do duplo startSync).
     expect(mockedRestore).not.toHaveBeenCalled();
-    expect(mockedStartSync).toHaveBeenCalledTimes(1);
+    expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1);
     expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
   });
 

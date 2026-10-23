@@ -10,10 +10,11 @@ import type { ChannelSummary, GuildSummary, SyncStatus } from "@/lib/matrix/type
 const { fakeService, loadSession } = vi.hoisted(() => ({
   fakeService: {
     restoreSession: vi.fn(),
-    startSync: vi.fn(),
+    startSyncHandlers: vi.fn(),
     stopSync: vi.fn(),
     listGuilds: vi.fn(async () => [] as GuildSummary[]),
     listChannels: vi.fn(async () => [] as ChannelSummary[]),
+    loadOlder: vi.fn(async () => []),
   },
   loadSession: vi.fn(),
 }));
@@ -32,10 +33,10 @@ const SESSION = {
   deviceId: null,
 };
 
-/** Dispara o status capturado pelo wiring (última chamada do startSync fake). */
+/** Dispara o status capturado pelo wiring (última chamada do startSyncHandlers fake). */
 function emitStatus(status: SyncStatus, error?: { errcode: string }) {
-  const calls = fakeService.startSync.mock.calls;
-  const onStatus = calls[calls.length - 1][1] as (
+  const calls = fakeService.startSyncHandlers.mock.calls;
+  const onStatus = calls[calls.length - 1][0].onStatus as (
     s: SyncStatus,
     e?: { errcode: string },
   ) => void;
@@ -80,8 +81,8 @@ describe("App", () => {
     expect(useUiStore.getState().activeChannelId).toBe("!chan:hs");
 
     // Eventos da timeline caem no store via onEvent → applyEvent.
-    const syncCalls = fakeService.startSync.mock.calls;
-    const onEvent = syncCalls[syncCalls.length - 1][0] as (e: unknown) => void;
+    const syncCalls = fakeService.startSyncHandlers.mock.calls;
+    const onEvent = syncCalls[syncCalls.length - 1][0].onEvent as (e: unknown) => void;
     onEvent({
       eventId: "$evt1",
       roomId: "!chan:hs",

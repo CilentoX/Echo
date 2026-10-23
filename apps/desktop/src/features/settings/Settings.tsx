@@ -5,6 +5,10 @@ import {
   Eye,
   Lock,
   ShieldCheck,
+  SpeakerHigh,
+  Microphone,
+  VideoCamera,
+  Headphones,
   X,
 } from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -48,6 +52,15 @@ export default function Settings({ open, onClose }: SettingsProps) {
       alive = false;
     };
   }, [open]);
+
+  // Fecha a sheet ao pressionar Esc
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   /** Switch alinhado: track 40×20, knob 16px centrado (items-center). */
   const Toggle = ({
@@ -100,39 +113,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
     </div>
   );
 
-  // SVGs inline para ícones não disponíveis no @phosphor-icons/react v2.1.10
-  const VolumeIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-      <path d="M19 5l12 7 12-7" />
-    </svg>
-  );
-  const MicIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" x2="12" y1="19" y2="19" />
-    </svg>
-  );
-  const VideoIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="23 7 16 12 23 17 23 7" />
-      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-    </svg>
-  );
-  const HeadphonesIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 18v-6a9 9 0 0 1 9 9v0a9 9 0 0 1 9-9v6" />
-      <path d="M20 22v-6a9 9 0 0 0-9-9v0a9 9 0 0 0-9 9v6" />
-      <circle cx="12" cy="4" r="2" />
-    </svg>
-  );
-
-  const DeviceKindIcon = ({ kind }: { kind: "microphone" | "camera" | "headphones" }) => {
-    if (kind === "microphone") return <MicIcon />;
-    if (kind === "camera") return <VideoIcon />;
-    return <HeadphonesIcon />;
-  };
+  // Ícones de dispositivo usam ícones Phosphor (Microphone, VideoCamera, Headphones).
 
   /** Select de dispositivo de áudio/vídeo com os dispositivos reais da máquina. */
   const deviceSelect = (
@@ -144,12 +125,18 @@ export default function Settings({ open, onClose }: SettingsProps) {
     kind: "microphone" | "camera" | "headphones"
   ) => {
     const options = devices[kind];
+    const iconMap: Record<string, React.ComponentType<{ size?: number }>> = {
+      microphone: Microphone,
+      camera: VideoCamera,
+      headphones: Headphones,
+    };
+    const DeviceIcon = iconMap[kind];
     return (
       <div className="border-b border-bd last:border-0 py-4 group">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut group-hover:bg-surf group-hover:text-txt transition-colors">
-              <DeviceKindIcon kind={kind} />
+              <DeviceIcon size={16} />
             </div>
             <div>
               <div className="text-sm font-medium text-txt">{label}</div>
@@ -195,7 +182,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
     <aside
       data-column="settings"
       aria-label="Configurações"
-      className="fixed inset-y-0 right-0 z-50 w-[560px] bg-surf border-l border-bd flex flex-col animate-[fadeIn_0.3s_ease-out]"
+      className="fixed inset-y-0 right-0 z-50 w-[560px] bg-surf border-l border-bd flex flex-col"
     >
       {/* Header */}
       <header className="flex items-center justify-between border-b border-bd px-5 py-4 bg-surf/50 backdrop-blur">
@@ -206,7 +193,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
           onClick={onClose}
           className="flex items-center rounded p-1.5 cursor-pointer text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
         >
-          <span aria-hidden>✕</span>
+          <X size={18} />
         </button>
       </header>
 
@@ -226,7 +213,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             "Tocar áudio ao receber mensagem",
             messageSound,
             setMessageSound,
-            VolumeIcon as any
+            SpeakerHigh
           )}
           {toggleRow(
             "Apenas menções",
@@ -288,7 +275,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             "Mostrar 'está digitando…' para os outros",
             typingVisible,
             setTypingVisible,
-            ShieldCheck
+            Microphone
           )}
         </section>
 
