@@ -27,9 +27,10 @@ export async function downloadAndInstall(): Promise<boolean> {
     await update.downloadAndInstall();
     useUpdateStore.getState().markReady();
     return true;
-  } catch {
-    // Falha de rede/endpoint: aborta silenciosamente, sem banner eterno.
-    console.warn("[updater] download da atualização falhou");
+  } catch (error: unknown) {
+    // Falha de rede/assinatura/endereço: aborta, sem banner eterno.
+    // O erro é logado para diagnóstico; o usuário vê o banner sumir e tentar de novo no próximo boot.
+    console.warn("[updater] download da atualização falhou:", error);
     useUpdateStore.getState().reset();
     return false;
   }

@@ -1,0 +1,11 @@
+{
+  "version": "0.1.10",
+  "notes": "Echo v0.1.10: correção de diagnóstico do auto-updater (erro de download/assinatura agora é logado no console para investigação).",
+  "pub_date": "2026-10-23T18:15:47.469Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1ZOMmQzZHlSVXhNY1U0eVRra3Zja3RDTVc5UWJVVlJhVWt5SzBSVFdsZDFlWEp5TTI1MFRubGpUMUEyY1U5aUx6RklaazFWT0VOYVVUWjNUV2w1U2s5V1JGQk9NVWRhVW5reFdGUXZVako1VURsUllsRk5QUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpreU56YzVNekkxQ1dacGJHVTZSV05vYjE4d0xqRXVNVEJmZURZMExYTmxkSFZ3TG1WNFpRbDJaWEp6YVc5dU9qQXVNUzR4TUFwMVpsVlFXa2d4VHpsWFYzZG1SVlJuY0ZwMk5GcDNlVXR2TWxoV1JGVkljMll3VDFWUE4xcElZVlozUVhOeGVtdFJVR2hxU25kbFVISjZhRWQxVDJNcmIxRkdSbUZFVVVwM05qUkpiMVpQUkdjeGVtcENkejA5Q2c9PQ==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.10/Echo_0.1.10_x64-setup.exe"
+    }
+  }
+}

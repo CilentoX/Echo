@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useSyncStore, selectMembers } from "@/stores/syncStore";
+import type { MemberSummary } from "@/lib/matrix/types";
 import { useUiStore } from "@/stores/uiStore";
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import MemberDropdown from "./MemberDropdown";
@@ -12,8 +13,9 @@ export interface MemberListProps {
 
 /**
  * Lista de membros da guilda/canal atual.
- * Mostra membros reais vindos de syncStore.membersByRoom, agrupados por
- * presença (online / ausente / não perturbar / offline), com busca por nome.
+ * Quando há um canal ativo, mostra os membros desse canal.
+ * Quando não há canal ativo mas há uma guilda ativa, agrega os membros de
+ * todos os canais da guilda (deduplicados por userId).
  * Clicar num membro abre um dropdown tipo Discord com infos e perfil.
  */
 export default function MemberList({
@@ -22,8 +24,47 @@ export default function MemberList({
 }: MemberListProps) {
   const overlay = variant === "overlay";
   const activeChannelId = useUiStore((state) => state.activeChannelId);
-  const members = useSyncStore(selectMembers(activeChannelId ?? ""));
+  const activeGuildId = useUiStore((state) => state.activeGuildId);
   const myUserId = useUiStore((state) => state.myUserId ?? "");
+
+  // Canais da guilda ativa (para agregar membros quando não há canal selecionado).
+  const channelsByGuild = useSyncStore((state) => state.channelsByGuild);
+  const allMembersByRoom = useSyncStore((state) => state.membersByRoom);
+
+  // Membros do canal ativo (se houver), como array mutável.
+  const channelMembers = useSyncStore(selectMembers(activeChannelId ?? ""));
+
+  // Membros agregados de todos os canais da guilda ativa.
+  const guildMembers = useMemo(() => {
+    if (!activeGuildId) return [];
+    const channels = channelsByGuild[activeGuildId] ?? [];
+    const seen = new Set<string>();
+    const merged: MemberSummary[] = [];
+    for (const ch of channels) {
+      const members = allMembersByRoom[ch.channelId] ?? [];
+      for (const m of members) {
+        if (!seen.has(m.userId)) {
+          seen.add(m.userId);
+          merged.push(m);
+        }
+      }
+    }
+    // Garante que o próprio usuário apareça, se estiver na guilda.
+    if (myUserId && !seen.has(myUserId)) {
+      merged.push({
+        userId: myUserId,
+        displayName: myUserId,
+        presence: "online",
+      });
+    }
+    return merged;
+  }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId]);
+
+  // Usa membros do canal ativo, ou agregados da guilda, ou vazio.
+  const members: MemberSummary[] = activeChannelId
+    ? [...channelMembers]
+    : guildMembers;
+
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const [search, setSearch] = useState("");
@@ -62,39 +103,6 @@ export default function MemberList({
     setDropdownPos({ top: rect.bottom + 4, left: rect.left });
     setDropdownOpen((open) => (open === userId ? null : userId));
   };
-
-  if (!activeChannelId) {
-    return (
-      <aside
-        data-column="members"
-        aria-label="Membros"
-        className={`flex w-[224px] shrink-0 flex-col border-l border-bd bg-rail ${
-          overlay
-            ? "fixed inset-y-0 right-0 z-20 shadow-lg shadow-black/60"
-            : "h-full"
-        }`}
-      >
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-bd px-4">
-          <h2 className="font-display text-sm font-semibold text-txt">Membros</h2>
-          {overlay && (
-            <button
-              type="button"
-              aria-label="Fechar membros"
-              onClick={onClose}
-              className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
-            >
-              <X size={18} />
-            </button>
-          )}
-        </header>
-        <ul className="flex-1 overflow-y-auto px-2 py-3">
-          <li className="px-2 py-1.5 text-xs text-mut">
-            Selecione um canal para ver os membros.
-          </li>
-        </ul>
-      </aside>
-    );
-  }
 
   const totalOnline =
     grouped.online.length + grouped.unavailable.length;
