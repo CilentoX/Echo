@@ -26,12 +26,12 @@ use tokio::sync::mpsc;
 const SSO_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 const CALLBACK_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
-<title>Eco</title></head><body style=\"background:#0D1017;color:#E9EDF2;font-family:sans-serif;\
+<title>Echo</title></head><body style=\"background:#0D1017;color:#E9EDF2;font-family:sans-serif;\
 display:grid;place-items:center;height:100vh;margin:0\">\
-<p>Login conclu\u{ed}do. Voc\u{ea} j\u{e1} pode voltar ao Eco.</p></body></html>";
+<p>Login conclu\u{ed}do. Voc\u{ea} j\u{e1} pode voltar ao Echo.</p></body></html>";
 
 const MISSING_TOKEN_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
-<title>Eco</title></head><body style=\"background:#0D1017;color:#F87171;font-family:sans-serif;\
+<title>Echo</title></head><body style=\"background:#0D1017;color:#F87171;font-family:sans-serif;\
 display:grid;place-items:center;height:100vh;margin:0\">\
 <p>Token de login ausente no retorno.</p></body></html>";
 
@@ -194,7 +194,7 @@ mod tests {
 
         let response = String::from_utf8_lossy(&raw);
         assert!(response.starts_with("HTTP/1.1 200 OK"), "resposta: {response}");
-        assert!(response.contains("voltar ao Eco"), "resposta: {response}");
+        assert!(response.contains("voltar ao Echo"), "resposta: {response}");
 
         assert_eq!(pending_token.await.expect("token capturado"), "LT-test-1");
     }

@@ -7,29 +7,10 @@ import type { Session } from "@/lib/matrix/types";
 type Status = "idle" | "loading" | "error";
 
 interface GoogleLoginScreenProps {
-  /** Injection point for tests; defaults to a live service on the Eco homeserver. */
+  /** Injection point for tests; defaults to a live service on the Echo homeserver. */
   service?: MatrixService;
   /** Called with the Session right after a successful login. */
   onSession?: (session: Session) => void;
-}
-
-/** Eco logo: concentric waves over the dark background. */
-function EcoLogo() {
-  return (
-    <svg
-      width="72"
-      height="72"
-      viewBox="0 0 72 72"
-      fill="none"
-      aria-hidden="true"
-      className="text-acc"
-    >
-      <circle cx="36" cy="36" r="10" stroke="currentColor" strokeWidth="3" />
-      <circle cx="36" cy="36" r="20" stroke="currentColor" strokeWidth="3" strokeOpacity="0.6" />
-      <circle cx="36" cy="36" r="30" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
-      <circle cx="36" cy="36" r="4" fill="currentColor" />
-    </svg>
-  );
 }
 
 export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScreenProps) {
@@ -55,7 +36,7 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg font-ui text-txt">
       <div className="flex flex-col items-center gap-4">
-        <EcoLogo />
+        <img src="/logo.png" width={72} height={72} alt="" />
         <div className="text-center">
           <h1 className="font-display text-4xl font-bold tracking-tight">Echo</h1>
           <p className="mt-2 text-sm text-mut">

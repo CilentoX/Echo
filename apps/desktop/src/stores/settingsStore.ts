@@ -39,7 +39,7 @@ export interface SettingsState {
 const DEFAULT_DEVICES = {
   microphone: [
     { id: "mic-default", label: "Microfone padrão do sistema" },
-    { id: "mic-headset", label: "Headset Eco (microfone)" },
+    { id: "mic-headset", label: "Headset Echo (microfone)" },
   ],
   camera: [
     { id: "cam-default", label: "Câmera integrada" },
@@ -47,7 +47,7 @@ const DEFAULT_DEVICES = {
   ],
   headphones: [
     { id: "hp-default", label: "Áudio padrão do sistema" },
-    { id: "hp-headset", label: "Headset Eco (áudio)" },
+    { id: "hp-headset", label: "Headset Echo (áudio)" },
   ],
 };
 

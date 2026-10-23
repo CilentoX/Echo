@@ -1,0 +1,11 @@
+{
+  "version": "0.1.7",
+  "notes": "Echo v0.1.7: pre-loading do updater estilo Discord (splash mostra verificando/baixando/reiniciando e aplica antes de abrir), logo real na tela de login e favicon, textos Echo.",
+  "pub_date": "2026-10-23T00:11:21.030Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1ZkeFkxQnhPRTB3VXpkS05uZ3plV1pXVHpSeFJqbGpSMXBCTkZWNk5EaEthMDAwVUhwTGFTOUxjR2hoVjNWNUwydFhSRTFVVmsxek9HVnFUamhEU3l0elQwWklhMU5YVlhOaFEwbzVjWEJHWmpoek0zZHpQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpreU56RTBNamN6Q1dacGJHVTZSV05vYjE4d0xqRXVOMTk0TmpRdGMyVjBkWEF1WlhobENYWmxjbk5wYjI0Nk1DNHhMamNLUVhoNE1UTnpWek5CTWk5WksycHFhR1pYVlZacmNsVnZSMVJOWlhsQ2VEaDVjbmczUlhwcU0wRkdhRkpvTVU1UVpVMDFPR2x5YjNwUGRVTTJPR2xPTlRCSlIxcHFVVEZCUWxSSU5IcEtNVGR2WVM5dVFYYzlQUW89",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.7/Echo_0.1.7_x64-setup.exe"
+    }
+  }
+}

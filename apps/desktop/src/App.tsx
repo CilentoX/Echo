@@ -1,10 +1,8 @@
-import { useEffect } from "react";
 import SessionGate from "@/features/auth/SessionGate";
 import AppShell from "@/features/shell/AppShell";
 import ChatPane from "@/features/chat/ChatPane";
 import UpdateBanner from "@/features/shell/UpdateBanner";
 import { matrixService } from "@/lib/matrix/instance";
-import { runStartupUpdateCheck } from "@/lib/updater";
 
 /** R2: envio real via MatrixService; o Composer cuida do otimismo/rollback. */
 const sendMessage = (roomId: string, body: string): Promise<string> =>
@@ -29,11 +27,6 @@ function Shell() {
 }
 
 export default function App() {
-  // Task 12: checagem de atualização no boot (best-effort, UI no UpdateBanner).
-  useEffect(() => {
-    void runStartupUpdateCheck();
-  }, []);
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <UpdateBanner />

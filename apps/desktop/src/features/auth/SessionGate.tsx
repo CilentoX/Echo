@@ -8,6 +8,8 @@ import type { Session } from "@/lib/matrix/types";
 import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
 import { useUiStore } from "@/stores/uiStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
+import { restartApp, runStartupUpdateCheck } from "@/lib/updater";
+import { useUpdateStore } from "@/stores/updateStore";
 
 type GateView = "booting" | "shell" | "login";
 
@@ -31,6 +33,8 @@ export interface SessionGateProps {
  */
 export default function SessionGate({ shell }: SessionGateProps) {
   const [view, setView] = useState<GateView>("booting");
+  const updateStatus = useUpdateStore((s) => s.status);
+  const updateVersion = useUpdateStore((s) => s.version);
 
   const rejectSession = useCallback(async () => {
     stopSyncWiring();
@@ -73,14 +77,27 @@ export default function SessionGate({ shell }: SessionGateProps) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      // Pre-loading (estilo Discord): o check de update roda em paralelo à
+      // leitura da sessão. Com sessão salva, esperamos o check terminar antes
+      // de abrir o shell — se a atualização ficou pronta, reinicia já;
+      // sem sessão, o login abre direto (o banner cobre updates depois).
+      const updateDone = Promise.resolve(runStartupUpdateCheck()).catch(() => {});
       try {
-        const session = await loadSession();
+        const [session] = await Promise.all([loadSession(), updateDone]);
         if (cancelled) return;
-        if (session) {
-          enterShell(session);
-        } else {
+        if (!session) {
           setView("login");
+          return;
         }
+        if (useUpdateStore.getState().status === "ready") {
+          const relaunched = await restartApp().then(
+            () => true,
+            () => false,
+          );
+          if (relaunched) return; // o processo termina com o relaunch
+          // relaunch falhou — cai para o shell; o UpdateBanner mostra o botão
+        }
+        enterShell(session);
       } catch {
         if (cancelled) return;
         await rejectSession();
@@ -92,9 +109,24 @@ export default function SessionGate({ shell }: SessionGateProps) {
   }, [enterShell, rejectSession]);
 
   if (view === "booting") {
+    const updateLabel =
+      updateStatus === "checking"
+        ? "Verificando atualizações…"
+        : updateStatus === "downloading"
+          ? `Baixando atualização ${updateVersion ?? ""}…`
+          : updateStatus === "ready"
+            ? "Reiniciando…"
+            : null;
     return (
       <main className="grid min-h-screen place-items-center bg-bg font-ui">
-        <CircleNotch size={28} weight="bold" className="animate-spin text-mut" aria-label="Carregando" />
+        <div className="flex flex-col items-center gap-3">
+          <CircleNotch size={28} weight="bold" className="animate-spin text-mut" aria-label="Carregando" />
+          {updateLabel ? (
+            <p role="status" aria-live="polite" className="text-sm text-mut">
+              {updateLabel}
+            </p>
+          ) : null}
+        </div>
       </main>
     );
   }
