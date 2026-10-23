@@ -15,7 +15,12 @@
 
 services:
   synapse:
-    build: .
+    # NOTE: Coolify's dockercompose build pack runs the image build from the
+    # repository ROOT (the git clone dir), not from the compose file's dir —
+    # so the context must be the repo-relative path to this directory.
+    build:
+      context: ./infra/vps/coolify
+      dockerfile: Dockerfile
     container_name: eco-synapse
     restart: unless-stopped
     depends_on:
