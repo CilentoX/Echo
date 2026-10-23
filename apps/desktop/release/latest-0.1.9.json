@@ -1,0 +1,11 @@
+{
+  "version": "0.1.9",
+  "notes": "Echo v0.1.9: popup de membro tipo Discord (dropdown com infos e perfil), membros agrupados por status com busca, criação de canal com tipo/tópico/categoria, melhorias na sidebar.",
+  "pub_date": "2026-10-23T17:48:46.272Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1ZoUVRuQnJTWGhPUlRGSmNETlZVbE5sWkRVd2JYaG9ia2xSUjNoSVlsQlRNak5pVlVzdmFXZ3lUV1JXVG5wWVluSkZlbE5wTldsTGR5dHJXVEZ4VmpORVNWVkdSMjlxUWt4NlVYVk9SbVpwVEZCdmRGRlZQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpreU56YzNOamd3Q1dacGJHVTZSV05vYjE4d0xqRXVPVjk0TmpRdGMyVjBkWEF1WlhobENYWmxjbk5wYjI0Nk1DNHhMamtLTmtScFdISkVUSGwzYm1WdmJUWlFSVVZ1UVV0WWIzZERhMEphU210cVZVeHNNM0V3U0VGNFJUWmtlbmh0ZDNwM2NIQjNaVVpKTkdsU2NsaDJOREl5VTNWYVNGaFZjR2RHV2poMlZTOTZiRkIxYkdFNVFWRTlQUW89",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.9/Echo_0.1.9_x64-setup.exe"
+    }
+  }
+}
