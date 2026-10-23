@@ -1,0 +1,11 @@
+{
+  "version": "0.1.11",
+  "notes": "Echo v0.1.11: correções de tela branca (modais sem backdrop-blur, ícones sem weight invalido), membros da guilda agregados na sidebar sem canal ativo, outras melhorias de estabilidade.",
+  "pub_date": "2026-10-23T18:29:52.248Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1ZReFZXTnNRbTlyVFRJNWJVWmtXVWh5V0VGa1ZHNXhObTlKTm5oSWRYQnZhMDF6TldONFpWWm5VbTl1TlhBNFVtODJNRFpWUjBWck56RjVWa2hGVVhrdlZVUnhNSE15T0RkdVZ6SmxWVFJXZFhaMWJIZE5QUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpreU56Z3dNVFU1Q1dacGJHVTZSV05vYjE4d0xqRXVNVEZmZURZMExYTmxkSFZ3TG1WNFpRbDJaWEp6YVc5dU9qQXVNUzR4TVFwNVFYUk1lWFJUWWs4Mk4waHRSbXh2VjAxQ2NIbHFNRmROUTFKeWN6a3JaMHRtYURCWFdYSkhOV2N3T0Rkc1MzQnpUVVZJVEZaa1ZVSXZVM0YyTWtoNlkyMUlXak40SzNoTFltdEhWMUZrT1RkaWIwRkNaejA5Q2c9PQ==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.11/Echo_0.1.11_x64-setup.exe"
+    }
+  }
+}

@@ -83,7 +83,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
 
   return (
     <div
-      className="fixed inset-0 z-[60] grid place-items-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/60"
       role="dialog"
       aria-modal="true"
       aria-label="Editar guilda"

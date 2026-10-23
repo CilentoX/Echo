@@ -101,7 +101,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut group-hover:bg-surf group-hover:text-txt transition-colors">
-            <Icon size={16} weight="bold" />
+            <Icon size={16} />
           </div>
           <div>
             <div className="text-sm font-medium text-txt">{label}</div>
@@ -286,7 +286,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-3">
                 <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
-                  <Lock size={16} weight="bold" />
+                  <Lock size={16} />
                 </div>
                 <div>
                   <div className="font-medium text-txt">Sessão atual</div>
@@ -335,7 +335,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
               onClick={performLogout}
               className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors active:scale-95"
             >
-              <X size={14} weight="bold" className="mr-2" />
+              <X size={14} className="mr-2" />
               <span>Sair da conta</span>
             </button>
           </div>

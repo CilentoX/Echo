@@ -78,7 +78,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
         onClick={() => setCreateOpen(true)}
         className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-bd text-mut transition-colors hover:border-acc hover:text-acc active:scale-95"
       >
-        <Plus size={20} weight="bold" />
+        <Plus size={20} aria-hidden />
       </button>
 
       {/* Espaço empurra os itens de fundo para baixo */}
@@ -91,7 +91,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
           onClick={onOpenProfile}
           className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors active:scale-95"
         >
-          <User size={16} weight="bold" />
+          <User size={16} aria-hidden />
         </button>
         <button
           type="button"
@@ -99,7 +99,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
           onClick={onOpenSettings}
           className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-acc hover:text-txt transition-colors active:scale-95"
         >
-          <Gear size={16} weight="bold" />
+          <Gear size={16} aria-hidden />
         </button>
       </div>
 

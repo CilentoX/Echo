@@ -84,7 +84,7 @@ export default function ChannelSidebar({
               onClick={() => setEditGuildOpen(true)}
               className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
             >
-              <Pencil size={14} weight="bold" aria-hidden />
+              <Pencil size={14} aria-hidden />
             </button>
           )}
         </div>
@@ -106,7 +106,7 @@ export default function ChannelSidebar({
             onClick={() => setCreateChannelOpen(true)}
             className="cursor-pointer flex items-center rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
           >
-            <Plus size={16} weight="bold" aria-hidden />
+            <Plus size={16} aria-hidden />
           </button>
         )}
       </header>
