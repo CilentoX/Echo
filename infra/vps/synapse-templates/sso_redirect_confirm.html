@@ -10,16 +10,14 @@
         <rect x="13" y="20" width="15" height="7" rx="3.5" fill="currentColor" />
       </svg>
     </div>
-    <h1>Continuar para {{ display_name }}</h1>
+    <h1>Continuar para {{ display_name or 'sua conta' }}</h1>
   </div>
 
   <p class="eco-sso-subtitle">{{ user_id }}</p>
 
   <p class="eco-sso-subtitle">Ao continuar, o aplicativo abaixo receberá acesso à sua conta.</p>
-  <p class="eco-sso-subtitle" style="word-break: break-all;"><strong>{{ redirect_url }}</strong></p>
+  <p class="eco-sso-subtitle" style="word-break: break-all;"><strong>{{ display_url }}</strong></p>
 
-  <form method="POST">
-    <button type="submit" class="eco-primary-button">Continuar</button>
-  </form>
+  <a href="{{ redirect_url }}" class="eco-primary-button">Continuar</a>
 </div>
 {% endblock %}
