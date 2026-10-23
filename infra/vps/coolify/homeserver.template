@@ -28,17 +28,16 @@ listeners:
       - names:
           - client
 
-# PostgreSQL (container "eco-postgres" on the compose network). Password from
-# the SYNAPSE_POSTGRES_PASSWORD env var.
+# PostgreSQL. Host is the stable network alias `echo-postgres` defined in
+# docker-compose.yml — Coolify's compose build pack renames containers per
+# deploy, so container_name is not a reliable DNS name under Coolify.
 database:
   name: psycopg2
   args:
     user: synapse
     password: "${SYNAPSE_POSTGRES_PASSWORD}"
     dbname: synapse
-    # Host must be the unique container_name `eco-postgres`: the bare name
-    # `postgres` collides with coolify-db's alias on the shared coolify network.
-    host: eco-postgres
+    host: echo-postgres
     port: 5432
     cp_min: 5
     cp_max: 10

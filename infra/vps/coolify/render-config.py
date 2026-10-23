@@ -30,6 +30,13 @@ rendered = pattern.sub(substitute, tpl)
 
 with open(OUTPUT, "w", encoding="utf-8") as f:
     f.write(rendered)
+# The official Synapse image has no USER: the renderer runs as root while the
+# server process drops to UID 991 (matrix) via /start.py — the rendered file
+# must be owned by 991 or Synapse cannot read it (PermissionError on boot).
+try:
+    os.chown(OUTPUT, 991, 991)
+except OSError:
+    pass  # not root (or already 991): nothing to fix
 os.chmod(OUTPUT, 0o600)
 
 os.execv("/start.py", ["start.py", *sys.argv[1:]])
