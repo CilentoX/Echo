@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSyncStore, selectMembers } from "@/stores/syncStore";
 import type { MemberSummary } from "@/lib/matrix/types";
 import { useUiStore } from "@/stores/uiStore";
@@ -103,6 +103,19 @@ export default function MemberList({
     setDropdownPos({ top: rect.bottom + 4, left: rect.left });
     setDropdownOpen((open) => (open === userId ? null : userId));
   };
+
+  // Fecha o dropdown ao clicar fora dele (fora da coluna de membros).
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (!dropdownOpen) return;
+      const memberListEl = e.currentTarget as HTMLElement;
+      // Se clicou dentro da coluna members, não fecha.
+      if (memberListEl.contains(e.target as Node)) return;
+      setDropdownOpen(null);
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [dropdownOpen]);
 
   const totalOnline =
     grouped.online.length + grouped.unavailable.length;

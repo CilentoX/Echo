@@ -120,7 +120,10 @@ export default function SessionGate({ shell }: SessionGateProps) {
     return (
       <main className="grid min-h-screen place-items-center bg-bg font-ui">
         <div className="flex flex-col items-center gap-3">
-          <CircleNotch size={28} weight="bold" className="animate-spin text-mut" aria-label="Carregando" />
+          <div className="flex flex-col items-center gap-1">
+            <CircleNotch size={28} className="animate-spin text-mut" aria-label="Carregando" />
+            <p className="text-xs text-mut">Iniciando Echo…</p>
+          </div>
           {updateLabel ? (
             <p role="status" aria-live="polite" className="text-sm text-mut">
               {updateLabel}

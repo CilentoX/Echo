@@ -1,0 +1,11 @@
+{
+  "version": "0.1.12",
+  "notes": "Echo v0.1.12: dropdown de membro fecha ao clicar fora, tela de booting mais visível, correções de tela branca em modais, ícones sem weight inválido.",
+  "pub_date": "2026-10-23T18:40:46.230Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1ZWMVFWTmtNMWh6ZVhob0wybzFXQ3RVT0hkdmIxTkVUaTlHUjFwdVl6bGFWVzB5WjA1V1kyTnlhRTVoTUhsVWRHRXZWRXRoU1RRMVUwRTJPWGR6WVdsb1VEaGFTVGMxTkVwUlRuVm1WRXhPYVRrd1UzYzBQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpreU56Z3dPREE1Q1dacGJHVTZSV05vYjE4d0xqRXVNVEpmZURZMExYTmxkSFZ3TG1WNFpRbDJaWEp6YVc5dU9qQXVNUzR4TWdveU5YZG1UWE54Ym1wVVZWaDRZbUozU0ZWU04xVmtlV1JDUmk5eGJFTmlNekJ4UnpSd05IaDBRVmxsVWs5SVowNXBlVTlaU3pCSmJHcHZNalEwT1hWMmFsSnNNV0pFTWpNMlFpczBjRXc0ZVVkNVNsWkJVVDA5Q2c9PQ==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.12/Echo_0.1.12_x64-setup.exe"
+    }
+  }
+}
