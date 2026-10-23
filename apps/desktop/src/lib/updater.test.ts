@@ -86,6 +86,19 @@ describe("runStartupUpdateCheck", () => {
     expect(useUpdateStore.getState().status).toBe("idle");
   });
 
+  it("check lento não prende o boot: resolve após o timeout mesmo com o plugin pendente", async () => {
+    setTauri(true);
+    // Plugin nunca responde (endpoint lento/fora do ar) — sem timeout, o
+    // Promise.all do SessionGate ficaria pendente para sempre (splash eterna).
+    checkMock.mockImplementation(() => new Promise(() => {}));
+
+    const start = Date.now();
+    await runStartupUpdateCheck(50); // timeout injetável para o teste
+    const elapsed = Date.now() - start;
+
+    expect(elapsed).toBeLessThan(2_000); // resolveu; não pendurou o boot
+  });
+
   it("restartApp não lança fora do runtime Tauri", async () => {
     setTauri(false);
 

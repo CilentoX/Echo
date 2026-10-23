@@ -40,11 +40,18 @@ function isTauri(): boolean {
 }
 
 /** Hook de boot do App: checa e instala silenciosamente, sem jamais quebrar o boot.
- * Anuncia o estado "checking" no store para o UpdateBanner mostrar o banner. */
-export async function runStartupUpdateCheck(): Promise<void> {
+ * Anuncia o estado "checking" no store para o UpdateBanner mostrar o banner.
+ *
+ * `timeoutMs` evita a splash infinita: se o endpoint demorar (rede lenta,
+ * Cloudflare fora), o boot segue e o download continua em background —
+ * quando terminar, o banner assume ("Reiniciar agora"). */
+export async function runStartupUpdateCheck(timeoutMs = 10_000): Promise<void> {
   if (!isTauri()) return;
   useUpdateStore.getState().beginCheck();
-  await downloadAndInstall(); // downloadAndInstall nunca lança
+  await Promise.race([
+    downloadAndInstall(), // nunca lança
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
 }
 
 /** Reinicia o app já atualizado (botão "Reiniciar agora" do banner).

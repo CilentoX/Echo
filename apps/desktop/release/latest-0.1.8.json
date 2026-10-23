@@ -1,0 +1,11 @@
+{
+  "version": "0.1.8",
+  "notes": "Echo v0.1.8: pre-loading do updater estilo Discord com timeout de 10s (endpoint lento nunca prende o boot; download continua em background), splash mostrando verificando/baixando/reiniciando, logo real na tela de login e favicon, textos Echo.",
+  "pub_date": "2026-10-23T00:17:51.796Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1daTFVXcFFUR2hXSzFadWFIRkdhakpGWkRGWVVUQnVNVkZ5VUdGNFZYTlNXREZaVUVKbFpUbGpVVTlRV0hocWJYVmlOVTFUZWxkQllrY3lhMEl2ZEZJdlRsVlNWRXR6VXpCeFN5OW9UblpqT0ZwdGJIZDNQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94TnpreU56RTBOall6Q1dacGJHVTZSV05vYjE4d0xqRXVPRjk0TmpRdGMyVjBkWEF1WlhobENYWmxjbk5wYjI0Nk1DNHhMamdLZFRjeVUzSjFNRkZPYzJKc1NqWjZOazF6UjJ4TVEwSjRjVEI0TkZGTk1rTkRabTV0ZWt4VFZGQmxabmhDSzNOSVNuZzFaVVJUVm5sT1JEaEhkRXM1Y0RKa1QxZGxiM2w1Y1hoVFMwMTBhM1JoWTBselExRTlQUW89",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.8/Echo_0.1.8_x64-setup.exe"
+    }
+  }
+}
