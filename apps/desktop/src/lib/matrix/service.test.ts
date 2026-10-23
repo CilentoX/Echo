@@ -217,9 +217,21 @@ describe("MatrixService (SDK mockado)", () => {
 
     it("cria uma sala m.room e declara m.space.child", async () => {
       mockClient.createRoom.mockResolvedValue({ room_id: "!chan:hs" });
-      const channel = await service.createChannel("!guild:hs", "geral");
+      const channel = await service.createChannel("!guild:hs", {
+        name: "geral",
+        type: "text",
+        topic: "tópico do geral",
+        category: "Geral",
+      });
 
-      expect(channel).toEqual({ channelId: "!chan:hs", name: "geral", unreadCount: 0 });
+      expect(channel).toEqual({
+        channelId: "!chan:hs",
+        name: "geral",
+        topic: "tópico do geral",
+        type: "text",
+        category: "Geral",
+        unreadCount: 0,
+      });
       expect(mockClient.sendStateEvent).toHaveBeenCalledWith(
         "!guild:hs",
         "m.space.child",

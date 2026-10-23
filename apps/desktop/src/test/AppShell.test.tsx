@@ -55,7 +55,8 @@ describe("AppShell", () => {
     expect(screen.getByText("#geral")).toBeTruthy();
     // Sem dados reais, nenhum conteúdo falso de scaffold aparece.
     expect(screen.queryByText("Bem-vinda, galera!")).toBeNull();
-    expect(screen.getByText("Os membros aparecem aqui quando o canal carrega.")).toBeTruthy();
+    expect(screen.queryByText("Os membros aparecem aqui quando o canal carrega.")).toBeNull();
+    expect(screen.getByText("0 online")).toBeTruthy();
   });
 
   it("sem canal ativo o header do chat fica vazio (sem canal fake)", () => {

@@ -6,23 +6,38 @@ export interface CreateChannelModalProps {
   onClose: () => void;
   guildId: string;
   /** Cria o canal no servidor e devolve o resumo do canal. */
-  onCreate: (name: string) => Promise<{ channelId: string; name: string }>;
+  onCreate: (
+    data: { name: string; type: string; topic?: string; category?: string }
+  ) => Promise<{ channelId: string; name: string }>;
   /** Callback pós-criação. */
   onCreated: (channel: { channelId: string; name: string }) => void;
 }
 
+const CHANNEL_TYPES: Array<{ value: string; label: string }> = [
+  { value: "text", label: "Canal de texto" },
+  { value: "voice", label: "Canal de voz" },
+];
+
 /**
- * Modal de criação de canal de texto dentro de uma guilda.
- * Semelhante ao Discord: input de nome + botão criar.
+ * Modal de criação de canal dentro de uma guilda.
+ * Campos: nome, tipo, tópico, categoria (conforme pedido no bloco 3).
  */
-export default function CreateChannelModal({ open, onClose, guildId, onCreate, onCreated }: CreateChannelModalProps) {
+export default function CreateChannelModal({
+  open,
+  onClose,
+  guildId,
+  onCreate,
+  onCreated,
+}: CreateChannelModalProps) {
   const [name, setName] = useState("");
+  const [type, setType] = useState("text");
+  const [topic, setTopic] = useState("");
+  const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
 
-  // Fecha o modal ao pressionar Esc
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -40,8 +55,15 @@ export default function CreateChannelModal({ open, onClose, guildId, onCreate, o
     setLoading(true);
     setError(null);
     try {
-      const channel = await onCreate(trimmed);
+      const channel = await onCreate({
+        name: trimmed,
+        type,
+        topic: topic.trim() || undefined,
+        category: category.trim() || undefined,
+      });
       setName("");
+      setTopic("");
+      setCategory("");
       onCreated(channel);
       onClose();
     } catch {
@@ -59,7 +81,7 @@ export default function CreateChannelModal({ open, onClose, guildId, onCreate, o
       aria-label="Criar canal"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-[380px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
+      <div className="w-[420px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
         <header className="mb-4 flex items-center justify-between gap-2">
           <span className="flex items-center rounded bg-acc/10 px-2 py-1 text-xs text-acc">
             <Hash size={14} aria-hidden /> #{guildId.slice(0, 8)}
@@ -74,9 +96,14 @@ export default function CreateChannelModal({ open, onClose, guildId, onCreate, o
           </button>
         </header>
 
-        <h3 className="font-display text-lg font-semibold text-txt mb-1">Criar canal de texto</h3>
-        <p className="text-xs text-mut mb-4">O canal será visível para todos os membros desta guilda.</p>
+        <h3 className="font-display text-lg font-semibold text-txt mb-1">
+          Criar canal
+        </h3>
+        <p className="text-xs text-mut mb-4">
+          O canal será visível para todos os membros desta guilda.
+        </p>
 
+        {/* Nome */}
         <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Nome do canal
         </label>
@@ -98,8 +125,61 @@ export default function CreateChannelModal({ open, onClose, guildId, onCreate, o
           />
         </div>
 
+        {/* Tipo */}
+        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+          Tipo
+        </label>
+        <div className="flex gap-2 mb-4">
+          {CHANNEL_TYPES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="radio"
+              aria-checked={type === t.value}
+              onClick={() => setType(t.value)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                type === t.value
+                  ? "border-acc bg-acc/10 text-acc"
+                  : "border-bd text-mut hover:border-acc hover:text-txt"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tópico */}
+        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+          Tópico / descrição
+        </label>
+        <input
+          type="text"
+          value={topic}
+          onChange={(e) => {
+            setTopic(e.target.value);
+            if (error) setError(null);
+          }}
+          placeholder="O que se discute neste canal"
+          className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
+        />
+
+        {/* Categoria */}
+        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+          Categoria
+        </label>
+        <input
+          type="text"
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            if (error) setError(null);
+          }}
+          placeholder="Ex: Geral, Voz, Projetos"
+          className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
+        />
+
         {error && (
-          <p role="alert" className="mt-2 text-sm text-err">
+          <p role="alert" className="mt-3 text-sm text-err">
             {error}
           </p>
         )}

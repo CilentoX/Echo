@@ -51,6 +51,9 @@ export interface GuildSummary {
 export interface ChannelSummary {
   channelId: string;
   name: string;
+  topic?: string;
+  type?: string;
+  category?: string;
   unreadCount: number;
 }
 

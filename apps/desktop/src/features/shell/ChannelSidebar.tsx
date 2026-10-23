@@ -1,7 +1,11 @@
 import { Hash, MagnifyingGlass, Pencil, Plus, X } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import EmptyState from "./EmptyState";
-import { selectChannels, selectGuilds, useSyncStore } from "@/stores/syncStore";
+import {
+  selectChannels,
+  selectGuilds,
+  useSyncStore,
+} from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
@@ -28,11 +32,21 @@ export default function ChannelSidebar({
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const [editGuildOpen, setEditGuildOpen] = useState(false);
+  const [channelSearch, setChannelSearch] = useState("");
 
   // Seletores devolvem snapshot vazio estável em miss (sem loop no useSyncExternalStore).
-  const channels = useSyncStore(
+  const allChannels = useSyncStore(
     useMemo(() => selectChannels(activeGuildId ?? ""), [activeGuildId]),
   );
+
+  // Filtra canais pela busca (sem criar funções de negócio novas — só filtro de UI).
+  const channels = useMemo(() => {
+    const q = channelSearch.toLowerCase().trim();
+    if (!q) return allChannels;
+    return allChannels.filter(
+      (c) => c.name.toLowerCase().includes(q) || (c.topic ?? "").toLowerCase().includes(q),
+    );
+  }, [allChannels, channelSearch]);
 
   const activeGuild = guilds.find((g) => g.guildId === activeGuildId) ?? null;
 
@@ -108,6 +122,8 @@ export default function ChannelSidebar({
                 type="search"
                 placeholder="Buscar canais"
                 aria-label="Buscar canais"
+                value={channelSearch}
+                onChange={(e) => setChannelSearch(e.target.value)}
                 className="w-full bg-transparent text-sm text-txt outline-none placeholder:text-mut group-focus-within:text-txt"
               />
             </div>
@@ -135,7 +151,25 @@ export default function ChannelSidebar({
                         }`}
                       >
                         <Hash size={16} className="shrink-0 text-mut" aria-hidden />
-                        <span className="truncate">{channel.name}</span>
+                        <span className="truncate font-medium text-txt">
+                          {channel.name}
+                        </span>
+                        {channel.type === "voice" && (
+                          <span
+                            className="ml-1 text-[10px] font-medium text-acc bg-acc/10 px-1.5 py-0.5 rounded border border-acc/20"
+                            aria-label="Canal de voz"
+                          >
+                            🔊
+                          </span>
+                        )}
+                        {channel.category && (
+                          <span
+                            className="ml-1 text-[10px] text-mut"
+                            aria-label={`Categoria: ${channel.category}`}
+                          >
+                            • {channel.category}
+                          </span>
+                        )}
                         {channel.unreadCount > 0 && (
                           <span
                             aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}
@@ -158,7 +192,9 @@ export default function ChannelSidebar({
         open={createChannelOpen}
         onClose={() => setCreateChannelOpen(false)}
         guildId={activeGuildId ?? ""}
-        onCreate={(name) => matrixService.createChannel(activeGuildId ?? "", name)}
+        onCreate={(data) =>
+          matrixService.createChannel(activeGuildId ?? "", data)
+        }
         onCreated={(channel) => {
           setActiveChannel(channel.channelId);
           setChannels(activeGuildId ?? "", [
