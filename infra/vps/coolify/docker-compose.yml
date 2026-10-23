@@ -1,0 +1,92 @@
+# Echo homeserver — managed by Coolify (build pack: Docker Compose).
+# Deploys Synapse (built from ./Dockerfile; config rendered at container start
+# from app env vars) + Postgres, REUSING the existing data volumes (external)
+# and routing through the shared coolify-proxy (Traefik) network.
+# No host ports are published: Traefik reaches Synapse via the `coolify`
+# network using the labels below (router/service names `echo`).
+#
+# Required application env vars (set in Coolify, values from the old
+# infra/vps/.env):
+#   POSTGRES_PASSWORD                  (postgres superuser password)
+#   SYNAPSE_POSTGRES_PASSWORD          (same value as POSTGRES_PASSWORD)
+#   SYNAPSE_REGISTRATION_SHARED_SECRET
+#   SYNAPSE_GOOGLE_CLIENT_ID
+#   SYNAPSE_GOOGLE_CLIENT_SECRET
+
+services:
+  synapse:
+    build: .
+    container_name: eco-synapse
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SYNAPSE_POSTGRES_PASSWORD: ${SYNAPSE_POSTGRES_PASSWORD:?SYNAPSE_POSTGRES_PASSWORD is required}
+      SYNAPSE_REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET:?SYNAPSE_REGISTRATION_SHARED_SECRET is required}
+      SYNAPSE_GOOGLE_CLIENT_ID: ${SYNAPSE_GOOGLE_CLIENT_ID:?SYNAPSE_GOOGLE_CLIENT_ID is required}
+      SYNAPSE_GOOGLE_CLIENT_SECRET: ${SYNAPSE_GOOGLE_CLIENT_SECRET:?SYNAPSE_GOOGLE_CLIENT_SECRET is required}
+    networks:
+      - internal
+      - coolify
+    volumes:
+      # External: reuses the volume created by the previous (pre-Coolify)
+      # compose project so accounts, rooms and media are preserved.
+      - eco_synapse_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.echo.rule=Host(`echo.litteris.online`) || Host(`eco.litteris.online`)"
+      - "traefik.http.routers.echo.entryPoints=http"
+      - "traefik.http.services.echo.loadbalancer.server.port=8008"
+      # Traefik→Synapse hop is plain HTTP while public_baseurl is https://;
+      # without this header Synapse rebuilds SSO redirect URIs as http:// and
+      # the browser gets stuck in an infinite 302 loop on login.
+      - "traefik.http.middlewares.echo-proto.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.echo.middlewares=echo-proto@docker"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: eco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_DB: synapse
+      # Collation C is required by Synapse (IncorrectDatabaseSetup otherwise).
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    networks:
+      - internal
+    volumes:
+      # External: reuses the volume from the previous compose project.
+      - eco_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  eco_synapse_data:
+    external: true
+    name: eco_synapse_data
+  eco_pgdata:
+    external: true
+    name: eco_pgdata
+
+networks:
+  internal:
+    driver: bridge
+  coolify:
+    external: true
