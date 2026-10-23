@@ -35,21 +35,7 @@ export interface SettingsState {
   reset(): void;
 }
 
-/** Dispositivos simulados (Fase 2: ligar na API real de devices do SO). */
-const DEFAULT_DEVICES = {
-  microphone: [
-    { id: "mic-default", label: "Microfone padrão do sistema" },
-    { id: "mic-headset", label: "Headset Echo (microfone)" },
-  ],
-  camera: [
-    { id: "cam-default", label: "Câmera integrada" },
-    { id: "cam-webcam", label: "Webcam USB" },
-  ],
-  headphones: [
-    { id: "hp-default", label: "Áudio padrão do sistema" },
-    { id: "hp-headset", label: "Headset Echo (áudio)" },
-  ],
-};
+/** Dispositivos de mídia vêm de src/lib/media/devices.ts (enumerateDevices real). */
 
 export const useSettingsStore = create<SettingsState>()((set) => ({
   nativeNotifications: true,
@@ -96,5 +82,3 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
       currentSessionDevice: null,
     }),
 }));
-
-export { DEFAULT_DEVICES };

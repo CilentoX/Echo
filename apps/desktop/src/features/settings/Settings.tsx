@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Bell,
   Clock,
@@ -7,8 +8,8 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { DEFAULT_DEVICES } from "@/stores/settingsStore";
 import { performLogout } from "@/features/auth/logout";
+import { FALLBACK_DEVICES, listRealDevices, type DeviceLists } from "@/lib/media/devices";
 
 export interface SettingsProps {
   open: boolean;
@@ -32,6 +33,50 @@ export default function Settings({ open, onClose }: SettingsProps) {
     typingVisible, setTypingVisible,
   } = useSettingsStore();
 
+  // Dispositivos reais da máquina (enumerateDevices); fallback quando o
+  // navegador não expõe ou nada é enumerado.
+  const [devices, setDevices] = useState<DeviceLists>(FALLBACK_DEVICES);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    listRealDevices()
+      .then((d) => {
+        if (alive) setDevices(d);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
+  /** Switch alinhado: track 40×20, knob 16px centrado (items-center). */
+  const Toggle = ({
+    checked,
+    onChange,
+    label,
+  }: {
+    checked: boolean;
+    onChange: (v: boolean) => void;
+    label: string;
+  }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer items-center rounded-full px-0.5 transition-colors duration-300 ${
+        checked ? "bg-acc" : "border border-bd bg-surf2"
+      }`}
+    >
+      <span
+        className={`block h-4 w-4 rounded-full bg-bg shadow-md transition-transform duration-300 ease-out ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+
   const toggleRow = (
     label: string,
     desc: string,
@@ -50,21 +95,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             <div className="text-xs text-mut">{desc}</div>
           </div>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={checked}
-          onClick={() => onChange(!checked)}
-          className={`relative inline-flex w-10 h-5 shrink-0 cursor-pointer rounded-full transition-colors duration-300 ${
-            checked ? "bg-acc" : "bg-surf2 border border-bd"
-          }`}
-        >
-          <span
-            className={`block w-3 h-3 rounded-full bg-bg shadow-md transition-transform duration-300 ease-out ${
-              checked ? "translate-x-5" : "translate-x-0"
-            }`}
-          />
-        </button>
+        <Toggle checked={checked} onChange={onChange} label={label} />
       </div>
     </div>
   );
@@ -103,7 +134,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
     return <HeadphonesIcon />;
   };
 
-  /** Select de dispositivo de áudio/vídeo (simulado — Fase 2 liga na API real do SO). */
+  /** Select de dispositivo de áudio/vídeo com os dispositivos reais da máquina. */
   const deviceSelect = (
     label: string,
     enabled: boolean,
@@ -112,11 +143,11 @@ export default function Settings({ open, onClose }: SettingsProps) {
     setDevice: (id: string | null) => void,
     kind: "microphone" | "camera" | "headphones"
   ) => {
-    const options = DEFAULT_DEVICES[kind];
+    const options = devices[kind];
     return (
       <div className="border-b border-bd last:border-0 py-4 group">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut group-hover:bg-surf group-hover:text-txt transition-colors">
               <DeviceKindIcon kind={kind} />
             </div>
@@ -127,12 +158,15 @@ export default function Settings({ open, onClose }: SettingsProps) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <select
+              aria-label={`Dispositivo de ${label.toLowerCase()}`}
               value={deviceId ?? ""}
               disabled={!enabled}
               onChange={(e) => setDevice(e.target.value || null)}
-              className={`bg-${enabled ? "bg" : "surf2"} border border-${enabled ? "bd" : "mut"}/50 rounded-lg px-3 py-1.5 text-sm text-txt outline-none focus:border-acc disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200`}
+              className={`max-w-[180px] rounded-lg border px-3 py-1.5 text-sm text-txt outline-none transition-all duration-200 focus:border-acc disabled:cursor-not-allowed disabled:opacity-50 ${
+                enabled ? "border-bd bg-bg" : "border-mut/50 bg-surf2"
+              }`}
             >
               <option value="">Padrão do sistema</option>
               {options.map((opt) => (
@@ -141,26 +175,14 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enabled}
-              onClick={() => {
-                const next = !enabled;
+            <Toggle
+              checked={enabled}
+              label={label}
+              onChange={(next) => {
                 setEnabled(next);
-                if (next && !deviceId) setDevice(options[0].id);
-                else if (!next) setDevice(null);
+                if (!next) setDevice(null);
               }}
-              className={`relative inline-flex w-10 h-5 shrink-0 cursor-pointer rounded-full transition-colors duration-300 ${
-                enabled ? "bg-acc" : "bg-surf2 border border-bd"
-              }`}
-            >
-              <span
-                className={`block w-3 h-3 rounded-full bg-bg shadow-md transition-transform duration-300 ease-out ${
-                  enabled ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
+            />
           </div>
         </div>
       </div>
