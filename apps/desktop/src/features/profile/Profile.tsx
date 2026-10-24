@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Pencil, Link, ShieldCheck, Users, Gift, Image } from "@phosphor-icons/react";
+import { X, Pencil, Link, ShieldCheck, Users, Gift, Plus, Robot } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
-import MxcImage from "@/components/media/MxcImage";
 import { matrixService } from "@/lib/matrix/instance";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -62,15 +61,6 @@ export default function Profile({ open, onClose }: ProfileProps) {
     ["connections", "Ligações"],
   ];
 
-  const onKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    if (open) window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onKeyDown]);
-
   const handleSave = useCallback(() => {
     setDisplayName(draftName);
     setNickname(draftNickname || null);
@@ -128,15 +118,36 @@ export default function Profile({ open, onClose }: ProfileProps) {
     setEditing(false);
   }, [displayName, nickname, bio, role, links, bannerUrl, setDraftName, setDraftNickname, setDraftBio, setDraftRole, setDraftLinks, setDraftBannerUrl]);
 
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (open) window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onKeyDown]);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-full max-w-[640px] p-0 flex flex-col h-[90vh]">
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-[640px] sm:max-w-[640px] p-0 flex flex-col h-[90vh]"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
         {/* Header */}
         <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {avatarUrl ? (
-                <MxcImage mxcUrl={avatarUrl} className="w-10 h-10 rounded-full" alt="Avatar" />
+                <div className="relative w-10 h-10 rounded-full">
+                  <img
+                    src={avatarUrl}
+                    alt="Avatar"
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                </div>
               ) : (
                 <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
                   {initials}
@@ -171,23 +182,10 @@ export default function Profile({ open, onClose }: ProfileProps) {
             {/* Perfil */}
             <TabsContent value="profile" className="p-0 pt-6">
               {/* Banner */}
-              <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden">
-                {draftBannerUrl ? (
-                  <MxcImage mxcUrl={draftBannerUrl} className="w-full h-full object-cover" alt="Banner" />
-                ) : null}
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center">
-                  {editing ? (
-                    <>
-                      <Image size={20} className="text-white mb-2" />
-                      <span className="text-xs text-white font-medium">Alterar banner</span>
-                    </>
-                  ) : (
-                    <>
-                      <Image size={20} className="text-white mb-2" />
-                      <span className="text-xs text-white font-medium">Adicionar banner</span>
-                    </>
-                  )}
-                </div>
+              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
+                Banner
+              </Label>
+              <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden group">
                 <ImageUploadWithCrop
                   label=""
                   value={draftBannerUrl}
@@ -265,7 +263,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       value={draftName}
                       onChange={(e) => setDraftName(e.target.value)}
                       placeholder="Seu nome"
-                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none"
+                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none focus:ring-2 focus:ring-acc/40"
                     />
                   </div>
                   <div>
@@ -276,7 +274,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       value={draftNickname}
                       onChange={(e) => setDraftNickname(e.target.value)}
                       placeholder="Seu apelido"
-                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none"
+                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none focus:ring-2 focus:ring-acc/40"
                     />
                   </div>
                   <div>
@@ -287,7 +285,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       value={draftRole}
                       onChange={(e) => setDraftRole(e.target.value)}
                       placeholder="Seu cargo"
-                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none"
+                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none focus:ring-2 focus:ring-acc/40"
                     />
                   </div>
                   <div>
@@ -299,7 +297,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       onChange={(e) => setDraftBio(e.target.value)}
                       rows={4}
                       placeholder="Conte um pouco sobre você…"
-                      className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
+                      className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none focus:ring-2 focus:ring-acc/40 resize-none transition-colors"
                     />
                   </div>
                 </div>
@@ -315,7 +313,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-1">
                         Apelido (nickname)
@@ -350,51 +348,56 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       variant="ghost"
                       size="sm"
                       onClick={handleAddLink}
-                      className="text-xs text-acc hover:text-acc-press underline underline-offset-4"
+                      className="text-xs text-acc hover:text-acc-press underline underline-offset-4 flex items-center gap-1"
                     >
-                      <span className="text-[10px]">+</span> Adicionar ligação
+                      <Plus size={14} />
+                      <span>Adicionar ligação</span>
                     </Button>
                   )}
                 </div>
                 <div className="space-y-2">
-                  {draftLinks.map((link, i) => (
-                    <div key={i} className="flex items-center gap-2 bg-bg border border-bd rounded-lg p-2.5">
-                      {editing ? (
-                        <>
-                          <Input
-                            value={link.label}
-                            onChange={(e) => handleLinkChange(i, "label", e.target.value)}
-                            placeholder="Nome da ligação"
-                            className="flex-1 text-sm text-txt placeholder:text-mut bg-transparent border-none focus:ring-0"
-                          />
-                          <Input
-                            value={link.url}
-                            onChange={(e) => handleLinkChange(i, "url", e.target.value)}
-                            placeholder="https://"
-                            className="flex-1 text-sm text-txt placeholder:text-mut bg-transparent border-none focus:ring-0"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveLink(i)}
-                            className="cursor-pointer p-1.5 text-err hover:bg-err/10 rounded transition-colors active:scale-95"
-                            aria-label="Remover ligação"
+                  {draftLinks.length > 0 ? (
+                    draftLinks.map((link, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-bg border border-bd rounded-lg p-2.5">
+                        {editing ? (
+                          <>
+                            <Input
+                              value={link.label}
+                              onChange={(e) => handleLinkChange(i, "label", e.target.value)}
+                              placeholder="Nome da ligação"
+                              className="flex-1 text-sm text-txt placeholder:text-mut bg-transparent border-none focus:ring-0 focus:border-acc"
+                            />
+                            <Input
+                              value={link.url}
+                              onChange={(e) => handleLinkChange(i, "url", e.target.value)}
+                              placeholder="https://"
+                              className="flex-1 text-sm text-txt placeholder:text-mut bg-transparent border-none focus:ring-0 focus:border-acc"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLink(i)}
+                              className="cursor-pointer p-1.5 text-err hover:bg-err/10 rounded transition-colors active:scale-95"
+                              aria-label="Remover ligação"
+                            >
+                              <X size={14} weight="bold" />
+                            </button>
+                          </>
+                        ) : link.url && (
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-acc hover:text-acc-press transition-colors"
                           >
-                            <X size={14} weight="bold" />
-                          </button>
-                        </>
-                      ) : link.url && (
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-acc hover:text-acc-press transition-colors"
-                        >
-                          <Link size={14} />
-                          <span className="truncate">{link.label || link.url}</span>
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                            <Link size={14} />
+                            <span className="truncate">{link.label || link.url}</span>
+                          </a>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-mut italic">Nenhuma ligação adicionada</p>
+                  )}
                 </div>
               </div>
 
@@ -442,12 +445,12 @@ export default function Profile({ open, onClose }: ProfileProps) {
             <TabsContent value="badges" className="p-0 pt-6">
               <div className="flex flex-col items-center gap-4 py-4">
                 <p className="text-xs text-mut">Conquistas e badges do perfil</p>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { label: "Membro", icon: <Users size={16} className="text-acc" />, color: "text-acc" },
                     { label: "Iniciante", icon: <Gift size={16} className="text-mut" />, color: "text-mut" },
                     { label: "Verificado", icon: <ShieldCheck size={16} className="text-acc" />, color: "text-acc" },
-                    { label: "Bot", icon: <ShieldCheck size={16} className="text-err" />, color: "text-err" },
+                    { label: "Bot", icon: <Robot size={16} className="text-err" />, color: "text-err" },
                   ].map((badge, i) => (
                     <div
                       key={i}

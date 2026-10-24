@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Clock, Eye, Lock, ShieldCheck, SpeakerHigh, Microphone, VideoCamera, Headphones, X, type Icon } from "@phosphor-icons/react";
+import { Bell, Clock, Eye, Lock, ShieldCheck, SpeakerHigh, Microphone, VideoCamera, Headphones, SignOut, X, type Icon } from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { performLogout } from "@/features/auth/logout";
 import { FALLBACK_DEVICES, listRealDevices, type DeviceLists } from "@/lib/media/devices";
@@ -39,27 +39,20 @@ export default function Settings({ open, onClose }: SettingsProps) {
     };
   }, [open]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (open) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
   const DEVICE_KINDS: Array<{ kind: "microphone" | "camera" | "headphones"; label: string; icon: Icon }> = [
     { kind: "microphone", label: "Microfone", icon: Microphone },
     { kind: "camera", label: "Câmera", icon: VideoCamera },
     { kind: "headphones", label: "Fones de ouvido", icon: Headphones },
   ];
 
-  if (!open) return null;
-
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-full max-w-[640px] p-0 flex flex-col h-[90vh]">
+      <DialogContent
+        className="w-full max-w-[640px] sm:max-w-[640px] p-0 flex flex-col h-[90vh]"
+        showCloseButton={false}
+      >
         {/* Header */}
-        <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3">
+        <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3 text-left">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold text-txt">Configurações</h2>
             <button
@@ -104,7 +97,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <Switch
                   checked={!!nativeNotifications}
                   onCheckedChange={setNativeNotifications}
-                  className="peer data-[state=checked]:bg-acc data-[state=unchecked]:bg-bg"
                 />
               </div>
               <div className="flex items-center justify-between px-2">
@@ -120,7 +112,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <Switch
                   checked={!!messageSound}
                   onCheckedChange={setMessageSound}
-                  className="peer data-[state=checked]:bg-acc data-[state=unchecked]:bg-bg"
                 />
               </div>
               <div className="flex items-center justify-between px-2">
@@ -136,7 +127,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <Switch
                   checked={!!mentionOnly}
                   onCheckedChange={setMentionOnly}
-                  className="peer data-[state=checked]:bg-acc data-[state=unchecked]:bg-bg"
                 />
               </div>
             </div>
@@ -164,38 +154,40 @@ export default function Settings({ open, onClose }: SettingsProps) {
                           <div className="text-sm font-medium text-txt">{label}</div>
                           <div className="text-xs text-mut">{enabled ? "Dispositivo ativo" : "Desativado"}</div>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <Switch
                           checked={enabled}
                           onCheckedChange={(v) => {
-                            if (kind === "microphone") setMicrophoneDevice(v ? microphoneDevice : null);
-                            if (kind === "camera") setCameraDevice(v ? cameraDevice : null);
-                            if (kind === "headphones") setHeadphonesDevice(v ? headphonesDevice : null);
+                            const device = v ? (deviceId ?? "") : null;
+                            if (kind === "microphone") setMicrophoneDevice(device);
+                            if (kind === "camera") setCameraDevice(device);
+                            if (kind === "headphones") setHeadphonesDevice(device);
                           }}
-                          className="peer data-[state=checked]:bg-acc data-[state=unchecked]:bg-bg"
                         />
+                        <Select
+                          aria-label={`Dispositivo de ${label.toLowerCase()}`}
+                          value={deviceId ?? ""}
+                          disabled={!enabled}
+                          onValueChange={(value) => setDevice(value || null)}
+                        >
+                          <SelectTrigger className="w-full sm:w-[200px] cursor-pointer rounded-lg border border-bd bg-bg px-3 py-1.5 text-sm text-txt outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                            <SelectValue placeholder="Padrão do sistema" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Padrão do sistema</SelectItem>
+                            {deviceId &&
+                              !devices[kind].some((d) => d.id === deviceId) && (
+                                <SelectItem value={deviceId}>Dispositivo atual</SelectItem>
+                              )}
+                            {devices[kind].map((d) => (
+                              <SelectItem key={d.id} value={d.id}>
+                                {d.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Select
-                        aria-label={`Dispositivo de ${label.toLowerCase()}`}
-                        value={deviceId ?? ""}
-                        disabled={!enabled}
-                        onValueChange={(value) => setDevice(value || null)}
-                      >
-                        <SelectTrigger className="w-[200px] cursor-pointer rounded-lg border border-bd bg-bg px-3 py-1.5 text-sm text-txt outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50">
-                          <SelectValue placeholder="Padrão do sistema" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Padrão do sistema</SelectItem>
-                          {deviceId &&
-                            !devices[kind].some((d) => d.id === deviceId) && (
-                              <SelectItem value={deviceId}>Dispositivo atual</SelectItem>
-                            )}
-                          {devices[kind].map((d) => (
-                            <SelectItem key={d.id} value={d.id}>
-                              {d.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
                 );
@@ -222,7 +214,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <Switch
                   checked={!!onlineStatusVisible}
                   onCheckedChange={setOnlineStatusVisible}
-                  className="peer data-[state=checked]:bg-acc data-[state=unchecked]:bg-bg"
                 />
               </div>
               <div className="flex items-center justify-between px-2">
@@ -238,7 +229,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <Switch
                   checked={!!readReceipts}
                   onCheckedChange={setReadReceipts}
-                  className="peer data-[state=checked]:bg-acc data-[state=unchecked]:bg-bg"
                 />
               </div>
               <div className="flex items-center justify-between px-2">
@@ -254,7 +244,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <Switch
                   checked={!!typingVisible}
                   onCheckedChange={setTypingVisible}
-                  className="peer data-[state=checked]:bg-acc data-[state=unchecked]:bg-bg"
                 />
               </div>
             </div>
@@ -270,7 +259,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                     <Lock size={16} weight="bold" />
                   </div>
                   <div>
-                    <div className="font-medium text-txt">Sessão atual</div>
+                    <div className="text-sm font-medium text-txt">Sessão atual</div>
                     <div className="text-xs text-mut">Desktop · Windows</div>
                   </div>
                 </div>
@@ -316,7 +305,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 onClick={performLogout}
                 className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors active:scale-95"
               >
-                <X size={14} weight="bold" className="mr-2" />
+                <SignOut size={14} weight="bold" className="mr-2" />
                 <span>Sair da conta</span>
               </button>
             </div>

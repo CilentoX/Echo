@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { X } from "@phosphor-icons/react";
+import { useState } from "react";
+import { X, Plus } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
-import MxcImage from "@/components/media/MxcImage";
 import {
   Dialog,
   DialogContent,
@@ -33,14 +32,6 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (open) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   const handleSubmit = async () => {
     const trimmed = name.trim();
@@ -86,11 +77,14 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[460px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
+      <DialogContent
+        showCloseButton={false}
+        className="w-full sm:max-w-[460px] rounded-xl border border-bd bg-surf p-6 shadow-xl"
+      >
         <DialogHeader className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
-              G
+              <Plus size={18} />
             </div>
             <div>
               <DialogTitle className="font-display text-lg font-semibold text-txt">Criar guilda</DialogTitle>
@@ -107,75 +101,79 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           </button>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="relative w-full h-32 rounded-xl bg-surf2 border border-bd overflow-hidden">
-            {iconPreview ? (
-              <MxcImage mxcUrl={iconPreview} className="w-full h-full object-cover" alt="Ícone da guilda" />
-            ) : null}
-            <ImageUploadWithCrop
-              label="Ícone da guilda"
-              value={iconPreview}
-              placeholder="Ícone da guilda (opcional)"
-              onChange={(file) => {
-                setIconFile(file);
-                const reader = new FileReader();
-                reader.onload = () => setIconPreview(reader.result as string);
-                reader.readAsDataURL(file);
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+              Ícone da guilda
+            </Label>
+            <div className="relative w-full h-32 rounded-xl bg-surf2 border border-bd overflow-hidden">
+              <ImageUploadWithCrop
+                label=""
+                value={iconPreview}
+                placeholder="Ícone da guilda (opcional)"
+                onChange={(file) => {
+                  setIconFile(file);
+                  setIconPreview(URL.createObjectURL(file));
+                }}
+                aspect={1}
+                cropTitle="Recortar ícone da guilda"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+              Nome da guilda
+            </Label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError(null);
               }}
-              aspect={1}
-              cropTitle="Recortar ícone da guilda"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !loading) void handleSubmit();
+              }}
+              placeholder="Ex: Minha comunidade"
+              autoFocus
+              className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc focus:ring-2 focus:ring-acc/40"
             />
           </div>
 
-          <Label className="block text-xs font-semibold uppercase tracking-wide text-mut">
-            Nome da guilda
-          </Label>
-          <Input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (error) setError(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !loading) void handleSubmit();
-            }}
-            placeholder="Ex: Minha comunidade"
-            autoFocus
-            className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
-          />
-
-          <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-            Descrição
-          </Label>
-          <Textarea
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value);
-              if (error) setError(null);
-            }}
-            rows={3}
-            placeholder="Descreva sua guilda…"
-            className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
-          />
-
-          <div className="relative w-full h-24 rounded-xl bg-surf2 border border-bd overflow-hidden mt-4">
-            {bannerPreview ? (
-              <MxcImage mxcUrl={bannerPreview} className="w-full h-full object-cover" alt="Banner da guilda" />
-            ) : null}
-            <ImageUploadWithCrop
-              label="Banner da guilda"
-              value={bannerPreview}
-              placeholder="Banner da guilda (opcional)"
-              onChange={(file) => {
-                setBannerFile(file);
-                const reader = new FileReader();
-                reader.onload = () => setBannerPreview(reader.result as string);
-                reader.readAsDataURL(file);
+          <div className="space-y-2">
+            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+              Descrição
+            </Label>
+            <Textarea
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                if (error) setError(null);
               }}
-              aspect={16 / 9}
-              cropTitle="Recortar banner da guilda"
+              rows={3}
+              placeholder="Descreva sua guilda…"
+              className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none focus:ring-2 focus:ring-acc/40 resize-none transition-colors"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+              Banner da guilda
+            </Label>
+            <div className="relative w-full h-24 rounded-xl bg-surf2 border border-bd overflow-hidden">
+                <ImageUploadWithCrop
+                  label=""
+                  value={bannerPreview}
+                  placeholder="Banner da guilda (opcional)"
+                  onChange={(file) => {
+                    setBannerFile(file);
+                    setBannerPreview(URL.createObjectURL(file));
+                  }}
+                  aspect={16 / 9}
+                  cropTitle="Recortar banner da guilda"
+                />
+              </div>
           </div>
 
           {error && (
@@ -185,14 +183,14 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           )}
 
           <div className="mt-8 flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1 border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1 border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
               Cancelar
             </Button>
             <Button
               type="button"
               onClick={() => void handleSubmit()}
               disabled={loading}
-              className="flex-1 bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press transition-colors active:scale-95"
+              className="flex-1 bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
             >
               {loading ? "Criando…" : "Criar guilda"}
             </Button>
