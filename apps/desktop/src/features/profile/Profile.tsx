@@ -176,9 +176,12 @@ export default function Profile({ open, onClose }: ProfileProps) {
             {/* Perfil */}
             <TabsContent value="profile" className="p-0 pt-6">
               {/* Banner */}
+              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
+                Banner
+              </Label>
               <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden">
                 <ImageUploadWithCrop
-                  label="Banner"
+                  label=""
                   value={draftBannerUrl}
                   placeholder="Adicionar banner de perfil"
                   onChange={handleBannerChange}
