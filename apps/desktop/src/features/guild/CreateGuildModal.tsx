@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export interface CreateGuildModalProps {
   open: boolean;
@@ -73,16 +84,11 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Criar guilda"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-[460px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
-        <header className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold text-txt">Criar guilda</h2>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="w-[460px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
+        <DialogHeader className="mb-4 flex items-center justify-between">
+          <DialogTitle className="font-display text-lg font-semibold text-txt">Criar guilda</DialogTitle>
+          <DialogDescription className="sr-only">Criar uma nova comunidade com nome, ícone, banner e descrição.</DialogDescription>
           <button
             type="button"
             aria-label="Fechar"
@@ -91,7 +97,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           >
             <X size={18} />
           </button>
-        </header>
+        </DialogHeader>
 
         <ImageUploadWithCrop
           label="Ícone da guilda"
@@ -107,10 +113,10 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           cropTitle="Recortar ícone da guilda"
         />
 
-        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+        <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Nome da guilda
-        </label>
-        <input
+        </Label>
+        <Input
           type="text"
           value={name}
           onChange={(e) => {
@@ -125,10 +131,10 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
         />
 
-        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+        <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Descrição
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           value={description}
           onChange={(e) => {
             setDescription(e.target.value);
@@ -160,23 +166,19 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
         )}
 
         <div className="mt-6 flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer flex-1 rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-mut hover:bg-surf2 transition-colors active:scale-95"
-          >
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1">
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => void handleSubmit()}
             disabled={loading}
-            className="cursor-pointer flex-1 rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex-1"
           >
             {loading ? "Criando…" : "Criar guilda"}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

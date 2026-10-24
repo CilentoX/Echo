@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X, Pencil, Link, ShieldCheck, Users, Gift } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
+import { matrixService } from "@/lib/matrix/instance";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,21 +92,27 @@ export default function Profile({ open, onClose }: ProfileProps) {
     setDraftLinks(next);
   };
 
-  const handleBannerChange = (file: File) => {
+  const handleBannerChange = async (file: File) => {
     if (file.size === 0) {
       setBannerUrl(null);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setBannerUrl(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      const uri = await matrixService.uploadMedia(file);
+      setBannerUrl(uri);
+    } catch {
+      setBannerUrl(null);
+    }
   };
 
-  const handleAvatarChange = (file: File) => {
+  const handleAvatarChange = async (file: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAvatarUrl(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      const uri = await matrixService.uploadMedia(file);
+      setAvatarUrl(uri);
+    } catch {
+      setAvatarUrl(null);
+    }
   };
 
   return (
@@ -405,17 +412,17 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 <p className="text-xs text-mut">Conquistas e badges do perfil</p>
                 <div className="grid grid-cols-4 gap-3">
                   {[
-                    { label: "Membro", color: "text-acc" },
-                    { label: "Iniciante", color: "text-mut" },
-                    { label: "Verificado", color: "text-acc" },
-                    { label: "Bot", color: "text-err" },
+                    { label: "Membro", icon: <Users size={16} className="text-acc" />, color: "text-acc" },
+                    { label: "Iniciante", icon: <Gift size={16} className="text-mut" />, color: "text-mut" },
+                    { label: "Verificado", icon: <ShieldCheck size={16} className="text-acc" />, color: "text-acc" },
+                    { label: "Bot", icon: <ShieldCheck size={16} className="text-err" />, color: "text-err" },
                   ].map((badge, i) => (
                     <div
                       key={i}
                       className="flex flex-col items-center gap-2 p-3 rounded-lg bg-surf2 border border-bd/50 hover:border-acc/50 transition-colors group"
                     >
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${badge.color} bg-bg/50`}>
-                        <ShieldCheck size={16} />
+                        {badge.icon}
                       </div>
                       <span className="text-xs text-txt">{badge.label}</span>
                     </div>

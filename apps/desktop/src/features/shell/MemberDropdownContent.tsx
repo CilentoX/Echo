@@ -56,9 +56,9 @@ export default function MemberDropdownContent({
     unavailable: "Não perturbar",
   };
   const statusColor: Record<string, string> = {
-    online: "bg-green-400",
-    offline: "bg-mut",
-    unavailable: "bg-acc",
+    online: "bg-online",
+    offline: "bg-offline",
+    unavailable: "bg-dnd",
   };
 
   return (
@@ -77,7 +77,7 @@ export default function MemberDropdownContent({
             {displayName ?? userId}
           </p>
           <p className="text-[10px] text-mut truncate">
-            {isMyUser ? myUserId : userId} {isMyUser && " (você)"}
+            {isMyUser ? myUserId.replace(/^@/, '') : userId.replace(/^@/, '')} {isMyUser && " (você)"}
           </p>
         </div>
       </div>

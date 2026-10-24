@@ -3,6 +3,8 @@ import { Bell, Clock, Eye, Lock, ShieldCheck, SpeakerHigh, Microphone, VideoCame
 import { useSettingsStore } from "@/stores/settingsStore";
 import { performLogout } from "@/features/auth/logout";
 import { FALLBACK_DEVICES, listRealDevices, type DeviceLists } from "@/lib/media/devices";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface SettingsProps {
   open: boolean;
@@ -84,11 +86,9 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <div className="text-xs text-mut">Banners e click-to-focus na área de trabalho</div>
               </div>
               <div className="flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={nativeNotifications}
-                  onChange={(e) => setNativeNotifications(e.target.checked)}
-                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                <Checkbox
+                  checked={!!nativeNotifications}
+                  onCheckedChange={setNativeNotifications}
                 />
               </div>
             </div>
@@ -101,11 +101,9 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <div className="text-xs text-mut">Tocar áudio ao receber mensagem</div>
               </div>
               <div className="flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={messageSound}
-                  onChange={(e) => setMessageSound(e.target.checked)}
-                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                <Checkbox
+                  checked={!!messageSound}
+                  onCheckedChange={setMessageSound}
                 />
               </div>
             </div>
@@ -118,11 +116,9 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <div className="text-xs text-mut">Notificar somente quando alguém te marcar</div>
               </div>
               <div className="flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={mentionOnly}
-                  onChange={(e) => setMentionOnly(e.target.checked)}
-                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                <Checkbox
+                  checked={!!mentionOnly}
+                  onCheckedChange={setMentionOnly}
                 />
               </div>
             </div>
@@ -149,24 +145,28 @@ export default function Settings({ open, onClose }: SettingsProps) {
                       <div className="text-xs text-mut">{enabled ? "Dispositivo ativo" : "Desativado"}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <select
+                      <Select
                         aria-label={`Dispositivo de ${label.toLowerCase()}`}
                         value={deviceId ?? ""}
                         disabled={!enabled}
-                        onChange={(e) => setDevice(e.target.value || null)}
-                        className="w-[200px] cursor-pointer rounded-lg border border-bd bg-bg px-3 py-1.5 text-sm text-txt outline-none transition-colors focus:border-acc disabled:cursor-not-allowed disabled:opacity-50"
+                        onValueChange={(value) => setDevice(value || null)}
                       >
-                        <option value="">Padrão do sistema</option>
-                        {deviceId &&
-                          !devices[kind].some((d) => d.id === deviceId) && (
-                            <option value={deviceId}>Dispositivo atual</option>
-                          )}
-                        {devices[kind].map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.label}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-[200px] cursor-pointer rounded-lg border border-bd bg-bg px-3 py-1.5 text-sm text-txt outline-none transition-colors focus:border-acc disabled:cursor-not-allowed disabled:opacity-50">
+                          <SelectValue placeholder="Padrão do sistema" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Padrão do sistema</SelectItem>
+                          {deviceId &&
+                            !devices[kind].some((d) => d.id === deviceId) && (
+                              <SelectItem value={deviceId}>Dispositivo atual</SelectItem>
+                            )}
+                          {devices[kind].map((d) => (
+                            <SelectItem key={d.id} value={d.id}>
+                              {d.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
@@ -188,11 +188,9 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <div className="text-xs text-mut">Outros membros veem se você está online</div>
               </div>
               <div className="flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={onlineStatusVisible}
-                  onChange={(e) => setOnlineStatusVisible(e.target.checked)}
-                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                <Checkbox
+                  checked={!!onlineStatusVisible}
+                  onCheckedChange={setOnlineStatusVisible}
                 />
               </div>
             </div>
@@ -205,11 +203,9 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <div className="text-xs text-mut">Enviar recibos de leitura nas mensagens</div>
               </div>
               <div className="flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={readReceipts}
-                  onChange={(e) => setReadReceipts(e.target.checked)}
-                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                <Checkbox
+                  checked={!!readReceipts}
+                  onCheckedChange={setReadReceipts}
                 />
               </div>
             </div>
@@ -222,11 +218,9 @@ export default function Settings({ open, onClose }: SettingsProps) {
                 <div className="text-xs text-mut">Mostrar 'está digitando…' para os outros</div>
               </div>
               <div className="flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={typingVisible}
-                  onChange={(e) => setTypingVisible(e.target.checked)}
-                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                <Checkbox
+                  checked={!!typingVisible}
+                  onCheckedChange={setTypingVisible}
                 />
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { Hash, MagnifyingGlass, Pencil, Plus, X } from "@phosphor-icons/react";
+import { Hash, MagnifyingGlass, Pencil, Plus, SpeakerHigh, X } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import EmptyState from "./EmptyState";
 import {
@@ -166,7 +166,7 @@ export default function ChannelSidebar({
                             className="ml-1 text-[10px] font-medium text-acc bg-acc/10 px-1.5 py-0.5 rounded border border-acc/20"
                             aria-label="Canal de voz"
                           >
-                            🔊
+<SpeakerHigh size={10} aria-hidden />
                           </span>
                         )}
                         {channel.category && (

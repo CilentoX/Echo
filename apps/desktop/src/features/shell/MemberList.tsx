@@ -174,15 +174,15 @@ export default function MemberList({
                             <div
                               className={`w-6 h-6 rounded-full flex items-center justify-center font-display text-[10px] font-bold shrink-0 ${
                                 member.presence === "online"
-                                  ? "bg-green-500 text-bg"
+                                  ? "bg-online text-bg"
                                   : member.presence === "unavailable"
-                                    ? "bg-acc text-bg"
-                                    : "bg-surf2 text-mut"
+                                    ? "bg-dnd text-bg"
+                                    : "bg-offline text-mut"
                               }`}
                             >
                               {member.displayName
                                 ? member.displayName.charAt(0).toUpperCase()
-                                : member.userId.charAt(0).toUpperCase()}
+                                : member.userId.replace(/^@/, '').charAt(0).toUpperCase()}
                             </div>
                             <span className="truncate">
                               {member.displayName || member.userId}

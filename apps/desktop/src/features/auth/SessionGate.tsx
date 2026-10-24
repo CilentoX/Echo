@@ -1,4 +1,4 @@
-import { CircleNotch, Download } from "@phosphor-icons/react";
+import { Gear, Download } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
 import OnboardingScreen from "@/features/auth/OnboardingScreen";
@@ -155,7 +155,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
             <img src="/logo.png" width={80} height={80} alt="" />
             {updateStatus === "checking" || updateStatus === "downloading" ? (
               <div className="absolute inset-0 flex items-center justify-center">
-                <CircleNotch size={32} className="animate-spin text-acc" />
+                <Gear size={32} className="animate-spin text-acc" />
               </div>
             ) : null}
           </div>

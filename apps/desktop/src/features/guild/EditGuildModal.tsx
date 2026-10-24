@@ -4,6 +4,17 @@ import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export interface EditGuildModalProps {
   open: boolean;
@@ -24,6 +35,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     setName(guild.name);
@@ -77,7 +89,6 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Tem certeza que deseja excluir a guilda "${guild.name}"?`)) return;
     setDeleting(true);
     setError(null);
     try {
@@ -100,116 +111,144 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Editar guilda"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-[420px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
-        <header className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold text-txt">Editar guilda</h2>
-          <button
+    <>
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="w-[420px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
+          <DialogHeader className="mb-4 flex items-center justify-between">
+            <DialogTitle className="font-display text-lg font-semibold text-txt">Editar guilda</DialogTitle>
+            <DialogDescription className="sr-only">Editar nome, ícone, banner e descrição da guilda.</DialogDescription>
+            <button
+              type="button"
+              aria-label="Fechar"
+              onClick={onClose}
+              className="cursor-pointer rounded p-1 text-mut hover:bg-surf2 hover:text-txt active:scale-95"
+            >
+              <X size={18} />
+            </button>
+          </DialogHeader>
+
+          <ImageUploadWithCrop
+            label="Ícone da guilda"
+            value={iconPreview}
+            placeholder="Ícone da guilda (opcional)"
+            onChange={(file) => {
+              setIconFile(file);
+              const reader = new FileReader();
+              reader.onload = () => setIconPreview(reader.result as string);
+              reader.readAsDataURL(file);
+            }}
+            aspect={1}
+            cropTitle="Recortar ícone da guilda"
+          />
+
+          <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+            Nome da guilda
+          </Label>
+          <Input
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="Ex: Minha comunidade"
+            autoFocus
+            className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
+          />
+
+          <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+            Descrição
+          </Label>
+          <Textarea
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              if (error) setError(null);
+            }}
+            rows={3}
+            placeholder="Descreva sua guilda…"
+            className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
+          />
+
+          <ImageUploadWithCrop
+            label="Banner da guilda"
+            value={bannerPreview}
+            placeholder="Banner da guilda (opcional)"
+            onChange={(file) => {
+              setBannerFile(file);
+              const reader = new FileReader();
+              reader.onload = () => setBannerPreview(reader.result as string);
+              reader.readAsDataURL(file);
+            }}
+            aspect={16 / 9}
+            cropTitle="Recortar banner da guilda"
+          />
+
+          {error && (
+            <p role="alert" className="mt-2 text-sm text-err">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-6 flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={loading}
+              className="flex-1"
+            >
+              {loading ? "Salvando…" : "Salvar alterações"}
+            </Button>
+          </div>
+
+          <Button
             type="button"
-            aria-label="Fechar"
-            onClick={onClose}
-            className="cursor-pointer rounded p-1 text-mut hover:bg-surf2 hover:text-txt active:scale-95"
+            variant="destructive"
+            onClick={() => setConfirmDeleteOpen(true)}
+            disabled={deleting}
+            className="mt-4 w-full"
           >
-            <X size={18} />
-          </button>
-        </header>
+            {deleting ? (
+              "Excluindo…"
+            ) : (
+              <>
+                <X size={14} className="mr-2" />
+                Excluir guilda
+              </>
+            )}
+          </Button>
+        </DialogContent>
+      </Dialog>
 
-        <ImageUploadWithCrop
-          label="Ícone da guilda"
-          value={iconPreview}
-          placeholder="Ícone da guilda (opcional)"
-          onChange={(file) => {
-            setIconFile(file);
-            const reader = new FileReader();
-            reader.onload = () => setIconPreview(reader.result as string);
-            reader.readAsDataURL(file);
-          }}
-          aspect={1}
-          cropTitle="Recortar ícone da guilda"
-        />
-
-        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Nome da guilda
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            if (error) setError(null);
-          }}
-          placeholder="Ex: Minha comunidade"
-          autoFocus
-          className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
-        />
-
-        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Descrição
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => {
-            setDescription(e.target.value);
-            if (error) setError(null);
-          }}
-          rows={3}
-          placeholder="Descreva sua guilda…"
-          className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
-        />
-
-        <ImageUploadWithCrop
-          label="Banner da guilda"
-          value={bannerPreview}
-          placeholder="Banner da guilda (opcional)"
-          onChange={(file) => {
-            setBannerFile(file);
-            const reader = new FileReader();
-            reader.onload = () => setBannerPreview(reader.result as string);
-            reader.readAsDataURL(file);
-          }}
-          aspect={16 / 9}
-          cropTitle="Recortar banner da guilda"
-        />
-
-        {error && (
-          <p role="alert" className="mt-2 text-sm text-err">
-            {error}
-          </p>
-        )}
-
-        <div className="mt-6 flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer flex-1 rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-mut hover:bg-surf2 transition-colors active:scale-95"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={loading}
-            className="cursor-pointer flex-1 rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Salvando…" : "Salvar alterações"}
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="cursor-pointer mt-4 w-full rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-err hover:bg-err/10 transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {deleting ? "Excluindo…" : <X size={14} className="mr-2" />} Excluir guilda
-        </button>
-      </div>
-    </div>
+      {confirmDeleteOpen && (
+        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+          <DialogContent className="rounded-xl border border-bd bg-surf p-6 shadow-xl text-center">
+            <DialogHeader>
+              <DialogTitle className="font-display text-lg font-semibold text-txt">Excluir guilda</DialogTitle>
+              <DialogDescription className="text-mut">
+                Tem certeza que deseja excluir a guilda "{guild.name}"? Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-6 flex gap-2 justify-center">
+              <Button type="button" variant="outline" onClick={() => setConfirmDeleteOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1"
+              >
+                {deleting ? "Excluindo…" : "Excluir"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
