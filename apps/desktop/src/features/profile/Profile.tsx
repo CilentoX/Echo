@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { X, Pencil, Link, ShieldCheck, Users, Gift } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
@@ -44,6 +44,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
   const [draftBio, setDraftBio] = useState(bio ?? "");
   const [draftRole, setDraftRole] = useState(role ?? "");
   const [draftLinks, setDraftLinks] = useState([...links]);
+  const [draftBannerUrl, setDraftBannerUrl] = useState(bannerUrl);
 
   const initials = useMemo(() => {
     const name = displayName || username;
@@ -70,39 +71,40 @@ export default function Profile({ open, onClose }: ProfileProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     setDisplayName(draftName);
     setNickname(draftNickname || null);
     setBio(draftBio || null);
     setRole(draftRole || null);
     setLinks(draftLinks);
+    setBannerUrl(draftBannerUrl);
     setEditing(false);
-  };
+  }, [draftName, draftNickname, draftBio, draftRole, draftLinks, draftBannerUrl, setDisplayName, setNickname, setBio, setRole, setLinks, setBannerUrl]);
 
-  const handleAddLink = () => {
+  const handleAddLink = useCallback(() => {
     setDraftLinks([...draftLinks, { label: "", url: "" }]);
-  };
+  }, [draftLinks, setDraftLinks]);
 
-  const handleRemoveLink = (index: number) => {
+  const handleRemoveLink = useCallback((index: number) => {
     setDraftLinks(draftLinks.filter((_, i) => i !== index));
-  };
+  }, [draftLinks, setDraftLinks]);
 
-  const handleLinkChange = (index: number, field: "label" | "url", value: string) => {
+  const handleLinkChange = useCallback((index: number, field: "label" | "url", value: string) => {
     const next = [...draftLinks];
     next[index] = { ...next[index], [field]: value };
     setDraftLinks(next);
-  };
+  }, [draftLinks, setDraftLinks]);
 
   const handleBannerChange = async (file: File) => {
     if (file.size === 0) {
-      setBannerUrl(null);
+      setDraftBannerUrl(null);
       return;
     }
     try {
       const uri = await matrixService.uploadMedia(file);
-      setBannerUrl(uri);
+      setDraftBannerUrl(uri);
     } catch {
-      setBannerUrl(null);
+      setDraftBannerUrl(null);
     }
   };
 
@@ -116,10 +118,21 @@ export default function Profile({ open, onClose }: ProfileProps) {
     }
   };
 
+  const handleCancel = useCallback(() => {
+    setDraftName(displayName);
+    setDraftNickname(nickname ?? "");
+    setDraftBio(bio ?? "");
+    setDraftRole(role ?? "");
+    setDraftLinks([...links]);
+    setDraftBannerUrl(bannerUrl);
+    setEditing(false);
+  }, [displayName, nickname, bio, role, links, bannerUrl, setDraftName, setDraftNickname, setDraftBio, setDraftRole, setDraftLinks, setDraftBannerUrl]);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-full max-w-[640px] p-0">
-        <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur">
+      <DialogContent className="w-full max-w-[640px] p-0 flex flex-col">
+        {/* Header */}
+        <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3">
           <div className="flex items-center gap-3">
             {avatarUrl ? (
               <MxcImage mxcUrl={avatarUrl} className="w-10 h-10 rounded-full" alt="Avatar" />
@@ -155,12 +168,16 @@ export default function Profile({ open, onClose }: ProfileProps) {
 
             {/* Perfil */}
             <TabsContent value="profile" className="p-0 pt-6">
+              {/* Banner */}
               <Card className="border-bd">
                 <CardContent className="px-0 py-0">
-                  <div className="relative w-full h-32 rounded-xl bg-surf2 border border-bd overflow-hidden">
+                  <div className="relative w-full h-40 rounded-xl bg-surf2 border border-bd overflow-hidden">
+                    {draftBannerUrl ? (
+                      <MxcImage mxcUrl={draftBannerUrl} className="w-full h-full object-cover" alt="Banner" />
+                    ) : null}
                     <ImageUploadWithCrop
                       label="Banner"
-                      value={bannerUrl}
+                      value={draftBannerUrl}
                       placeholder="Adicionar banner de perfil"
                       onChange={handleBannerChange}
                       aspect={16 / 9}
@@ -170,12 +187,17 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 </CardContent>
               </Card>
 
-              <div className="relative -mt-20 flex justify-center">
+              {/* Avatar */}
+              <div className="relative -mt-12 flex justify-center">
                 <div
                   className={`relative w-24 h-24 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf ${
                     avatarUrl ? "bg-bg" : "bg-acc"
                   }`}
-                  style={avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                  style={
+                    avatarUrl
+                      ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                      : undefined
+                  }
                 >
                   {avatarUrl ? null : initials}
                   <input
@@ -204,7 +226,8 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 </div>
               </div>
 
-              <div className="mt-4 text-center">
+              {/* Nome e identidade */}
+              <div className="mt-4 text-center space-y-2">
                 <p className="font-display text-2xl font-bold text-txt truncate">
                   {displayName || username}
                 </p>
@@ -281,7 +304,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-1">
                         Apelido (nickname)
@@ -304,6 +327,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 </div>
               )}
 
+              {/* Ligações sociais */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-3">
                   <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
@@ -363,26 +387,20 @@ export default function Profile({ open, onClose }: ProfileProps) {
                 </div>
               </div>
 
+              {/* Ações */}
               {editing ? (
                 <div className="mt-8 pt-4 border-t border-bd space-y-3">
                   <Button
                     type="button"
                     onClick={handleSave}
-                    className="w-full py-3.5 rounded-xl font-display font-semibold shadow-lg shadow-acc/20"
+                    className="w-full py-3.5 rounded-xl font-display font-semibold shadow-lg shadow-acc/20 bg-acc text-bg hover:bg-acc-press transition-colors"
                   >
                     Salvar alterações
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setDraftName(displayName);
-                      setDraftNickname(nickname ?? "");
-                      setDraftBio(bio ?? "");
-                      setDraftRole(role ?? "");
-                      setDraftLinks([...links]);
-                      setEditing(false);
-                    }}
+                    onClick={handleCancel}
                     className="w-full py-3.5 rounded-xl"
                   >
                     Cancelar
@@ -398,6 +416,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                     setDraftBio(bio ?? "");
                     setDraftRole(role ?? "");
                     setDraftLinks([...links]);
+                    setDraftBannerUrl(bannerUrl);
                     setEditing(true);
                   }}
                   className="w-full py-3.5 text-sm font-medium"
