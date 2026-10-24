@@ -10,7 +10,7 @@ vi.mock("@tauri-apps/plugin-process", () => ({
   relaunch: vi.fn(async () => {}),
 }));
 
-import { downloadAndInstall, restartApp, runStartupUpdateCheck } from "./updater";
+import { downloadAndInstall, checkForUpdates, restartApp, runStartupUpdateCheck } from "./updater";
 import { useUpdateStore } from "@/stores/updateStore";
 
 type InternalsWindow = { __TAURI_INTERNALS__?: unknown };
@@ -103,5 +103,14 @@ describe("runStartupUpdateCheck", () => {
     setTauri(false);
 
     await expect(restartApp()).resolves.toBeUndefined();
+  });
+});
+
+describe("checkForUpdates", () => {
+  it("fora do runtime Tauri não consulta o plugin (não mock, ambiente real)", async () => {
+    setTauri(false);
+
+    const result = await checkForUpdates();
+    expect(result).toBeNull();
   });
 });

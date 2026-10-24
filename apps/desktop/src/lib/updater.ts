@@ -13,6 +13,18 @@ import { useUpdateStore } from "@/stores/updateStore";
  * (UpdateBanner) — o boot nunca quebra, falhas são silenciosas.
  */
 
+/** Verifica se há atualização disponível via plugin-updater.
+ * Retorna o objeto de update ou null/undefined se não houver.
+ * Fora do runtime Tauri, retorna null (sem rede/plugin). */
+export async function checkForUpdates(): Promise<{ version: string } | null> {
+  if (!isTauri()) return null;
+  try {
+    return await checkPluginUpdate();
+  } catch {
+    return null;
+  }
+}
+
 /** Baixa e instala a atualização, anunciando o progresso ao store.
  * Retorna true se instalou, false se não havia update ou falhou — nunca lança. */
 export async function downloadAndInstall(): Promise<boolean> {
