@@ -171,9 +171,17 @@ export default function Profile({ open, onClose }: ProfileProps) {
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "profile" | "badges" | "connections")}>
-            <TabsList className="grid w-full grid-cols-3 border-b border-bd bg-surf/50">
+            <TabsList className="flex w-full border-b border-bd bg-surf/50">
               {PROFILE_TABS.map(([tabKey, label]) => (
-                <TabsTrigger key={tabKey} value={tabKey} className="px-4 py-3 text-sm font-medium transition-colors">
+                <TabsTrigger
+                  key={tabKey}
+                  value={tabKey}
+                  className={
+                    tab === tabKey
+                      ? "flex-1 py-3 text-sm font-semibold text-acc border-b-2 border-acc"
+                      : "flex-1 py-3 text-sm font-medium text-mut hover:text-txt transition-colors"
+                  }
+                >
                   {label}
                 </TabsTrigger>
               ))}
@@ -185,7 +193,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
               <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
                 Banner
               </Label>
-              <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden group">
+              <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden">
                 <ImageUploadWithCrop
                   label=""
                   value={draftBannerUrl}
@@ -197,9 +205,9 @@ export default function Profile({ open, onClose }: ProfileProps) {
               </div>
 
               {/* Avatar */}
-              <div className="relative -mt-14 flex justify-center">
+              <div className="relative -mt-12 flex justify-center">
                 <div
-                  className={`relative w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-xl border-4 border-surf ${
+                  className={`relative w-28 h-28 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf ${
                     avatarUrl ? "bg-bg" : "bg-acc"
                   }`}
                   style={
@@ -223,13 +231,13 @@ export default function Profile({ open, onClose }: ProfileProps) {
                     <button
                       type="button"
                       aria-label="Alterar avatar"
-                      className="absolute bottom-1 right-1 w-9 h-9 rounded-full flex items-center justify-center text-sm text-bg bg-acc shadow-xl hover:bg-acc-press transition-all active:scale-95"
+                      className="absolute bottom-1 right-1 w-8 h-8 rounded-full flex items-center justify-center text-xs text-bg bg-acc shadow-md hover:bg-acc-press transition-all active:scale-95"
                       onClick={(e) => {
                         e.stopPropagation();
                         document.getElementById("avatar-input")?.click();
                       }}
                     >
-                      <Pencil size={16} />
+                      <Pencil size={14} />
                     </button>
                   )}
                 </div>
