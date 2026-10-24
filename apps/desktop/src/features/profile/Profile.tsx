@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Pencil, Link, ShieldCheck, Users, Gift } from "@phosphor-icons/react";
+import { X, Pencil, Link, ShieldCheck, Users, Gift, Image } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
 import MxcImage from "@/components/media/MxcImage";
@@ -56,6 +56,12 @@ export default function Profile({ open, onClose }: ProfileProps) {
       .join("") || "?";
   }, [displayName, username]);
 
+  const PROFILE_TABS: Array<[string, string]> = [
+    ["profile", "Perfil"],
+    ["badges", "Conquistas"],
+    ["connections", "Ligações"],
+  ];
+
   const onKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
   }, [onClose]);
@@ -64,12 +70,6 @@ export default function Profile({ open, onClose }: ProfileProps) {
     if (open) window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onKeyDown]);
-
-  const PROFILE_TABS: Array<[string, string]> = [
-    ["profile", "Perfil"],
-    ["badges", "Conquistas"],
-    ["connections", "Ligações"],
-  ];
 
   const handleSave = useCallback(() => {
     setDisplayName(draftName);
@@ -130,12 +130,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent
-        className="w-full max-w-[640px] p-0 flex flex-col h-[90vh]"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
+      <DialogContent className="w-full max-w-[640px] p-0 flex flex-col h-[90vh]">
         {/* Header */}
         <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -176,10 +171,23 @@ export default function Profile({ open, onClose }: ProfileProps) {
             {/* Perfil */}
             <TabsContent value="profile" className="p-0 pt-6">
               {/* Banner */}
-              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
-                Banner
-              </Label>
               <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden">
+                {draftBannerUrl ? (
+                  <MxcImage mxcUrl={draftBannerUrl} className="w-full h-full object-cover" alt="Banner" />
+                ) : null}
+                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center">
+                  {editing ? (
+                    <>
+                      <Image size={20} className="text-white mb-2" />
+                      <span className="text-xs text-white font-medium">Alterar banner</span>
+                    </>
+                  ) : (
+                    <>
+                      <Image size={20} className="text-white mb-2" />
+                      <span className="text-xs text-white font-medium">Adicionar banner</span>
+                    </>
+                  )}
+                </div>
                 <ImageUploadWithCrop
                   label=""
                   value={draftBannerUrl}
@@ -193,7 +201,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
               {/* Avatar */}
               <div className="relative -mt-14 flex justify-center">
                 <div
-                  className={`relative w-28 h-28 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf ${
+                  className={`relative w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-xl border-4 border-surf ${
                     avatarUrl ? "bg-bg" : "bg-acc"
                   }`}
                   style={
@@ -217,13 +225,13 @@ export default function Profile({ open, onClose }: ProfileProps) {
                     <button
                       type="button"
                       aria-label="Alterar avatar"
-                      className="absolute bottom-1 right-1 w-8 h-8 rounded-full flex items-center justify-center text-sm text-bg bg-acc shadow-lg hover:bg-acc-press transition-all active:scale-95"
+                      className="absolute bottom-1 right-1 w-9 h-9 rounded-full flex items-center justify-center text-sm text-bg bg-acc shadow-xl hover:bg-acc-press transition-all active:scale-95"
                       onClick={(e) => {
                         e.stopPropagation();
                         document.getElementById("avatar-input")?.click();
                       }}
                     >
-                      <Pencil size={14} />
+                      <Pencil size={16} />
                     </button>
                   )}
                 </div>
