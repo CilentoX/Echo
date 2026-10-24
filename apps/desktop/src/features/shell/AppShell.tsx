@@ -5,8 +5,10 @@ import ChannelSidebar from "./ChannelSidebar";
 import ChatPane from "./ChatPane";
 import MemberList from "./MemberList";
 import SyncStatusIndicator from "./SyncStatusIndicator";
+import EmptyState from "./EmptyState";
 import Profile from "@/features/profile/Profile";
 import Settings from "@/features/settings/Settings";
+import { useSyncStore } from "@/stores/syncStore";
 
 export interface AppShellProps {
   /** Chat area content; placeholder messages are shown when omitted. */
@@ -39,6 +41,9 @@ export default function AppShell({ children }: AppShellProps) {
     setMembersOpen(false);
   }, [membersVisible]);
 
+  const guilds = useSyncStore((s) => s.guilds);
+  const showEmptyState = guilds.length === 0;
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg font-ui text-txt">
       <CommunityRail
@@ -63,7 +68,7 @@ export default function AppShell({ children }: AppShellProps) {
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onToggleMembers={() => setMembersOpen((open) => !open)}
       >
-        {children}
+        {showEmptyState ? <EmptyState /> : children}
       </ChatPane>
 
       {membersVisible ? (

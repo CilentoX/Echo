@@ -85,13 +85,9 @@ describe("ChannelSidebar", () => {
     expect(screen.getByRole("button", { name: "geral" }).getAttribute("aria-current")).toBeNull();
   });
 
-  it("store sem guildas → estado vazio 'Entre com um convite' (Review Focus 2)", () => {
+  it("store sem guildas → estado vazio 'Nenhuma guilda ainda' (Review Focus 2)", () => {
     render(<ChannelSidebar />);
 
-    expect(
-      screen.getByText(
-        "Você ainda não está em nenhuma comunidade. Entre com um convite.",
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText("Nenhuma guilda ainda.")).toBeTruthy();
   });
 });
