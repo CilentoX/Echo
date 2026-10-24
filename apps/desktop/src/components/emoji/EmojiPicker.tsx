@@ -85,9 +85,7 @@ const EMOJIS = [
 
 const SKIN_TONES = ["", "🏻", "🏼", "🏽", "🏾", "🏿"];
 
-type Emoji = { emoji: string; name: string; keywords: string[] };
-
-interface EmojiPickerProps {
+type EmojiPickerProps = {
   onSelect: (emoji: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;

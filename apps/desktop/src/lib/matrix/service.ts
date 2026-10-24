@@ -197,6 +197,23 @@ export class MatrixService {
     return res.event_id;
   }
 
+  /** Sends an m.file message: uploads the file, then sends m.message with m.file content. */
+  async sendFile(roomId: string, file: File, body?: string): Promise<string> {
+    const url = await this.uploadMedia(file);
+    const res: SendEventResponseLike = await this.requireClient().sendEvent(roomId, "m.message", {
+      msgtype: "m.file",
+      body: body ?? file.name,
+      url,
+      info: {
+        mimetype: file.type,
+        size: file.size,
+      },
+    } as Record<string, unknown>);
+    if (typeof res === "string") return res;
+    if (!res?.event_id) throw new Error("sendFile failed: missing event_id");
+    return res.event_id;
+  }
+
   /** Envia uma reação m.reaction (m.annotation com m.relates_to) a um evento. */
   async sendReaction(roomId: string, targetEventId: string, emoji: string): Promise<string> {
     const res = await this.requireClient().sendEvent(roomId, "m.reaction", {
