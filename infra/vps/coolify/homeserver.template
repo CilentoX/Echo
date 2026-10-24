@@ -89,6 +89,11 @@ oidc_providers:
       - "profile"
       - "email"
     enable_registration: true
+    # Redirect URI para o callback SSO do Echo Desktop (Tauri loopback na porta 1421).
+    # Sem isso o Synapse rejeita o redirect_uri http://localhost:1421/callback e
+    # o callback SSO nunca chega ao listener do app.
+    redirect_uris:
+      - "http://localhost:1421/callback"
     user_mapping_provider:
       config:
         confirm_localpart: true

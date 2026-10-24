@@ -10,7 +10,7 @@ import type { Session } from "./types";
 export const ECHO_HOMESERVER_URL = "https://echo.litteris.online";
 
 /** OIDC provider id configured on Synapse for Google (`oidc_providers[].idp_id`). */
-const GOOGLE_IDP_ID = "oidc-google";
+const GOOGLE_IDP_ID = "google";
 
 type SsoLoginErrorCode = "listener" | "login";
 
