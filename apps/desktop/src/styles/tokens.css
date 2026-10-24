@@ -1,6 +1,7 @@
 /*
  * Eco design tokens — dark-first semantic palette.
  * Single source of truth for colors and fonts.
+ * Accent: verde (#00C853), não blurple Discord.
  *
  * `@theme inline` is used because every value references another CSS
  * variable: Tailwind inlines `var(--bg)` (etc.) directly into the
@@ -15,8 +16,8 @@
   --bd: #2A3546;
   --txt: #E9EDF2;
   --mut: #97A2B0;
-  --acc: #5865F2;
-  --acc-press: #4752C4;
+  --acc: #00C853;
+  --acc-press: #00A84F;
   --online: #34D399;
   --idle: #FAA81A;
   --dnd: #F04747;

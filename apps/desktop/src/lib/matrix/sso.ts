@@ -9,8 +9,11 @@ import type { Session } from "./types";
  */
 export const ECHO_HOMESERVER_URL = "https://echo.litteris.online";
 
-/** OIDC provider id configured on Synapse for Google (`oidc_providers[].idp_id`). */
-const GOOGLE_IDP_ID = "google";
+/** OIDC provider id configured on Synapse for Google (`oidc_providers[].idp_id`).
+ * Synapse expõe o provider com o prefixo "oidc-" na URL de redirect:
+ * /_matrix/client/v3/login/sso/redirect/oidc-google
+ */
+const GOOGLE_IDP_ID = "oidc-google";
 
 type SsoLoginErrorCode = "listener" | "login";
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import Composer, { type SendMessageFn } from "./Composer";
-import MessageBubble, { type ReactionChip } from "./MessageBubble";
+import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import { groupMessages } from "./groupMessages";
 import { loadOlder } from "@/lib/matrix/wiring";
@@ -115,25 +115,7 @@ export default function ChatPane({
     }
   }, [activeChannelId, loadHistory]);
 
-  const reactionsFor = (eventId: string): ReactionChip[] => {
-    const base = reactionsByEvent[eventId] ?? [];
-    if (base.length === 0) return [];
-    const merged = new Map<string, { count: number; active: boolean }>();
-    for (const r of base) {
-      const current = merged.get(r.emoji);
-      if (current) {
-        current.count += 1;
-        if (r.sender === myUserId) current.active = true;
-      } else {
-        merged.set(r.emoji, { count: 1, active: r.sender === myUserId });
-      }
-    }
-    return [...merged.entries()].map(([emoji, value]) => ({
-      emoji,
-      count: value.count,
-      active: value.active,
-    }));
-  };
+  const reactionsFor = (eventId: string) => reactionsByEvent[eventId] ?? [];
 
   if (!activeChannelId) {
     return (
@@ -168,6 +150,7 @@ export default function ChatPane({
               pending={event.eventId.startsWith("pending-")}
               isBot={botSenders.includes(event.sender)}
               reactions={reactionsFor(event.eventId)}
+              myUserId={myUserId ?? undefined}
               threadReplies={threadReplies?.[event.eventId]}
               onToggleReaction={sendReaction}
             />

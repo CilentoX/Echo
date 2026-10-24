@@ -18,6 +18,14 @@ export interface NormalizedEvent {
   sender: string;
   body: string;
   originServerTs: number;
+  /** Mensagem citada (reply-to), se houver. */
+  replyTo?: { eventId: string; sender: string; body: string };
+  /** Timestamp da última edição (undefined = nunca editado). */
+  editedAt?: number;
+  /** Mensagem excluída pelo server (redacted). */
+  redacted?: boolean;
+  /** Avatar mxc:// do remetente (null = sem avatar). */
+  senderAvatarUrl?: string | null;
 }
 
 /** Reação m.reaction (m.annotation) normalizada. */
