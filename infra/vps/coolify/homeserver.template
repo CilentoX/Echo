@@ -92,6 +92,6 @@ oidc_providers:
     user_mapping_provider:
       config:
         confirm_localpart: true
-        localpart_template: "{{ user.email.split(chr(64))[0]|lower }}"
+        localpart_template: "{{ user.email.split('@')[0]|lower }}"
         display_name_template: "{{ user.name }}"
         email_template: "{{ user.email }}"
