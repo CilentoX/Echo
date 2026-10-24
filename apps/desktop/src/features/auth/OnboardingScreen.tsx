@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle } from "lucide-react";
-import { ArrowRight, User, Server as LucideServer } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle, User } from "@phosphor-icons/react";
 import { ShieldCheck, Globe } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
 import { markOnboardingCompleted } from "@/lib/onboarding";
@@ -13,14 +12,13 @@ import { Label } from "@/components/ui/label";
 import { AvatarUpload } from "@/components/onboarding/AvatarUpload";
 
 /**
- * Onboarding de primeiro acesso com 3 etapas (estilo Discord):
+ * Onboarding de primeiro acesso com 2 etapas (estilo Discord):
  * 1. Welcome — boas-vindas ao Echo
- * 2. Servidor — escolher ou criar servidor
- * 3. Perfil — nickname e avatar
+ * 2. Perfil — nickname e avatar
  *
  * Após salvar, a flag é persistida e não reapresenta.
  */
-type Step = "welcome" | "server" | "profile";
+type Step = "welcome" | "profile";
 
 export default function OnboardingScreen({
   onComplete,
@@ -30,7 +28,6 @@ export default function OnboardingScreen({
 }) {
   const [step, setStep] = useState<Step>("welcome");
   const [nickname, setNickname] = useState("");
-  const [serverName, setServerName] = useState("Meu servidor");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,11 +69,18 @@ export default function OnboardingScreen({
     }
   }, [nickname, avatarFile, myUserId]);
 
+  // Revoga URLs de objeto criadas quando o componente desmonta
+  useEffect(() => {
+    return () => {
+      if (avatarSrc) URL.revokeObjectURL(avatarSrc);
+    };
+  }, [avatarSrc]);
+
   if (onboardingDone) {
     return null;
   }
 
-  const canAdvance = step === "welcome" || (step === "server" && serverName.trim());
+  const canAdvance = step === "welcome";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-bg font-ui">
@@ -90,17 +94,6 @@ export default function OnboardingScreen({
               <CardTitle className="text-2xl font-display font-bold text-txt">Bem-vindo ao Echo</CardTitle>
               <CardDescription className="text-center text-mut">
                 Seu novo espaço para conversar com a comunidade.
-              </CardDescription>
-            </>
-          )}
-          {step === "server" && (
-            <>
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc text-bg">
-                <LucideServer size={32} />
-              </div>
-              <CardTitle className="text-2xl font-display font-bold text-txt">Seu servidor</CardTitle>
-              <CardDescription className="text-center text-mut">
-                Dê um nome ao seu servidor. Você pode alterar depois.
               </CardDescription>
             </>
           )}
@@ -132,24 +125,6 @@ export default function OnboardingScreen({
                 <Globe size={14} className="text-acc" />
                 <span>Federado com a rede Matrix</span>
               </div>
-            </div>
-          )}
-          {step === "server" && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="server-name">Nome do servidor</Label>
-                <Input
-                  id="server-name"
-                  type="text"
-                  value={serverName}
-                  onChange={(e) => setServerName(e.target.value)}
-                  placeholder="Meu servidor"
-                  maxLength={64}
-                />
-              </div>
-              <p className="text-xs text-mut">
-                Este nome identifica seu servidor na rede.
-              </p>
             </div>
           )}
           {step === "profile" && (
@@ -207,25 +182,20 @@ export default function OnboardingScreen({
             <Button
               type="button"
               disabled={!canAdvance || isLoading}
-              onClick={() => {
-                if (step === "welcome") setStep("server");
-                else if (step === "server") setStep("profile");
-              }}
+              onClick={() => setStep("profile")}
               className="bg-acc text-bg font-semibold rounded-xl hover:bg-acc-press transition-colors disabled:opacity-50 disabled:pointer-events-none px-6"
             >
-              {step === "server" ? "Criar servidor" : "Avançar"} <ArrowRight size={18} />
+              Avançar <ArrowRight size={18} />
             </Button>
           )}
           {step !== "welcome" && (
             <button
               type="button"
-              onClick={() => {
-                if (step === "server") setStep("welcome");
-                else if (step === "profile") setStep("server");
-              }}
+              onClick={() => setStep("welcome")}
               className="text-sm text-mut hover:text-txt underline underline-offset-4 transition-colors"
             >
-              ← Voltar
+              <ArrowLeft size={14} className="mr-1" />
+              Voltar
             </button>
           )}
         </CardFooter>

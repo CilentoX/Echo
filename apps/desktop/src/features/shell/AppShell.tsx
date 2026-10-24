@@ -6,6 +6,7 @@ import ChatPane from "./ChatPane";
 import MemberList from "./MemberList";
 import SyncStatusIndicator from "./SyncStatusIndicator";
 import EmptyState from "./EmptyState";
+import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import Profile from "@/features/profile/Profile";
 import Settings from "@/features/settings/Settings";
 import { useSyncStore } from "@/stores/syncStore";
@@ -30,6 +31,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [membersOpen, setMembersOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [createGuildOpen, setCreateGuildOpen] = useState(false);
 
   // Crossing a breakpoint changes the layout mode; stale overlay
   // state must not make panels reappear open on the way back.
@@ -42,7 +44,30 @@ export default function AppShell({ children }: AppShellProps) {
   }, [membersVisible]);
 
   const guilds = useSyncStore((s) => s.guilds);
+  const setGuilds = useSyncStore((s) => s.setGuilds);
   const showEmptyState = guilds.length === 0;
+
+  const handleOpenCreateGuild = () => setCreateGuildOpen(true);
+
+  const handleCreateGuild = async (
+    data: {
+      name: string;
+      iconUrl?: string | null;
+      bannerUrl?: string | null;
+      description?: string | null;
+    },
+  ): Promise<{ guildId: string; name: string; avatarUrl: string | null; unreadCount: number }> => {
+    const guildId = `!${data.name.toLowerCase().replace(/\s+/g, "-")}:echo.lan`;
+    return { guildId, name: data.name, avatarUrl: null, unreadCount: 0 };
+  };
+
+  const handleGuildCreated = (guild: { guildId: string; name: string }) => {
+    setGuilds([
+      ...guilds,
+      { guildId: guild.guildId, name: guild.name, avatarUrl: null, unreadCount: 0 },
+    ]);
+    setCreateGuildOpen(false);
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg font-ui text-txt">
@@ -68,7 +93,7 @@ export default function AppShell({ children }: AppShellProps) {
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onToggleMembers={() => setMembersOpen((open) => !open)}
       >
-        {showEmptyState ? <EmptyState /> : children}
+        {showEmptyState ? <EmptyState onCreateGuild={handleOpenCreateGuild} /> : children}
       </ChatPane>
 
       {membersVisible ? (
@@ -83,6 +108,13 @@ export default function AppShell({ children }: AppShellProps) {
 
       <Profile open={profileOpen} onClose={() => setProfileOpen(false)} />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <CreateGuildModal
+        open={createGuildOpen}
+        onClose={() => setCreateGuildOpen(false)}
+        onCreate={handleCreateGuild}
+        onCreated={handleGuildCreated}
+      />
     </div>
   );
 }

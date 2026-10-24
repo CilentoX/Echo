@@ -16,7 +16,7 @@ import { useUpdateStore } from "@/stores/updateStore";
 /** Verifica se há atualização disponível via plugin-updater.
  * Retorna o objeto de update ou null/undefined se não houver.
  * Fora do runtime Tauri, retorna null (sem rede/plugin). */
-export async function checkForUpdates(): Promise<{ version: string } | null> {
+export async function checkForUpdates(): Promise<{ version: string; downloadAndInstall: () => Promise<void> } | null> {
   if (!isTauri()) return null;
   try {
     return await checkPluginUpdate();
@@ -29,7 +29,7 @@ export async function checkForUpdates(): Promise<{ version: string } | null> {
  * Retorna true se instalou, false se não havia update ou falhou — nunca lança. */
 export async function downloadAndInstall(): Promise<boolean> {
   try {
-    const update = await checkPluginUpdate();
+    const update = await checkForUpdates();
     if (!update) {
       // Sem atualização disponível: o banner de "verificando" some.
       useUpdateStore.getState().reset();

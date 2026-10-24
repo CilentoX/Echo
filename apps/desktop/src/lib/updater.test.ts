@@ -27,6 +27,7 @@ afterEach(() => {
 
 describe("downloadAndInstall", () => {
   it("update disponível → baixa e instala, devolve true", async () => {
+    setTauri(true);
     const update = { downloadAndInstall: vi.fn(async () => {}) };
     checkMock.mockResolvedValue(update);
 
@@ -35,12 +36,14 @@ describe("downloadAndInstall", () => {
   });
 
   it("sem update (check → null) → false, sem instalar", async () => {
+    setTauri(true);
     checkMock.mockResolvedValue(null);
 
     await expect(downloadAndInstall()).resolves.toBe(false);
   });
 
   it("falha do plugin → false, sem lançar", async () => {
+    setTauri(true);
     checkMock.mockRejectedValue(new Error("endpoint fora do ar"));
 
     await expect(downloadAndInstall()).resolves.toBe(false);

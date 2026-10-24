@@ -199,9 +199,8 @@ describe("SessionGate", () => {
     expect(mockedRestore).not.toHaveBeenCalled();
     expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
 
-    // Concluir o onboarding (3 etapas) define o display name e entra no shell.
-    await userEvent.click(screen.getByRole("button", { name: /Avançar/ }));        // welcome → server
-    await userEvent.click(screen.getByRole("button", { name: /Criar servidor/ }));   // server → profile
+    // Concluir o onboarding (2 etapas) define o display name e entra no shell.
+    await userEvent.click(screen.getByRole("button", { name: /Avançar/ }));        // welcome → profile
     await userEvent.type(screen.getByLabelText("Nome de exibição"), "Nina");
     await userEvent.click(screen.getByRole("button", { name: /Concluir e entrar/ }));
 
@@ -229,9 +228,8 @@ describe("SessionGate", () => {
     // …mas o sync só liga ao entrar no shell.
     expect(mockedStartSyncHandlers).not.toHaveBeenCalled();
 
-    // Concluir o onboarding (3 etapas) entra no shell.
-    await userEvent.click(screen.getByRole("button", { name: /Avançar/ }));        // welcome → server
-    await userEvent.click(screen.getByRole("button", { name: /Criar servidor/ }));   // server → profile
+    // Concluir o onboarding (2 etapas) entra no shell.
+    await userEvent.click(screen.getByRole("button", { name: /Avançar/ }));        // welcome → profile
     await userEvent.type(screen.getByLabelText("Nome de exibição"), "Nina");
     await userEvent.click(screen.getByRole("button", { name: /Concluir e entrar/ }));
 
