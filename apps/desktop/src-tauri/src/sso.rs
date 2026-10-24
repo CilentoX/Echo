@@ -25,6 +25,11 @@ use tokio::sync::mpsc;
 /// How long the listener waits for the browser round-trip (5 minutes).
 const SSO_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
+/// Fixed loopback port used for the SSO callback. Must match the
+/// `redirect_uri` registered on Synapse so the browser round-trip reaches
+/// this listener after Google authentication.
+const SSO_PORT: u16 = 1421;
+
 const CALLBACK_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
 <title>Echo</title></head><body style=\"background:#0D1017;color:#E9EDF2;font-family:sans-serif;\
 display:grid;place-items:center;height:100vh;margin:0\">\
@@ -39,16 +44,13 @@ display:grid;place-items:center;height:100vh;margin:0\">\
 static LISTENERS: LazyLock<Mutex<HashMap<u16, mpsc::Receiver<String>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Binds `127.0.0.1:0` (SO assigns the port), serves until the token arrives
+/// Binds `127.0.0.1:SSO_PORT` (fixed port), serves until the token arrives
 /// or the 5-minute timeout elapses, and registers the token receiver.
 pub async fn begin_sso_listener() -> Result<u16, String> {
-    let listener = TcpListener::bind("127.0.0.1:0")
+    let listener = TcpListener::bind(format!("127.0.0.1:{SSO_PORT}"))
         .await
-        .map_err(|e| format!("falha ao abrir listener SSO: {e}"))?;
-    let port = listener
-        .local_addr()
-        .map_err(|e| format!("falha ao obter porta do listener SSO: {e}"))?
-        .port();
+        .map_err(|e| format!("falha ao abrir listener SSO na porta {SSO_PORT}: {e}"))?;
+    let port = SSO_PORT;
 
     let (tx, rx) = mpsc::channel::<String>(1);
     let previous = LISTENERS

@@ -42,7 +42,7 @@ export class SsoLoginError extends Error {
  */
 export async function runSsoLogin(service: MatrixService): Promise<Session> {
   const port = await invoke<number>("begin_sso_listener");
-  const redirectUrl = `http://127.0.0.1:${port}/callback`;
+  const redirectUrl = `http://localhost:${port}/callback`;
   const loginUrl = service.getSsoLoginUrl(redirectUrl, GOOGLE_IDP_ID);
   await openUrl(loginUrl);
 
