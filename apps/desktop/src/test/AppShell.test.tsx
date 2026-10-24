@@ -141,10 +141,10 @@ describe("AppShell", () => {
     setWidth(1200);
     render(<AppShell />);
 
-    const chat = column("chat");
+    const chat = column("chat") as HTMLElement;
     expect(chat).toBeTruthy();
-    expect(chat!.querySelector('[role="status"]')).not.toBeNull();
-    expect(within(chat!).getByRole("button", { name: /Criar guilda/i })).not.toBeNull();
+    expect(chat.querySelector('[role="status"]')).not.toBeNull();
+    expect(within(chat).getByRole("button", { name: /Criar guilda/i })).not.toBeNull();
   });
 
   it("com guildas → não mostra EmptyState", () => {
@@ -154,8 +154,8 @@ describe("AppShell", () => {
     setWidth(1200);
     render(<AppShell />);
 
-    const chat = column("chat");
-    expect(chat!.querySelector('[role="status"]')).toBeNull();
+    const chat = column("chat") as HTMLElement;
+    expect(chat.querySelector('[role="status"]')).toBeNull();
     expect(column("chat")).toBeTruthy();
   });
 });
