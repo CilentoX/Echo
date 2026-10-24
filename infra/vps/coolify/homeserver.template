@@ -74,9 +74,10 @@ templates:
 # Authorized redirect URI in Google Cloud Console:
 #   https://echo.litteris.online/_synapse/client/oidc/callback
 # Synapse exposes the provider id as "oidc-google" (idp_id gets the prefix).
-# No localpart_template (on purpose): the user chooses their own username on
-# first login; confirm_localpart makes them confirm it. Templates use Jinja2
-# {{ ... }} braces, which envsubst leaves untouched.
+# localpart_template derives a valid MXID localpart from the Google email so
+# SSO registration never fails with MappingException. confirm_localpart lets
+# the user adjust it on first login. Templates use Jinja2 {{ ... }} braces,
+# which envsubst leaves untouched.
 oidc_providers:
   - idp_id: google
     idp_name: "Google"
@@ -91,5 +92,6 @@ oidc_providers:
     user_mapping_provider:
       config:
         confirm_localpart: true
+        localpart_template: "{{ user.email.split(chr(64))[0]|lower }}"
         display_name_template: "{{ user.name }}"
         email_template: "{{ user.email }}"
