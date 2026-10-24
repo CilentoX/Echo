@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 
 function renderModal(overrides: Partial<Parameters<typeof CreateGuildModal>[0]> = {}) {
-  const onCreate = vi.fn<(name: string) => Promise<{ guildId: string; name: string }>>();
+  const onCreate = vi.fn<(data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null }) => Promise<{ guildId: string; name: string }>>();
   const onCreated = vi.fn();
   render(
     <CreateGuildModal
@@ -12,9 +12,9 @@ function renderModal(overrides: Partial<Parameters<typeof CreateGuildModal>[0]> 
       onClose={vi.fn()}
       onCreate={
         overrides.onCreate ??
-        (async (name: string) => {
-          await onCreate(name);
-          return { guildId: "!new:hs", name };
+        (async (data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null }) => {
+          await onCreate(data);
+          return { guildId: "!new:hs", name: data.name };
         })
       }
       onCreated={overrides.onCreated ?? onCreated}

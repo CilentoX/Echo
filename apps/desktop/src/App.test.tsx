@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { markOnboardingCompleted, resetOnboarding } from "@/lib/onboarding";
 import { stopSyncWiring } from "@/lib/matrix/wiring";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -12,6 +13,8 @@ const { fakeService, loadSession } = vi.hoisted(() => ({
     restoreSession: vi.fn(),
     startSyncHandlers: vi.fn(),
     stopSync: vi.fn(),
+    getDisplayName: vi.fn(async () => "Lucas"),
+    getAvatarUrl: vi.fn(async () => null),
     listGuilds: vi.fn(async () => [] as GuildSummary[]),
     listChannels: vi.fn(async () => [] as ChannelSummary[]),
     loadOlder: vi.fn(async () => []),
@@ -49,6 +52,12 @@ describe("App", () => {
     useSyncStore.getState().reset();
     useUiStore.setState({ myUserId: null, activeGuildId: null, activeChannelId: null });
     loadSession.mockResolvedValue(null);
+    // O SessionGate exige onboarding concluído para abrir o shell.
+    markOnboardingCompleted();
+  });
+
+  afterEach(() => {
+    resetOnboarding();
   });
 
   it("sem sessão salva, mostra a tela de login com o Echo", async () => {

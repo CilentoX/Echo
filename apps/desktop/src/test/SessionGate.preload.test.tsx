@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 
+import { markOnboardingCompleted, resetOnboarding } from "@/lib/onboarding";
 import { useUpdateStore } from "@/stores/updateStore";
 import { restartApp, runStartupUpdateCheck } from "@/lib/updater";
 
@@ -14,7 +15,11 @@ vi.mock("@/lib/matrix/wiring", () => ({
   stopSyncWiring: vi.fn(),
 }));
 vi.mock("@/lib/matrix/instance", () => ({
-  matrixService: { restoreSession: vi.fn() },
+  matrixService: {
+    restoreSession: vi.fn(),
+    getDisplayName: vi.fn(async () => "Lucas"),
+    getAvatarUrl: vi.fn(async () => null),
+  },
 }));
 vi.mock("@/lib/updater", () => ({
   runStartupUpdateCheck: vi.fn(async () => {}),
@@ -46,11 +51,14 @@ describe("SessionGate — pre-loading com updater", () => {
     vi.mocked(runStartupUpdateCheck).mockImplementation(async () => {});
     vi.mocked(restartApp).mockImplementation(async () => {});
     useUpdateStore.getState().reset();
+    // O gate de onboarding exige a flag concluída para abrir o shell.
+    markOnboardingCompleted();
   });
 
   afterEach(() => {
     cleanup();
     useUpdateStore.getState().reset();
+    resetOnboarding();
   });
 
   it("boot com sessão aguarda o update check concluir antes de abrir o shell", async () => {

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Echo — Plano de Execução: Respostas (2/2)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0F1114; color:#FFFFFF; margin:0; padding:24px; line-height:1.5; }
+  .max { max-width:720px; margin:0 auto; }
+  h1 { font-size:1.5rem; margin-bottom:8px; color:#14B8A6; }
+  p.sub { color:#97A2B0; margin-bottom:24px; font-size:0.95rem; }
+  .card { background:#171B24; border:1px solid #2A3546; border-radius:12px; padding:20px; margin-bottom:16px; }
+  .card h2 { font-size:1rem; margin:0 0 12px 0; color:#E9EDF2; border-bottom:1px solid #2A3546; padding-bottom:8px; }
+  .q { margin-bottom:14px; font-size:0.95rem; color:#E9EDF2; }
+  .q b { color:#14B8A6; }
+  .opts { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+  label { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.9rem; color:#CBD5E1; background:#111827; border:1px solid #2A3546; border-radius:8px; padding:8px 12px; transition:all .15s; }
+  label:hover { border-color:#14B8A6; background:#12151C; }
+  input[type="radio"], input[type="checkbox"] { accent-color:#14B8A6; width:16px; height:16px; margin:0; }
+  .btn { background:#14B8A6; color:#0F1114; border:none; border-radius:8px; padding:12px 20px; font-weight:700; font-size:1rem; cursor:pointer; width:100%; margin-top:24px; }
+  .btn:hover { background:#0D9488; }
+  #saida { margin-top:24px; background:#111827; border:1px solid #2A3546; border-radius:10px; padding:16px; font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:0.85rem; color:#34D399; white-space:pre-wrap; min-height:160px; display:none; }
+  .copiar { margin-top:10px; background:#171B24; color:#E9EDF2; border:1px solid #2A3546; border-radius:8px; padding:8px 14px; font-size:0.85rem; cursor:pointer; display:inline-block; }
+  .copiar:hover { background:#1D222D; }
+  .aviso { background:#1D222D; border-left:3px solid #14B8A6; padding:12px; border-radius:0 8px 8px 0; font-size:0.9rem; color:#CBD5E1; margin-bottom:20px; }
+</style>
+</head>
+<body>
+<div class="max">
+  <div class="aviso">
+    <b>Como usar:</b> marque uma opção em cada pergunta. Quando terminar, clique em <b>Gerar resumo</b>, depois em <b>Copiar resumo</b> e cole aqui no chat.
+  </div>
+
+  <h1>Echo — Pendências técnicas (2/2)</h1>
+  <p class="sub">Essas definições vão nortear a execução das 5 fases do plano. Sem digitar — só marcar.</p>
+
+  <form id="form">
+    <div class="card">
+      <h2>Execução</h2>
+      <div class="q"><b>1.</b> Deseja que eu execute as 5 fases em sequência agora, ou uma por uma com validação entre cada fase?</div>
+      <div class="opts">
+        <label><input type="radio" name="q1" value="Todas as 5 fases agora"> Todas as 5 fases agora</label>
+        <label><input type="radio" name="q1" value="Uma por uma com validação"> Uma por uma com validação entre fases</label>
+      </div>
+      <div class="q"><b>2.</b> Após cada fase, devo commitar as mudanças ou apenas ao final de tudo?</div>
+      <div class="opts">
+        <label><input type="radio" name="q2" value="Comitar após cada fase"> Comitar após cada fase</label>
+        <label><input type="radio" name="q2" value="Comitar apenas ao final"> Comitar apenas ao final de tudo</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Fase 1 — Sessão e boot</h2>
+      <div class="q"><b>3.</b> O teste <code>SessionGate.test.tsx</code> chama o nome antigo <code>startSync</code>. Devo atualizar o teste para <code>startSyncHandlers</code> ou manter compatibilidade com ambos?</div>
+      <div class="opts">
+        <label><input type="radio" name="q3" value="Atualizar teste para startSyncHandlers"> Atualizar teste para startSyncHandlers</label>
+        <label><input type="radio" name="q3" value="Manter compatibilidade com ambos"> Manter compatibilidade com ambos</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Fase 2 — Guildas e canais</h2>
+      <div class="q"><b>4.</b> O botão "Deletar guilda" deve realmente excluir a sala via API do Synapse, ou apenas remover da interface localmente?</div>
+      <div class="opts">
+        <label><input type="radio" name="q4" value="Excluir de verdade via API"> Excluir de verdade via API</label>
+        <label><input type="radio" name="q4" value="Só remover da interface localmente"> Só remover da interface localmente</label>
+      </div>
+      <div class="q"><b>5.</b> Ao criar uma guilda, o canal # geral deve ser criado automaticamente dentro dela?</div>
+      <div class="opts">
+        <label><input type="radio" name="q5" value="Sim, criar # geral automaticamente"> Sim, criar # geral automaticamente</label>
+        <label><input type="radio" name="q5" value="Não, criar guilda vazia"> Não, criar guilda vazia</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Fase 3 — Chat e envio de mensagem</h2>
+      <div class="q"><b>6.</b> O envio espera o servidor responder (P10). Em caso de falha, voltar ao rascunho com erro — qual comportamento após a falha?</div>
+      <div class="opts">
+        <label><input type="radio" name="q6" value="Mostrar erro e permitir tentar novamente"> Mostrar erro e permitir tentar novamente</label>
+        <label><input type="radio" name="q6" value="Mostrar erro e manter rascunho sem retry"> Mostrar erro e manter rascunho sem retry</label>
+      </div>
+      <div class="q"><b>7.</b> Histórico antigo (scrollback): quantas mensagens carregar por vez ao abrir um canal?</div>
+      <div class="opts">
+        <label><input type="radio" name="q7" value="30 mensagens por vez"> 30 mensagens por vez</label>
+        <label><input type="radio" name="q7" value="50 mensagens por vez"> 50 mensagens por vez</label>
+        <label><input type="radio" name="q7" value="100 mensagens por vez"> 100 mensagens por vez</label>
+      </div>
+      <div class="q"><b>8.</b> Reações em mensagens: salvar de verdade no servidor (m.reaction) ou simplificação local?</div>
+      <div class="opts">
+        <label><input type="radio" name="q8" value="Reais via m.reaction no servidor"> Reais via m.reaction no servidor</label>
+        <label><input type="radio" name="q8" value="Simplificação local por enquanto"> Simplificação local por enquanto</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Fase 4 — Interface e UX</h2>
+      <div class="q"><b>9.</b> Dispositivos reais do PC (microfone/câmera/fone): pedir permissão automaticamente ao abrir Configurações ou só quando o usuário clica no select?</div>
+      <div class="opts">
+        <label><input type="radio" name="q9" value="Pedir permissão ao abrir Configurações"> Pedir permissão ao abrir Configurações</label>
+        <label><input type="radio" name="q9" value="Só quando clicar no select"> Só quando clicar no select</label>
+      </div>
+      <div class="q"><b>10.</b> Ícone de volume quebrado nas configurações: corrigir o path do SVG existente ou substituir por ícone Phosphor SpeakerHigh?</div>
+      <div class="opts">
+        <label><input type="radio" name="q10" value="Corrigir path do SVG existente"> Corrigir path do SVG existente</label>
+        <label><input type="radio" name="q10" value="Substituir por ícone Phosphor"> Substituir por ícone Phosphor</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Fase 5 — Build e release</h2>
+      <div class="q"><b>11.</b> Após build assinado, criar release GitHub automaticamente (ex: v0.1.9) ou apenas gerar o instalador localmente?</div>
+      <div class="opts">
+        <label><input type="radio" name="q11" value="Criar release GitHub automaticamente"> Criar release GitHub automaticamente</label>
+        <label><input type="radio" name="q11" value="Apenas gerar instalador localmente"> Apenas gerar instalador localmente</label>
+      </div>
+    </div>
+
+    <button type="button" class="btn" id="gerar">Gerar resumo das respostas</button>
+  </form>
+
+  <div id="saida"></div>
+  <button type="button" class="copiar" id="copiar">Copiar resumo</button>
+</div>
+
+<script>
+  const form = document.getElementById('form');
+  const saida = document.getElementById('saida');
+  const copiar = document.getElementById('copiar');
+  const gerar = document.getElementById('gerar');
+
+  const questoes = [
+    {id:'q1',  texto:'Executar 5 fases em sequência ou uma por uma com validação?'},
+    {id:'q2',  texto:'Comitar após cada fase ou apenas ao final de tudo?'},
+    {id:'q3',  texto:'Atualizar teste SessionGate para startSyncHandlers ou manter compatibilidade com ambos?'},
+    {id:'q4',  texto:'Deletar guilda: excluir de verdade via API ou só remover da interface?'},
+    {id:'q5',  texto:'Criar canal # geral automaticamente ao criar guilda?'},
+    {id:'q6',  texto:'Falha de envio: mostrar erro com retry ou manter rascunho sem retry?'},
+    {id:'q7',  texto:'Quantas mensagens carregar por vez no scrollback?'},
+    {id:'q8',  texto:'Reações: reais via m.reaction ou simplificação local?'},
+    {id:'q9',  texto:'Permissão de dispositivos: ao abrir Configurações ou só ao clicar no select?'},
+    {id:'q10', texto:'Ícone volume: corrigir SVG existente ou substituir por Phosphor?'},
+    {id:'q11', texto:'Após build: criar release GitHub ou apenas instalador local?'}
+  ];
+
+  gerar.addEventListener('click', () => {
+    let linhas = ['=== ECHO — PENDÊNCIAS TÉCNICAS (2/2) ===', '', 'Respostas marcadas:', ''];
+    let faltando = [];
+    questoes.forEach(q => {
+      const el = form.elements[q.id];
+      let val = '';
+      if (el) {
+        for (let i=0; i<el.length; i++) {
+          if (el[i].checked) { val = el[i].value; break; }
+        }
+      }
+      if (!val) faltando.push(q.texto);
+      linhas.push(`${q.id.toUpperCase()}. ${q.texto}`);
+      linhas.push(`   Resposta: ${val || '[NÃO MARCADO]'}`);
+      linhas.push('');
+    });
+    if (faltando.length > 0) {
+      linhas.unshift(`⚠️ ATENÇÃO: as seguintes perguntas não foram marcadas: ${faltando.map(f=>'- '+f).join('; ')}`, '');
+    }
+    saida.textContent = linhas.join('\n');
+    saida.style.display = 'block';
+    copiar.style.display = 'inline-block';
+    saida.scrollIntoView({behavior:'smooth'});
+  });
+
+  copiar.addEventListener('click', () => {
+    saida.select();
+    document.execCommand('copy');
+    const textoAntigo = copiar.textContent;
+    copiar.textContent = 'Copiado!';
+    setTimeout(() => copiar.textContent = textoAntigo, 1500);
+  });
+</script>
+</body>
+</html>

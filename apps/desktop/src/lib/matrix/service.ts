@@ -250,7 +250,8 @@ export class MatrixService {
 
   /** Perfil de um usuário (sem args = próprio usuário). */
   async getDisplayName(userId?: string): Promise<string | null> {
-    const res = await this.requireClient().getProfileInfo(userId);
+    const resolvedUserId = userId ?? this.requireClient().getUserId() ?? undefined;
+    const res = await this.requireClient().getProfileInfo(resolvedUserId);
     return res.displayname ?? null;
   }
 
@@ -280,7 +281,8 @@ export class MatrixService {
 
   /** Devolve o avatar_url de um usuário (sem args = próprio usuário). */
   async getAvatarUrl(userId?: string): Promise<string | null> {
-    const res = await this.requireClient().getProfileInfo(userId);
+    const resolvedUserId = userId ?? this.requireClient().getUserId() ?? undefined;
+    const res = await this.requireClient().getProfileInfo(resolvedUserId);
     return res.avatar_url ?? null;
   }
 
@@ -298,10 +300,12 @@ export class MatrixService {
       }));
   }
 
-  /** Cria uma nova guilda (Space m.space) com o nome dado e o canal # geral automático. */
-  async createGuild(name: string): Promise<GuildSummary> {
+  /** Cria uma nova guilda (Space m.space) com nome, ícone, banner e descrição. */
+  async createGuild(
+    data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
+  ): Promise<GuildSummary> {
     const client = this.requireClient();
-    const trimmed = name.trim();
+    const trimmed = data.name.trim();
     if (!trimmed) throw new Error("createGuild: nome é obrigatório");
     const res = await client.createRoom({
       name: trimmed,
@@ -324,7 +328,22 @@ export class MatrixService {
     } catch {
       // Se falhar criar o # geral, a guilda já existe — não bloqueia
     }
-    return { guildId: res.room_id, name: trimmed, avatarUrl: null, unreadCount: 0 };
+    // Definir ícone, banner e descrição da guilda (state events)
+    if (data.iconUrl) {
+      await client.sendStateEvent(res.room_id, "m.room.avatar", { url: data.iconUrl });
+    }
+    if (data.bannerUrl) {
+      await client.sendStateEvent(res.room_id, "echo.room.banner", { url: data.bannerUrl });
+    }
+    if (data.description) {
+      await client.sendStateEvent(res.room_id, "m.room.topic", { topic: data.description });
+    }
+    return {
+      guildId: res.room_id,
+      name: trimmed,
+      avatarUrl: data.iconUrl ?? null,
+      unreadCount: 0,
+    };
   }
 
   /** Sai (deleta) uma guilda própria. */
@@ -364,12 +383,39 @@ export class MatrixService {
     };
   }
 
-  /** Renomeia uma guilda própria (atualiza m.room.name — fix B4). */
-  async editGuild(guildId: string, name: string): Promise<void> {
+  /** Edita uma guilda própria individualmente (nome, ícone, banner, descrição). */
+  async editGuild(
+    guildId: string,
+    data: {
+      name: string;
+      iconUrl?: string | null;
+      bannerUrl?: string | null;
+      description?: string | null;
+    },
+  ): Promise<void> {
     const client = this.requireClient();
-    const trimmed = name.trim();
+    const trimmed = data.name.trim();
     if (!trimmed) throw new Error("editGuild: nome é obrigatório");
+    // Nome da guilda (m.room.name — spec Matrix)
     await client.sendStateEvent(guildId, "m.room.name", { name: trimmed });
+    // Ícone da guilda (m.room.avatar — mxc:// URI)
+    if (data.iconUrl !== undefined) {
+      await client.sendStateEvent(guildId, "m.room.avatar", {
+        url: data.iconUrl,
+      });
+    }
+    // Banner da guilda (evento de estado customizado)
+    if (data.bannerUrl !== undefined) {
+      await client.sendStateEvent(guildId, "echo.room.banner", {
+        url: data.bannerUrl,
+      });
+    }
+    // Descrição da guilda (m.room.topic)
+    if (data.description !== undefined) {
+      await client.sendStateEvent(guildId, "m.room.topic", {
+        topic: data.description,
+      });
+    }
   }
 
   /** Canais (filhos declarados via m.space.child) de um Space. */

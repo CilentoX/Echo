@@ -190,7 +190,7 @@ describe("MatrixService (SDK mockado)", () => {
 
     it("cria uma Space com m.space na creation_content", async () => {
       mockClient.createRoom.mockResolvedValue({ room_id: "!space:hs" });
-      const guild = await service.createGuild("Guilda Echo");
+      const guild = await service.createGuild({ name: "Guilda Echo" });
 
       expect(guild).toEqual({ guildId: "!space:hs", name: "Guilda Echo", avatarUrl: null, unreadCount: 0 });
       expect(mockClient.createRoom).toHaveBeenCalledWith({
@@ -202,7 +202,7 @@ describe("MatrixService (SDK mockado)", () => {
     });
 
     it("rejeita nome vazio", async () => {
-      await expect(service.createGuild("   ")).rejects.toThrow("nome é obrigatório");
+      await expect(service.createGuild({ name: "   " })).rejects.toThrow("nome é obrigatório");
     });
   });
 
@@ -248,7 +248,7 @@ describe("MatrixService (SDK mockado)", () => {
 
     it("escreve m.room.name no estado da guilda", async () => {
       mockClient.sendStateEvent.mockResolvedValue({ event_id: "$rename:hs" });
-      await service.editGuild("!guild:hs", "Novo Nome");
+      await service.editGuild("!guild:hs", { name: "Novo Nome" });
 
       expect(mockClient.sendStateEvent).toHaveBeenCalledWith(
         "!guild:hs",

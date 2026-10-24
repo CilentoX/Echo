@@ -24,10 +24,15 @@ const TOKENS: Record<string, string> = {
   "--bd": "#2A3546",
   "--txt": "#E9EDF2",
   "--mut": "#97A2B0",
-  "--acc": "#14B8A6",
-  "--acc-press": "#0D9488",
+  "--acc": "#5865F2",
+  "--acc-press": "#4752C4",
   "--online": "#34D399",
+  "--idle": "#FAA81A",
+  "--dnd": "#F04747",
+  "--offline": "#747F8D",
   "--err": "#F87171",
+  "--bubble-sender": "#1D222D",
+  "--bubble-receiver": "#171B24",
 };
 
 const COLOR_MAPPINGS: Record<string, string> = {
@@ -41,7 +46,12 @@ const COLOR_MAPPINGS: Record<string, string> = {
   "--color-acc": "var(--acc)",
   "--color-acc-press": "var(--acc-press)",
   "--color-online": "var(--online)",
+  "--color-idle": "var(--idle)",
+  "--color-dnd": "var(--dnd)",
+  "--color-offline": "var(--offline)",
   "--color-err": "var(--err)",
+  "--color-bubble-sender": "var(--bubble-sender)",
+  "--color-bubble-receiver": "var(--bubble-receiver)",
 };
 
 const REQUIRED_UTILITIES = [

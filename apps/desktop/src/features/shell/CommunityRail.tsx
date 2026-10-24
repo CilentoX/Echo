@@ -106,7 +106,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
       <CreateGuildModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(name) => matrixService.createGuild(name)}
+        onCreate={(data) => matrixService.createGuild(data)}
         onCreated={handleCreated}
       />
     </nav>

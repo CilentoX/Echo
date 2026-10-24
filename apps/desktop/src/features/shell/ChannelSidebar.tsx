@@ -50,14 +50,21 @@ export default function ChannelSidebar({
 
   const activeGuild = guilds.find((g) => g.guildId === activeGuildId) ?? null;
 
-  const handleEditGuild = async (updates: { name: string }) => {
+  const handleEditGuild = async (
+    updates: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
+  ) => {
     if (!activeGuildId) return;
-    await matrixService.editGuild(activeGuildId, updates.name);
-    // Atualiza o nome localmente no store para feedback imediato.
+    await matrixService.editGuild(activeGuildId, updates);
+    // Atualiza os dados localmente no store para feedback imediato.
     useSyncStore.getState().setGuilds(
-      guilds.map((g) =>
-        g.guildId === activeGuildId ? { ...g, name: updates.name } : g,
-      ),
+      guilds.map((g) => {
+        if (g.guildId !== activeGuildId) return g;
+        return {
+          ...g,
+          name: updates.name,
+          avatarUrl: updates.iconUrl ?? g.avatarUrl,
+        };
+      }),
     );
   };
 
@@ -199,14 +206,18 @@ export default function ChannelSidebar({
           setActiveChannel(channel.channelId);
           setChannels(activeGuildId ?? "", [
             { ...channel, unreadCount: 0 },
-            ...(Array.isArray(channels) ? channels : []),
+            ...(Array.isArray(allChannels) ? allChannels : []),
           ]);
         }}
       />
       <EditGuildModal
         open={editGuildOpen}
         onClose={() => setEditGuildOpen(false)}
-        guild={activeGuild ?? { guildId: "", name: "" }}
+        guild={{
+          guildId: activeGuild?.guildId ?? "",
+          name: activeGuild?.name ?? "",
+          avatarUrl: activeGuild?.avatarUrl ?? null,
+        }}
         onSave={handleEditGuild}
       />
     </aside>

@@ -4,6 +4,7 @@ import ChatPane from "@/features/chat/ChatPane";
 import UpdateBanner from "@/features/shell/UpdateBanner";
 import { matrixService } from "@/lib/matrix/instance";
 import { useUiStore } from "@/stores/uiStore";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 /** R2: envio real via MatrixService; o Composer cuida do envio síncrono (P10). */
 const sendMessage = (roomId: string, body: string): Promise<string> =>
@@ -31,11 +32,13 @@ function Shell() {
 
 export default function App() {
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <UpdateBanner />
-      <div className="min-h-0 flex-1">
-        <SessionGate shell={<Shell />} />
+    <TooltipProvider>
+      <div className="flex h-full min-h-0 flex-col">
+        <UpdateBanner />
+        <div className="min-h-0 flex-1">
+          <SessionGate shell={<Shell />} />
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

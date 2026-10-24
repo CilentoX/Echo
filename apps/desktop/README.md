@@ -284,7 +284,7 @@ Formato do arquivo de atualização:
 
 ### 8.1 Configuração
 
-O Synapse roda via Docker Compose em `~/eco/infra/vps/` na VPS Oracle OCI.
+O Synapse é gerenciado pelo **Coolify** (Docker Compose build pack) na VPS Oracle OCI. A pasta de origem é `~/eco/infra/vps/coolify/`.
 
 **Containers:**
 - `eco-synapse` - matrixdotorg/synapse:v1.163.0
@@ -328,11 +328,12 @@ POST https://coolify.litteris.online/api/v1/deploy?uuid=akzlqfefwrmwd0ncyguwmoia
 
 ### 9.2 Deploy do Homeserver
 
-O Synapse roda diretamente na VPS via Docker Compose:
+O Synapse é implantado via **Coolify** a partir da pasta `~/eco/infra/vps/coolify/` (Docker Compose build pack). O Coolify reconstrói a imagem do Synapse (que renderiza `homeserver.yaml` a partir das env vars injetadas) e reutiliza os volumes externos `eco_synapse_data` e `eco_pgdata`.
 
 ```bash
-cd ~/eco/infra/vps/
-docker compose up -d
+# No Coolify: New Resource → Docker Compose → este repo, pasta infra/vps/coolify, branch main.
+# Ou via API:
+POST https://coolify.litteris.online/api/v1/deploy?uuid=<uuid-do-homeserver>&force=true
 ```
 
 ### 9.3 Release do App

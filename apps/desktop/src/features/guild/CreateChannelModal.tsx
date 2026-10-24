@@ -5,11 +5,9 @@ export interface CreateChannelModalProps {
   open: boolean;
   onClose: () => void;
   guildId: string;
-  /** Cria o canal no servidor e devolve o resumo do canal. */
   onCreate: (
     data: { name: string; type: string; topic?: string; category?: string }
   ) => Promise<{ channelId: string; name: string }>;
-  /** Callback pós-criação. */
   onCreated: (channel: { channelId: string; name: string }) => void;
 }
 
@@ -18,10 +16,6 @@ const CHANNEL_TYPES: Array<{ value: string; label: string }> = [
   { value: "voice", label: "Canal de voz" },
 ];
 
-/**
- * Modal de criação de canal dentro de uma guilda.
- * Campos: nome, tipo, tópico, categoria (conforme pedido no bloco 3).
- */
 export default function CreateChannelModal({
   open,
   onClose,
@@ -36,8 +30,6 @@ export default function CreateChannelModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!open) return null;
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -45,6 +37,8 @@ export default function CreateChannelModal({
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  if (!open) return null;
 
   const handleSubmit = async () => {
     const trimmed = name.trim().toLowerCase().replace(/\s+/g, "-");
@@ -75,7 +69,7 @@ export default function CreateChannelModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60"
+      className="fixed inset-0 z-[60] grid place-items-center bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Criar canal"
@@ -103,7 +97,6 @@ export default function CreateChannelModal({
           O canal será visível para todos os membros desta guilda.
         </p>
 
-        {/* Nome */}
         <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Nome do canal
         </label>
@@ -121,12 +114,17 @@ export default function CreateChannelModal({
             }}
             placeholder="geral"
             autoFocus
-            className="w-full pl-8 rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
+            className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
           />
         </div>
 
-        {/* Tipo */}
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+        {error && (
+          <p role="alert" className="mt-2 text-sm text-err">
+            {error}
+          </p>
+        )}
+
+        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Tipo
         </label>
         <div className="flex gap-2 mb-4">
@@ -148,8 +146,7 @@ export default function CreateChannelModal({
           ))}
         </div>
 
-        {/* Tópico */}
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Tópico / descrição
         </label>
         <input
@@ -163,7 +160,6 @@ export default function CreateChannelModal({
           className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
         />
 
-        {/* Categoria */}
         <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Categoria
         </label>
@@ -177,12 +173,6 @@ export default function CreateChannelModal({
           placeholder="Ex: Geral, Voz, Projetos"
           className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
         />
-
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-err">
-            {error}
-          </p>
-        )}
 
         <div className="mt-6 flex gap-2">
           <button

@@ -100,6 +100,8 @@ export interface MatrixClientLike {
   sendReadReceipt(event: unknown, receiptType?: string, unthreaded?: boolean): Promise<unknown>;
   /** Pagina histórico antigo (API pública de alto nível do SDK). */
   scrollback(room: unknown, limit?: number): Promise<unknown>;
+  /** MXID do usuário logado, ou null se não houver sessão. */
+  getUserId(): string | null;
   /** Perfil de um usuário (sem args = próprio usuário). */
   getProfileInfo(userId?: string): Promise<{ displayname?: string; avatar_url?: string }>;
   setDisplayName(name: string): Promise<unknown>;

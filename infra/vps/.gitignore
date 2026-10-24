@@ -1,5 +1,2 @@
-# Real secrets — never commit.
+# Real secrets — never commit (Coolify injects these as app env vars instead).
 .env
-
-# Rendered config (contains secrets) and local scratch.
-synapse/

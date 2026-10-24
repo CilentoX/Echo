@@ -1,16 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Bell,
-  Clock,
-  Eye,
-  Lock,
-  ShieldCheck,
-  SpeakerHigh,
-  Microphone,
-  VideoCamera,
-  Headphones,
-  X,
-} from "@phosphor-icons/react";
+import { Bell, Clock, Eye, Lock, ShieldCheck, SpeakerHigh, Microphone, VideoCamera, Headphones, X, type Icon } from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { performLogout } from "@/features/auth/logout";
 import { FALLBACK_DEVICES, listRealDevices, type DeviceLists } from "@/lib/media/devices";
@@ -20,25 +9,19 @@ export interface SettingsProps {
   onClose: () => void;
 }
 
-/**
- * Sheet de configurações do app.
- * Notificações, voz/vídeo, privacidade, sessões e conta.
- */
 export default function Settings({ open, onClose }: SettingsProps) {
   const {
     nativeNotifications, setNativeNotifications,
     messageSound, setMessageSound,
     mentionOnly, setMentionOnly,
-    microphoneEnabled, setMicrophoneEnabled, microphoneDevice, setMicrophoneDevice,
-    cameraEnabled, setCameraEnabled, cameraDevice, setCameraDevice,
-    headphonesEnabled, setHeadphonesEnabled, headphonesDevice, setHeadphonesDevice,
+    microphoneEnabled, microphoneDevice, setMicrophoneDevice,
+    cameraEnabled, cameraDevice, setCameraDevice,
+    headphonesEnabled, headphonesDevice, setHeadphonesDevice,
     onlineStatusVisible, setOnlineStatusVisible,
     readReceipts, setReadReceipts,
     typingVisible, setTypingVisible,
   } = useSettingsStore();
 
-  // Dispositivos reais da máquina (enumerateDevices); fallback quando o
-  // navegador não expõe ou nada é enumerado.
   const [devices, setDevices] = useState<DeviceLists>(FALLBACK_DEVICES);
   useEffect(() => {
     if (!open) return;
@@ -53,7 +36,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
     };
   }, [open]);
 
-  // Fecha a sheet ao pressionar Esc
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -62,119 +44,11 @@ export default function Settings({ open, onClose }: SettingsProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  /** Switch alinhado: track 40×20, knob 16px centrado (items-center). */
-  const Toggle = ({
-    checked,
-    onChange,
-    label,
-  }: {
-    checked: boolean;
-    onChange: (v: boolean) => void;
-    label: string;
-  }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer items-center rounded-full px-0.5 transition-colors duration-300 ${
-        checked ? "bg-acc" : "border border-bd bg-surf2"
-      }`}
-    >
-      <span
-        className={`block h-4 w-4 rounded-full bg-bg shadow-md transition-transform duration-300 ease-out ${
-          checked ? "translate-x-5" : "translate-x-0"
-        }`}
-      />
-    </button>
-  );
-
-  const toggleRow = (
-    label: string,
-    desc: string,
-    checked: boolean,
-    onChange: (v: boolean) => void,
-    Icon: React.ComponentType<{ size?: number; weight?: "bold" }>
-  ) => (
-    <div className="border-b border-bd last:border-0 py-4 group">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut group-hover:bg-surf group-hover:text-txt transition-colors">
-            <Icon size={16} />
-          </div>
-          <div>
-            <div className="text-sm font-medium text-txt">{label}</div>
-            <div className="text-xs text-mut">{desc}</div>
-          </div>
-        </div>
-        <Toggle checked={checked} onChange={onChange} label={label} />
-      </div>
-    </div>
-  );
-
-  // Ícones de dispositivo usam ícones Phosphor (Microphone, VideoCamera, Headphones).
-
-  /** Select de dispositivo de áudio/vídeo com os dispositivos reais da máquina. */
-  const deviceSelect = (
-    label: string,
-    enabled: boolean,
-    setEnabled: (v: boolean) => void,
-    deviceId: string | null,
-    setDevice: (id: string | null) => void,
-    kind: "microphone" | "camera" | "headphones"
-  ) => {
-    const options = devices[kind];
-    const iconMap: Record<string, React.ComponentType<{ size?: number }>> = {
-      microphone: Microphone,
-      camera: VideoCamera,
-      headphones: Headphones,
-    };
-    const DeviceIcon = iconMap[kind];
-    return (
-      <div className="border-b border-bd last:border-0 py-4 group">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut group-hover:bg-surf group-hover:text-txt transition-colors">
-              <DeviceIcon size={16} />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-txt">{label}</div>
-              <div className="text-xs text-mut">
-                {enabled ? "Dispositivo ativo" : "Desativado"}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <select
-              aria-label={`Dispositivo de ${label.toLowerCase()}`}
-              value={deviceId ?? ""}
-              disabled={!enabled}
-              onChange={(e) => setDevice(e.target.value || null)}
-              className={`max-w-[180px] rounded-lg border px-3 py-1.5 text-sm text-txt outline-none transition-all duration-200 focus:border-acc disabled:cursor-not-allowed disabled:opacity-50 ${
-                enabled ? "border-bd bg-bg" : "border-mut/50 bg-surf2"
-              }`}
-            >
-              <option value="">Padrão do sistema</option>
-              {options.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <Toggle
-              checked={enabled}
-              label={label}
-              onChange={(next) => {
-                setEnabled(next);
-                if (!next) setDevice(null);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const DEVICE_KINDS: Array<{ kind: "microphone" | "camera" | "headphones"; label: string; icon: Icon }> = [
+    { kind: "microphone", label: "Microfone", icon: Microphone },
+    { kind: "camera", label: "Câmera", icon: VideoCamera },
+    { kind: "headphones", label: "Fones de ouvido", icon: Headphones },
+  ];
 
   if (!open) return null;
 
@@ -184,7 +58,6 @@ export default function Settings({ open, onClose }: SettingsProps) {
       aria-label="Configurações"
       className="fixed inset-y-0 right-0 z-50 w-[560px] bg-surf border-l border-bd flex flex-col"
     >
-      {/* Header */}
       <header className="flex items-center justify-between border-b border-bd px-5 py-4 bg-surf/50 backdrop-blur">
         <h2 className="font-display text-lg font-semibold text-txt">Configurações</h2>
         <button
@@ -201,82 +74,163 @@ export default function Settings({ open, onClose }: SettingsProps) {
         {/* Notificações */}
         <section>
           <h3 className="font-display text-base font-semibold text-txt mb-4">Notificações</h3>
-          {toggleRow(
-            "Notificações nativas do SO",
-            "Banners e click-to-focus na área de trabalho",
-            nativeNotifications,
-            setNativeNotifications,
-            Bell
-          )}
-          {toggleRow(
-            "Som de mensagem",
-            "Tocar áudio ao receber mensagem",
-            messageSound,
-            setMessageSound,
-            SpeakerHigh
-          )}
-          {toggleRow(
-            "Apenas menções",
-            "Notificar somente quando alguém te marcar",
-            mentionOnly,
-            setMentionOnly,
-            Clock
-          )}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+                <Bell size={16} weight="bold" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-txt">Notificações nativas do SO</div>
+                <div className="text-xs text-mut">Banners e click-to-focus na área de trabalho</div>
+              </div>
+              <div className="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={nativeNotifications}
+                  onChange={(e) => setNativeNotifications(e.target.checked)}
+                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+                <SpeakerHigh size={16} />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-txt">Som de mensagem</div>
+                <div className="text-xs text-mut">Tocar áudio ao receber mensagem</div>
+              </div>
+              <div className="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={messageSound}
+                  onChange={(e) => setMessageSound(e.target.checked)}
+                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+                <Clock size={16} weight="bold" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-txt">Apenas menções</div>
+                <div className="text-xs text-mut">Notificar somente quando alguém te marcar</div>
+              </div>
+              <div className="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={mentionOnly}
+                  onChange={(e) => setMentionOnly(e.target.checked)}
+                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                />
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Voz e vídeo */}
         <section>
           <h3 className="font-display text-base font-semibold text-txt mb-4">Voz e vídeo</h3>
-          {deviceSelect(
-            "Microfone",
-            microphoneEnabled,
-            setMicrophoneEnabled,
-            microphoneDevice,
-            setMicrophoneDevice,
-            "microphone"
-          )}
-          {deviceSelect(
-            "Câmera",
-            cameraEnabled,
-            setCameraEnabled,
-            cameraDevice,
-            setCameraDevice,
-            "camera"
-          )}
-          {deviceSelect(
-            "Fones de ouvido",
-            headphonesEnabled,
-            setHeadphonesEnabled,
-            headphonesDevice,
-            setHeadphonesDevice,
-            "headphones"
-          )}
+          <div className="space-y-4">
+            {DEVICE_KINDS.map(({ kind, label, icon: Icon }) => {
+              const enabled = kind === "microphone" ? microphoneEnabled : kind === "camera" ? cameraEnabled : headphonesEnabled;
+              const deviceId = kind === "microphone" ? microphoneDevice : kind === "camera" ? cameraDevice : headphonesDevice;
+              const setDevice = kind === "microphone" ? setMicrophoneDevice : kind === "camera" ? setCameraDevice : setHeadphonesDevice;
+
+              return (
+                <div key={kind} className="border-b border-bd last:border-0 py-4 group">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+                      <Icon size={16} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-txt">{label}</div>
+                      <div className="text-xs text-mut">{enabled ? "Dispositivo ativo" : "Desativado"}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        aria-label={`Dispositivo de ${label.toLowerCase()}`}
+                        value={deviceId ?? ""}
+                        disabled={!enabled}
+                        onChange={(e) => setDevice(e.target.value || null)}
+                        className="w-[200px] cursor-pointer rounded-lg border border-bd bg-bg px-3 py-1.5 text-sm text-txt outline-none transition-colors focus:border-acc disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Padrão do sistema</option>
+                        {deviceId &&
+                          !devices[kind].some((d) => d.id === deviceId) && (
+                            <option value={deviceId}>Dispositivo atual</option>
+                          )}
+                        {devices[kind].map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
 
         {/* Privacidade */}
         <section>
           <h3 className="font-display text-base font-semibold text-txt mb-4">Privacidade</h3>
-          {toggleRow(
-            "Status online visível",
-            "Outros membros veem se você está online",
-            onlineStatusVisible,
-            setOnlineStatusVisible,
-            Eye
-          )}
-          {toggleRow(
-            "Confirmar leitura",
-            "Enviar recibos de leitura nas mensagens",
-            readReceipts,
-            setReadReceipts,
-            ShieldCheck
-          )}
-          {toggleRow(
-            "Digitação visível",
-            "Mostrar 'está digitando…' para os outros",
-            typingVisible,
-            setTypingVisible,
-            Microphone
-          )}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+                <Eye size={16} weight="bold" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-txt">Status online visível</div>
+                <div className="text-xs text-mut">Outros membros veem se você está online</div>
+              </div>
+              <div className="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={onlineStatusVisible}
+                  onChange={(e) => setOnlineStatusVisible(e.target.checked)}
+                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+                <ShieldCheck size={16} weight="bold" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-txt">Confirmar leitura</div>
+                <div className="text-xs text-mut">Enviar recibos de leitura nas mensagens</div>
+              </div>
+              <div className="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={readReceipts}
+                  onChange={(e) => setReadReceipts(e.target.checked)}
+                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
+                <Microphone size={16} />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-txt">Digitação visível</div>
+                <div className="text-xs text-mut">Mostrar 'está digitando…' para os outros</div>
+              </div>
+              <div className="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={typingVisible}
+                  onChange={(e) => setTypingVisible(e.target.checked)}
+                  className="w-4 h-4 rounded border border-bd bg-bg text-acc focus:ring-2 focus:ring-acc"
+                />
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Sessões */}
@@ -286,7 +240,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-3">
                 <div className="flex-shrink-0 p-1.5 rounded bg-surf2 text-mut">
-                  <Lock size={16} />
+                  <Lock size={16} weight="bold" />
                 </div>
                 <div>
                   <div className="font-medium text-txt">Sessão atual</div>
@@ -307,7 +261,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
               className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Desconectar de outros dispositivos</span>
-              <span className="text-mut text-xs">Encerrar todas as sessões exceto esta</span>
+              <span className="text-xs text-mut">Encerrar todas as sessões exceto esta</span>
             </button>
           </div>
         </section>
@@ -321,21 +275,21 @@ export default function Settings({ open, onClose }: SettingsProps) {
               className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Gerenciar conta Google (SSO)</span>
-              <span className="text-mut text-xs">Login e senha são gerenciados pelo Google</span>
+              <span className="text-xs text-mut">Login e senha são gerenciados pelo Google</span>
             </button>
             <button
               type="button"
               className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-txt bg-bg border border-bd rounded-lg hover:bg-surf2 transition-colors active:scale-95"
             >
               <span>Exportar meus dados</span>
-              <span className="text-mut text-xs">Baixar histórico e configurações</span>
+              <span className="text-xs text-mut">Baixar histórico e configurações</span>
             </button>
             <button
               type="button"
               onClick={performLogout}
               className="cursor-pointer w-full flex items-center justify-between px-4 py-3 text-left text-sm text-err bg-bg border border-bd rounded-lg hover:bg-err/10 transition-colors active:scale-95"
             >
-              <X size={14} className="mr-2" />
+              <X size={14} weight="bold" className="mr-2" />
               <span>Sair da conta</span>
             </button>
           </div>

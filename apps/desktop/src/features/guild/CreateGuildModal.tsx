@@ -1,27 +1,27 @@
 import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
+import { matrixService } from "@/lib/matrix/instance";
+import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
 
 export interface CreateGuildModalProps {
   open: boolean;
   onClose: () => void;
-  /** Cria a guilda no servidor e devolve o resumo. */
-  onCreate: (name: string) => Promise<{ guildId: string; name: string }>;
-  /** Callback pós-criação: recebe o resumo para adicionar ao store e selecionar. */
+  onCreate: (
+    data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
+  ) => Promise<{ guildId: string; name: string }>;
   onCreated: (guild: { guildId: string; name: string }) => void;
 }
 
-/**
- * Modal de criação de guilda: input de nome + botão criar.
- * Erro aparece inline (role="alert"); loading desativa o botão.
- */
 export default function CreateGuildModal({ open, onClose, onCreate, onCreated }: CreateGuildModalProps) {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!open) return null;
-
-  // Fecha o modal ao pressionar Esc
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -39,8 +39,28 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
     setLoading(true);
     setError(null);
     try {
-      const guild = await onCreate(trimmed);
+      let iconUrl: string | null = null;
+      let bannerUrl: string | null = null;
+
+      if (iconFile) {
+        iconUrl = await matrixService.uploadMedia(iconFile);
+      }
+      if (bannerFile) {
+        bannerUrl = await matrixService.uploadMedia(bannerFile);
+      }
+
+      const guild = await onCreate({
+        name: trimmed,
+        iconUrl,
+        bannerUrl,
+        description: description || undefined,
+      });
       setName("");
+      setDescription("");
+      setIconFile(null);
+      setIconPreview(null);
+      setBannerFile(null);
+      setBannerPreview(null);
       onCreated(guild);
       onClose();
     } catch {
@@ -50,6 +70,8 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
     }
   };
 
+  if (!open) return null;
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/60"
@@ -58,7 +80,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
       aria-label="Criar guilda"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-[380px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
+      <div className="w-[460px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
         <header className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold text-txt">Criar guilda</h2>
           <button
@@ -71,7 +93,21 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           </button>
         </header>
 
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+        <ImageUploadWithCrop
+          label="Ícone da guilda"
+          value={iconPreview}
+          placeholder="Ícone da guilda (opcional)"
+          onChange={(file) => {
+            setIconFile(file);
+            const reader = new FileReader();
+            reader.onload = () => setIconPreview(reader.result as string);
+            reader.readAsDataURL(file);
+          }}
+          aspect={1}
+          cropTitle="Recortar ícone da guilda"
+        />
+
+        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
           Nome da guilda
         </label>
         <input
@@ -89,20 +125,57 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
         />
 
+        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+          Descrição
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            if (error) setError(null);
+          }}
+          rows={3}
+          placeholder="Descreva sua guilda…"
+          className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
+        />
+
+        <ImageUploadWithCrop
+          label="Banner da guilda"
+          value={bannerPreview}
+          placeholder="Banner da guilda (opcional)"
+          onChange={(file) => {
+            setBannerFile(file);
+            const reader = new FileReader();
+            reader.onload = () => setBannerPreview(reader.result as string);
+            reader.readAsDataURL(file);
+          }}
+          aspect={16 / 9}
+          cropTitle="Recortar banner da guilda"
+        />
+
         {error && (
           <p role="alert" className="mt-2 text-sm text-err">
             {error}
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={() => void handleSubmit()}
-          disabled={loading}
-          className="cursor-pointer mt-5 w-full rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? "Criando…" : "Criar guilda"}
-        </button>
+        <div className="mt-6 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer flex-1 rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-mut hover:bg-surf2 transition-colors active:scale-95"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={loading}
+            className="cursor-pointer flex-1 rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Criando…" : "Criar guilda"}
+          </button>
+        </div>
       </div>
     </div>
   );

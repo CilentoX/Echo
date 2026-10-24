@@ -1,17 +1,20 @@
-import { CircleNotch } from "@phosphor-icons/react";
+import { CircleNotch, Download } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
+import OnboardingScreen from "@/features/auth/OnboardingScreen";
 import { registerLogoutHandler } from "@/features/auth/logout";
 import AppShell from "@/features/shell/AppShell";
 import { matrixService } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
 import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
+import { isNewAccount, markOnboardingCompleted } from "@/lib/onboarding";
 import { useUiStore } from "@/stores/uiStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { restartApp, runStartupUpdateCheck } from "@/lib/updater";
 import { useUpdateStore } from "@/stores/updateStore";
+import { useOnboardingStore } from "@/stores/onboardingStore";
 
-type GateView = "booting" | "shell" | "login";
+type GateView = "booting" | "update-required" | "login" | "onboarding" | "shell";
 
 export interface SessionGateProps {
   /** Conteúdo renderizado no shell autenticado; omitido, renderiza <AppShell /> vazio. */
@@ -19,17 +22,14 @@ export interface SessionGateProps {
 }
 
 /**
- * Portão de boot: decide entre splash, tela de login e AppShell.
+ * Portão de boot: decide entre splash de atualização, login, onboarding e shell.
  *
- * - Boot sem sessão salva → tela de login.
- * - Boot com sessão salva → restoreSession + startSyncWiring. Erro de sync
- *   antes do primeiro sync só limpa o keyring quando é falha de
- *   autenticação (M_UNKNOWN_TOKEN/M_MISSING_TOKEN); erro de rede mantém a
- *   sessão — o SDK reconecta sozinho e o indicador mostra "Reconectando…"
- *   (a decisão auth vs. rede é do wiring).
- * - Login bem-sucedido → sessão persistida no keyring antes de entrar;
- *   loginWithSsoToken já deixou o client credentialled ativo, então
- *   enterShell não restaura a sessão de novo.
+ * Fluxo:
+ * 1. booting — splash forçada (estilo Discord): checa atualizações em paralelo com a sessão.
+ * 2. update-required — atualização pronta; reinicia ou mostra botão "Reiniciar agora".
+ * 3. login — sem sessão salva → GoogleLoginScreen.
+ * 4. onboarding — primeira vez após login → define nick + foto antes do shell.
+ * 5. shell — AppShell autenticado.
  */
 export default function SessionGate({ shell }: SessionGateProps) {
   const [view, setView] = useState<GateView>("booting");
@@ -51,27 +51,42 @@ export default function SessionGate({ shell }: SessionGateProps) {
   const enterShell = useCallback(
     (session: Session, clientActive = false) => {
       if (!clientActive) matrixService.restoreSession(session);
-      useUiStore.getState().setMyUserId(session.userId);
+      const ui = useUiStore.getState();
+      ui.setMyUserId(session.userId);
+      ui.setPresence(session.userId, "online");
       startSyncWiring(rejectSession);
       setView("shell");
     },
     [rejectSession],
   );
 
+  /** Prepara client + uiStore para telas pré-shell (onboarding), sem ligar o sync. */
+  const prepareSession = useCallback((session: Session, clientActive = false) => {
+    if (!clientActive) matrixService.restoreSession(session);
+    useUiStore.getState().setMyUserId(session.userId);
+  }, []);
+
   const handleSession = useCallback(
     (session: Session) => {
       void (async () => {
         try {
           await saveSession(session);
-          // O client credentialled já está ativo (loginWithSsoToken aplica
-          // a sessão) — restaurar de novo criaria um segundo client.
-          enterShell(session, true);
+          // loginWithSsoToken já deixou o client credentialled ativo.
+          // Onboarding só para conta nova (sem perfil no servidor Matrix).
+          const isNew = await isNewAccount(matrixService);
+          useOnboardingStore.getState().setCompleted(!isNew);
+          if (isNew) {
+            prepareSession(session, true);
+            setView("onboarding");
+          } else {
+            enterShell(session, true);
+          }
         } catch {
           await rejectSession();
         }
       })();
     },
-    [enterShell, rejectSession],
+    [enterShell, prepareSession, rejectSession],
   );
 
   useEffect(() => {
@@ -95,9 +110,23 @@ export default function SessionGate({ shell }: SessionGateProps) {
             () => false,
           );
           if (relaunched) return; // o processo termina com o relaunch
-          // relaunch falhou — cai para o shell; o UpdateBanner mostra o botão
+          // relaunch falhou — mostra tela de update exigindo reinício manual
+          setView("update-required");
+          return;
         }
-        enterShell(session);
+        // Sessão válida e sem update pendente: verifica onboarding.
+        // O client é restaurado ANTES do onboarding — setDisplayName/upload
+        // do OnboardingScreen exigem o client credentialled (e o uiStore
+        // precisa do myUserId para habilitar o submit).
+        // Onboarding só para conta nova (sem perfil no servidor Matrix).
+        prepareSession(session);
+        const isNew = await isNewAccount(matrixService);
+        useOnboardingStore.getState().setCompleted(!isNew);
+        if (isNew) {
+          setView("onboarding");
+        } else {
+          enterShell(session, true);
+        }
       } catch {
         if (cancelled) return;
         await rejectSession();
@@ -106,8 +135,9 @@ export default function SessionGate({ shell }: SessionGateProps) {
     return () => {
       cancelled = true;
     };
-  }, [enterShell, rejectSession]);
+  }, [enterShell, prepareSession, rejectSession]);
 
+  // Splash de boot (forçada, estilo Discord)
   if (view === "booting") {
     const updateLabel =
       updateStatus === "checking"
@@ -115,17 +145,26 @@ export default function SessionGate({ shell }: SessionGateProps) {
         : updateStatus === "downloading"
           ? `Baixando atualização ${updateVersion ?? ""}…`
           : updateStatus === "ready"
-            ? "Reiniciando…"
+            ? "Atualização pronta. Reiniciando…"
             : null;
+
     return (
-      <main className="grid min-h-screen place-items-center bg-bg font-ui">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex flex-col items-center gap-1">
-            <CircleNotch size={28} className="animate-spin text-mut" aria-label="Carregando" />
-            <p className="text-xs text-mut">Iniciando Echo…</p>
+      <main className="flex min-h-screen flex-col items-center justify-center bg-bg font-ui">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <img src="/logo.png" width={80} height={80} alt="" />
+            {updateStatus === "checking" || updateStatus === "downloading" ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <CircleNotch size={32} className="animate-spin text-acc" />
+              </div>
+            ) : null}
           </div>
+          <p className="text-xl font-semibold text-txt">Echo</p>
+          <p className="text-sm text-muted-foreground">
+            Preparando para iniciar…
+          </p>
           {updateLabel ? (
-            <p role="status" aria-live="polite" className="text-sm text-mut">
+            <p role="status" aria-live="polite" className="text-sm text-mut mt-2">
               {updateLabel}
             </p>
           ) : null}
@@ -134,8 +173,51 @@ export default function SessionGate({ shell }: SessionGateProps) {
     );
   }
 
+  // Tela de update obrigatória (relaunch falhou)
+  if (view === "update-required") {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-bg font-ui">
+        <div className="flex flex-col items-center gap-4">
+          <Download size={48} className="text-acc" />
+          <p className="text-xl font-semibold text-txt">Atualização disponível</p>
+          <p className="text-sm text-muted-foreground text-center max-w-xs">
+            Uma nova versão do Echo foi baixada. Reinicie o aplicativo para
+            aplicar a atualização.
+          </p>
+          <button
+            type="button"
+            onClick={() => void restartApp()}
+            className="mt-6 cursor-pointer flex items-center gap-2 rounded-lg bg-acc px-5 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95"
+          >
+            Reiniciar agora
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (view === "login") {
     return <GoogleLoginScreen service={matrixService} onSession={handleSession} />;
+  }
+
+  if (view === "onboarding") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg font-ui">
+        <OnboardingScreen
+          onComplete={async () => {
+            // Após o onboarding, entra no shell com a sessão já carregada
+            // (o client já está ativo — preparado no boot/login).
+            const session = await loadSession();
+            if (session) {
+              markOnboardingCompleted(session.userId);
+              enterShell(session, true);
+            } else {
+              setView("login");
+            }
+          }}
+        />
+      </main>
+    );
   }
 
   return shell ?? <AppShell />;

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/storage/keyring", () => ({
   loadSession: vi.fn(),
@@ -14,6 +14,11 @@ vi.mock("@/lib/matrix/instance", () => ({
     stopSync: vi.fn(),
     listGuilds: vi.fn(async () => []),
     listChannels: vi.fn(async () => []),
+    setDisplayName: vi.fn(async () => {}),
+    setAvatarUrl: vi.fn(async () => {}),
+    uploadMedia: vi.fn(async () => "mxc://echo/fake"),
+    getDisplayName: vi.fn(async () => "Nina"),
+    getAvatarUrl: vi.fn(async () => null),
   },
 }));
 vi.mock("@/lib/matrix/sso", () => ({
@@ -22,6 +27,7 @@ vi.mock("@/lib/matrix/sso", () => ({
 }));
 
 import { matrixService } from "@/lib/matrix/instance";
+import { markOnboardingCompleted, resetOnboarding } from "@/lib/onboarding";
 import { runSsoLogin } from "@/lib/matrix/sso";
 import type { Session, SyncStatus } from "@/lib/matrix/types";
 import { stopSyncWiring } from "@/lib/matrix/wiring";
@@ -66,6 +72,13 @@ beforeEach(() => {
   // As asserções sobre stopSync valem para o corpo do teste, não para o reset acima.
   mockedStopSync.mockClear();
   useUiStore.setState({ myUserId: null, activeGuildId: null, activeChannelId: null });
+  // O gate de onboarding (nova etapa do boot) exige a flag concluída para
+  // levar a sessão restaurada direto ao shell.
+  markOnboardingCompleted(SESSION.userId);
+});
+
+afterEach(() => {
+  resetOnboarding(SESSION.userId);
 });
 
 describe("SessionGate", () => {
@@ -164,6 +177,66 @@ describe("SessionGate", () => {
     expect(mockedRestore).not.toHaveBeenCalled();
     expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1);
     expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
+  });
+
+  it("login bem-sucedido sem onboarding → tela de onboarding antes do shell", async () => {
+    resetOnboarding(SESSION.userId);
+    // Conta nova: sem perfil no servidor → onboarding.
+    vi.mocked(matrixService.getDisplayName).mockResolvedValueOnce(null);
+    vi.mocked(matrixService.getAvatarUrl).mockResolvedValueOnce(null);
+    // Boot não encontra sessão; após o login, onComplete relê a sessão salva.
+    mockedLoadSession.mockResolvedValueOnce(null);
+    mockedLoadSession.mockResolvedValue(SESSION);
+    mockedRunSsoLogin.mockResolvedValueOnce(SESSION);
+
+    render(<SessionGate />);
+    await userEvent.click(await screen.findByRole("button", { name: /Entrar com Google/ }));
+
+    // Onboarding é apresentado antes do shell; o sync ainda não começou.
+    expect(await screen.findByText("Bem-vindo ao Echo")).toBeTruthy();
+    expect(mockedStartSyncHandlers).not.toHaveBeenCalled();
+    // Client/uiStore preparados no login — setDisplayName exige o client ativo.
+    expect(mockedRestore).not.toHaveBeenCalled();
+    expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
+
+    // Concluir o onboarding define o display name e entra no shell.
+    await userEvent.type(screen.getByLabelText("Nome de exibição"), "Nina");
+    await userEvent.click(screen.getByRole("button", { name: /Concluir e entrar/ }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-column="rail"]')).toBeTruthy();
+    });
+    expect(matrixService.setDisplayName).toHaveBeenCalledWith("Nina");
+    expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(`echo:onboarding:completed:${SESSION.userId}`)).toBe("1");
+  });
+
+  it("sessão salva sem perfil no servidor → restoreSession + onboarding antes do shell", async () => {
+    resetOnboarding(SESSION.userId);
+    // Conta sem perfil (displayName e avatar nulos) = conta nova → onboarding.
+    vi.mocked(matrixService.getDisplayName).mockResolvedValueOnce(null);
+    vi.mocked(matrixService.getAvatarUrl).mockResolvedValueOnce(null);
+    mockedLoadSession.mockResolvedValue(SESSION);
+
+    render(<SessionGate />);
+
+    expect(await screen.findByText("Bem-vindo ao Echo")).toBeTruthy();
+    // Client restaurado ANTES do onboarding (setDisplayName precisa dele)…
+    expect(mockedRestore).toHaveBeenCalledWith(SESSION);
+    expect(useUiStore.getState().myUserId).toBe(SESSION.userId);
+    // …mas o sync só liga ao entrar no shell.
+    expect(mockedStartSyncHandlers).not.toHaveBeenCalled();
+
+    await userEvent.type(screen.getByLabelText("Nome de exibição"), "Nina");
+    await userEvent.click(screen.getByRole("button", { name: /Concluir e entrar/ }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-column="rail"]')).toBeTruthy();
+    });
+    expect(mockedStartSyncHandlers).toHaveBeenCalledTimes(1);
+    // enterShell com client ativo: restoreSession não é chamado de novo.
+    expect(mockedRestore).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(`echo:onboarding:completed:${SESSION.userId}`)).toBe("1");
   });
 
   it("falha ao salvar a sessão após o login → volta ao login com clearSession", async () => {

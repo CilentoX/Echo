@@ -1,9 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useSyncStore, selectMembers } from "@/stores/syncStore";
 import type { MemberSummary } from "@/lib/matrix/types";
 import { useUiStore } from "@/stores/uiStore";
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
-import MemberDropdown from "./MemberDropdown";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import MemberDropdownContent from "./MemberDropdownContent";
 
 export interface MemberListProps {
   /** `overlay` flutua acima do chat abaixo 1150px; `static` é a coluna dockada. */
@@ -65,8 +66,6 @@ export default function MemberList({
     ? [...channelMembers]
     : guildMembers;
 
-  const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const [search, setSearch] = useState("");
 
   // Agrupa membros por status de presença.
@@ -95,27 +94,6 @@ export default function MemberList({
     ["unavailable", "Não perturbar"],
     ["offline", "Offline"],
   ];
-
-  const handleMemberClick = (e: React.MouseEvent, userId: string) => {
-    e.stopPropagation();
-    const el = e.currentTarget as HTMLElement;
-    const rect = el.getBoundingClientRect();
-    setDropdownPos({ top: rect.bottom + 4, left: rect.left });
-    setDropdownOpen((open) => (open === userId ? null : userId));
-  };
-
-  // Fecha o dropdown ao clicar fora dele (fora da coluna de membros).
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (!dropdownOpen) return;
-      const memberListEl = e.currentTarget as HTMLElement;
-      // Se clicou dentro da coluna members, não fecha.
-      if (memberListEl.contains(e.target as Node)) return;
-      setDropdownOpen(null);
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [dropdownOpen]);
 
   const totalOnline =
     grouped.online.length + grouped.unavailable.length;
@@ -180,56 +158,51 @@ export default function MemberList({
               <ul>
                 {items.map((member) => {
                   const isMe = member.userId === myUserId;
-                  const activeDropdown = dropdownOpen === member.userId;
                   return (
-                    <li
-                      key={member.userId}
-                      className="relative"
-                    >
-                      <button
-                        type="button"
-                        aria-label={member.displayName || member.userId}
-                        onClick={(e) =>
-                          handleMemberClick(e, member.userId)
-                        }
-                        className={`cursor-pointer flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors ${
-                          activeDropdown
-                            ? "bg-surf2 text-txt"
-                            : isMe
-                              ? "text-mut/70 hover:bg-surf2"
-                              : "text-mut hover:bg-surf2 hover:text-txt"
-                        }`}
-                      >
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center font-display text-[10px] font-bold shrink-0 ${
-                            member.presence === "online"
-                              ? "bg-green-500 text-bg"
-                              : member.presence === "unavailable"
-                                ? "bg-acc text-bg"
-                                : "bg-surf2 text-mut"
-                          }`}
-                        >
-                          {member.displayName
-                            ? member.displayName.charAt(0).toUpperCase()
-                            : member.userId.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="truncate">
-                          {member.displayName || member.userId}
-                        </span>
-                        {isMe && (
-                          <span
-                            className="ml-auto text-[10px] text-mut"
-                            aria-hidden
+                    <li key={member.userId} className="relative">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={member.displayName || member.userId}
+                            className={`cursor-pointer flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors ${
+                              isMe
+                                ? "text-mut/70 hover:bg-surf2"
+                                : "text-mut hover:bg-surf2 hover:text-txt"
+                            }`}
                           >
-                            (você)
-                          </span>
-                        )}
-                        {activeDropdown && (
-                          <span className="ml-auto text-[10px] text-acc">
-                            ▾
-                          </span>
-                        )}
-                      </button>
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center font-display text-[10px] font-bold shrink-0 ${
+                                member.presence === "online"
+                                  ? "bg-green-500 text-bg"
+                                  : member.presence === "unavailable"
+                                    ? "bg-acc text-bg"
+                                    : "bg-surf2 text-mut"
+                              }`}
+                            >
+                              {member.displayName
+                                ? member.displayName.charAt(0).toUpperCase()
+                                : member.userId.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="truncate">
+                              {member.displayName || member.userId}
+                            </span>
+                            {isMe && (
+                              <span
+                                className="ml-auto text-[10px] text-mut"
+                                aria-hidden
+                              >
+                                (você)
+                              </span>
+                            )}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent sideOffset={6} className="w-auto p-0">
+                          <MemberDropdownContent
+                            userId={member.userId}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </li>
                   );
                 })}
@@ -243,16 +216,6 @@ export default function MemberList({
         <div className="px-2 py-2 text-[11px] text-mut border-t border-bd">
           Todos os membros estão online.
         </div>
-      )}
-
-      {/* Dropdown popup tipo Discord */}
-      {dropdownOpen && (
-        <MemberDropdown
-          userId={dropdownOpen}
-          top={dropdownPos.top}
-          left={dropdownPos.left}
-          onClose={() => setDropdownOpen(null)}
-        />
       )}
     </aside>
   );
