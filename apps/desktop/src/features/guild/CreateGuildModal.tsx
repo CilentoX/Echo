@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
+import MxcImage from "@/components/media/MxcImage";
 import {
   Dialog,
   DialogContent,
@@ -86,9 +87,16 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="w-[460px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
-        <DialogHeader className="mb-4 flex items-center justify-between">
-          <DialogTitle className="font-display text-lg font-semibold text-txt">Criar guilda</DialogTitle>
-          <DialogDescription className="sr-only">Criar uma nova comunidade com nome, ícone, banner e descrição.</DialogDescription>
+        <DialogHeader className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
+              G
+            </div>
+            <div>
+              <DialogTitle className="font-display text-lg font-semibold text-txt">Criar guilda</DialogTitle>
+              <DialogDescription className="text-xs text-mut">Criar uma nova comunidade com nome, ícone, banner e descrição.</DialogDescription>
+            </div>
+          </div>
           <button
             type="button"
             aria-label="Fechar"
@@ -99,84 +107,96 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
           </button>
         </DialogHeader>
 
-        <ImageUploadWithCrop
-          label="Ícone da guilda"
-          value={iconPreview}
-          placeholder="Ícone da guilda (opcional)"
-          onChange={(file) => {
-            setIconFile(file);
-            const reader = new FileReader();
-            reader.onload = () => setIconPreview(reader.result as string);
-            reader.readAsDataURL(file);
-          }}
-          aspect={1}
-          cropTitle="Recortar ícone da guilda"
-        />
+        <div className="space-y-6">
+          <div className="relative w-full h-32 rounded-xl bg-surf2 border border-bd overflow-hidden">
+            {iconPreview ? (
+              <MxcImage mxcUrl={iconPreview} className="w-full h-full object-cover" alt="Ícone da guilda" />
+            ) : null}
+            <ImageUploadWithCrop
+              label="Ícone da guilda"
+              value={iconPreview}
+              placeholder="Ícone da guilda (opcional)"
+              onChange={(file) => {
+                setIconFile(file);
+                const reader = new FileReader();
+                reader.onload = () => setIconPreview(reader.result as string);
+                reader.readAsDataURL(file);
+              }}
+              aspect={1}
+              cropTitle="Recortar ícone da guilda"
+            />
+          </div>
 
-        <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Nome da guilda
-        </Label>
-        <Input
-          type="text"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            if (error) setError(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading) void handleSubmit();
-          }}
-          placeholder="Ex: Minha comunidade"
-          autoFocus
-          className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
-        />
+          <Label className="block text-xs font-semibold uppercase tracking-wide text-mut">
+            Nome da guilda
+          </Label>
+          <Input
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (error) setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !loading) void handleSubmit();
+            }}
+            placeholder="Ex: Minha comunidade"
+            autoFocus
+            className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
+          />
 
-        <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Descrição
-        </Label>
-        <Textarea
-          value={description}
-          onChange={(e) => {
-            setDescription(e.target.value);
-            if (error) setError(null);
-          }}
-          rows={3}
-          placeholder="Descreva sua guilda…"
-          className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
-        />
+          <Label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
+            Descrição
+          </Label>
+          <Textarea
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              if (error) setError(null);
+            }}
+            rows={3}
+            placeholder="Descreva sua guilda…"
+            className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
+          />
 
-        <ImageUploadWithCrop
-          label="Banner da guilda"
-          value={bannerPreview}
-          placeholder="Banner da guilda (opcional)"
-          onChange={(file) => {
-            setBannerFile(file);
-            const reader = new FileReader();
-            reader.onload = () => setBannerPreview(reader.result as string);
-            reader.readAsDataURL(file);
-          }}
-          aspect={16 / 9}
-          cropTitle="Recortar banner da guilda"
-        />
+          <div className="relative w-full h-24 rounded-xl bg-surf2 border border-bd overflow-hidden mt-4">
+            {bannerPreview ? (
+              <MxcImage mxcUrl={bannerPreview} className="w-full h-full object-cover" alt="Banner da guilda" />
+            ) : null}
+            <ImageUploadWithCrop
+              label="Banner da guilda"
+              value={bannerPreview}
+              placeholder="Banner da guilda (opcional)"
+              onChange={(file) => {
+                setBannerFile(file);
+                const reader = new FileReader();
+                reader.onload = () => setBannerPreview(reader.result as string);
+                reader.readAsDataURL(file);
+              }}
+              aspect={16 / 9}
+              cropTitle="Recortar banner da guilda"
+            />
+          </div>
 
-        {error && (
-          <p role="alert" className="mt-2 text-sm text-err">
-            {error}
-          </p>
-        )}
+          {error && (
+            <p role="alert" className="mt-2 text-sm text-err">
+              {error}
+            </p>
+          )}
 
-        <div className="mt-6 flex gap-2">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={loading}
-            className="flex-1"
-          >
-            {loading ? "Criando…" : "Criar guilda"}
-          </Button>
+          <div className="mt-8 flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1 border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95">
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={loading}
+              className="flex-1 bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press transition-colors active:scale-95"
+            >
+              {loading ? "Criando…" : "Criar guilda"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

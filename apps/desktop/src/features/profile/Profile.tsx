@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
 
 export interface ProfileProps {
   open: boolean;
@@ -57,19 +56,20 @@ export default function Profile({ open, onClose }: ProfileProps) {
       .join("") || "?";
   }, [displayName, username]);
 
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (open) window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onKeyDown]);
+
   const PROFILE_TABS: Array<[string, string]> = [
     ["profile", "Perfil"],
     ["badges", "Conquistas"],
     ["connections", "Ligações"],
   ];
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (open) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   const handleSave = useCallback(() => {
     setDisplayName(draftName);
@@ -130,20 +130,27 @@ export default function Profile({ open, onClose }: ProfileProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-full max-w-[640px] p-0 flex flex-col">
+      <DialogContent
+        className="w-full max-w-[640px] p-0 flex flex-col h-[90vh]"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
         {/* Header */}
         <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            {avatarUrl ? (
-              <MxcImage mxcUrl={avatarUrl} className="w-10 h-10 rounded-full" alt="Avatar" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
-                {initials}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {avatarUrl ? (
+                <MxcImage mxcUrl={avatarUrl} className="w-10 h-10 rounded-full" alt="Avatar" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
+                  {initials}
+                </div>
+              )}
+              <div>
+                <DialogTitle className="font-display text-lg font-semibold text-txt">Perfil</DialogTitle>
+                <DialogDescription className="text-xs text-mut">{username}</DialogDescription>
               </div>
-            )}
-            <div>
-              <DialogTitle className="font-display text-lg font-semibold text-txt">Perfil</DialogTitle>
-              <DialogDescription className="text-xs text-mut">{username}</DialogDescription>
             </div>
             <button
               type="button"
@@ -169,28 +176,21 @@ export default function Profile({ open, onClose }: ProfileProps) {
             {/* Perfil */}
             <TabsContent value="profile" className="p-0 pt-6">
               {/* Banner */}
-              <Card className="border-bd">
-                <CardContent className="px-0 py-0">
-                  <div className="relative w-full h-40 rounded-xl bg-surf2 border border-bd overflow-hidden">
-                    {draftBannerUrl ? (
-                      <MxcImage mxcUrl={draftBannerUrl} className="w-full h-full object-cover" alt="Banner" />
-                    ) : null}
-                    <ImageUploadWithCrop
-                      label="Banner"
-                      value={draftBannerUrl}
-                      placeholder="Adicionar banner de perfil"
-                      onChange={handleBannerChange}
-                      aspect={16 / 9}
-                      cropTitle="Recortar banner de perfil"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden">
+                <ImageUploadWithCrop
+                  label="Banner"
+                  value={draftBannerUrl}
+                  placeholder="Adicionar banner de perfil"
+                  onChange={handleBannerChange}
+                  aspect={16 / 9}
+                  cropTitle="Recortar banner de perfil"
+                />
+              </div>
 
               {/* Avatar */}
-              <div className="relative -mt-12 flex justify-center">
+              <div className="relative -mt-14 flex justify-center">
                 <div
-                  className={`relative w-24 h-24 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf ${
+                  className={`relative w-28 h-28 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf ${
                     avatarUrl ? "bg-bg" : "bg-acc"
                   }`}
                   style={
@@ -254,7 +254,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       value={draftName}
                       onChange={(e) => setDraftName(e.target.value)}
                       placeholder="Seu nome"
-                      className="w-full"
+                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none"
                     />
                   </div>
                   <div>
@@ -265,7 +265,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       value={draftNickname}
                       onChange={(e) => setDraftNickname(e.target.value)}
                       placeholder="Seu apelido"
-                      className="w-full"
+                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none"
                     />
                   </div>
                   <div>
@@ -276,7 +276,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       value={draftRole}
                       onChange={(e) => setDraftRole(e.target.value)}
                       placeholder="Seu cargo"
-                      className="w-full"
+                      className="w-full rounded-lg border border-bd bg-bg px-3 py-2 text-sm text-txt focus:border-acc focus:outline-none"
                     />
                   </div>
                   <div>
@@ -288,7 +288,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                       onChange={(e) => setDraftBio(e.target.value)}
                       rows={4}
                       placeholder="Conte um pouco sobre você…"
-                      className="w-full"
+                      className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none resize-none transition-colors"
                     />
                   </div>
                 </div>
@@ -354,13 +354,13 @@ export default function Profile({ open, onClose }: ProfileProps) {
                             value={link.label}
                             onChange={(e) => handleLinkChange(i, "label", e.target.value)}
                             placeholder="Nome da ligação"
-                            className="flex-1 text-sm text-txt placeholder:text-mut"
+                            className="flex-1 text-sm text-txt placeholder:text-mut bg-transparent border-none focus:ring-0"
                           />
                           <Input
                             value={link.url}
                             onChange={(e) => handleLinkChange(i, "url", e.target.value)}
                             placeholder="https://"
-                            className="flex-1 text-sm text-txt placeholder:text-mut"
+                            className="flex-1 text-sm text-txt placeholder:text-mut bg-transparent border-none focus:ring-0"
                           />
                           <button
                             type="button"
@@ -393,7 +393,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                   <Button
                     type="button"
                     onClick={handleSave}
-                    className="w-full py-3.5 rounded-xl font-display font-semibold shadow-lg shadow-acc/20 bg-acc text-bg hover:bg-acc-press transition-colors"
+                    className="w-full py-3.5 rounded-xl font-display font-semibold shadow-lg shadow-acc/20 bg-acc text-bg hover:bg-acc-press transition-colors active:scale-95"
                   >
                     Salvar alterações
                   </Button>
@@ -401,7 +401,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                     type="button"
                     variant="outline"
                     onClick={handleCancel}
-                    className="w-full py-3.5 rounded-xl"
+                    className="w-full py-3.5 rounded-xl border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95"
                   >
                     Cancelar
                   </Button>
@@ -419,7 +419,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
                     setDraftBannerUrl(bannerUrl);
                     setEditing(true);
                   }}
-                  className="w-full py-3.5 text-sm font-medium"
+                  className="w-full py-3.5 text-sm font-medium border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95"
                 >
                   <Pencil size={16} className="mr-2" />
                   Editar perfil
