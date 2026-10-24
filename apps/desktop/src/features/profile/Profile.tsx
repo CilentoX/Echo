@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X, Pencil, Link, ShieldCheck, Users, Gift } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
+import MxcImage from "@/components/media/MxcImage";
 import { matrixService } from "@/lib/matrix/instance";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export interface ProfileProps {
   open: boolean;
@@ -120,9 +121,13 @@ export default function Profile({ open, onClose }: ProfileProps) {
       <DialogContent className="w-full max-w-[640px] p-0">
         <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold">
-              {initials}
-            </div>
+            {avatarUrl ? (
+              <MxcImage mxcUrl={avatarUrl} className="w-10 h-10 rounded-full" alt="Avatar" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
+                {initials}
+              </div>
+            )}
             <div>
               <DialogTitle className="font-display text-lg font-semibold text-txt">Perfil</DialogTitle>
               <DialogDescription className="text-xs text-mut">{username}</DialogDescription>
@@ -151,9 +156,6 @@ export default function Profile({ open, onClose }: ProfileProps) {
             {/* Perfil */}
             <TabsContent value="profile" className="p-0 pt-6">
               <Card className="border-bd">
-                <CardHeader>
-                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-mut">Banner</CardTitle>
-                </CardHeader>
                 <CardContent className="px-0 py-0">
                   <div className="relative w-full h-32 rounded-xl bg-surf2 border border-bd overflow-hidden">
                     <ImageUploadWithCrop
