@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import AppShell from "@/features/shell/AppShell";
@@ -134,5 +134,28 @@ describe("AppShell", () => {
     act(() => setWidth(1000)); // back below 1150px
 
     expect(column("members")).toBeNull(); // overlay does not reappear open
+  });
+
+  it("sem guildas → mostra EmptyState com botão Criar guilda", () => {
+    useSyncStore.setState({ guilds: [] });
+    setWidth(1200);
+    render(<AppShell />);
+
+    const chat = column("chat");
+    expect(chat).toBeTruthy();
+    expect(chat!.querySelector('[role="status"]')).not.toBeNull();
+    expect(within(chat!).getByRole("button", { name: /Criar guilda/i })).not.toBeNull();
+  });
+
+  it("com guildas → não mostra EmptyState", () => {
+    useSyncStore.setState({
+      guilds: [{ guildId: "!g1:hs", name: "Minha guilda", avatarUrl: null, unreadCount: 0 }],
+    });
+    setWidth(1200);
+    render(<AppShell />);
+
+    const chat = column("chat");
+    expect(chat!.querySelector('[role="status"]')).toBeNull();
+    expect(column("chat")).toBeTruthy();
   });
 });
