@@ -159,6 +159,11 @@ export default function MemberList({
               <ul>
                 {items.map((member) => {
                   const isMe = member.userId === myUserId;
+                  const presenceColor = member.presence === "online"
+                    ? "bg-online"
+                    : member.presence === "unavailable"
+                      ? "bg-dnd"
+                      : "bg-offline";
                   return (
                     <li key={member.userId} className="relative">
                       <Popover>
@@ -166,33 +171,29 @@ export default function MemberList({
                           <button
                             type="button"
                             aria-label={member.displayName || member.userId}
-                            className={`cursor-pointer flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors ${
+                            className={`cursor-pointer flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                               isMe
                                 ? "text-mut/70 hover:bg-surf2"
                                 : "text-mut hover:bg-surf2 hover:text-txt"
                             }`}
                           >
-                            <div
-                              className={`w-6 h-6 rounded-full flex items-center justify-center font-display text-[10px] font-bold shrink-0 ${
-                                member.presence === "online"
-                                  ? "bg-online text-bg"
-                                  : member.presence === "unavailable"
-                                    ? "bg-dnd text-bg"
-                                    : "bg-offline text-bg"
-                              }`}
-                            >
-                              {member.displayName
-                                ? member.displayName.charAt(0).toUpperCase()
-                                : member.userId.replace(/^@/, '').charAt(0).toUpperCase()}
-                            </div>
-                            <span className="truncate">
-                              {member.displayName || member.userId}
-                            </span>
-                            {isMe && (
+                            <div className="relative w-8 h-8 shrink-0">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-sm border-4 border-surf bg-acc">
+                                {member.displayName
+                                  ? member.displayName.charAt(0).toUpperCase()
+                                  : member.userId.replace(/^@/, '').charAt(0).toUpperCase()}
+                              </div>
                               <span
-                                className="ml-auto text-xs text-mut"
-                                aria-hidden
-                              >
+                                className={`absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-bg shrink-0 ${presenceColor}`}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-txt truncate">
+                                {member.displayName || member.userId.replace(/^@/, "")}
+                              </p>
+                            </div>
+                            {isMe && (
+                              <span className="ml-auto text-xs text-mut">
                                 (você)
                               </span>
                             )}
