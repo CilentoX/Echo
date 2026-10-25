@@ -40,12 +40,23 @@ function isAuthError(error?: SyncErrorInfo): boolean {
   return error !== undefined && AUTH_ERRCODES.has(error.errcode);
 }
 
+async function loadMembersFor(roomId: string): Promise<void> {
+  try {
+    const members = await matrixService.listMembers(roomId);
+    useSyncStore.getState().setMembers(roomId, members);
+  } catch {
+    // best-effort: se falhar, a lista de membros fica vazia até o próximo evento
+  }
+}
+
 async function loadChannelsFor(guildId: string): Promise<void> {
   if (loadedGuilds.has(guildId)) return;
   loadedGuilds.add(guildId); // marca antes do await: dedup de chamadas concorrentes
   try {
     const channels = await matrixService.listChannels(guildId);
     useSyncStore.getState().setChannels(guildId, channels);
+    // Carrega membros de cada canal para popular membersByRoom
+    await Promise.all(channels.map((ch) => loadMembersFor(ch.channelId)));
   } catch {
     loadedGuilds.delete(guildId); // permite retry
   }
