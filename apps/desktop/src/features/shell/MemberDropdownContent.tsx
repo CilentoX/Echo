@@ -54,11 +54,13 @@ export default function MemberDropdownContent({
     online: "Online",
     offline: "Offline",
     unavailable: "Não perturbar",
+    idle: "Ausente",
   };
   const statusColor: Record<string, string> = {
     online: "bg-online",
     offline: "bg-offline",
     unavailable: "bg-dnd",
+    idle: "bg-idle",
   };
 
   return (
@@ -76,7 +78,7 @@ export default function MemberDropdownContent({
           <p className="font-display font-semibold text-txt truncate">
             {displayName ?? userId}
           </p>
-          <p className="text-[10px] text-mut truncate">
+          <p className="text-xs text-mut truncate">
             {isMyUser ? myUserId.replace(/^@/, '') : userId.replace(/^@/, '')} {isMyUser && " (você)"}
           </p>
         </div>
@@ -88,7 +90,7 @@ export default function MemberDropdownContent({
         />
         <Label className="text-mut">{statusLabel[presence]}</Label>
         {role && (
-          <span className="ml-auto px-2 py-0.5 rounded bg-acc/10 text-[10px] font-medium text-acc border border-acc/30">
+          <span className="ml-auto px-2 py-0.5 rounded bg-acc/10 text-xs font-medium text-acc border border-acc/30">
             {role}
           </span>
         )}
@@ -103,9 +105,7 @@ export default function MemberDropdownContent({
         size="sm"
         disabled={isMyUser}
         className={`w-full justify-start gap-2 text-sm ${
-          isMyUser
-            ? "text-mut/50 cursor-not-allowed"
-            : "text-txt hover:bg-surf2 hover:text-txt"
+          isMyUser ? "text-mut cursor-not-allowed opacity-50" : "text-txt hover:bg-surf2 hover:text-txt"
         }`}
       >
         <Chats size={14} className="shrink-0" />

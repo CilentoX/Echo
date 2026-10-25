@@ -158,7 +158,7 @@ export default function ChannelSidebar({
                         }`}
                       >
                         <Hash size={16} className="shrink-0 text-mut" aria-hidden />
-                        <span className="truncate font-medium text-txt">
+                        <span className={`truncate font-medium ${active ? "text-txt" : "text-mut"}`}>
                           {channel.name}
                         </span>
                         {channel.type === "voice" && (

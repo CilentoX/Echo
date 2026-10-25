@@ -13,6 +13,7 @@ import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { restartApp, runStartupUpdateCheck } from "@/lib/updater";
 import { useUpdateStore } from "@/stores/updateStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { Button } from "@/components/ui/button";
 
 type GateView = "booting" | "update-required" | "login" | "onboarding" | "shell";
 
@@ -160,7 +161,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
             ) : null}
           </div>
           <p className="text-xl font-semibold text-txt">Echo</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-mut">
             Preparando para iniciar…
           </p>
           {updateLabel ? (
@@ -180,17 +181,17 @@ export default function SessionGate({ shell }: SessionGateProps) {
         <div className="flex flex-col items-center gap-4">
           <Download size={48} className="text-acc" />
           <p className="text-xl font-semibold text-txt">Atualização disponível</p>
-          <p className="text-sm text-muted-foreground text-center max-w-xs">
+          <p className="text-sm text-mut text-center max-w-xs">
             Uma nova versão do Echo foi baixada. Reinicie o aplicativo para
             aplicar a atualização.
           </p>
-          <button
+          <Button
             type="button"
             onClick={() => void restartApp()}
             className="mt-6 cursor-pointer flex items-center gap-2 rounded-lg bg-acc px-5 py-2.5 text-sm font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95"
           >
             Reiniciar agora
-          </button>
+          </Button>
         </div>
       </main>
     );

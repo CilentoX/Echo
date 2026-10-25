@@ -54,7 +54,7 @@ export default function MemberList({
     if (myUserId && !seen.has(myUserId)) {
       merged.push({
         userId: myUserId,
-        displayName: myUserId,
+        displayName: myUserId.replace(/^@/, ''),
         presence: "online",
       });
     }
@@ -80,6 +80,7 @@ export default function MemberList({
       online: [],
       offline: [],
       unavailable: [],
+      idle: [],
     };
     for (const m of list) {
       const key = m.presence ?? "offline";
@@ -133,14 +134,14 @@ export default function MemberList({
       {/* Busca */}
       <div className="px-3 py-2 border-b border-bd">
         <div className="relative">
-          <MagnifyingGlass size={14} className="absolute left-3 top-2.5 text-mut" aria-hidden />
+          <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mut" aria-hidden />
           <input
             type="search"
             placeholder="Buscar membros…"
             aria-label="Buscar membros"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 bg-transparent text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
+            className="w-full pl-8 pr-3 rounded bg-transparent text-sm text-txt border border-bd outline-none placeholder:text-mut focus:border-acc focus:ring-1 focus:ring-acc"
           />
         </div>
       </div>
@@ -177,7 +178,7 @@ export default function MemberList({
                                   ? "bg-online text-bg"
                                   : member.presence === "unavailable"
                                     ? "bg-dnd text-bg"
-                                    : "bg-offline text-mut"
+                                    : "bg-offline text-bg"
                               }`}
                             >
                               {member.displayName
@@ -189,7 +190,7 @@ export default function MemberList({
                             </span>
                             {isMe && (
                               <span
-                                className="ml-auto text-[10px] text-mut"
+                                className="ml-auto text-xs text-mut"
                                 aria-hidden
                               >
                                 (você)
