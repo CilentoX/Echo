@@ -26,7 +26,7 @@ export default function MemberList({
   const overlay = variant === "overlay";
   const activeChannelId = useUiStore((state) => state.activeChannelId);
   const activeGuildId = useUiStore((state) => state.activeGuildId);
-  const myUserId = useUiStore((state) => state.myUserId ?? "");
+  const myUserId = useUiStore((state) => state.myUserId);
 
   // Canais da guilda ativa (para agregar membros quando não há canal selecionado).
   const channelsByGuild = useSyncStore((state) => state.channelsByGuild);
@@ -51,7 +51,7 @@ export default function MemberList({
       }
     }
     // Garante que o próprio usuário apareça, se estiver na guilda.
-    if (myUserId && !seen.has(myUserId)) {
+    if (myUserId != null && !seen.has(myUserId)) {
       merged.push({
         userId: myUserId,
         displayName: myUserId.replace(/^@/, ''),
