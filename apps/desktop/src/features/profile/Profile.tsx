@@ -3,7 +3,7 @@ import { X, Pencil, Link, ShieldCheck, Users, Gift, Plus, Robot } from "@phospho
 import { useProfileStore } from "@/stores/profileStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
 import { matrixService } from "@/lib/matrix/instance";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -129,45 +129,65 @@ export default function Profile({ open, onClose }: ProfileProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent
-        showCloseButton={false}
-        className="w-full max-w-[640px] sm:max-w-[640px] p-0 flex flex-col h-[90vh]"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        {/* Header */}
-        <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {avatarUrl ? (
-                <div className="relative w-10 h-10 rounded-full">
-                  <img
-                    src={avatarUrl}
-                    alt="Avatar"
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
-                  {initials}
-                </div>
-              )}
-              <div>
-                <DialogTitle className="font-display text-lg font-semibold text-txt">Perfil</DialogTitle>
-                <DialogDescription className="text-xs text-mut">{username}</DialogDescription>
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label="Fechar perfil"
-              onClick={onClose}
-              className="cursor-pointer rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt active:scale-95"
-            >
-              <X size={18} />
-            </button>
+      <DialogContent className="w-full max-w-[640px] p-0 flex flex-col h-[90vh]">
+        {/* Banner */}
+        <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden group">
+          {draftBannerUrl ? (
+            <img
+              src={draftBannerUrl}
+              alt="Banner"
+              className="w-full h-full object-cover"
+            />
+          ) : null}
+          <ImageUploadWithCrop
+            label=""
+            value={draftBannerUrl}
+            placeholder="Adicionar banner de perfil"
+            onChange={handleBannerChange}
+            aspect={16 / 9}
+            previewHeight="h-48"
+            cropTitle="Recortar banner de perfil"
+          />
+        </div>
+
+        {/* Avatar sobreposto */}
+        <div className="relative -mt-20 flex justify-center">
+          <div
+            className={`relative w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-xl border-8 border-bg ${
+              avatarUrl ? "bg-bg" : "bg-acc"
+            }`}
+            style={
+              avatarUrl
+                ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                : undefined
+            }
+          >
+            {avatarUrl ? null : initials}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              id="avatar-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleAvatarChange(file);
+              }}
+            />
+            {editing && (
+              <button
+                type="button"
+                aria-label="Alterar avatar"
+                className="absolute bottom-1 right-1 w-8 h-8 rounded-full flex items-center justify-center text-xs text-bg bg-acc shadow-md hover:bg-acc-press transition-all active:scale-95"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  document.getElementById("avatar-input")?.click();
+                }}
+              >
+                <Pencil size={14} />
+              </button>
+            )}
           </div>
-        </DialogHeader>
+        </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "profile" | "badges" | "connections")}>
@@ -189,70 +209,16 @@ export default function Profile({ open, onClose }: ProfileProps) {
 
             {/* Perfil */}
             <TabsContent value="profile" className="p-0 pt-6">
-              {/* Banner */}
-              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
-                Banner
-              </Label>
-              <ImageUploadWithCrop
-                label=""
-                value={draftBannerUrl}
-                placeholder="Adicionar banner de perfil"
-                onChange={handleBannerChange}
-                aspect={16 / 9}
-                previewHeight="h-48"
-                cropTitle="Recortar banner de perfil"
-              />
-
-              {/* Avatar */}
-              <div className="relative -mt-12 flex justify-center">
-                <div
-                  className={`relative w-28 h-28 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf ${
-                    avatarUrl ? "bg-bg" : "bg-acc"
-                  }`}
-                  style={
-                    avatarUrl
-                      ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
-                      : undefined
-                  }
-                >
-                  {avatarUrl ? null : initials}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    id="avatar-input"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleAvatarChange(file);
-                    }}
-                  />
-                  {editing && (
-                    <button
-                      type="button"
-                      aria-label="Alterar avatar"
-                      className="absolute bottom-1 right-1 w-8 h-8 rounded-full flex items-center justify-center text-xs text-bg bg-acc shadow-md hover:bg-acc-press transition-all active:scale-95"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        document.getElementById("avatar-input")?.click();
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Nome e identidade */}
+              {/* Nome, usuário, status, cargo */}
               <div className="mt-4 text-center space-y-2">
                 <p className="font-display text-2xl font-bold text-txt truncate">
                   {displayName || username}
                 </p>
-                {nickname && (
-                  <p className="text-sm text-acc font-medium mt-1">@{nickname}</p>
-                )}
-                {!nickname && (
-                  <p className="text-sm text-mut mt-1">{username}</p>
-                )}
+                <div className="flex items-center justify-center gap-2 text-sm text-mut">
+                  <span>@{nickname || username}</span>
+                  <span className="h-3 w-3 rounded-full bg-online" />
+                  <span>Online</span>
+                </div>
                 {role && (
                   <p className="mt-2 text-xs text-acc bg-acc/10 px-3 py-1 rounded-full border border-acc/30 inline-block">
                     {role}
@@ -428,23 +394,25 @@ export default function Profile({ open, onClose }: ProfileProps) {
                   </Button>
                 </div>
               ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setDraftName(displayName);
-                    setDraftNickname(nickname ?? "");
-                    setDraftBio(bio ?? "");
-                    setDraftRole(role ?? "");
-                    setDraftLinks([...links]);
-                    setDraftBannerUrl(bannerUrl);
-                    setEditing(true);
-                  }}
-                  className="w-full py-3.5 text-sm font-medium border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95"
-                >
-                  <Pencil size={16} className="mr-2" />
-                  Editar perfil
-                </Button>
+                <div className="mt-8 flex flex-col gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setDraftName(displayName);
+                      setDraftNickname(nickname ?? "");
+                      setDraftBio(bio ?? "");
+                      setDraftRole(role ?? "");
+                      setDraftLinks([...links]);
+                      setDraftBannerUrl(bannerUrl);
+                      setEditing(true);
+                    }}
+                    className="w-full py-3.5 text-sm font-medium border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95"
+                  >
+                    <Pencil size={16} className="mr-2" />
+                    Editar perfil
+                  </Button>
+                </div>
               )}
             </TabsContent>
 
