@@ -63,7 +63,7 @@ export default function MemberDropdownContent({
   };
 
   return (
-    <div className="w-[260px] flex flex-col gap-1 p-3 bg-bg border border-bd rounded-xl shadow-lg">
+    <div className="w-[260px] flex flex-col gap-2 p-3 bg-bg border border-bd rounded-xl shadow-lg">
       {/* Cabeçalho: avatar + nome + status */}
       <div className="flex items-center gap-3 p-2">
         <div className="relative shrink-0">
@@ -71,21 +71,21 @@ export default function MemberDropdownContent({
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="w-32 h-32 rounded-full object-cover border border-bd bg-surf2"
+              className="w-40 h-40 rounded-full object-cover border border-bd bg-surf2"
             />
           ) : (
-            <div className="w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf bg-acc">
+            <div className="w-40 h-40 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf bg-acc">
               {displayName?.charAt(0).toUpperCase() ?? "?"}
             </div>
           )}
           <span
-            className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
+            className={`absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
               statusColor[presence] ?? "bg-mut"
             }`}
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-display font-semibold text-txt truncate">
+          <p className="font-display font-bold text-lg text-txt truncate">
             {displayName ?? userId.replace(/^@/, "")}
           </p>
           <p className="text-xs text-mut truncate">
@@ -116,9 +116,7 @@ export default function MemberDropdownContent({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => {
-              // Abrir perfil próprio
-            }}
+            onClick={() => {}}
             className="w-full justify-start gap-2 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/40 focus:border-acc rounded-lg"
           >
             <Pencil size={14} className="shrink-0" />
