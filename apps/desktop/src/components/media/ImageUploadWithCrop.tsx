@@ -16,6 +16,8 @@ export interface ImageUploadWithCropProps {
   aspect?: number;
   /** Título do modal de crop */
   cropTitle?: string;
+  /** Altura do preview (padrão: h-24) */
+  previewHeight?: string;
 }
 
 /**
@@ -39,6 +41,7 @@ export function ImageUploadWithCrop({
   onChange,
   aspect = 1,
   cropTitle,
+  previewHeight,
 }: ImageUploadWithCropProps) {
   const [cropOpen, setCropOpen] = useState(false);
   const [currentImage, setCurrentImage] = useState<File | null>(null);
@@ -63,7 +66,7 @@ export function ImageUploadWithCrop({
       </label>
 
       {/* Preview da imagem atual */}
-      <div className="relative w-full h-24 rounded-xl border border-bd bg-surf2 flex items-center justify-center cursor-pointer group overflow-hidden">
+      <div className={`relative w-full rounded-xl border border-bd bg-surf2 flex items-center justify-center cursor-pointer group overflow-hidden ${previewHeight ?? "h-24"}`}>
         {value ? (
           <MxcImage
             mxcUrl={value}

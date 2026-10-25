@@ -193,16 +193,15 @@ export default function Profile({ open, onClose }: ProfileProps) {
               <Label className="block text-xs font-semibold uppercase tracking-wider text-mut mb-2">
                 Banner
               </Label>
-              <div className="relative w-full h-48 rounded-xl bg-surf2 border border-bd overflow-hidden">
-                <ImageUploadWithCrop
-                  label=""
-                  value={draftBannerUrl}
-                  placeholder="Adicionar banner de perfil"
-                  onChange={handleBannerChange}
-                  aspect={16 / 9}
-                  cropTitle="Recortar banner de perfil"
-                />
-              </div>
+              <ImageUploadWithCrop
+                label=""
+                value={draftBannerUrl}
+                placeholder="Adicionar banner de perfil"
+                onChange={handleBannerChange}
+                aspect={16 / 9}
+                previewHeight="h-48"
+                cropTitle="Recortar banner de perfil"
+              />
 
               {/* Avatar */}
               <div className="relative -mt-12 flex justify-center">

@@ -180,19 +180,18 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
               <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
                 Banner da guilda
               </Label>
-              <div className="relative w-full h-24 rounded-xl bg-surf2 border border-bd overflow-hidden">
-                <ImageUploadWithCrop
-                  label=""
-                  value={bannerPreview}
-                  placeholder="Banner da guilda (opcional)"
-                  onChange={(file) => {
-                    setBannerFile(file);
-                    setBannerPreview(URL.createObjectURL(file));
-                  }}
-                  aspect={16 / 9}
-                  cropTitle="Recortar banner da guilda"
-                />
-              </div>
+              <ImageUploadWithCrop
+                label=""
+                value={bannerPreview}
+                placeholder="Banner da guilda (opcional)"
+                onChange={(file) => {
+                  setBannerFile(file);
+                  setBannerPreview(URL.createObjectURL(file));
+                }}
+                aspect={16 / 9}
+                previewHeight="h-24"
+                cropTitle="Recortar banner da guilda"
+              />
             </div>
 
             {error && (
