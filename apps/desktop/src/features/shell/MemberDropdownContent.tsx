@@ -4,7 +4,6 @@ import { useProfileStore } from "@/stores/profileStore";
 import { matrixService } from "@/lib/matrix/instance";
 import { Chats, User, Copy, Clock, Users, Pencil } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
 export interface MemberDropdownContentProps {
@@ -71,15 +70,15 @@ export default function MemberDropdownContent({
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="w-40 h-40 rounded-full object-cover border border-bd bg-surf2"
+              className="w-32 h-32 rounded-full object-cover border border-bd bg-surf2"
             />
           ) : (
-            <div className="w-40 h-40 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf bg-acc">
+            <div className="w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf bg-acc">
               {displayName?.charAt(0).toUpperCase() ?? "?"}
             </div>
           )}
           <span
-            className={`absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
+            className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
               statusColor[presence] ?? "bg-mut"
             }`}
           />
@@ -89,17 +88,15 @@ export default function MemberDropdownContent({
             {displayName ?? userId.replace(/^@/, "")}
           </p>
           <p className="text-xs text-mut truncate">
-            {userId.replace(/^@/, "")} {isMyUser && " (você)"}
+            @{userId.replace(/^@/, "")} {isMyUser && " (você)"}
           </p>
         </div>
       </div>
 
       {/* Status e cargo */}
       <div className="w-full flex items-center gap-2 px-2 py-1 text-xs">
-        <span
-          className={`flex shrink-0 h-3 w-3 rounded-full ${statusColor[presence] ?? "bg-mut"}`}
-        />
-        <Label className="text-mut text-sm">{statusLabel[presence]}</Label>
+        <span className={`flex shrink-0 h-3 w-3 rounded-full ${statusColor[presence] ?? "bg-mut"}`} />
+        <span className="text-mut text-sm">{statusLabel[presence]}</span>
         {role && (
           <span className="ml-auto px-2 py-0.5 rounded bg-acc/10 text-xs font-medium text-acc border border-acc/30">
             {role}
