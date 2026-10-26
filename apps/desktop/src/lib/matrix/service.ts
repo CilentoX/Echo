@@ -303,6 +303,13 @@ export class MatrixService {
     return res.avatar_url ?? null;
   }
 
+  /** Devolve o banner_url de um usuário (sem args = próprio usuário). */
+  async getBannerUrl(userId?: string): Promise<string | null> {
+    const resolvedUserId = userId ?? this.requireClient().getUserId() ?? undefined;
+    const res = await this.requireClient().getProfileInfo(resolvedUserId);
+    return (res as { banner_url?: string }).banner_url ?? null;
+  }
+
   /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
   async listGuilds(): Promise<GuildSummary[]> {
     const client = this.requireClient();

@@ -46,10 +46,13 @@ export default function MemberDropdownContent({
     matrixService.getAvatarUrl(userId).then((url) => {
       if (!cancelled) setAvatarUrl(url ?? null);
     });
+    matrixService.getBannerUrl(userId).then((url) => {
+      if (!cancelled) setBannerUrl(url ?? null);
+    });
     return () => {
       cancelled = true;
     };
-  }, [userId, isMyUser, myAvatarUrl, myBio, myRole]);
+  }, [userId, isMyUser, myAvatarUrl, myBio, myRole, bannerUrl]);
 
   const statusLabel: Record<string, string> = {
     online: "Online",
@@ -63,6 +66,8 @@ export default function MemberDropdownContent({
     unavailable: "bg-dnd",
     idle: "bg-idle",
   };
+
+  const cleanUserId = (id: string) => id.replace(/^@/, "").replace(/:litteris\.online$/, "");
 
   return (
     <div className="w-[256px] flex flex-col gap-2 p-3 bg-bg border border-bd rounded-xl shadow-lg">
@@ -102,11 +107,11 @@ export default function MemberDropdownContent({
         <div className="flex-1 min-w-0">
           {/* Nome de exibição em destaque */}
           <p className="font-display font-bold text-lg text-txt truncate">
-            {displayName ?? userId.replace(/^@/, "")}
+            {displayName ?? cleanUserId(userId)}
           </p>
           {/* @username menor */}
           <p className="text-xs text-mut truncate">
-            @{userId.replace(/^@/, "")} {isMyUser && " (você)"}
+            @{cleanUserId(userId)} {isMyUser && " (você)"}
           </p>
         </div>
       </div>
