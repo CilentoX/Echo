@@ -52,7 +52,8 @@ export default function MemberDropdownContent({
     matrixService.getAvatarUrl(userId).then((url) => {
       if (!cancelled) setAvatarUrl(url ?? null);
     });
-    matrixService.getBannerUrl(userId).then((url) => {
+    // Banner do usuário via estado custom echo.user.banner no quarto DM direto
+    matrixService.getUserBanner(userId).then((url) => {
       if (!cancelled) setBannerUrl(url ?? null);
     });
     return () => {

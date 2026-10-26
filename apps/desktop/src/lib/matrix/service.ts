@@ -310,6 +310,24 @@ export class MatrixService {
     return (res as { banner_url?: string }).banner_url ?? null;
   }
 
+  /** Devolve o banner do perfil de um usuário (estado custom echo.user.banner no quarto DM direto). */
+  async getUserBanner(userId: string): Promise<string | null> {
+    const client = this.requireClient();
+    // Buscar quarto DM direto com o usuário
+    const rooms = client.getRooms();
+    for (const room of rooms) {
+      if (room.getType() !== "m.direct") continue;
+      const members = room.getJoinedMembers();
+      const hasUser = members.some((m) => m.userId === userId);
+      if (!hasUser) continue;
+      // Buscar estado custom do banner
+      const bannerEv = room.currentState.getStateEvents("echo.user.banner")[0];
+      const url = bannerEv?.getContent().url;
+      return typeof url === "string" && url.length > 0 ? url : null;
+    }
+    return null;
+  }
+
   /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
   async listGuilds(): Promise<GuildSummary[]> {
     const client = this.requireClient();
