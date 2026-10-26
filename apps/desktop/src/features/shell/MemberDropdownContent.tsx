@@ -62,25 +62,25 @@ export default function MemberDropdownContent({
   };
 
   return (
-    <div className="w-[256px] flex flex-col gap-1 p-2 bg-bg border border-bd rounded-xl shadow-lg">
-      {/* Cabeçalho: avatar grande + nome + status */}
-      <div className="flex items-center gap-4 p-3">
-        {/* Avatar grande (estilo Discord) */}
+    <div className="w-[256px] flex flex-col gap-2 p-2 bg-bg border border-bd rounded-xl shadow-lg">
+      {/* Cabeçalho: avatar + nome + status */}
+      <div className="flex items-start gap-3 p-3">
+        {/* Avatar (estilo Discord - menor e no canto esquerdo) */}
         <div className="relative shrink-0">
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="w-40 h-40 rounded-full object-cover border border-bd bg-surf2"
+              className="w-32 h-32 rounded-full object-cover border border-bd bg-surf2"
             />
           ) : (
-            <div className="w-40 h-40 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf bg-acc">
+            <div className="w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-sm shadow-lg border-4 border-surf bg-acc">
               {displayName?.charAt(0).toUpperCase() ?? "?"}
             </div>
           )}
           {/* Status badge no canto inferior direito do avatar */}
           <span
-            className={`absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
+            className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
               statusColor[presence] ?? "bg-mut"
             }`}
           />
