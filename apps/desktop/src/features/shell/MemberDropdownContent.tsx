@@ -71,10 +71,10 @@ export default function MemberDropdownContent({
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="w-24 h-24 rounded-full object-cover border border-bd bg-surf2"
+              className="w-8 h-8 rounded-full object-cover border border-bd bg-surf2"
             />
           ) : (
-            <div className="w-24 h-24 rounded-full flex items-center justify-center font-display font-bold text-xs shadow-lg border-4 border-surf bg-acc">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs shadow-lg border-4 border-surf bg-acc">
               {displayName?.charAt(0).toUpperCase() ?? "?"}
             </div>
           )}
@@ -192,3 +192,4 @@ export default function MemberDropdownContent({
     </div>
   );
 }
+
