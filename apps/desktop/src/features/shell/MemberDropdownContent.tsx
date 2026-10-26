@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { matrixService } from "@/lib/matrix/instance";
-import { Chats, User, Copy, Clock, Users, Pencil } from "@phosphor-icons/react";
+import { Chats, User, Copy, Pencil } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
@@ -52,7 +52,7 @@ export default function MemberDropdownContent({
     return () => {
       cancelled = true;
     };
-  }, [userId, isMyUser, myAvatarUrl, myBio, myRole, bannerUrl]);
+  }, [userId, isMyUser, myAvatarUrl, myBio, myRole]);
 
   const statusLabel: Record<string, string> = {
     online: "Online",
@@ -68,6 +68,34 @@ export default function MemberDropdownContent({
   };
 
   const cleanUserId = (id: string) => id.replace(/^@/, "").replace(/:litteris\.online$/, "");
+
+  const copyUserId = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(userId.replace(/^@/, ""));
+      // eslint-disable-next-line no-console
+      console.log("ID copiado:", userId.replace(/^@/, ""));
+    } catch {
+      // falha silenciosa
+    }
+  }, [userId]);
+
+  const openEditProfile = useCallback(() => {
+    // eslint-disable-next-line no-console
+    console.log("Abrir editar perfil para:", userId);
+    // TODO: conectar com modal Profile quando implementado
+  }, [userId]);
+
+  const openDirectMessage = useCallback(() => {
+    // eslint-disable-next-line no-console
+    console.log("Abrir DM com:", userId);
+    // TODO: conectar com create DM do chat quando implementado
+  }, [userId]);
+
+  const openViewProfile = useCallback(() => {
+    // eslint-disable-next-line no-console
+    console.log("Ver perfil de:", userId);
+    // TODO: conectar com modal Profile modo leitura quando implementado
+  }, [userId]);
 
   return (
     <div className="w-[256px] flex flex-col gap-2 p-3 bg-bg border border-bd rounded-xl shadow-lg">
@@ -138,7 +166,7 @@ export default function MemberDropdownContent({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => {}}
+            onClick={openEditProfile}
             className="w-full justify-start gap-2 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/40 focus:border-acc rounded-lg"
           >
             <Pencil size={14} className="shrink-0" />
@@ -149,7 +177,7 @@ export default function MemberDropdownContent({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => {}}
+            onClick={openDirectMessage}
             className="w-full justify-start gap-2 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/40 focus:border-acc rounded-lg"
           >
             <Chats size={14} className="shrink-0" />
@@ -160,46 +188,21 @@ export default function MemberDropdownContent({
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => {}}
+          onClick={openViewProfile}
           className="w-full justify-start gap-2 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/40 focus:border-acc rounded-lg"
         >
           <User size={14} className="shrink-0" />
           <span>Ver perfil completo</span>
         </Button>
-      </div>
-
-      <Separator className="my-2" />
-
-      <div className="flex flex-col gap-1">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => {}}
+          onClick={copyUserId}
           className="w-full justify-start gap-2 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/40 focus:border-acc rounded-lg"
         >
           <Copy size={14} className="shrink-0" />
           <span>Copiar ID do usuário</span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => {}}
-          className="w-full justify-start gap-2 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/40 focus:border-acc rounded-lg"
-        >
-          <Clock size={14} className="shrink-0" />
-          <span>Silenciar notificações</span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => {}}
-          className="w-full justify-start gap-2 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/40 focus:border-acc rounded-lg"
-        >
-          <Users size={14} className="shrink-0" />
-          <span>Adicionar como contato</span>
         </Button>
       </div>
 
@@ -211,4 +214,3 @@ export default function MemberDropdownContent({
     </div>
   );
 }
-
