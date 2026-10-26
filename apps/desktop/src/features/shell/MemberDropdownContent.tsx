@@ -62,19 +62,19 @@ export default function MemberDropdownContent({
   };
 
   return (
-    <div className="w-[256px] flex flex-col gap-2 p-2 bg-bg border border-bd rounded-xl shadow-lg">
+    <div className="w-[256px] flex flex-col gap-2 p-3 bg-bg border border-bd rounded-xl shadow-lg">
       {/* Cabeçalho: avatar + nome + status */}
-      <div className="flex items-start gap-3 p-3">
-        {/* Avatar (estilo Discord - menor e no canto esquerdo) */}
+      <div className="flex items-center gap-3 p-2">
+        {/* Avatar (estilo Discord - menor) */}
         <div className="relative shrink-0">
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="w-32 h-32 rounded-full object-cover border border-bd bg-surf2"
+              className="w-24 h-24 rounded-full object-cover border border-bd bg-surf2"
             />
           ) : (
-            <div className="w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-sm shadow-lg border-4 border-surf bg-acc">
+            <div className="w-24 h-24 rounded-full flex items-center justify-center font-display font-bold text-xs shadow-lg border-4 border-surf bg-acc">
               {displayName?.charAt(0).toUpperCase() ?? "?"}
             </div>
           )}
