@@ -28,6 +28,12 @@ export default function MemberDropdownContent({
   const myRole = useProfileStore((state) => state.role);
 
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,30 +78,26 @@ export default function MemberDropdownContent({
   const copyUserId = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(userId.replace(/^@/, ""));
-      // eslint-disable-next-line no-console
-      console.log("ID copiado:", userId.replace(/^@/, ""));
+      showToast("ID copiado");
     } catch {
       // falha silenciosa
     }
-  }, [userId]);
+  }, [userId, showToast]);
 
   const openEditProfile = useCallback(() => {
-    // eslint-disable-next-line no-console
-    console.log("Abrir editar perfil para:", userId);
+    showToast("Abrindo edição de perfil");
     // TODO: conectar com modal Profile quando implementado
-  }, [userId]);
+  }, [userId, showToast]);
 
   const openDirectMessage = useCallback(() => {
-    // eslint-disable-next-line no-console
-    console.log("Abrir DM com:", userId);
+    showToast("Iniciando mensagem direta");
     // TODO: conectar com create DM do chat quando implementado
-  }, [userId]);
+  }, [userId, showToast]);
 
   const openViewProfile = useCallback(() => {
-    // eslint-disable-next-line no-console
-    console.log("Ver perfil de:", userId);
+    showToast("Abrindo perfil completo");
     // TODO: conectar com modal Profile modo leitura quando implementado
-  }, [userId]);
+  }, [userId, showToast]);
 
   return (
     <div className="w-[256px] flex flex-col gap-2 p-3 bg-bg border border-bd rounded-xl shadow-lg">
@@ -156,6 +158,14 @@ export default function MemberDropdownContent({
           </span>
         )}
       </div>
+
+      {/* Toast feedback */}
+      {toastMessage && (
+        <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg bg-surf border border-bd bg-acc/10 text-acc text-xs font-medium">
+          <Copy size={12} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       <Separator className="my-2" />
 
