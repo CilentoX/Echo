@@ -27,12 +27,15 @@ export default function MemberDropdownContent({
   const myBio = useProfileStore((state) => state.bio);
   const myRole = useProfileStore((state) => state.role);
 
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     if (isMyUser) {
       setAvatarUrl(myAvatarUrl ?? null);
       setBio(myBio ?? null);
       setRole(myRole ?? null);
+      setBannerUrl(null);
       return () => {
         cancelled = true;
       };
@@ -63,6 +66,17 @@ export default function MemberDropdownContent({
 
   return (
     <div className="w-[256px] flex flex-col gap-2 p-3 bg-bg border border-bd rounded-xl shadow-lg">
+      {/* Banner do membro */}
+      {bannerUrl && (
+        <div className="w-full h-12 rounded-t-xl bg-surf2 overflow-hidden">
+          <img
+            src={bannerUrl}
+            alt="Banner"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+
       {/* Cabeçalho: avatar + nome + status */}
       <div className="flex items-center gap-3 p-2">
         {/* Avatar (estilo Discord - menor) */}
@@ -71,16 +85,16 @@ export default function MemberDropdownContent({
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="w-8 h-8 rounded-full object-cover border border-bd bg-surf2"
+              className="w-12 h-12 rounded-full object-cover border border-bd bg-surf2"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs shadow-lg border-4 border-surf bg-acc">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-xs shadow-lg border-4 border-surf bg-acc">
               {displayName?.charAt(0).toUpperCase() ?? "?"}
             </div>
           )}
           {/* Status badge no canto inferior direito do avatar */}
           <span
-            className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
+            className={`absolute bottom-0 right-0 flex h-3 w-3 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
               statusColor[presence] ?? "bg-mut"
             }`}
           />
