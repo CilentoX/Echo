@@ -1,6 +1,6 @@
 # Pendências do Echo — Plano de Execução
 
-Fonte: respostas dos formulários `respostas-echo.html` (1/2) e `respostas-echo-2.html` (2/2).
+**Status:** Fase 1 (Sessão e boot) concluída. Todas as decisões de execução validadas.
 
 ## Decisões consolidadas
 
@@ -10,11 +10,12 @@ Fonte: respostas dos formulários `respostas-echo.html` (1/2) e `respostas-echo-
 - **Prioridade:** corrigir bugs do app primeiro, lançar versão depois
 - **Build:** apenas gerar instalador localmente (não criar release GitHub automaticamente)
 
-### Fase 1 — Sessão e boot (login automático)
+### Fase 1 — Sessão e boot (login automático) — CONCLUÍDA
 - Login via Google (SSO) já funciona em `https://echo.litteris.online`: **Sim**
-- Ao abrir o app instalado: **restaurar sessão automaticamente**
-- Sessão expirada / token inválido: **tentar reconectar silenciosamente** (não deslogar)
-- Teste `SessionGate.test.tsx`: **atualizar para `startSyncHandlers`** (não manter compatibilidade com ambos)
+- Ao abrir o app instalado: **restaurar sessão automaticamente** ✅
+- Sessão expirada / token inválido: **tentar reconectar silenciosamente** (não deslogar) ✅
+- Teste `SessionGate.test.tsx`: **atualizado para `startSyncHandlers`** ✅ (compatibilidade antiga removida)
+- Auto-updater no boot: verifica atualizações em paralelo com a sessão; se houver update pronto, reinicia ou mostra banner "Reiniciar agora" ✅
 
 ### Fase 2 — Guildas e canais de texto
 - Quem pode criar guilda: **qualquer usuário logado**
@@ -46,4 +47,4 @@ Fonte: respostas dos formulários `respostas-echo.html` (1/2) e `respostas-echo-
 
 ## Próxima ação
 
-Iniciar **Fase 1 — Sessão e boot**. Primeiro passo: inspecionar `src/features/auth/SessionGate.tsx` para confirmar o estado atual de `startSync` vs `startSyncHandlers`, `restoreSession` e o fluxo de boot.
+Continuar com **Fase 2 — Guildas e canais de texto**.

@@ -199,7 +199,7 @@ export default function MemberList({
                             )}
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent sideOffset={2} className="w-auto p-0 transition-all duration-150 ease-out transform">
+                        <PopoverContent sideOffset={8} align="start" className="w-auto p-0 transition-all duration-150 ease-out transform">
                           <MemberDropdownContent
                             userId={member.userId}
                           />

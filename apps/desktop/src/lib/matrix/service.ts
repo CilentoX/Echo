@@ -328,6 +328,44 @@ export class MatrixService {
     return null;
   }
 
+  /** Define o banner do perfil do usuário (estado custom echo.user.banner no quarto DM direto). */
+  async setUserBanner(userId: string, bannerUrl: string | null): Promise<void> {
+    const client = this.requireClient();
+    // Buscar ou criar quarto DM direto com o usuário
+    const rooms = client.getRooms();
+    let dmRoom: RoomLike | null = rooms.find((r) => {
+      if (r.getType() !== "m.direct") return false;
+      return r.getJoinedMembers().some((m) => m.userId === userId);
+    }) ?? null;
+
+    if (!dmRoom) {
+      // Criar quarto DM direto
+      const res = await client.createRoom({
+        preset: "private_chat" as any,
+        is_direct: true,
+        invite: [userId],
+        visibility: "private" as any,
+      });
+      dmRoom = client.getRoom(res.room_id);
+    }
+
+    if (dmRoom) {
+      if (bannerUrl) {
+        await client.sendStateEvent(dmRoom.roomId, "echo.user.banner", { url: bannerUrl });
+      } else {
+        // Para remover, enviar evento vazio ou redigir
+        await client.redactEvent(dmRoom.roomId, await this._findBannerEventId(dmRoom.roomId));
+      }
+    }
+  }
+
+  private async _findBannerEventId(roomId: string): Promise<string> {
+    const room = this.requireClient().getRoom(roomId);
+    if (!room) return "";
+    const ev = room.currentState.getStateEvents("echo.user.banner")[0];
+    return ev?.getId() ?? "";
+  }
+
   /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
   async listGuilds(): Promise<GuildSummary[]> {
     const client = this.requireClient();

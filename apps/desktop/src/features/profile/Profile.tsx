@@ -3,12 +3,14 @@ import { X, Pencil, Link, ShieldCheck, Users, Gift, Plus, Robot } from "@phospho
 import { useProfileStore } from "@/stores/profileStore";
 import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
 import { matrixService } from "@/lib/matrix/instance";
+import { uploadImage } from "@/lib/appwrite/storage";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface ProfileProps {
   open: boolean;
@@ -34,6 +36,8 @@ export default function Profile({ open, onClose }: ProfileProps) {
     setBannerUrl,
     setLinks,
   } = useProfileStore();
+
+  const myUserId = useUiStore((state) => state.myUserId ?? "");
 
   const [tab, setTab] = useState<"profile" | "badges" | "connections">("profile");
   const [editing, setEditing] = useState(false);
@@ -61,15 +65,25 @@ export default function Profile({ open, onClose }: ProfileProps) {
     ["connections", "Ligações"],
   ];
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     setDisplayName(draftName);
     setNickname(draftNickname || null);
     setBio(draftBio || null);
     setRole(draftRole || null);
     setLinks(draftLinks);
     setBannerUrl(draftBannerUrl);
+
+    // Salvar banner no Matrix via estado custom echo.user.banner
+    if (myUserId) {
+      try {
+        await matrixService.setUserBanner(myUserId, draftBannerUrl);
+      } catch {
+        // falha silenciosa - o banner ainda é exibido localmente
+      }
+    }
+
     setEditing(false);
-  }, [draftName, draftNickname, draftBio, draftRole, draftLinks, draftBannerUrl, setDisplayName, setNickname, setBio, setRole, setLinks, setBannerUrl]);
+  }, [draftName, draftNickname, draftBio, draftRole, draftLinks, draftBannerUrl, setDisplayName, setNickname, setBio, setRole, setLinks, setBannerUrl, myUserId]);
 
   const handleAddLink = useCallback(() => {
     setDraftLinks([...draftLinks, { label: "", url: "" }]);
@@ -91,7 +105,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
       return;
     }
     try {
-      const uri = await matrixService.uploadMedia(file);
+      const uri = await uploadImage(file);
       setDraftBannerUrl(uri);
     } catch {
       setDraftBannerUrl(null);
@@ -101,7 +115,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
   const handleAvatarChange = async (file: File) => {
     if (!file) return;
     try {
-      const uri = await matrixService.uploadMedia(file);
+      const uri = await uploadImage(file);
       setAvatarUrl(uri);
     } catch {
       setAvatarUrl(null);

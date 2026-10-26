@@ -41,10 +41,7 @@ export default function MemberDropdownContent({
       setAvatarUrl(myAvatarUrl ?? null);
       setBio(myBio ?? null);
       setRole(myRole ?? null);
-      setBannerUrl(null);
-      return () => {
-        cancelled = true;
-      };
+      // não limpar bannerUrl aqui para permitir carregar via getUserBanner
     }
     matrixService.getDisplayName(userId).then((name) => {
       if (!cancelled) setDisplayName(name ?? null);

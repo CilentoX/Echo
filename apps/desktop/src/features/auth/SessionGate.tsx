@@ -1,4 +1,4 @@
-import { Gear, Download } from "@phosphor-icons/react";
+import { CircleNotch, Download } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
 import OnboardingScreen from "@/features/auth/OnboardingScreen";
@@ -140,35 +140,37 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   // Splash de boot (forçada, estilo Discord)
   if (view === "booting") {
-    const updateLabel =
-      updateStatus === "checking"
-        ? "Verificando atualizações…"
-        : updateStatus === "downloading"
-          ? `Baixando atualização ${updateVersion ?? ""}…`
-          : updateStatus === "ready"
-            ? "Atualização pronta. Reiniciando…"
-            : null;
+    const isChecking = updateStatus === "checking";
+    const isDownloading = updateStatus === "downloading";
+    const isReady = updateStatus === "ready";
+
+    const mainLabel = isChecking
+      ? "Verificando atualizações…"
+      : isDownloading
+        ? `Baixando atualização ${updateVersion ?? ""}…`
+        : isReady
+          ? "Atualização pronta. Reiniciando…"
+          : "Iniciando…";
 
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-bg font-ui">
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-6">
           <div className="relative">
-            <img src="/logo.png" width={80} height={80} alt="" />
-            {updateStatus === "checking" || updateStatus === "downloading" ? (
+            <img src="/logo.png" width={96} height={96} alt="" />
+            {(isChecking || isDownloading) && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <Gear size={32} className="animate-spin text-acc" />
+                <CircleNotch size={34} className="animate-spin text-acc" />
               </div>
-            ) : null}
+            )}
           </div>
-          <p className="text-xl font-semibold text-txt">Echo</p>
-          <p className="text-sm text-mut">
-            Preparando para iniciar…
+          <p className="text-2xl font-bold text-txt">Echo</p>
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-sm text-mut tracking-wide uppercase"
+          >
+            {mainLabel}
           </p>
-          {updateLabel ? (
-            <p role="status" aria-live="polite" className="text-sm text-mut mt-2">
-              {updateLabel}
-            </p>
-          ) : null}
         </div>
       </main>
     );

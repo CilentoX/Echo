@@ -144,6 +144,7 @@ export interface LoginResponseLike {
 export interface RoomStateEventLike {
   getStateKey(): string | undefined;
   getContent(): Record<string, unknown>;
+  getId(): string;
 }
 
 export interface EventTimelineLike {

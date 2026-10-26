@@ -3,7 +3,6 @@
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM"],
-    "types": ["node"],
     "module": "ESNext",
     "skipLibCheck": true,
 
@@ -13,6 +12,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "types": ["node", "vitest/globals"],
     "jsx": "react-jsx",
     "paths": {
       "@/*": ["./src/*"]
