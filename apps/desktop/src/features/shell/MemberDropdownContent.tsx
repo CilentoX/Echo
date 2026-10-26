@@ -62,40 +62,46 @@ export default function MemberDropdownContent({
   };
 
   return (
-    <div className="w-[260px] flex flex-col gap-2 p-3 bg-bg border border-bd rounded-xl shadow-lg">
-      {/* Cabeçalho: avatar + nome + status */}
-      <div className="flex items-center gap-3 p-2">
+    <div className="w-[256px] flex flex-col gap-1 p-2 bg-bg border border-bd rounded-xl shadow-lg">
+      {/* Cabeçalho: avatar grande + nome + status */}
+      <div className="flex items-center gap-4 p-3">
+        {/* Avatar grande (estilo Discord) */}
         <div className="relative shrink-0">
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="w-32 h-32 rounded-full object-cover border border-bd bg-surf2"
+              className="w-40 h-40 rounded-full object-cover border border-bd bg-surf2"
             />
           ) : (
-            <div className="w-32 h-32 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf bg-acc">
+            <div className="w-40 h-40 rounded-full flex items-center justify-center font-display font-bold text-txt shadow-lg border-4 border-surf bg-acc">
               {displayName?.charAt(0).toUpperCase() ?? "?"}
             </div>
           )}
+          {/* Status badge no canto inferior direito do avatar */}
           <span
-            className={`absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
+            className={`absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-bg shrink-0 ${
               statusColor[presence] ?? "bg-mut"
             }`}
           />
         </div>
         <div className="flex-1 min-w-0">
+          {/* Nome de exibição em destaque */}
           <p className="font-display font-bold text-lg text-txt truncate">
             {displayName ?? userId.replace(/^@/, "")}
           </p>
+          {/* @username menor */}
           <p className="text-xs text-mut truncate">
             @{userId.replace(/^@/, "")} {isMyUser && " (você)"}
           </p>
         </div>
       </div>
 
-      {/* Status e cargo */}
-      <div className="w-full flex items-center gap-2 px-2 py-1 text-xs">
-        <span className={`flex shrink-0 h-3 w-3 rounded-full ${statusColor[presence] ?? "bg-mut"}`} />
+      {/* Status (linha separada, abaixo do nome) */}
+      <div className="w-full flex items-center gap-2 px-3 py-1">
+        <span
+          className={`flex shrink-0 h-3 w-3 rounded-full ${statusColor[presence] ?? "bg-mut"}`}
+        />
         <span className="text-mut text-sm">{statusLabel[presence]}</span>
         {role && (
           <span className="ml-auto px-2 py-0.5 rounded bg-acc/10 text-xs font-medium text-acc border border-acc/30">
