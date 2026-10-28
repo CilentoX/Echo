@@ -6,10 +6,10 @@
  * `performLogout()` sem conhecer o Gate.
  */
 
-let logoutHandler: (() => void) | null = null;
+let logoutHandler: (() => Promise<void>) | null = null;
 
 /** SessionGate registra/desregistra o handler real de logout. */
-export function registerLogoutHandler(handler: (() => void) | null): void {
+export function registerLogoutHandler(handler: (() => Promise<void>) | null): void {
   logoutHandler = handler;
 }
 
@@ -19,6 +19,6 @@ export function isLogoutAvailable(): boolean {
 }
 
 /** Sai da conta: desliga o sync, limpa o keyring e volta para o login. */
-export function performLogout(): void {
-  logoutHandler?.();
+export async function performLogout(): Promise<void> {
+  await logoutHandler?.();
 }

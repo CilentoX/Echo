@@ -45,7 +45,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   // O botão "Sair da conta" (Settings) executa este handler via logout.ts.
   useEffect(() => {
-    registerLogoutHandler(() => void rejectSession());
+    registerLogoutHandler(() => rejectSession());
     return () => registerLogoutHandler(null);
   }, [rejectSession]);
 
