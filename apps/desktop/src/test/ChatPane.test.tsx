@@ -76,13 +76,15 @@ describe("ChatPane", () => {
     expect(screen.getByText("BOT")).toBeTruthy();
   });
 
-  it("mostra o indicador de digitação com o nome (typingUsers)", () => {
-    render(<ChatPane sendMessage={vi.fn()} typingUsers={["Lucas"]} />);
+  it("mostra o indicador de digitação com o nome (typingUsers from store)", () => {
+    useUiStore.setState({ typingUsers: { "!c1:hs": ["Lucas"] } });
+    render(<ChatPane sendMessage={vi.fn()} />);
 
     expect(screen.getByText("Lucas está digitando…")).toBeTruthy();
   });
 
   it("sem typingUsers não mostra indicador", () => {
+    useUiStore.setState({ typingUsers: {} });
     render(<ChatPane sendMessage={vi.fn()} />);
 
     expect(screen.queryByText(/está digitando/)).toBeNull();

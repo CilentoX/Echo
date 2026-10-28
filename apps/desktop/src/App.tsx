@@ -3,7 +3,6 @@ import AppShell from "@/features/shell/AppShell";
 import ChatPane from "@/features/chat/ChatPane";
 import UpdateBanner from "@/features/shell/UpdateBanner";
 import { matrixService } from "@/lib/matrix/instance";
-import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
@@ -17,9 +16,6 @@ const BOT_SENDERS = ["@eco:eco"];
 
 /** Shell autenticado: AppShell (T3) com o ChatPane real (T10) no slot de children. */
 function Shell() {
-  const typingUsers = useUiStore((s) => s.typingUsers);
-  const activeChannelId = useUiStore((s) => s.activeChannelId ?? "");
-  const names = typingUsers[activeChannelId] ?? [];
   const loadProfile = useProfileStore((s) => s.loadProfile);
 
   useEffect(() => {
@@ -28,11 +24,7 @@ function Shell() {
 
   return (
     <AppShell>
-      <ChatPane
-        sendMessage={sendMessage}
-        typingUsers={names}
-        botSenders={BOT_SENDERS}
-      />
+      <ChatPane sendMessage={sendMessage} botSenders={BOT_SENDERS} />
     </AppShell>
   );
 }

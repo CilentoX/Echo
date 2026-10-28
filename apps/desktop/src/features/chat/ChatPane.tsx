@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useShallow } from "zustand/shallow";
 import Composer, { type SendMessageFn } from "./Composer";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
@@ -14,12 +15,12 @@ const DEFAULT_BOT_SENDERS = ["@eco:eco"];
 export interface ChatPaneProps {
   /** R2: `(roomId, body) => matrixService.sendMessage(...)` — wiring Task 11. */
   sendMessage?: SendMessageFn;
-  /** Nomes de quem está digitando; vazio enquanto a Fase 2 não traz presence. */
-  typingUsers?: string[];
   /** Sender IDs tratados como bot (selo BOT teal). */
   botSenders?: string[];
   /** Contagem de respostas em thread por eventId. */
   threadReplies?: Record<string, number>;
+  /** Conteúdo renderizado dentro do chat (ex.: EmptyState). */
+  children?: React.ReactNode;
 }
 
 /**
@@ -29,7 +30,6 @@ export interface ChatPaneProps {
  */
 export default function ChatPane({
   sendMessage = () => Promise.reject(new Error("sendMessage não conectado (wiring Task 11)")),
-  typingUsers = [],
   botSenders = DEFAULT_BOT_SENDERS,
   threadReplies,
 }: ChatPaneProps) {
@@ -39,6 +39,11 @@ export default function ChatPane({
 
   const timeline = useSyncStore(
     useMemo(() => selectTimeline(activeChannelId ?? ""), [activeChannelId]),
+  );
+
+  // Typing indicator do store (via wiring onTyping → uiStore.setTypingUsers)
+  const typingUsers = useUiStore(
+    useShallow((state) => (activeChannelId ? state.typingUsers[activeChannelId] ?? [] : [])),
   );
 
   // Reações reais via m.reaction (P12) — lidas do store, não estado local.
