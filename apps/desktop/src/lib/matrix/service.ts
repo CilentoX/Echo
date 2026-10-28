@@ -20,6 +20,7 @@ import { MessagesApi } from "./api/messages";
 import { GuildsApi } from "./api/guilds";
 import { ChannelsApi } from "./api/channels";
 import { MembersApi } from "./api/members";
+import { ProfileApi } from "./api/profile";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -62,6 +63,7 @@ export class MatrixService {
   private readonly guildsApi: GuildsApi;
   private readonly channelsApi: ChannelsApi;
   private readonly membersApi: MembersApi;
+  private readonly profileApi: ProfileApi;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
@@ -72,6 +74,7 @@ export class MatrixService {
     this.guildsApi = new GuildsApi(this.client!, clientFactory);
     this.channelsApi = new ChannelsApi(this.client!, clientFactory);
     this.membersApi = new MembersApi(this.client!, clientFactory);
+    this.profileApi = new ProfileApi(this.client!, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
@@ -86,6 +89,7 @@ export class MatrixService {
     this.guildsApi.setClient(this.client);
     this.channelsApi.setClient(this.client);
     this.membersApi.setClient(this.client);
+    this.profileApi.setClient(this.client);
     return session;
   }
 
@@ -98,6 +102,7 @@ export class MatrixService {
     this.guildsApi.setClient(this.client);
     this.channelsApi.setClient(this.client);
     this.membersApi.setClient(this.client);
+    this.profileApi.setClient(this.client);
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
@@ -180,14 +185,12 @@ export class MatrixService {
 
   /** Perfil de um usuário (sem args = próprio usuário). */
   async getDisplayName(userId?: string): Promise<string | null> {
-    const resolvedUserId = userId ?? this.requireClient().getUserId() ?? undefined;
-    const res = await this.requireClient().getProfileInfo(resolvedUserId);
-    return res.displayname ?? null;
+    return this.profileApi.getDisplayName(userId);
   }
 
   /** Altera o nome de exibição da própria conta. */
   async setDisplayName(name: string): Promise<void> {
-    await this.requireClient().setDisplayName(name);
+    return this.profileApi.setDisplayName(name);
   }
 
   /** Envia um arquivo de mídia (avatar, banner, anexo) e devolve o mxc:// URI. */
@@ -197,37 +200,22 @@ export class MatrixService {
 
   /** Define o avatar do próprio usuário (mxc:// URI ou null para remover). */
   async setAvatarUrl(url: string | null): Promise<void> {
-    if (!url) {
-      await this.requireClient().setAvatarUrl("");
-      return;
-    }
-    await this.requireClient().setAvatarUrl(url);
+    return this.profileApi.setAvatarUrl(url);
   }
 
   /** Devolve o avatar_url de um usuário (sem args = próprio usuário). */
   async getAvatarUrl(userId?: string): Promise<string | null> {
-    const resolvedUserId = userId ?? this.requireClient().getUserId() ?? undefined;
-    const res = await this.requireClient().getProfileInfo(resolvedUserId);
-    return res.avatar_url ?? null;
+    return this.profileApi.getAvatarUrl(userId);
   }
 
   /** Devolve o banner_url de um usuário (sem args = próprio usuário). */
   async getBannerUrl(userId?: string): Promise<string | null> {
-    const resolvedUserId = userId ?? this.requireClient().getUserId() ?? undefined;
-    const res = await this.requireClient().getProfileInfo(resolvedUserId);
-    return (res as { banner_url?: string }).banner_url ?? null;
+    return this.profileApi.getBannerUrl(userId);
   }
 
   /** Busca todo o perfil de um usuário em uma única chamada ao servidor Matrix. */
   async getUserProfile(userId: string): Promise<UserProfile> {
-    const res = await this.requireClient().getProfileInfo(userId);
-    return {
-      displayName: res.displayname ?? null,
-      avatarUrl: res.avatar_url ?? null,
-      bannerUrl: (res as { banner_url?: string }).banner_url ?? null,
-      bio: null,
-      role: null,
-    };
+    return this.profileApi.getUserProfile(userId);
   }
 
   /** Devolve o MXID do usuário logado. */
@@ -252,58 +240,12 @@ export class MatrixService {
 
   /** Devolve o banner do perfil de um usuário (estado custom echo.user.banner no quarto DM direto). */
   async getUserBanner(userId: string): Promise<string | null> {
-    const client = this.requireClient();
-    // Buscar quarto DM direto com o usuário
-    const rooms = client.getRooms();
-    for (const room of rooms) {
-      if (room.getType() !== "m.direct") continue;
-      const members = room.getJoinedMembers();
-      const hasUser = members.some((m) => m.userId === userId);
-      if (!hasUser) continue;
-      // Buscar estado custom do banner
-      const bannerEv = room.currentState.getStateEvents("echo.user.banner")[0];
-      const url = bannerEv?.getContent().url;
-      return typeof url === "string" && url.length > 0 ? url : null;
-    }
-    return null;
+    return this.profileApi.getUserBanner(userId);
   }
 
   /** Define o banner do perfil do usuário (estado custom echo.user.banner no quarto DM direto). */
   async setUserBanner(userId: string, bannerUrl: string | null): Promise<void> {
-    const client = this.requireClient();
-    // Buscar ou criar quarto DM direto com o usuário
-    const rooms = client.getRooms();
-    let dmRoom: RoomLike | null = rooms.find((r) => {
-      if (r.getType() !== "m.direct") return false;
-      return r.getJoinedMembers().some((m) => m.userId === userId);
-    }) ?? null;
-
-    if (!dmRoom) {
-      // Criar quarto DM direto
-      const res = await client.createRoom({
-        preset: "private_chat" as any,
-        is_direct: true,
-        invite: [userId],
-        visibility: "private" as any,
-      });
-      dmRoom = client.getRoom(res.room_id);
-    }
-
-    if (dmRoom) {
-      if (bannerUrl) {
-        await client.sendStateEvent(dmRoom.roomId, "echo.user.banner", { url: bannerUrl });
-      } else {
-        // Para remover, enviar evento vazio ou redigir
-        await client.redactEvent(dmRoom.roomId, await this._findBannerEventId(dmRoom.roomId));
-      }
-    }
-  }
-
-  private async _findBannerEventId(roomId: string): Promise<string> {
-    const room = this.requireClient().getRoom(roomId);
-    if (!room) return "";
-    const ev = room.currentState.getStateEvents("echo.user.banner")[0];
-    return ev?.getId() ?? "";
+    return this.profileApi.setUserBanner(userId, bannerUrl);
   }
 
   /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
