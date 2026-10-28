@@ -17,6 +17,7 @@ import type {
 import { AuthApi } from "./api/auth";
 import { SyncApi } from "./api/sync";
 import { MessagesApi } from "./api/messages";
+import { GuildsApi } from "./api/guilds";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -56,6 +57,7 @@ export class MatrixService {
   private readonly authApi: AuthApi;
   private readonly syncApi: SyncApi;
   private readonly messagesApi: MessagesApi;
+  private readonly guildsApi: GuildsApi;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
@@ -63,6 +65,7 @@ export class MatrixService {
     this.authApi = new AuthApi(baseUrl, clientFactory);
     this.syncApi = new SyncApi(null, clientFactory);
     this.messagesApi = new MessagesApi(this.client!, clientFactory);
+    this.guildsApi = new GuildsApi(this.client!, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
@@ -71,9 +74,10 @@ export class MatrixService {
     const session = await this.authApi.loginWithSsoToken(loginToken);
     // Sync the client instance from AuthApi
     this.client = this.authApi.getClient();
-    // Update SyncApi and MessagesApi with the credentialled client
+    // Update SyncApi, MessagesApi, and GuildsApi with the credentialled client
     this.syncApi.setClient(this.client);
     this.messagesApi.setClient(this.client);
+    this.guildsApi.setClient(this.client);
     return session;
   }
 
@@ -83,6 +87,7 @@ export class MatrixService {
     this.client = this.authApi.getClient();
     this.syncApi.setClient(this.client);
     this.messagesApi.setClient(this.client);
+    this.guildsApi.setClient(this.client);
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
@@ -293,74 +298,24 @@ export class MatrixService {
 
   /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
   async listGuilds(): Promise<GuildSummary[]> {
-    const client = this.requireClient();
-    return client
-      .getRooms()
-      .filter((room) => room.getMyMembership() === "join" && isSpace(room))
-      .map((room) => ({
-        guildId: room.roomId,
-        name: stateEventName(room, "m.room.name") ?? room.roomId,
-        avatarUrl: room.getMxcAvatarUrl() ?? null,
-        unreadCount: room.getUnreadNotificationCount() ?? 0,
-      }));
+    return this.guildsApi.listGuilds();
   }
 
   /** Cria uma nova guilda (Space m.space) com nome, ícone, banner e descrição. */
   async createGuild(
     data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
   ): Promise<GuildSummary> {
-    const client = this.requireClient();
-    const trimmed = data.name.trim();
-    if (!trimmed) throw new Error("createGuild: nome é obrigatório");
-    const res = await client.createRoom({
-      name: trimmed,
-      creation_content: { type: "m.space" },
-      visibility: Visibility.Private,
-      preset: Preset.PrivateChat,
-    });
-    if (!res?.room_id) throw new Error("createGuild: resposta sem room_id");
-    // Criar canal # geral automaticamente dentro da guilda (P5)
-    try {
-      const geralRes = await client.createRoom({
-        name: "geral",
-        visibility: Visibility.Private,
-        preset: Preset.PrivateChat,
-        creation_content: { "m.federate": false },
-      });
-      if (geralRes?.room_id) {
-        await client.sendStateEvent(res.room_id, "m.space.child", { via: [res.room_id] }, geralRes.room_id);
-      }
-    } catch {
-      // Se falhar criar o # geral, a guilda já existe — não bloqueia
-    }
-    // Definir ícone, banner e descrição da guilda (state events)
-    if (data.iconUrl) {
-      await client.sendStateEvent(res.room_id, "m.room.avatar", { url: data.iconUrl });
-    }
-    if (data.bannerUrl) {
-      await client.sendStateEvent(res.room_id, "echo.room.banner", { url: data.bannerUrl });
-    }
-    if (data.description) {
-      await client.sendStateEvent(res.room_id, "m.room.topic", { topic: data.description });
-    }
-    return {
-      guildId: res.room_id,
-      name: trimmed,
-      avatarUrl: data.iconUrl ?? null,
-      unreadCount: 0,
-    };
+    return this.guildsApi.createGuild(data);
   }
 
   /** Sai (deleta) uma guilda própria. */
   async deleteGuild(guildId: string): Promise<void> {
-    const client = this.requireClient();
-    await client.leave(guildId);
+    return this.guildsApi.deleteGuild(guildId);
   }
 
   /** Sai de uma guilda (sem excluí-la). */
   async leaveGuild(guildId: string): Promise<void> {
-    const client = this.requireClient();
-    await client.leave(guildId);
+    return this.guildsApi.leaveGuild(guildId);
   }
 
   /** Cria um canal dentro de uma guilda (Space). Aceita tipo, tópico e categoria. */
@@ -404,29 +359,7 @@ export class MatrixService {
       description?: string | null;
     },
   ): Promise<void> {
-    const client = this.requireClient();
-    const trimmed = data.name.trim();
-    if (!trimmed) throw new Error("editGuild: nome é obrigatório");
-    // Nome da guilda (m.room.name — spec Matrix)
-    await client.sendStateEvent(guildId, "m.room.name", { name: trimmed });
-    // Ícone da guilda (m.room.avatar — mxc:// URI)
-    if (data.iconUrl !== undefined) {
-      await client.sendStateEvent(guildId, "m.room.avatar", {
-        url: data.iconUrl,
-      });
-    }
-    // Banner da guilda (evento de estado customizado)
-    if (data.bannerUrl !== undefined) {
-      await client.sendStateEvent(guildId, "echo.room.banner", {
-        url: data.bannerUrl,
-      });
-    }
-    // Descrição da guilda (m.room.topic)
-    if (data.description !== undefined) {
-      await client.sendStateEvent(guildId, "m.room.topic", {
-        topic: data.description,
-      });
-    }
+    return this.guildsApi.editGuild(guildId, data);
   }
 
   /** Canais (filhos declarados via m.space.child) de um Space. */
