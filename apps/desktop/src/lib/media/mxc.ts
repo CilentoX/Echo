@@ -26,7 +26,9 @@ export function mxcToHttp(mxcUrl: string | null | undefined): string | null {
     if (!serverName || !mediaId) return null;
     
     // Use v3 API which has better CORS support
-    return `${MATRIX_MEDIA_BASE}/v3/download/${serverName}/${mediaId}`;
+    const url = `${MATRIX_MEDIA_BASE}/v3/download/${serverName}/${mediaId}`;
+    console.debug("[mxcToHttp] converted:", { mxcUrl, serverName, mediaId, url });
+    return url;
   } catch {
     return null;
   }

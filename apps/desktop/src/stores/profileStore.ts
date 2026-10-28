@@ -78,6 +78,8 @@ export const useProfileStore = create<ProfileState>()((set) => ({
       const persistedAvatar = localStorage.getItem("echo:appwriteAvatarUrl");
       const persistedBanner = localStorage.getItem("echo:appwriteBannerUrl");
 
+      console.debug("[profileStore] loadProfile result:", { avatarUrl: avatar, appwriteAvatarUrl: persistedAvatar, displayName });
+
       set({
         avatarUrl: avatar ?? null,
         bannerUrl: banner ?? null,

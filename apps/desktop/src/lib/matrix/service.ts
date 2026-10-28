@@ -314,6 +314,7 @@ export class MatrixService {
   /** Busca todo o perfil de um usuário em uma única chamada ao servidor Matrix. */
   async getUserProfile(userId: string): Promise<UserProfile> {
     const res = await this.requireClient().getProfileInfo(userId);
+    console.debug("[getUserProfile] raw response:", res);
     return {
       displayName: res.displayname ?? null,
       avatarUrl: res.avatar_url ?? null,
