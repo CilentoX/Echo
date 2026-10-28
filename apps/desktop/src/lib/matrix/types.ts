@@ -145,6 +145,14 @@ export interface MatrixClientLike {
     body: BodyInit,
     opts?: { name?: string; type?: string },
   ): Promise<{ content_uri: string }>;
+  /** Convidar um usuário para uma sala. */
+  inviteUser(roomId: string, userId: string): Promise<string | { event_id: string }>;
+  /** Expulsa um usuário de uma sala (kick). */
+  kickUser(roomId: string, userId: string, reason?: string): Promise<string | { event_id: string }>;
+  /** Bane um usuário de uma sala. */
+  banUser(roomId: string, userId: string, reason?: string): Promise<string | { event_id: string }>;
+  /** Define o power level de um usuário na sala (0-100). */
+  setPowerLevel(roomId: string, userId: string, level: number): Promise<string | { event_id: string }>;
 }
 
 export type SendEventResponseLike = string | { event_id: string };

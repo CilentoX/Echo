@@ -19,6 +19,7 @@ import { SyncApi } from "./api/sync";
 import { MessagesApi } from "./api/messages";
 import { GuildsApi } from "./api/guilds";
 import { ChannelsApi } from "./api/channels";
+import { MembersApi } from "./api/members";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -60,6 +61,7 @@ export class MatrixService {
   private readonly messagesApi: MessagesApi;
   private readonly guildsApi: GuildsApi;
   private readonly channelsApi: ChannelsApi;
+  private readonly membersApi: MembersApi;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
@@ -69,6 +71,7 @@ export class MatrixService {
     this.messagesApi = new MessagesApi(this.client!, clientFactory);
     this.guildsApi = new GuildsApi(this.client!, clientFactory);
     this.channelsApi = new ChannelsApi(this.client!, clientFactory);
+    this.membersApi = new MembersApi(this.client!, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
@@ -77,11 +80,12 @@ export class MatrixService {
     const session = await this.authApi.loginWithSsoToken(loginToken);
     // Sync the client instance from AuthApi
     this.client = this.authApi.getClient();
-    // Update SyncApi, MessagesApi, GuildsApi, and ChannelsApi with the credentialled client
+    // Update all APIs with the credentialled client
     this.syncApi.setClient(this.client);
     this.messagesApi.setClient(this.client);
     this.guildsApi.setClient(this.client);
     this.channelsApi.setClient(this.client);
+    this.membersApi.setClient(this.client);
     return session;
   }
 
@@ -93,6 +97,7 @@ export class MatrixService {
     this.messagesApi.setClient(this.client);
     this.guildsApi.setClient(this.client);
     this.channelsApi.setClient(this.client);
+    this.membersApi.setClient(this.client);
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
@@ -368,20 +373,30 @@ export class MatrixService {
 
   /** Membros com membership "join" de uma sala, com presença e avatar. */
   async listMembers(roomId: string): Promise<import("./types").MemberSummary[]> {
-    const client = this.requireClient();
-    const room = client.getRoom(roomId);
-    if (!room) return [];
-    const members = room.getJoinedMembers();
-    const out: import("./types").MemberSummary[] = [];
-    for (const m of members) {
-      out.push({
-        userId: m.userId,
-        displayName: m.name ?? m.userId,
-        presence: m.user?.presence ? mapPresence(m.user.presence) : "offline",
-        avatarUrl: m.avatarUrl ?? null,
-      });
-    }
-    return out;
+    return this.membersApi.listMembers(roomId);
+  }
+
+  /** Convida um usuário para uma sala. Retorna o event ID do convite. */
+  async inviteUser(roomId: string, userId: string): Promise<string> {
+    return this.membersApi.inviteUser(roomId, userId);
+  }
+
+  /** Expulsa (kick) um usuário de uma sala. Retorna o event ID. */
+  async kickUser(roomId: string, userId: string, reason?: string): Promise<string> {
+    return this.membersApi.kickUser(roomId, userId, reason);
+  }
+
+  /** Bane um usuário de uma sala. Retorna o event ID. */
+  async banUser(roomId: string, userId: string, reason?: string): Promise<string> {
+    return this.membersApi.banUser(roomId, userId, reason);
+  }
+
+  /**
+   * Define o power level de um usuário em uma sala (0-100).
+   * Retorna o event ID da mudança de power level.
+   */
+  async setPowerLevel(roomId: string, userId: string, level: number): Promise<string> {
+    return this.membersApi.setPowerLevel(roomId, userId, level);
   }
 
   private createClient(opts: Parameters<typeof createClient>[0]): MatrixClientLike {
