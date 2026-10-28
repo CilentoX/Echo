@@ -54,5 +54,11 @@ export default defineConfig(() => ({
     transformMode: {
       web: [/\.[jt]sx?$/],
     },
+    // Inherit path aliases from Vite config
+    resolve: {
+      alias: {
+        "@": import.meta.dirname + "/src",
+      },
+    },
   },
 }));

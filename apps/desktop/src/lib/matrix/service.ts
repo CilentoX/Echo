@@ -223,6 +223,11 @@ export class MatrixService {
     return this.profileApi.getUserProfile(userId);
   }
 
+  /** Busca o perfil global do usuário no Appwrite Database (avatar, banner, bio, links). */
+  async getGlobalProfile(userId: string) {
+    return this.profileApi.getGlobalProfile(userId);
+  }
+
   /** Devolve o MXID do usuário logado. */
   getUserId(): string | null {
     return this.requireClient().getUserId();

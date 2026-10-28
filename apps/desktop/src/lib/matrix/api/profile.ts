@@ -1,4 +1,5 @@
 import type { MatrixClientLike, RoomLike, UserProfile } from "../types";
+import { getGlobalProfile, GlobalProfile } from "../../appwrite/profiles";
 
 export type ClientFactory = (opts: Record<string, unknown>) => MatrixClientLike;
 
@@ -54,22 +55,29 @@ export class ProfileApi {
     return res.avatar_url ?? null;
   }
 
-  /** Get banner URL of a user (defaults to current user). 
-   * Note: Matrix profile doesn't have banner_url by default.
-   * This returns null; banner should come from global source (Appwrite/Database). */
+  /** Get banner URL of a user (defaults to current user). Matrix doesn't have global banners. */
   async getBannerUrl(userId?: string): Promise<string | null> {
-    return null;
+    return null; // Global banner comes from Appwrite Database
   }
 
-  /** Get full user profile in a single call (Matrix profile only). */
+  /** Get full user profile from Matrix (displayName, avatarUrl). Bio/links/banner from Appwrite if available. */
   async getUserProfile(userId: string): Promise<UserProfile> {
-    const res = await this.requireClient().getProfileInfo(userId);
+    const client = this.requireClient();
+    const res = await client.getProfileInfo(userId);
+    // Try to get global profile from Appwrite for bio, links, banner
+    const global = await getGlobalProfile(userId);
     return {
       displayName: res.displayname ?? null,
       avatarUrl: res.avatar_url ?? null,
-      bannerUrl: null, // banner não vem do perfil Matrix padrão
-      bio: null,
-      role: null,
+      bannerUrl: global?.bannerUrl ?? null,
+      bio: global?.bio ?? null,
+      role: null, // Roles are guild-specific (Matrix power levels), not global
     };
+  }
+
+  /** Get global profile from Appwrite Database (avatar, banner, bio, links). */
+  async getGlobalProfile(userId: string): Promise<GlobalProfile | null> {
+    this.requireClient(); // Ensure session exists
+    return getGlobalProfile(userId);
   }
 }

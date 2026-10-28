@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { MatrixClientLike, UserProfile } from "../types";
 import { ProfileApi } from "./profile";
 
+// Mock do módulo Appwrite profiles (caminho relativo usado no ProfileApi)
+vi.mock("../../appwrite/profiles", () => ({
+  getGlobalProfile: vi.fn(),
+}));
+
+const { getGlobalProfile } = await import("../../appwrite/profiles");
+const mockGetGlobalProfile = vi.mocked(getGlobalProfile);
+
 // Helper to create a fake MatrixClientLike
 function createFakeClient(overrides: Partial<MatrixClientLike> = {}): MatrixClientLike {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -52,6 +60,7 @@ describe("ProfileApi", () => {
     fakeClient = createFakeClient();
     const clientFactory = vi.fn(() => fakeClient);
     api = new ProfileApi(fakeClient, clientFactory);
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -160,25 +169,58 @@ describe("ProfileApi", () => {
   });
 
   describe("getUserProfile", () => {
-    it("returns full UserProfile with all fields from Matrix profile", async () => {
+    it("returns full UserProfile with Matrix profile fields, banner/bio from Appwrite", async () => {
       fakeClient.getProfileInfo = vi.fn().mockResolvedValue({
         displayname: "Test User",
         avatar_url: "mxc://avatar",
-        // banner_url não existe no perfil Matrix padrão
       });
+      mockGetGlobalProfile.mockResolvedValue({
+        $id: "@user:echo.litteris.online",
+        userId: "@user:echo.litteris.online",
+        avatarUrl: "https://appwrite.example.com/avatar.png",
+        bannerUrl: "https://appwrite.example.com/banner.png",
+        bio: "Hello world",
+        links: [{ label: "GitHub", url: "https://github.com/test" }],
+        $createdAt: "2026-01-01T00:00:00.000Z",
+        $updatedAt: "2026-01-01T00:00:00.000Z",
+      });
+
       const result = await api.getUserProfile("@user:echo.litteris.online");
+
+      expect(result).toEqual({
+        displayName: "Test User",
+        avatarUrl: "mxc://avatar", // avatar do Matrix
+        bannerUrl: "https://appwrite.example.com/banner.png", // banner do Appwrite
+        bio: "Hello world", // bio do Appwrite
+        role: null, // roles são por guilda
+      });
+      expect(mockGetGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online");
+    });
+
+    it("handles missing global profile gracefully", async () => {
+      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({
+        displayname: "Test User",
+        avatar_url: "mxc://avatar",
+      });
+      mockGetGlobalProfile.mockResolvedValue(null);
+
+      const result = await api.getUserProfile("@user:echo.litteris.online");
+
       expect(result).toEqual({
         displayName: "Test User",
         avatarUrl: "mxc://avatar",
-        bannerUrl: null, // banner não vem do perfil Matrix padrão
+        bannerUrl: null,
         bio: null,
         role: null,
       });
     });
 
-    it("handles missing optional fields gracefully", async () => {
+    it("handles missing Matrix profile fields gracefully", async () => {
       fakeClient.getProfileInfo = vi.fn().mockResolvedValue({});
+      mockGetGlobalProfile.mockResolvedValue(null);
+
       const result = await api.getUserProfile("@user:echo.litteris.online");
+
       expect(result).toEqual({
         displayName: null,
         avatarUrl: null,
@@ -194,7 +236,39 @@ describe("ProfileApi", () => {
     });
   });
 
-  // getUserBanner e setUserBanner removidos - banner deve vir de fonte global (Appwrite/Database), não de DM rooms
+  describe("getGlobalProfile", () => {
+    it("returns global profile from Appwrite", async () => {
+      const mockProfile = {
+        $id: "@user:echo.litteris.online",
+        userId: "@user:echo.litteris.online",
+        avatarUrl: "https://appwrite.example.com/avatar.png",
+        bannerUrl: "https://appwrite.example.com/banner.png",
+        bio: "Global bio",
+        links: [],
+        $createdAt: "2026-01-01T00:00:00.000Z",
+        $updatedAt: "2026-01-01T00:00:00.000Z",
+      };
+      mockGetGlobalProfile.mockResolvedValue(mockProfile);
+
+      const result = await api.getGlobalProfile("@user:echo.litteris.online");
+
+      expect(result).toEqual(mockProfile);
+      expect(mockGetGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online");
+    });
+
+    it("returns null when global profile not found", async () => {
+      mockGetGlobalProfile.mockResolvedValue(null);
+
+      const result = await api.getGlobalProfile("@user:echo.litteris.online");
+
+      expect(result).toBeNull();
+    });
+
+    it("throws when no client is set", async () => {
+      api.setClient(null);
+      await expect(api.getGlobalProfile("@user:echo.litteris.online")).rejects.toThrow("no active session");
+    });
+  });
 
   describe("setClient", () => {
     it("updates internal client reference", async () => {

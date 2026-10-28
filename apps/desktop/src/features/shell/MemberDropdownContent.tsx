@@ -38,15 +38,31 @@ export default function MemberDropdownContent({
     const load = async () => {
       try {
         // Timeout de 5s para evitar loading infinito se o SDK travar
-        const fetched = await Promise.race([
-          matrixService.getUserProfile(userId),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout perfil")), 5000)
-          ),
-        ])
+        const [fetched, global] = await Promise.all([
+          Promise.race([
+            matrixService.getUserProfile(userId),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Timeout perfil")), 5000)
+            ),
+          ]),
+          Promise.race([
+            matrixService.getGlobalProfile(userId),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Timeout global profile")), 5000)
+            ),
+          ]).catch(() => null), // global profile is optional
 
         if (!cancelled) {
-          setProfile(fetched)
+          // Merge global profile data (banner, bio, links) into the profile
+          const merged = global
+            ? {
+                ...fetched,
+                bannerUrl: global.bannerUrl ?? fetched.bannerUrl,
+                bio: global.bio ?? fetched.bio,
+                // links não estão no UserProfile type, mas podemos adicionar se necessário
+              }
+            : fetched
+          setProfile(merged)
           setLoading(false)
         }
       } catch {
@@ -115,9 +131,8 @@ export default function MemberDropdownContent({
     ? (myAppwriteAvatarUrl ?? profile?.avatarUrl ?? null)
     : (profile?.avatarUrl ?? null)
 
-  // Banner: não disponível globalmente ainda → sempre fallback gradiente
-  // TODO: implementar busca global de banner via Appwrite Database
-  const effectiveBannerUrl = isMyUser ? myAppwriteBannerUrl : null
+  // Banner: global profile (Appwrite Database) → own user Appwrite localStorage → gradient fallback
+  const effectiveBannerUrl = profile?.bannerUrl ?? (isMyUser ? myAppwriteBannerUrl : null)
 
   return (
     <div
