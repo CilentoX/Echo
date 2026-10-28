@@ -120,6 +120,12 @@ export interface MatrixClientLike {
   scrollback(room: unknown, limit?: number): Promise<unknown>;
   /** MXID do usuário logado, ou null se não houver sessão. */
   getUserId(): string | null;
+  /** Access token da sessão ativa, ou null se não houver sessão. */
+  getAccessToken(): string | null;
+  /** Base URL do homeserver. */
+  getBaseUrl(): string;
+  /** Converte mxc:// URL para HTTP (suporta autenticação para evitar M_FORBIDDEN). */
+  mxcUrlToHttp(mxcUrl: string, width?: number, height?: number, resizeMethod?: string, allowDirectLinks?: boolean, allowRedirects?: boolean, useAuthentication?: boolean): string | null;
   /** Perfil de um usuário (sem args = próprio usuário). */
   getProfileInfo(userId?: string): Promise<{ displayname?: string; avatar_url?: string }>;
   setDisplayName(name: string): Promise<unknown>;

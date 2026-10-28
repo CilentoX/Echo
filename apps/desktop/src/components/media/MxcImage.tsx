@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { mxcToHttp, mxcToThumbnail } from "@/lib/media/mxc";
+import { useEffect, useState } from "react";
+import { mxcToHttp, mxcToThumbnail, mxcToHttpWithAuth, mxcToThumbnailWithAuth } from "@/lib/media/mxc";
 
 export interface MxcImageProps {
   /** URI mxc://serverName/mediaId */
@@ -26,6 +26,8 @@ export interface MxcImageProps {
   fallbackToThumbnail?: boolean;
   /** Mostrar indicador de carregamento */
   showLoading?: boolean;
+  /** Usar URL autenticada (com access token) para evitar M_FORBIDDEN */
+  useAuth?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export interface MxcImageProps {
  * o endpoint de download direto.
  *
  * Inclui fallback automático e tratamento de erros CORS/404.
+ * Suporta URLs autenticadas (com access token) para evitar M_FORBIDDEN.
  */
 export default function MxcImage({
   mxcUrl,
@@ -49,31 +52,60 @@ export default function MxcImage({
   fallback,
   fallbackToThumbnail = true,
   showLoading = true,
-}: {
-  mxcUrl: string | null | undefined;
-  width?: number;
-  height?: number;
-  alt?: string;
-  className?: string;
-  style?: React.CSSProperties;
-  onLoad?: () => void;
-  onError?: () => void;
-  fallback?: React.ReactNode;
-  fallbackToThumbnail?: boolean;
-  showLoading?: boolean;
-}) {
+  useAuth = true,
+}: MxcImageProps) {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [useThumbnail, setUseThumbnail] = useState(false);
+  const [httpUrl, setHttpUrl] = useState<string | null>(null);
 
-  const httpUrl = !mxcUrl
-    ? null
-    : mxcUrl.startsWith("data:") || mxcUrl.startsWith("blob:") || mxcUrl.startsWith("http")
-      ? mxcUrl
-      : width && height
-        ? mxcToThumbnail(mxcUrl, width, height, "crop")
-        : mxcToHttp(mxcUrl);
+  useEffect(() => {
+    if (!mxcUrl) {
+      setHttpUrl(null);
+      setLoading(false);
+      return;
+    }
+
+    // URLs data:, blob:, http(s) passam direto
+    if (mxcUrl.startsWith("data:") || mxcUrl.startsWith("blob:") || mxcUrl.startsWith("http")) {
+      setHttpUrl(mxcUrl);
+      setLoading(false);
+      return;
+    }
+
+    // mxc:// URL - converte para HTTP
+    const buildUrl = async () => {
+      try {
+        let url: string | null = null;
+
+        if (width && height) {
+          // Thumbnail
+          if (useAuth) {
+            url = mxcToThumbnailWithAuth(mxcUrl, width, height, "crop");
+          } else {
+            url = mxcToThumbnail(mxcUrl, width, height, "crop");
+          }
+        } else {
+          // Download direto
+          if (useAuth) {
+            url = mxcToHttpWithAuth(mxcUrl);
+          } else {
+            url = mxcToHttp(mxcUrl);
+          }
+        }
+        setHttpUrl(url);
+      } catch {
+        setHttpUrl(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    buildUrl();
+  }, [mxcUrl, width, height]);
+
+  console.debug("[MxcImage] httpUrl:", httpUrl, { mxcUrl, width, height });
 
   // If no URL provided, don't show loading spinner - show fallback immediately
   if (!mxcUrl) {
@@ -92,6 +124,7 @@ export default function MxcImage({
   }
 
   const handleError = () => {
+    console.error("[MxcImage] Failed to load image:", { mxcUrl, httpUrl, width, height });
     setLoading(false);
     // If already tried thumbnail or no width/height, don't retry
     if (fallbackToThumbnail && !useThumbnail && width && height && retryCount < 2) {
@@ -106,6 +139,7 @@ export default function MxcImage({
   };
 
   const handleLoad = () => {
+    console.debug("[MxcImage] Image loaded successfully:", { mxcUrl, httpUrl });
     setLoading(false);
     onLoad?.();
   };
@@ -125,7 +159,7 @@ export default function MxcImage({
   }
 
   // Show error fallback
-  if (!mxcUrl || error) {
+  if (!httpUrl || error) {
     return (
       <div
         className={`flex items-center justify-center rounded-full bg-surf2 text-mut ${className ?? ""}`}
@@ -145,7 +179,7 @@ export default function MxcImage({
   // Success - render the actual image
   return (
     <img
-      src={httpUrl ?? undefined}
+      src={httpUrl}
       alt={alt}
       className={className}
       style={style}

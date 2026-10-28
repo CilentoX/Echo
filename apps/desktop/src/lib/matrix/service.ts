@@ -328,6 +328,21 @@ export class MatrixService {
     return this.requireClient().getUserId();
   }
 
+  /** Devolve o access token do usuário logado. */
+  getAccessToken(): string | null {
+    return this.requireClient().getAccessToken();
+  }
+
+  /** Devolve a base URL do homeserver. */
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  /** Converte mxc:// URL para HTTP (suporta autenticação para evitar M_FORBIDDEN). */
+  mxcUrlToHttp(mxcUrl: string, width?: number, height?: number, resizeMethod?: string, _allowDirectLinks?: boolean, _allowRedirects?: boolean, useAuthentication?: boolean): string | null {
+    return this.requireClient().mxcUrlToHttp(mxcUrl, width, height, resizeMethod, true, true, useAuthentication ?? true);
+  }
+
   /** Devolve o banner do perfil de um usuário (estado custom echo.user.banner no quarto DM direto). */
   async getUserBanner(userId: string): Promise<string | null> {
     const client = this.requireClient();
