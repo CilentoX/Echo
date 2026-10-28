@@ -218,7 +218,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
             )}
           </>
         ) : (
-          // Sem imagem - área de drop/upload
+          // Sem imagem - área de drop/upload + file input
           <>
             {initials && (
               <span className="flex items-center justify-center w-full h-full bg-surf text-txt font-medium text-xl uppercase tracking-tighter">
@@ -241,17 +241,17 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                 )}
               </>
             )}
+            {/* File input oculto - só usado quando NÃO tem imagem */}
+            <input
+              ref={inputRef}
+              type="file"
+              accept={accept}
+              className="hidden"
+              disabled={uploading}
+              onChange={handleFileSelect}
+            />
           </>
         )}
-        {/* File input oculto - só usado quando não tem imagem e clica */}
-        <input
-          ref={inputRef}
-          type="file"
-          accept={accept}
-          className="hidden"
-          disabled={!editable || uploading}
-          onChange={handleFileSelect}
-        />
       </div>
 
       {error && <p className="text-xs text-err">{error}</p>}
