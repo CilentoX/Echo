@@ -119,130 +119,48 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
 
   const isOwnProfile = true;
 
+  // URLs atuais para exibição (edit state tem prioridade)
+  const currentAvatarUrl = editAvatarUrl ?? appwriteAvatarUrl;
+  const currentBannerUrl = editBannerUrl ?? appwriteBannerUrl;
+
   return (
     <div className="flex flex-col gap-6" onKeyDown={handleKeyDown}>
       {/* Banner Section */}
       <div className="relative">
-        {appwriteBannerUrl ? (
-          <div className="relative h-40 w-full rounded-xl overflow-hidden">
-            <img
-              src={appwriteBannerUrl}
-              alt="Banner do perfil"
-              className="w-full h-full object-cover transition-opacity duration-300"
-            />
-            {isEditing && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="lg"
-                  onClick={() => document.getElementById("banner-upload")?.click()}
-                  className="text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm"
-                >
-                  <Camera size={20} className="mr-2" />
-                  Alterar banner
-                </Button>
-              </div>
-            )}
-            {isEditing && editBannerUrl && (
-              <button
-                type="button"
-                onClick={handleBannerRemove}
-                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors backdrop-blur-sm"
-                aria-label="Remover banner"
-              >
-                <Trash size={16} />
-              </button>
-            )}
-            <input
-              id="banner-upload"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleBannerChange(file);
-                e.target.value = "";
-              }}
-              disabled={isSaving}
-            />
-          </div>
-        ) : isEditing ? (
-          <div className="relative h-40 w-full rounded-xl border-2 border-dashed border-bd/50 flex items-center justify-center bg-surf/50 transition-colors hover:border-acc/50">
-            <label
-              htmlFor="banner-upload"
-              className="cursor-pointer flex flex-col items-center gap-2 text-mut hover:text-txt transition-colors p-4"
-            >
-              <Image size={28} className="opacity-50" />
-              <span className="font-medium">Adicionar banner</span>
-              <input
-                id="banner-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleBannerChange(file);
-                  e.target.value = "";
-                }}
-                disabled={isSaving}
-              />
-            </label>
-          </div>
-        ) : null}
+        <ImageUploadWithEdit
+          value={currentBannerUrl}
+          label=""
+          placeholder="Banner do perfil (PNG/JPG, até 5 MB)"
+          onChange={handleBannerChange}
+          onRemove={handleBannerRemove}
+          type="banner"
+          preset="medium"
+          previewHeight="h-40"
+          editTitle="Editar banner do perfil"
+          disabled={!isEditing || isSaving}
+          maxSizeMB={5}
+          appwriteUrl={currentBannerUrl}
+          initials=""
+        />
       </div>
 
       {/* Profile Header - Avatar + Info */}
       <div className="relative -mt-10 flex flex-col items-center gap-4 px-6">
         <div className="relative z-10">
-          <div className="relative w-24 h-24 rounded-full overflow-hidden bg-surf2 flex items-center justify-center ring-4 ring-rail shadow-xl">
-            {editAvatarUrl || appwriteAvatarUrl ? (
-              <>
-                <img
-                  src={editAvatarUrl ?? appwriteAvatarUrl ?? undefined}
-                  alt={displayName}
-                  className="w-full h-full object-cover"
-                />
-                {isEditing && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 rounded-full">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => document.getElementById("avatar-upload")?.click()}
-                      className="text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm px-3"
-                    >
-                      <Camera size={14} className="mr-1" />
-                      Alterar
-                    </Button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <span className="font-display text-2xl font-bold text-txt">{initials}</span>
-            )}
-            {isEditing && (editAvatarUrl || appwriteAvatarUrl) && (
-              <button
-                type="button"
-                onClick={handleAvatarRemove}
-                className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-err/90 hover:bg-err flex items-center justify-center text-white transition-colors shadow-lg"
-                aria-label="Remover avatar"
-              >
-                <Trash size={12} />
-              </button>
-            )}
-          </div>
-          <input
-            id="avatar-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleAvatarChange(file);
-              e.target.value = "";
-            }}
-            disabled={isSaving}
+          <ImageUploadWithEdit
+            value={currentAvatarUrl}
+            label=""
+            placeholder="Foto do perfil (PNG/JPG, até 2 MB)"
+            onChange={handleAvatarChange}
+            onRemove={handleAvatarRemove}
+            type="avatar"
+            preset="large"
+            previewHeight="h-24 w-24 rounded-full"
+            editTitle="Editar foto do perfil"
+            disabled={!isEditing || isSaving}
+            maxSizeMB={2}
+            appwriteUrl={currentAvatarUrl}
+            initials={initials}
           />
         </div>
 
@@ -382,7 +300,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
 
             <Separator />
 
-            {/* Avatar Upload */}
+            {/* Avatar Upload - usando ImageUploadWithEdit unificado */}
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-txt flex items-center gap-2">
                 <Camera size={16} className="text-mut" aria-hidden="true" />
@@ -394,7 +312,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                 placeholder="Foto do perfil (PNG/JPG, até 2 MB)"
                 onChange={handleAvatarChange}
                 onRemove={handleAvatarRemove}
-                aspect={1}
+                type="avatar"
+                preset="large"
                 previewHeight="h-24"
                 editTitle="Editar foto do perfil"
                 disabled={isSaving}
@@ -403,7 +322,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
               />
             </div>
 
-            {/* Banner Upload */}
+            {/* Banner Upload - usando ImageUploadWithEdit unificado */}
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-txt flex items-center gap-2">
                 <Image size={16} className="text-mut" aria-hidden="true" />
@@ -415,7 +334,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                 placeholder="Banner do perfil (PNG/JPG, até 5 MB)"
                 onChange={handleBannerChange}
                 onRemove={handleBannerRemove}
-                aspect={16 / 9}
+                type="banner"
+                preset="medium"
                 previewHeight="h-32"
                 editTitle="Editar banner do perfil"
                 disabled={isSaving}

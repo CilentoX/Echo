@@ -1,8 +1,7 @@
 "use client"
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { X } from "@phosphor-icons/react"
-import ReactCrop, { Crop, PixelCrop, PercentCrop } from "react-image-crop"
 import { mxcToHttp } from "@/lib/media/mxc"
 
 export interface ImageEditorProps {
@@ -10,119 +9,47 @@ export interface ImageEditorProps {
   imageSrc: string | null
   title?: string
   aspect?: number
-  minZoom?: number
-  maxZoom?: number
+  /** Tamanho de saída final em pixels */
+  outputWidth?: number
+  outputHeight?: number
   onConfirm: (croppedFile: File) => void
   onClose: () => void
   userId?: string
 }
 
-function getCroppedImg(
-  imageSrc: string,
-  crop: Crop,
-  rotation: number,
-  flipH: boolean,
-  flipV: boolean,
-  zoom: number,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    // URLs mxc:// do Matrix não são entendidas pelo navegador; converte para HTTP
-    const src = imageSrc.startsWith("mxc://") ? mxcToHttp(imageSrc) ?? imageSrc : imageSrc
-    image.src = src
-    if (!src.startsWith("blob:") && !src.startsWith("data:")) {
-      image.crossOrigin = "anonymous"
-    }
-    image.onload = () => {
-      const canvas = document.createElement("canvas")
-      const scaleX = image.naturalWidth / image.width
-      const scaleY = image.naturalHeight / image.height
-      void scaleX
-      void scaleY
-      
-      // O crop vem em % ou px; converter para pixels da imagem original
-      let cropX: number, cropY: number, cropW: number, cropH: number
-      if (crop.unit === "%") {
-        cropX = (crop.x / 100) * image.naturalWidth
-        cropY = (crop.y / 100) * image.naturalHeight
-        cropW = (crop.width / 100) * image.naturalWidth
-        cropH = (crop.height / 100) * image.naturalHeight
-      } else {
-        cropX = crop.x * (image.naturalWidth / image.width)
-        cropY = crop.y * (image.naturalHeight / image.height)
-        cropW = crop.width * (image.naturalWidth / image.width)
-        cropH = crop.height * (image.naturalHeight / image.height)
-      }
-
-      // Aplicar zoom inverso no crop (já que a imagem display está com zoom)
-      const displayCropX = cropX / zoom
-      const displayCropY = cropY / zoom
-      const displayCropW = cropW / zoom
-      const displayCropH = cropH / zoom
-
-      canvas.width = displayCropW
-      canvas.height = displayCropH
-      const ctx = canvas.getContext("2d")
-
-      if (!ctx) {
-        reject(new Error("Não foi possível criar contexto do canvas"))
-        return
-      }
-
-      ctx.save()
-
-      // Aplicar flip do display (visual)
-      if (flipH || flipV) {
-        ctx.translate(canvas.width, canvas.height)
-        if (flipH) ctx.scale(-1, 1)
-        if (flipV) ctx.scale(1, -1)
-      }
-
-      // Aplicar rotação
-      if (rotation !== 0) {
-        const rad = (rotation * Math.PI) / 180
-        ctx.translate(canvas.width / 2, canvas.height / 2)
-        ctx.rotate(rad)
-        ctx.translate(-canvas.width / 2, -canvas.height / 2)
-      }
-
-      ctx.drawImage(
-        image,
-        displayCropX,
-        displayCropY,
-        displayCropW,
-        displayCropH,
-        0,
-        0,
-        canvas.width,
-        canvas.height,
-      )
-
-      ctx.restore()
-
-      resolve(canvas.toDataURL("image/png"))
-    }
-    image.onerror = () => reject(new Error("Falha ao carregar imagem para corte"))
-  })
+interface DragState {
+  isDragging: boolean
+  startX: number
+  startY: number
+  translateX: number
+  translateY: number
 }
 
+/**
+ * Editor de imagem estilo WhatsApp/Discord:
+ * - Frame fixo com aspect ratio
+ * - Arraste a imagem (não o crop box)
+ * - Zoom com scroll/pinch
+ * - Grade de regra dos terços
+ * - Rotação e flip
+ */
 const ImageEditor = memo(function ImageEditor({
   open,
   imageSrc,
   title = "Editar imagem",
   aspect = 1,
-  minZoom = 1,
-  maxZoom = 3,
+  outputWidth,
+  outputHeight,
   onConfirm,
   onClose,
   userId,
 }: ImageEditorProps) {
-  const [crop, setCrop] = useState<Crop | undefined>({
-    x: 10,
-    y: 10,
-    width: 80,
-    height: 80,
-    unit: "%"
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    translateX: 0,
+    translateY: 0,
   })
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
@@ -131,25 +58,28 @@ const ImageEditor = memo(function ImageEditor({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isMaximized, setIsMaximized] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
-  const onChange = useCallback(
-    (newCrop: Crop | null) => {
-      if (newCrop) setCrop(newCrop)
-    },
-    [],
-  )
+  const imgRef = useRef<HTMLImageElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-const onComplete = useCallback(
-    (croppedArea: PixelCrop, _percentageCrop: PercentCrop) => {
-      if (croppedArea.unit === "px") {
-        setCrop({ ...croppedArea, unit: "%" as const })
-      }
-    },
-    [],
-  )
-
-  const toggleFlipH = useCallback(() => setFlipH((p) => !p), [])
-  const toggleFlipV = useCallback(() => setFlipV((p) => !p), [])
+  // Calcula o tamanho do frame fixo baseado no aspect ratio
+  const frameSize = useMemo(() => {
+    const maxW = isMaximized ? 900 : 500
+    const maxH = isMaximized ? 700 : 500
+    
+    if (aspect >= 1) {
+      // Landscape ou quadrado
+      const width = Math.min(maxW, maxH * aspect)
+      const height = width / aspect
+      return { width, height }
+    } else {
+      // Portrait
+      const height = Math.min(maxH, maxW / aspect)
+      const width = height * aspect
+      return { width, height }
+    }
+  }, [aspect, isMaximized])
 
   // URLs mxc:// do Matrix não são entendidas pelo navegador; converte para HTTP
   const httpSrc = useMemo(() => {
@@ -159,7 +89,7 @@ const onComplete = useCallback(
   }, [imageSrc])
 
   const resetTransform = useCallback(() => {
-    setCrop({ x: 10, y: 10, width: 80, height: 80, unit: "%" })
+    setDragState({ isDragging: false, startX: 0, startY: 0, translateX: 0, translateY: 0 })
     setZoom(1)
     setRotation(0)
     setFlipH(false)
@@ -168,20 +98,125 @@ const onComplete = useCallback(
 
   useEffect(() => {
     if (!open || !imageSrc) {
-      setCrop({ x: 10, y: 10, width: 80, height: 80, unit: "%" })
-      setZoom(1)
-      setRotation(0)
-      setFlipH(false)
-      setFlipV(false)
-      setIsMaximized(false)
+      resetTransform()
+      setImageLoaded(false)
       setError(null)
       setIsLoading(false)
+      setIsMaximized(false)
     }
-  }, [open, imageSrc])
+  }, [open, imageSrc, resetTransform])
+
+  // Inicializa posição centralizada quando a imagem carrega
+  useEffect(() => {
+    if (imageLoaded && imgRef.current && containerRef.current) {
+      const img = imgRef.current
+      const container = containerRef.current
+      
+      // Calcula zoom inicial para preencher o frame
+      const imgAspect = img.naturalWidth / img.naturalHeight
+      let initialZoom = 1
+      
+      if (imgAspect > aspect) {
+        // Imagem mais larga que o frame - ajusta pela altura
+        initialZoom = frameSize.height / img.naturalHeight
+      } else {
+        // Imagem mais alta que o frame - ajusta pela largura
+        initialZoom = frameSize.width / img.naturalWidth
+      }
+      
+      // Garante zoom mínimo para cobrir todo o frame
+      const minZoom = Math.max(
+        frameSize.width / img.naturalWidth,
+        frameSize.height / img.naturalHeight
+      )
+      setZoom(Math.max(initialZoom, minZoom))
+      
+      // Centraliza
+      setDragState(prev => ({
+        ...prev,
+        translateX: 0,
+        translateY: 0,
+      }))
+    }
+  }, [imageLoaded, frameSize, aspect])
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true)
+  }, [])
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
+    if (e.button !== 0) return // Only left click
+    e.preventDefault()
+    setDragState(prev => ({
+      ...prev,
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+    }))
+  }, [])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragState.isDragging) return
+    e.preventDefault()
+    const dx = (e.clientX - dragState.startX) / zoom
+    const dy = (e.clientY - dragState.startY) / zoom
+    setDragState(prev => ({
+      ...prev,
+      translateX: prev.translateX + dx,
+      translateY: prev.translateY + dy,
+      startX: e.clientX,
+      startY: e.clientY,
+    }))
+  }, [dragState, zoom])
+
+  const handleMouseUp = useCallback(() => {
+    setDragState(prev => ({ ...prev, isDragging: false }))
+  }, [])
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    setZoom(prev => Math.max(1, Math.min(5, prev + delta)))
+  }, [])
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLImageElement>) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0]
+      setDragState(prev => ({
+        ...prev,
+        isDragging: true,
+        startX: touch.clientX,
+        startY: touch.clientY,
+      }))
+    } else if (e.touches.length === 2) {
+      // Pinch zoom - handled by wheel for now
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLImageElement>) => {
+    if (!dragState.isDragging || e.touches.length !== 1) return
+    e.preventDefault()
+    const touch = e.touches[0]
+    const dx = (touch.clientX - dragState.startX) / zoom
+    const dy = (touch.clientY - dragState.startY) / zoom
+    setDragState(prev => ({
+      ...prev,
+      translateX: prev.translateX + dx,
+      translateY: prev.translateY + dy,
+      startX: touch.clientX,
+      startY: touch.clientY,
+    }))
+  }, [dragState, zoom])
+
+  const handleTouchEnd = useCallback(() => {
+    setDragState(prev => ({ ...prev, isDragging: false }))
+  }, [])
+
+  const toggleFlipH = useCallback(() => setFlipH(prev => !prev), [])
+  const toggleFlipV = useCallback(() => setFlipV(prev => !prev), [])
 
   const confirmCrop = useCallback(async () => {
-    if (!imageSrc || !crop) {
-      console.log("[ImageEditor] confirmCrop ignorado: imageSrc=", !!imageSrc, "crop=", !!crop)
+    if (!imageSrc || !imgRef.current) {
       return
     }
 
@@ -189,25 +224,94 @@ const onComplete = useCallback(
     setError(null)
 
     try {
-      console.log("[ImageEditor] confirmCrop iniciado para:", imageSrc, "crop:", crop)
+      const img = imgRef.current
+      const container = containerRef.current
+      
+      if (!container) {
+        throw new Error("Container não encontrado")
+      }
 
-      const croppedImg = await getCroppedImg(imageSrc, crop, rotation, flipH, flipV, zoom)
-      const response = await fetch(croppedImg)
-      const blob = await response.blob()
-      const userIdPart = userId ? `-${userId.replace(/[@:]/g, "")}` : ""
-      const file = new File([blob], `edited-image${userIdPart}.png`, { type: "image/png" })
+      // Calcula a área do frame em pixels da imagem original
+      const frameRect = container.getBoundingClientRect()
+      const imgAspect = img.naturalWidth / img.naturalHeight
+      
+      // O frame tem tamanho fixo frameSize
+      // A imagem está transformada com translateX, translateY, zoom, rotation, flip
+      // Precisamos calcular qual parte da imagem original está visível no frame
+      
+      // Cria canvas do tamanho de saída
+      const canvas = document.createElement("canvas")
+      canvas.width = outputWidth ?? frameSize.width
+      canvas.height = outputHeight ?? frameSize.height
+      const ctx = canvas.getContext("2d")
 
-      console.log("[ImageEditor] File criado:", file.name, file.size, "bytes", file.type)
-      onConfirm(file)
-      onClose()
+      if (!ctx) {
+        throw new Error("Não foi possível criar contexto do canvas")
+      }
+
+      ctx.save()
+
+      // Centraliza o canvas
+      ctx.translate(canvas.width / 2, canvas.height / 2)
+
+      // Aplicar flip
+      if (flipH || flipV) {
+        ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+      }
+
+      // Aplicar rotação
+      if (rotation !== 0) {
+        const rad = (rotation * Math.PI) / 180
+        ctx.rotate(rad)
+      }
+
+      // Calcula escala: zoom atual * (tamanho do canvas / tamanho do frame)
+      const scaleX = zoom * (canvas.width / frameSize.width)
+      const scaleY = zoom * (canvas.height / frameSize.height)
+
+      // Desenha a imagem
+      ctx.drawImage(
+        img,
+        -canvas.width / (2 * scaleX) - dragState.translateX / scaleX,
+        -canvas.height / (2 * scaleY) - dragState.translateY / scaleY,
+        img.naturalWidth / scaleX,
+        img.naturalHeight / scaleY
+      )
+
+      ctx.restore()
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          throw new Error("Falha ao gerar blob")
+        }
+        const userIdPart = userId ? `-${userId.replace(/[@:]/g, "")}` : ""
+        const file = new File([blob], `edited-image${userIdPart}.png`, { type: "image/png" })
+        onConfirm(file)
+        onClose()
+        setIsLoading(false)
+      }, "image/png", 0.92)
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Falha desconhecida"
       console.error("[ImageEditor] Erro no confirmCrop:", msg)
       setError(msg)
-    } finally {
       setIsLoading(false)
     }
-  }, [imageSrc, crop, rotation, flipH, flipV, onConfirm, onClose, userId])
+  }, [
+    imageSrc, 
+    outputWidth, 
+    outputHeight, 
+    frameSize, 
+    zoom, 
+    dragState.translateX, 
+    dragState.translateY, 
+    rotation, 
+    flipH, 
+    flipV, 
+    onConfirm, 
+    onClose, 
+    userId
+  ])
 
   const aspectRatio = useMemo(() => (aspect > 0 ? aspect : 1), [aspect])
 
@@ -231,13 +335,13 @@ const onComplete = useCallback(
               type="button"
               onClick={resetTransform}
               className="cursor-pointer px-2 py-1 rounded bg-surf2 border border-bd text-xs text-mut hover:bg-surf transition-colors"
-              title="Redefinir"
+              title="Redefinir (R)"
             >
               ↺
             </button>
             <button
               type="button"
-              onClick={() => setIsMaximized((p) => !p)}
+              onClick={() => setIsMaximized(prev => !prev)}
               className="cursor-pointer px-2 py-1 rounded bg-surf2 border border-bd text-xs text-mut hover:bg-surf transition-colors"
               title={isMaximized ? "Minimizar" : "Tela cheia"}
             >
@@ -255,27 +359,50 @@ const onComplete = useCallback(
         </header>
 
         <div className="flex-1 flex items-center justify-center bg-bg rounded-xl border border-bd relative overflow-hidden min-h-[300px]">
-          <div className="w-full max-w-[500px] max-h-[500px] flex items-center justify-center bg-bg rounded-xl border border-bd relative overflow-hidden">
-            <ReactCrop
-              crop={crop}
-              aspect={aspectRatio}
-              onChange={onChange}
-              onComplete={onComplete}
-              ruleOfThirds
-              style={{ width: "100%", height: "100%" }}
-            >
-              <img
-                src={httpSrc ?? ""}
-                alt="Imagem para recorte"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  display: "block",
-                  transform: `scale(${zoom}) rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
-                  transformOrigin: "center",
-                }}
-              />
-            </ReactCrop>
+          <div 
+            ref={containerRef}
+            className="flex items-center justify-center bg-bg rounded-xl border border-bd relative overflow-hidden"
+            style={{ width: frameSize.width, height: frameSize.height }}
+          >
+            {/* Grade de regra dos terços */}
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{ 
+                backgroundImage: `
+                  linear-gradient(to right, transparent 33.33%, rgba(255,255,255,0.15) 33.33%, rgba(255,255,255,0.15) 33.34%, transparent 33.34%),
+                  linear-gradient(to right, transparent 66.66%, rgba(255,255,255,0.15) 66.66%, rgba(255,255,255,0.15) 66.67%, transparent 66.67%),
+                  linear-gradient(to bottom, transparent 33.33%, rgba(255,255,255,0.15) 33.33%, rgba(255,255,255,0.15) 33.34%, transparent 33.34%),
+                  linear-gradient(to bottom, transparent 66.66%, rgba(255,255,255,0.15) 66.66%, rgba(255,255,255,0.15) 66.67%, transparent 66.67%)
+                `
+              }}
+            />
+            
+            <img
+              ref={imgRef}
+              src={httpSrc ?? ""}
+              alt="Imagem para edição"
+              onLoad={handleImageLoad}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onWheel={handleWheel}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "100%",
+                display: "block",
+                transform: `translate(${dragState.translateX}px, ${dragState.translateY}px) scale(${zoom}) rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
+                transformOrigin: "center",
+                transition: isLoading ? "none" : "transform 0.1s ease-out",
+                cursor: dragState.isDragging ? "grabbing" : "grab",
+              }}
+            />
+            
+            {/* Overlay de borda do frame */}
+            <div className="absolute inset-0 border-2 border-acc/50 pointer-events-none" />
           </div>
         </div>
 
@@ -283,20 +410,20 @@ const onComplete = useCallback(
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.max(minZoom, z - 0.1))}
-              disabled={zoom <= minZoom}
+              onClick={() => setZoom(prev => Math.max(1, prev - 0.1))}
+              disabled={zoom <= 1}
               className="cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd text-mut hover:bg-surf hover:text-txt transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-              title="Zoom out"
+              title="Zoom out (− / Scroll down)"
             >
               −
             </button>
             <span className="text-xs text-txt w-8 text-center">{Math.round(zoom * 100)}%</span>
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.min(maxZoom, z + 0.1))}
-              disabled={zoom >= maxZoom}
+              onClick={() => setZoom(prev => Math.min(5, prev + 0.1))}
+              disabled={zoom >= 5}
               className="cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd text-mut hover:bg-surf hover:text-txt transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-              title="Zoom in"
+              title="Zoom in (+ / Scroll up)"
             >
               +
             </button>
@@ -305,33 +432,33 @@ const onComplete = useCallback(
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setRotation((r) => r - 90)}
+              onClick={() => setRotation(prev => prev - 90)}
               className="cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd text-mut hover:bg-surf hover:text-txt transition-colors active:scale-95"
-              title="Rotacionar esquerda"
+              title="Rotacionar esquerda (←)"
             >
               ↺
             </button>
             <button
               type="button"
-              onClick={() => setRotation((r) => r + 90)}
+              onClick={() => setRotation(prev => prev + 90)}
               className="cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd text-mut hover:bg-surf hover:text-txt transition-colors active:scale-95"
-              title="Rotacionar direita"
+              title="Rotacionar direita (→)"
             >
               ↻
             </button>
             <button
               type="button"
               onClick={toggleFlipH}
-              className="cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd text-mut hover:bg-surf hover:text-txt transition-colors active:scale-95"
-              title="Espelhar horizontal"
+              className={`cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd ${flipH ? "bg-acc/20 text-acc" : "text-mut"} hover:bg-surf hover:text-txt transition-colors active:scale-95`}
+              title="Espelhar horizontal (H)"
             >
               ↔
             </button>
             <button
               type="button"
               onClick={toggleFlipV}
-              className="cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd text-mut hover:bg-surf hover:text-txt transition-colors active:scale-95"
-              title="Espelhar vertical"
+              className={`cursor-pointer px-3 py-2 rounded-lg bg-surf2 border border-bd ${flipV ? "bg-acc/20 text-acc" : "text-mut"} hover:bg-surf hover:text-txt transition-colors active:scale-95`}
+              title="Espelhar vertical (V)"
             >
               ↕
             </button>
@@ -354,13 +481,18 @@ const onComplete = useCallback(
             <button
               type="button"
               onClick={confirmCrop}
-              disabled={!crop || isLoading}
+              disabled={isLoading}
               className="cursor-pointer px-3 py-2 rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? "Processando…" : "Confirmar"}
             </button>
           </div>
         </div>
+        
+        {/* Dicas de atalhos */}
+        <p className="mt-3 text-xs text-mut text-center">
+          Arraste a imagem • Scroll para zoom • R/Shift+R: rotacionar • H/V: espelhar • Esc: cancelar
+        </p>
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import { X, Upload, Pencil } from "@phosphor-icons/react"
 import ImageEditor from "@/components/media/ImageEditor"
 import { useUiStore } from "@/stores/uiStore"
 import { mxcToHttp } from "@/lib/media/mxc"
+import { getImageSize } from "@/lib/media/imagePresets"
 
 export interface ImageUploadWithEditProps {
   value: string | null
@@ -13,7 +14,10 @@ export interface ImageUploadWithEditProps {
   initials?: string
   onChange: (file: File) => void
   onRemove?: () => void
-  aspect?: number
+  /** Tipo de imagem - define aspect ratio e tamanho de saída */
+  type?: "avatar" | "banner" | "guild"
+  /** Preset de tamanho (ex: "large", "xlarge") */
+  preset?: string
   previewHeight?: string
   editTitle?: string
   disabled?: boolean
@@ -30,7 +34,8 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   initials,
   onChange,
   onRemove,
-  aspect = 1,
+  type = "avatar",
+  preset,
   previewHeight = "h-24",
   editTitle,
   disabled = false,
@@ -45,6 +50,13 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Resolve aspect ratio e tamanho de saída baseado no tipo/preset
+  const outputSize = useMemo(() => {
+    const size = getImageSize(type, preset ?? "large")
+    return size ?? { width: 512, height: 512 }
+  }, [type, preset])
+  const aspect = useMemo(() => outputSize.width / outputSize.height, [outputSize])
 
   useEffect(() => {
     return () => {
@@ -71,7 +83,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
 
   const hasImage = useMemo(() => Boolean(displaySrc), [displaySrc])
 
-  console.log("[ImageUploadWithEdit] render:", { value, appwriteUrl, disabled, hasImage })
+  console.log("[ImageUploadWithEdit] render:", { value, appwriteUrl, disabled, hasImage, type, preset })
 
   // Força reset do preview quando a URL do Appwrite muda (novo upload)
   useEffect(() => {
@@ -248,6 +260,8 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
         imageSrc={displaySrc || null}
         title={editTitle || `Editar ${label}`}
         aspect={aspect}
+        outputWidth={outputSize.width}
+        outputHeight={outputSize.height}
         onConfirm={handleEditorConfirm}
         onClose={handleEditorClose}
         userId={myUserId}
