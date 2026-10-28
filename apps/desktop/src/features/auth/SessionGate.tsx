@@ -39,7 +39,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   const rejectSession = useCallback(async () => {
     stopSyncWiring();
-    await clearSession().catch(() => {});
+    await clearSession().catch(() => { });
     setView("login");
   }, []);
 
@@ -97,7 +97,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
       // leitura da sessão. Com sessão salva, esperamos o check terminar antes
       // de abrir o shell — se a atualização ficou pronta, reinicia já;
       // sem sessão, o login abre direto (o banner cobre updates depois).
-      const updateDone = Promise.resolve(runStartupUpdateCheck()).catch(() => {});
+      const updateDone = Promise.resolve(runStartupUpdateCheck()).catch(() => { });
       try {
         const [session] = await Promise.all([loadSession(), updateDone]);
         if (cancelled) return;

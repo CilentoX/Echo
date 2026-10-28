@@ -185,3 +185,13 @@ export async function markAsRead(roomId: string, eventId: string): Promise<void>
 export function setTyping(roomId: string, isTyping: boolean): Promise<void> {
   return matrixService.setTyping(roomId, isTyping);
 }
+
+/** Reseta estado interno do wiring (usado em testes). */
+export function __resetWiringState(): void {
+  started = false;
+  initialDataLoaded = false;
+  loadedGuilds.clear();
+  typingByRoom.clear();
+  unsubscribeUi?.();
+  unsubscribeUi = null;
+}

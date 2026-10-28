@@ -50,7 +50,7 @@ describe("GoogleLoginScreen", () => {
   });
 
   it("enquanto carrega, o botão fica desabilitado mostrando 'Entrando...'", async () => {
-    mockedRunSsoLogin.mockReturnValueOnce(new Promise(() => {})); // pendente
+    mockedRunSsoLogin.mockReturnValueOnce(new Promise(() => { })); // pendente
     render(<GoogleLoginScreen service={makeService()} />);
 
     await userEvent.click(screen.getByRole("button", { name: /Entrar com Google/ }));

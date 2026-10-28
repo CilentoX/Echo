@@ -72,11 +72,10 @@ export default function ChannelSidebar({
     <aside
       data-column="sidebar"
       aria-label="Canais"
-      className={`flex w-[232px] shrink-0 flex-col border-r border-bd bg-rail ${
-        overlay
+      className={`flex w-[232px] shrink-0 flex-col border-r border-bd bg-rail ${overlay
           ? "fixed inset-y-0 left-[72px] z-20 shadow-lg shadow-black/60"
           : "h-full"
-      }`}
+        }`}
     >
       <header className="flex items-center justify-between border-b border-bd px-4 py-3 group">
         <div className="flex items-center gap-2">
@@ -151,11 +150,10 @@ export default function ChannelSidebar({
                         type="button"
                         aria-current={active ? "true" : undefined}
                         onClick={() => setActiveChannel(channel.channelId)}
-                        className={`cursor-pointer flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-all duration-200 ${
-                          active
+                        className={`cursor-pointer flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-all duration-200 ${active
                             ? "bg-surf2 text-txt"
                             : "text-mut hover:bg-surf2 hover:text-txt"
-                        }`}
+                          }`}
                       >
                         <Hash size={16} className="shrink-0 text-mut" aria-hidden />
                         <span className={`truncate font-medium ${active ? "text-txt" : "text-mut"}`}>
@@ -166,7 +164,7 @@ export default function ChannelSidebar({
                             className="ml-1 text-[10px] font-medium text-acc bg-acc/10 px-1.5 py-0.5 rounded border border-acc/20"
                             aria-label="Canal de voz"
                           >
-<SpeakerHigh size={10} aria-hidden />
+                            <SpeakerHigh size={10} aria-hidden />
                           </span>
                         )}
                         {channel.category && (

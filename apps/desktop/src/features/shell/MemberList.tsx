@@ -104,11 +104,10 @@ export default function MemberList({
     <aside
       data-column="members"
       aria-label="Membros"
-      className={`flex w-[224px] shrink-0 flex-col border-l border-bd bg-rail ${
-        overlay
+      className={`flex w-[224px] shrink-0 flex-col border-l border-bd bg-rail ${overlay
           ? "fixed inset-y-0 right-0 z-20 shadow-lg shadow-black/60"
           : "h-full"
-      }`}
+        }`}
     >
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-bd px-4">
         <div className="flex items-center gap-2">
@@ -164,6 +163,7 @@ export default function MemberList({
                     : member.presence === "unavailable"
                       ? "bg-dnd"
                       : "bg-offline";
+                  const initial = (member.displayName || member.userId.replace(/^@/, "")).charAt(0).toUpperCase();
                   return (
                     <li key={member.userId} className="relative">
                       <Popover>
@@ -171,17 +171,14 @@ export default function MemberList({
                           <button
                             type="button"
                             aria-label={member.displayName || member.userId}
-                            className={`cursor-pointer flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                              isMe
+                            className={`cursor-pointer flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isMe
                                 ? "text-mut/70 hover:bg-surf2"
                                 : "text-mut hover:bg-surf2 hover:text-txt"
-                            }`}
+                              }`}
                           >
                             <div className="relative w-8 h-8 shrink-0">
                               <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-sm border-4 border-surf bg-acc">
-                                {member.displayName
-                                  ? member.displayName.charAt(0).toUpperCase()
-                                  : member.userId.replace(/^@/, '').charAt(0).toUpperCase()}
+                                {initial}
                               </div>
                               <span
                                 className={`absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-bg shrink-0 ${presenceColor}`}
@@ -199,7 +196,7 @@ export default function MemberList({
                             )}
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent sideOffset={8} align="start" className="w-auto p-0 transition-all duration-150 ease-out transform">
+                        <PopoverContent sideOffset={8} align="start" className="w-auto p-0">
                           <MemberDropdownContent
                             userId={member.userId}
                           />

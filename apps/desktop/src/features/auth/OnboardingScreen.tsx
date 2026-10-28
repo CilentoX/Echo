@@ -28,8 +28,7 @@ export default function OnboardingScreen({
 }) {
   const [step, setStep] = useState<Step>("welcome");
   const [nickname, setNickname] = useState("");
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,9 +54,8 @@ export default function OnboardingScreen({
     try {
       await matrixService.setDisplayName(nickname.trim());
 
-      if (avatarFile) {
-        const uploaded = await matrixService.uploadMedia(avatarFile);
-        await matrixService.setAvatarUrl(uploaded);
+      if (avatarUrl) {
+        await matrixService.setAvatarUrl(avatarUrl);
       }
 
       markOnboardingCompleted(myUserId ?? undefined);
@@ -67,14 +65,14 @@ export default function OnboardingScreen({
     } finally {
       setIsLoading(false);
     }
-  }, [nickname, avatarFile, myUserId]);
+  }, [nickname, avatarUrl, myUserId]);
 
   // Revoga URLs de objeto criadas quando o componente desmonta
   useEffect(() => {
     return () => {
-      if (avatarSrc) URL.revokeObjectURL(avatarSrc);
+      // avatarUrl é uma URL do Appwrite, não um objeto URL
     };
-  }, [avatarSrc]);
+  }, [avatarUrl]);
 
   if (onboardingDone) {
     return null;
@@ -153,10 +151,9 @@ export default function OnboardingScreen({
               <div className="flex flex-col gap-2">
                 <Label htmlFor="avatar">Foto do perfil</Label>
                 <AvatarUpload
-                  src={avatarSrc}
-                  onChange={(file) => {
-                    setAvatarFile(file);
-                    setAvatarSrc(URL.createObjectURL(file));
+                  src={avatarUrl}
+                  onChange={(url) => {
+                    setAvatarUrl(url);
                   }}
                   disabled={isLoading}
                 />

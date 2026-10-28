@@ -61,7 +61,6 @@ export default function MessageBubble({
             mxcUrl={event.senderAvatarUrl ?? null}
             width={36}
             height={36}
-            method="crop"
             alt={`Avatar de ${name}`}
             className="h-9 w-9 rounded-full object-cover border border-bd"
           />

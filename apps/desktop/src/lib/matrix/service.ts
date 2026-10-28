@@ -310,6 +310,11 @@ export class MatrixService {
     return (res as { banner_url?: string }).banner_url ?? null;
   }
 
+  /** Devolve o MXID do usuário logado. */
+  getUserId(): string | null {
+    return this.requireClient().getUserId();
+  }
+
   /** Devolve o banner do perfil de um usuário (estado custom echo.user.banner no quarto DM direto). */
   async getUserBanner(userId: string): Promise<string | null> {
     const client = this.requireClient();
@@ -428,6 +433,12 @@ export class MatrixService {
 
   /** Sai (deleta) uma guilda própria. */
   async deleteGuild(guildId: string): Promise<void> {
+    const client = this.requireClient();
+    await client.leave(guildId);
+  }
+
+  /** Sai de uma guilda (sem excluí-la). */
+  async leaveGuild(guildId: string): Promise<void> {
     const client = this.requireClient();
     await client.leave(guildId);
   }

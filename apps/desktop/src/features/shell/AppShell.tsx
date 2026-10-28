@@ -9,6 +9,7 @@ import EmptyState from "./EmptyState";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import Profile from "@/features/profile/Profile";
 import Settings from "@/features/settings/Settings";
+import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 
 export interface AppShellProps {
@@ -57,8 +58,13 @@ export default function AppShell({ children }: AppShellProps) {
       description?: string | null;
     },
   ): Promise<{ guildId: string; name: string; avatarUrl: string | null; unreadCount: number }> => {
-    const guildId = `!${data.name.toLowerCase().replace(/\s+/g, "-")}:echo.lan`;
-    return { guildId, name: data.name, avatarUrl: null, unreadCount: 0 };
+    const guild = await matrixService.createGuild(data);
+    return {
+      guildId: guild.guildId,
+      name: guild.name,
+      avatarUrl: guild.avatarUrl,
+      unreadCount: guild.unreadCount,
+    };
   };
 
   const handleGuildCreated = (guild: { guildId: string; name: string }) => {

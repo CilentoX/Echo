@@ -50,7 +50,7 @@ export default function ReactionStack({
       {items.map(([emoji, data]) => {
         const senderInitial = data.senders[0]?.startsWith("@")
           ? data.senders[0].slice(1).split(":")[0]?.slice(0, 1).toUpperCase() ||
-            "?"
+          "?"
           : data.senders[0]?.slice(0, 1).toUpperCase() || "?";
         return (
           <button

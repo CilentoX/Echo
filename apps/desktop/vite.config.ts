@@ -8,7 +8,14 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react({
+      babel: {
+        plugins: [],
+      },
+    }),
+    tailwindcss(),
+  ],
 
   resolve: {
     alias: {
@@ -43,5 +50,9 @@ export default defineConfig(() => ({
     setupFiles: ["./src/test/setup.ts"],
     // Process the Tailwind entry so tests can assert generated utilities
     css: { include: [/styles\.css$/] },
+    // Use Babel for test transforms to avoid oxc parsing issues
+    transformMode: {
+      web: [/\.[jt]sx?$/],
+    },
   },
 }));

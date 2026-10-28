@@ -3,7 +3,8 @@ import { X, Trash } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
-import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
+import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
+import { uploadImage } from "@/lib/appwrite/storage";
 import {
   Dialog,
   DialogContent,
@@ -55,10 +56,10 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
       let iconUrl: string | undefined;
       let bannerUrl: string | undefined;
       if (iconFile) {
-        iconUrl = await matrixService.uploadMedia(iconFile);
+        iconUrl = await uploadImage(iconFile);
       }
       if (bannerFile) {
-        bannerUrl = await matrixService.uploadMedia(bannerFile);
+        bannerUrl = await uploadImage(bannerFile);
       }
       await onSave({
         name: trimmed,
@@ -129,17 +130,17 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                 Ícone da guilda
               </Label>
               <div className="relative w-full h-32 rounded-xl bg-surf2 border border-bd overflow-hidden">
-                <ImageUploadWithCrop
-                  label=""
-                  value={iconPreview}
-                  placeholder="Ícone da guilda (opcional)"
-                  onChange={(file) => {
-                    setIconFile(file);
-                    setIconPreview(URL.createObjectURL(file));
-                  }}
-                  aspect={1}
-                  cropTitle="Recortar ícone da guilda"
-                />
+              <ImageUploadWithEdit
+                label=""
+                value={iconPreview}
+                placeholder="Ícone da guilda (opcional)"
+                onChange={(file) => {
+                  setIconFile(file);
+                  setIconPreview(URL.createObjectURL(file));
+                }}
+                aspect={1}
+                editTitle="Recortar ícone da guilda"
+              />
               </div>
             </div>
 
@@ -180,7 +181,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
               <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
                 Banner da guilda
               </Label>
-              <ImageUploadWithCrop
+              <ImageUploadWithEdit
                 label=""
                 value={bannerPreview}
                 placeholder="Banner da guilda (opcional)"
@@ -190,7 +191,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                 }}
                 aspect={16 / 9}
                 previewHeight="h-24"
-                cropTitle="Recortar banner da guilda"
+                editTitle="Recortar banner da guilda"
               />
             </div>
 

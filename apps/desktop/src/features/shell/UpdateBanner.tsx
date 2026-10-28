@@ -28,11 +28,10 @@ export default function UpdateBanner() {
       data-update-banner
       role="status"
       aria-live="polite"
-      className={`flex items-center justify-between gap-3 px-4 py-2 font-ui text-sm transition-all duration-300 ${
-        isReady
+      className={`flex items-center justify-between gap-3 px-4 py-2 font-ui text-sm transition-all duration-300 ${isReady
           ? "border-b border-acc bg-acc/10 text-acc"
           : "border-b border-mut bg-mut/30 text-mut"
-      }`}
+        }`}
     >
       <div className="flex items-center gap-2">
         {isChecking || isDownloading ? (

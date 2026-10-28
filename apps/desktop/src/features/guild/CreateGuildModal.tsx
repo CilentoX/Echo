@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Plus } from "@phosphor-icons/react";
-import { matrixService } from "@/lib/matrix/instance";
-import { ImageUploadWithCrop } from "@/components/media/ImageUploadWithCrop";
+import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
+import { uploadImage } from "@/lib/appwrite/storage";
 import {
   Dialog,
   DialogContent,
@@ -46,10 +46,10 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
       let bannerUrl: string | null = null;
 
       if (iconFile) {
-        iconUrl = await matrixService.uploadMedia(iconFile);
+        iconUrl = await uploadImage(iconFile);
       }
       if (bannerFile) {
-        bannerUrl = await matrixService.uploadMedia(bannerFile);
+        bannerUrl = await uploadImage(bannerFile);
       }
 
       const guild = await onCreate({
@@ -106,7 +106,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
             <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
               Ícone da guilda
             </Label>
-            <ImageUploadWithCrop
+            <ImageUploadWithEdit
               label=""
               value={iconPreview}
               placeholder="Ícone da guilda (opcional)"
@@ -116,7 +116,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
               }}
               aspect={1}
               previewHeight="h-32"
-              cropTitle="Recortar ícone da guilda"
+              editTitle="Recortar ícone da guilda"
             />
           </div>
 
@@ -160,7 +160,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
             <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
               Banner da guilda
             </Label>
-            <ImageUploadWithCrop
+            <ImageUploadWithEdit
               label=""
               value={bannerPreview}
               placeholder="Banner da guilda (opcional)"
@@ -170,7 +170,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
               }}
               aspect={16 / 9}
               previewHeight="h-24"
-              cropTitle="Recortar banner da guilda"
+              editTitle="Recortar banner da guilda"
             />
           </div>
 

@@ -33,7 +33,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
       .then((d) => {
         if (alive) setDevices(d);
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       alive = false;
     };

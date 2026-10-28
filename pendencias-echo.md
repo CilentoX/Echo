@@ -17,12 +17,12 @@
 - Teste `SessionGate.test.tsx`: **atualizado para `startSyncHandlers`** ✅ (compatibilidade antiga removida)
 - Auto-updater no boot: verifica atualizações em paralelo com a sessão; se houver update pronto, reinicia ou mostra banner "Reiniciar agora" ✅
 
-### Fase 2 — Guildas e canais de texto
-- Quem pode criar guilda: **qualquer usuário logado**
-- Canal `# geral` automático ao criar guilda: **Sim**
-- Canal criado aparecer na sidebar imediatamente (sem reiniciar): **Sim**
-- Botão "Deletar guilda": **excluir de verdade via API** (não só remover da interface)
-- Histórico antigo (scrollback): **carregar ao abrir canal**
+### Fase 2 — Guildas e canais de texto — CONCLUÍDA
+- Quem pode criar guilda: **qualquer usuário logado** ✅ (CreateGuildModal; qualquer usuário logado pode criar)
+- Canal `# geral` automático ao criar guilda: **Sim** ✅ (`createGuild` em service.ts cria o canal # geral automaticamente)
+- Canal criado aparecer na sidebar imediatamente (sem reiniciar): **Sim** ✅ (AppShell agora usa `matrixService.createGuild` real; CommunityRail adiciona ao store imediatamente)
+- Botão "Deletar guilda": **excluir de verdade via API** ✅ (EditGuildModal chama `matrixService.deleteGuild`, remove do store e reseta canal/guilda ativa)
+- Histórico antigo (scrollback): **carregar ao abrir canal** ✅ (ChatPane carrega 30 mensagens ao abrir canal e ao rolar para cima)
 
 ### Fase 3 — Chat e envio de mensagem (até enviar a primeira mensagem)
 - Envio de mensagem: **esperar o servidor responder** (não otimista)
@@ -47,4 +47,4 @@
 
 ## Próxima ação
 
-Continuar com **Fase 2 — Guildas e canais de texto**.
+Continuar com **Fase 3 — Chat e envio de mensagem**.

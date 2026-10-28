@@ -103,7 +103,9 @@ export const useSyncStore = create<SyncState>()((set) => {
         const timeline = state.timelineByChannel[channelId] ?? [];
         const existingIds = new Set(timeline.map((m) => m.eventId));
         const newestFirst = [...events].reverse(); // eventos antigos primeiro → novos depois
-        const merged = [...newestFirst, ...timeline.filter((m) => !existingIds.has(m.eventId))];
+        // Keep existing timeline, prepend only new events not already present
+        const newEvents = newestFirst.filter((e) => !existingIds.has(e.eventId));
+        const merged = [...newEvents, ...timeline];
         return {
           timelineByChannel: { ...state.timelineByChannel, [channelId]: merged },
         };
@@ -164,25 +166,25 @@ export const selectGuilds = (state: SyncState): GuildSummary[] => state.guilds;
 
 export const selectChannels =
   (guildId: string) =>
-  (state: SyncState): ChannelSummary[] | readonly never[] =>
-    emptyOr(state.channelsByGuild[guildId]);
+    (state: SyncState): ChannelSummary[] | readonly never[] =>
+      emptyOr(state.channelsByGuild[guildId]);
 
 export const selectTimeline =
   (channelId: string) =>
-  (state: SyncState): NormalizedEvent[] | readonly never[] =>
-    emptyOr(state.timelineByChannel[channelId]);
+    (state: SyncState): NormalizedEvent[] | readonly never[] =>
+      emptyOr(state.timelineByChannel[channelId]);
 
 export const selectReactions =
   (eventId: string) =>
-  (state: SyncState): NormalizedReaction[] | readonly never[] =>
-    emptyOr(state.reactionsByEvent[eventId]);
+    (state: SyncState): NormalizedReaction[] | readonly never[] =>
+      emptyOr(state.reactionsByEvent[eventId]);
 
 export const selectMembers =
   (roomId: string) =>
-  (state: SyncState): MemberSummary[] | readonly never[] =>
-    emptyOr(state.membersByRoom[roomId]);
+    (state: SyncState): MemberSummary[] | readonly never[] =>
+      emptyOr(state.membersByRoom[roomId]);
 
 export const selectReadByChannel =
   (roomId: string) =>
-  (state: SyncState): { userId: string; eventId: string }[] | readonly never[] =>
-    emptyOr(state.readByChannel[roomId]);
+    (state: SyncState): { userId: string; eventId: string }[] | readonly never[] =>
+      emptyOr(state.readByChannel[roomId]);

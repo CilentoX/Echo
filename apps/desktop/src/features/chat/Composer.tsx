@@ -344,20 +344,18 @@ export default function Composer({
               className="flex items-start gap-2 px-2 py-1 text-xs rounded bg-surf2 border border-transparent hover:border-bd"
             >
               <span
-                className={`flex-shrink-0 mt-0.5 ${
-                  item.status === "sending"
+                className={`flex-shrink-0 mt-0.5 ${item.status === "sending"
                     ? "text-acc"
                     : item.status === "failed"
-                    ? "text-err"
-                    : "text-mut"
-                }`}
+                      ? "text-err"
+                      : "text-mut"
+                  }`}
               >
                 {item.status === "sending" ? "…" : "⚠"}
               </span>
               <span
-                className={`truncate ${
-                  item.status === "failed" ? "line-through text-mut" : "text-txt"
-                }`}
+                className={`truncate ${item.status === "failed" ? "line-through text-mut" : "text-txt"
+                  }`}
                 title={item.body}
               >
                 {item.body}

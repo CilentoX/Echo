@@ -1,0 +1,35 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "appwrite": {
+      "type": "remote",
+      "url": "https://mcp.appwrite.io/",
+      "enabled": true,
+      "apiKey": "standard_98fcc240dccfa0d8a969293d006ae6677a554ef026b141813d4c56d8441f7560f933ecb2abd48732d21d63a8f479916cc1128d8c45b23fa4975eafdbd9225cdcad385062e1556ceec9c7c1620d833a11785132041aa43a99232bcf2267a10fb765f1cf72eaa117ff1665f5c2190b85a562a0e904c619d4ff17b4c14dd9047999",
+      "headers": {
+        "Authorization": "Bearer standard_98fcc240dccfa0d8a969293d006ae6677a554ef026b141813d4c56d8441f7560f933ecb2abd48732d21d63a8f479916cc1128d8c45b23fa4975eafdbd9225cdcad385062e1556ceec9c7c1620d833a11785132041aa43a99232bcf2267a10fb765f1cf72eaa117ff1665f5c2190b85a562a0e904c619d4ff17b4c14dd9047999"
+      }
+    }
+  },
+  "indexing": {
+    "enabled": true,
+    "provider": "openai-compatible",
+    "openai-compatible": {
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "apiKey": "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"
+    },
+    "model": "nvidia/nemotron-3-embed-1b",
+    "dimension": 2048
+  },
+  "web_search": true,
+  "model": "nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "permission": {
+    "bash": {
+      "npx *": "allow",
+      "*": "allow"
+    },
+    "external_directory": "allow",
+    "read": "allow",
+    "edit": "allow"
+  }
+}

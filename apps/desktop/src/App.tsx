@@ -4,7 +4,9 @@ import ChatPane from "@/features/chat/ChatPane";
 import UpdateBanner from "@/features/shell/UpdateBanner";
 import { matrixService } from "@/lib/matrix/instance";
 import { useUiStore } from "@/stores/uiStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useEffect } from "react";
 
 /** R2: envio real via MatrixService; o Composer cuida do envio síncrono (P10). */
 const sendMessage = (roomId: string, body: string): Promise<string> =>
@@ -18,6 +20,11 @@ function Shell() {
   const typingUsers = useUiStore((s) => s.typingUsers);
   const activeChannelId = useUiStore((s) => s.activeChannelId ?? "");
   const names = typingUsers[activeChannelId] ?? [];
+  const loadProfile = useProfileStore((s) => s.loadProfile);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   return (
     <AppShell>

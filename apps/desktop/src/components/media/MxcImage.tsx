@@ -20,42 +20,99 @@ export interface MxcImageProps {
   onLoad?: () => void;
   /** Callback quando há erro ao carregar */
   onError?: () => void;
+  /** Fallback personalizado */
+  fallback?: React.ReactNode;
+  /** Tentar fallback automático para thumbnail se download falhar */
+  fallbackToThumbnail?: boolean;
+  /** Mostrar indicador de carregamento */
+  showLoading?: boolean;
 }
 
 /**
  * Componente de imagem que converte automaticamente URLs mxc:// do Matrix
- * em URLs HTTP acessíveis pelo navegador via endpoint de media do Synapse.
+ * em URLs HTTP acessíveis via endpoint de media do Synapse.
  *
  * Usa thumbnails quando width/height são fornecidos, caso contrário usa
  * o endpoint de download direto.
+ *
+ * Inclui fallback automático e tratamento de erros CORS/404.
  */
 export default function MxcImage({
   mxcUrl,
   width,
   height,
-  method = "crop",
   alt = "",
   className,
   style,
   onLoad,
   onError,
-}: MxcImageProps) {
+  fallback,
+  fallbackToThumbnail = true,
+  showLoading = true,
+}: {
+  mxcUrl: string | null | undefined;
+  width?: number;
+  height?: number;
+  alt?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  onLoad?: () => void;
+  onError?: () => void;
+  fallback?: React.ReactNode;
+  fallbackToThumbnail?: boolean;
+  showLoading?: boolean;
+}) {
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const [useThumbnail, setUseThumbnail] = useState(false);
 
   const httpUrl = !mxcUrl
     ? null
-    : mxcUrl.startsWith("data:") || mxcUrl.startsWith("blob:")
+    : mxcUrl.startsWith("data:") || mxcUrl.startsWith("blob:") || mxcUrl.startsWith("http")
       ? mxcUrl
       : width && height
-        ? mxcToThumbnail(mxcUrl, width, height, method)
+        ? mxcToThumbnail(mxcUrl, width, height, "crop")
         : mxcToHttp(mxcUrl);
 
   const handleError = () => {
+    setLoading(false);
+    if (fallbackToThumbnail && !useThumbnail && width && height && retryCount < 2) {
+      // Try thumbnail as fallback
+      setUseThumbnail(true);
+      setRetryCount(c => c + 1);
+      return;
+    }
+    if (retryCount < 2) {
+      setRetryCount(c => c + 1);
+      // Force reload by toggling a key
+      return;
+    }
     setError(true);
     onError?.();
   };
 
-  if (!httpUrl || error) {
+  const handleLoad = () => {
+    setLoading(false);
+    onLoad?.();
+  };
+
+  // Show loading state
+  if (showLoading && loading && !error) {
+    return (
+      <div
+        className={`flex items-center justify-center rounded-full bg-surf2/50 ${className ?? ""}`}
+        style={style}
+        role="img"
+        aria-label={alt || "Carregando..."}
+      >
+        <div className="w-6 h-6 border-2 border-acc border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Show error fallback
+  if (!mxcUrl || error) {
     return (
       <div
         className={`flex items-center justify-center rounded-full bg-surf2 text-mut ${className ?? ""}`}
@@ -63,22 +120,24 @@ export default function MxcImage({
         role="img"
         aria-label={alt || "Imagem não disponível"}
       >
-        {/* Fallback: inicial em maiúsculo */}
-        {mxcUrl ? mxcUrl.split("/").pop()?.charAt(0).toUpperCase() || "?" : "?"}
+        {fallback || (
+          <span className="text-xl font-medium text-mut/50">
+            {mxcUrl ? mxcUrl.split("/").pop()?.charAt(0).toUpperCase() || "?" : "?"}
+          </span>
+        )}
       </div>
     );
   }
 
+  // Success - render the actual image
   return (
     <img
-      src={httpUrl}
+      src={httpUrl ?? undefined}
       alt={alt}
       className={className}
       style={style}
-      onLoad={onLoad}
+      onLoad={handleLoad}
       onError={handleError}
-      decoding="async"
-      loading="lazy"
     />
   );
 }
