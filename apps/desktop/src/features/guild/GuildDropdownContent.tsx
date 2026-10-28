@@ -93,6 +93,8 @@ export default function GuildDropdownContent({
               mxcUrl={avatarUrl}
               alt={guildName}
               className="w-12 h-12 rounded-xl object-cover border border-bd bg-surf2"
+              width={48}
+              height={48}
             />
           ) : (
             <div className="w-12 h-12 rounded-xl flex items-center justify-center font-display font-bold text-sm text-txt shadow-lg border-4 border-surf bg-acc">

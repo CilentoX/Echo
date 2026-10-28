@@ -147,6 +147,8 @@ export default function MemberDropdownContent({
             mxcUrl={effectiveBannerUrl}
             alt="Banner"
             className="w-full h-full object-cover object-center"
+            width={960}
+            height={540}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-acc/25 via-bg/60 to-surf2 border border-bd/50 flex items-center justify-center">
@@ -165,6 +167,8 @@ export default function MemberDropdownContent({
               mxcUrl={effectiveAvatarUrl}
               alt="Avatar"
               className="w-16 h-16 rounded-full object-cover border-2 border-bd bg-surf2"
+              width={64}
+              height={64}
             />
           ) : (
             <div className="w-16 h-16 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-lg border-4 border-surf bg-acc">

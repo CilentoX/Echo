@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { useUiStore } from "@/stores/uiStore"
 import { matrixService } from "@/lib/matrix/instance"
 import { uploadImage } from "@/lib/appwrite/storage"
 import { useProfileStore } from "@/stores/profileStore"

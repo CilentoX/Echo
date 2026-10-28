@@ -3,6 +3,8 @@ import { Plus, Pencil, Trash } from "@phosphor-icons/react";
 import MxcImage from "./MxcImage";
 import ImageCropModal from "./ImageCropModal";
 
+export type UploadImageType = "avatar" | "banner" | "guild";
+
 export interface ImageUploadWithCropProps {
   /** Valor atual (pode ser mxc://, data URL ou null) */
   value: string | null;
@@ -12,8 +14,10 @@ export interface ImageUploadWithCropProps {
   placeholder?: string;
   /** Callback quando uma imagem é selecionada e recortada */
   onChange: (file: File) => void;
-  /** Aspect ratio do crop (1:1 para avatar, 16:9 para banner) */
-  aspect?: number;
+  /** Tipo de imagem - define aspect ratio e tamanho de saída */
+  type?: UploadImageType;
+  /** Preset de tamanho (ex: "large", "xlarge") */
+  preset?: string;
   /** Título do modal de crop */
   cropTitle?: string;
   /** Altura do preview (padrão: h-24) */
@@ -39,7 +43,8 @@ export function ImageUploadWithCrop({
   label,
   placeholder,
   onChange,
-  aspect = 1,
+  type = "avatar",
+  preset,
   cropTitle,
   previewHeight,
 }: ImageUploadWithCropProps) {
@@ -58,6 +63,9 @@ export function ImageUploadWithCrop({
     onChange(croppedFile);
     setCropOpen(false);
   };
+
+  // Default presets por tipo
+  const defaultPreset = preset ?? (type === "banner" ? "medium" : "large");
 
   return (
     <div className="flex flex-col gap-2">
@@ -129,8 +137,9 @@ export function ImageUploadWithCrop({
         open={cropOpen}
         onClose={() => setCropOpen(false)}
         image={currentImage}
+        type={type}
+        preset={defaultPreset}
         title={cropTitle || `Recortar ${label}`}
-        aspect={aspect}
         onConfirm={handleCropConfirm}
       />
     </div>

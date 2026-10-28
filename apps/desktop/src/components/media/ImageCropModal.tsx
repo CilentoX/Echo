@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import Crop from "react-easy-crop";
+import { getImageSize, CROP_ASPECTS } from "@/lib/media/imagePresets";
+
+export type ImageType = "avatar" | "banner" | "guild";
 
 export interface ImageCropModalProps {
   open: boolean;
@@ -9,8 +12,10 @@ export interface ImageCropModalProps {
   image: string | File | null;
   /** Título do modal */
   title?: string;
-  /** Aspect ratio fixo (ex: 1:1 para avatar, 16:9 para banner) */
-  aspect?: number;
+  /** Tipo de imagem - define aspect ratio e tamanhos de saída */
+  type: ImageType;
+  /** Preset de tamanho de saída (ex: "large", "xlarge") */
+  preset?: string;
   /** Callback quando o crop é concluído e imagem confirmada */
   onConfirm: (croppedFile: File) => void;
 }
@@ -31,7 +36,8 @@ export default function ImageCropModal({
   onClose,
   image,
   title = "Recortar imagem",
-  aspect = 1,
+  type = "avatar",
+  preset = "large",
   onConfirm,
 }: ImageCropModalProps) {
   const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -46,6 +52,10 @@ export default function ImageCropModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+
+  // Tamanho de saída baseado no tipo e preset
+  const outputSize = useMemo(() => getImageSize(type, preset) ?? { width: 256, height: 256 }, [type, preset]);
+  const aspectRatio = useMemo(() => CROP_ASPECTS[type] ?? 1, [type]);
 
   // Converte File para data URL para exibição no Cropper
   useEffect(() => {
@@ -87,8 +97,10 @@ export default function ImageCropModal({
     try {
       const croppedImg = await getCroppedImg(imageSrc, croppedAreaPercent, rotation);
       const blob = await (await fetch(croppedImg)).blob();
-      const file = new File([blob], "cropped-image.png", { type: "image/png" });
-      onConfirm(file);
+      
+      // Redimensiona para o tamanho exato do preset
+      const resizedFile = await resizeImage(blob, outputSize.width, outputSize.height);
+      onConfirm(resizedFile);
       onClose();
     } catch {
       setError("Não foi possível processar a imagem. Tente de novo.");
@@ -96,8 +108,6 @@ export default function ImageCropModal({
       setIsLoading(false);
     }
   };
-
-  const aspectRatio = useMemo(() => (aspect > 0 ? aspect : 1), [aspect]);
 
   if (!open || !imageSrc) return null;
 
@@ -245,6 +255,56 @@ async function getCroppedImg(
     };
     image.onerror = () => {
       reject(new Error("Falha ao carregar imagem para corte"));
+    };
+  });
+}
+
+/**
+ * Redimensiona a imagem para o tamanho exato do preset mantendo a qualidade.
+ */
+async function resizeImage(
+  blob: Blob,
+  targetWidth: number,
+  targetHeight: number
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.src = url;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error("Não foi possível criar contexto do canvas"));
+        return;
+      }
+
+      // Desenha a imagem preenchendo o canvas (crop central se necessário)
+      const scale = Math.max(targetWidth / img.width, targetHeight / img.height);
+      const drawWidth = img.width * scale;
+      const drawHeight = img.height * scale;
+      const drawX = (targetWidth - drawWidth) / 2;
+      const drawY = (targetHeight - drawHeight) / 2;
+
+      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+      canvas.toBlob((resizedBlob) => {
+        URL.revokeObjectURL(url);
+        if (!resizedBlob) {
+          reject(new Error("Falha ao gerar blob redimensionado"));
+          return;
+        }
+        const file = new File([resizedBlob], "cropped-image.png", { type: "image/png" });
+        resolve(file);
+      }, "image/png", 0.92);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Falha ao carregar imagem para redimensionamento"));
     };
   });
 }
