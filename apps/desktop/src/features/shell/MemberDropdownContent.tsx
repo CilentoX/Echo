@@ -51,6 +51,7 @@ export default function MemberDropdownContent({
               setTimeout(() => reject(new Error("Timeout global profile")), 5000)
             ),
           ]).catch(() => null), // global profile is optional
+        ])
 
         if (!cancelled) {
           // Merge global profile data (banner, bio, links) into the profile
