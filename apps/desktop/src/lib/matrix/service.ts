@@ -21,6 +21,7 @@ import { GuildsApi } from "./api/guilds";
 import { ChannelsApi } from "./api/channels";
 import { MembersApi } from "./api/members";
 import { ProfileApi } from "./api/profile";
+import { MediaApi } from "./api/media";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -64,6 +65,7 @@ export class MatrixService {
   private readonly channelsApi: ChannelsApi;
   private readonly membersApi: MembersApi;
   private readonly profileApi: ProfileApi;
+  private readonly mediaApi: MediaApi;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
@@ -75,6 +77,7 @@ export class MatrixService {
     this.channelsApi = new ChannelsApi(this.client!, clientFactory);
     this.membersApi = new MembersApi(this.client!, clientFactory);
     this.profileApi = new ProfileApi(this.client!, clientFactory);
+    this.mediaApi = new MediaApi(this.client!, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
@@ -90,6 +93,7 @@ export class MatrixService {
     this.channelsApi.setClient(this.client);
     this.membersApi.setClient(this.client);
     this.profileApi.setClient(this.client);
+    this.mediaApi.setClient(this.client);
     return session;
   }
 
@@ -103,6 +107,7 @@ export class MatrixService {
     this.channelsApi.setClient(this.client);
     this.membersApi.setClient(this.client);
     this.profileApi.setClient(this.client);
+    this.mediaApi.setClient(this.client);
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
@@ -195,7 +200,7 @@ export class MatrixService {
 
   /** Envia um arquivo de mídia (avatar, banner, anexo) e devolve o mxc:// URI. */
   async uploadMedia(file: File): Promise<string> {
-    return this.messagesApi.uploadMedia(file);
+    return this.mediaApi.uploadMedia(file);
   }
 
   /** Define o avatar do próprio usuário (mxc:// URI ou null para remover). */
@@ -235,7 +240,7 @@ export class MatrixService {
 
   /** Converte mxc:// URL para HTTP (suporta autenticação para evitar M_FORBIDDEN). */
   mxcUrlToHttp(mxcUrl: string, width?: number, height?: number, resizeMethod?: string, _allowDirectLinks?: boolean, _allowRedirects?: boolean, useAuthentication?: boolean): string | null {
-    return this.requireClient().mxcUrlToHttp(mxcUrl, width, height, resizeMethod, true, true, useAuthentication ?? true);
+    return this.mediaApi.mxcUrlToHttp(mxcUrl, width, height, resizeMethod, true, true, useAuthentication ?? true);
   }
 
   /** Devolve o banner do perfil de um usuário (estado custom echo.user.banner no quarto DM direto). */
