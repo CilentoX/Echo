@@ -137,7 +137,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           preset="medium"
           previewHeight="h-40"
           editTitle="Editar banner do perfil"
-          disabled={!isEditing || isSaving}
+          editable={isEditing && !isSaving}
           maxSizeMB={5}
           appwriteUrl={currentBannerUrl}
           initials=""
@@ -157,7 +157,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             preset="large"
             previewHeight="h-24 w-24 rounded-full"
             editTitle="Editar foto do perfil"
-            disabled={!isEditing || isSaving}
+            editable={isEditing && !isSaving}
             maxSizeMB={2}
             appwriteUrl={currentAvatarUrl}
             initials={initials}
@@ -316,7 +316,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                 preset="large"
                 previewHeight="h-24"
                 editTitle="Editar foto do perfil"
-                disabled={isSaving}
+                editable={!isSaving}
                 maxSizeMB={2}
                 appwriteUrl={editAvatarUrl}
               />
@@ -338,7 +338,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                 preset="medium"
                 previewHeight="h-32"
                 editTitle="Editar banner do perfil"
-                disabled={isSaving}
+                editable={!isSaving}
                 maxSizeMB={5}
                 appwriteUrl={editBannerUrl}
               />
