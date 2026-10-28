@@ -14,6 +14,7 @@ import type {
   PresenceState,
   UserProfile,
 } from "./types";
+import { AuthApi } from "./api/auth";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -50,6 +51,7 @@ export class MatrixService {
   private readonly baseUrl: string;
   private readonly clientFactory: ClientFactory;
   private client: MatrixClientLike | null = null;
+  private readonly authApi: AuthApi;
   private syncListener: ((...args: unknown[]) => void) | null = null;
   private timelineListener: ((...args: unknown[]) => void) | null = null;
   private typingListener: ((...args: unknown[]) => void) | null = null;
@@ -59,47 +61,35 @@ export class MatrixService {
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
     this.clientFactory = clientFactory;
+    this.authApi = new AuthApi(baseUrl, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
    *  also applied immediately, so the active client is credentialled. */
   async loginWithSsoToken(loginToken: string): Promise<Session> {
-    const client = this.createClient({ baseUrl: this.baseUrl });
-    const res = await client.loginRequest({ type: "m.login.token", token: loginToken });
-    if (!res.access_token || !res.user_id) {
-      throw new Error("matrix login failed: missing access_token or user_id");
-    }
-    const session: Session = {
-      baseUrl: this.baseUrl,
-      accessToken: res.access_token,
-      userId: res.user_id,
-      deviceId: res.device_id ?? null,
-      ...(res.refresh_token ? { refreshToken: res.refresh_token } : {}),
-    };
-    // loginRequest is a raw POST /login and does not store credentials on the
-    // client instance; discard the anonymous client and create a credentialled one.
-    this.restoreSession(session);
+    const session = await this.authApi.loginWithSsoToken(loginToken);
+    // Sync the client instance from AuthApi
+    this.client = this.authApi.getClient();
     return session;
   }
 
   /** Recreate a client from a persisted session (no request is made). */
   restoreSession(session: Session): void {
-    this.client = this.createClient({
-      baseUrl: session.baseUrl,
-      accessToken: session.accessToken,
-      userId: session.userId,
-      ...(session.deviceId ? { deviceId: session.deviceId } : {}),
-    });
+    this.authApi.restoreSession(session);
+    this.client = this.authApi.getClient();
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
    *  must not import matrix-js-sdk directly. The URL is built before any login,
    *  so a temp anonymous client is created when there is no active session. */
   getSsoLoginUrl(redirectUrl: string, idpId?: string): string {
-    const client = this.client ?? this.createClient({ baseUrl: this.baseUrl });
-    return idpId
-      ? client.getSsoLoginUrl(redirectUrl, "sso", idpId)
-      : client.getSsoLoginUrl(redirectUrl);
+    return this.authApi.getSsoLoginUrl(redirectUrl, idpId);
+  }
+
+  /** Logout: clear session and disconnect client. */
+  async logout(): Promise<void> {
+    await this.authApi.logout();
+    this.client = null;
   }
 
   /**
