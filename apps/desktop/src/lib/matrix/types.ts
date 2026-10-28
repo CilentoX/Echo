@@ -47,6 +47,7 @@ export interface MemberSummary {
   userId: string;
   displayName: string;
   presence: PresenceState;
+  avatarUrl?: string | null;
 }
 
 export interface GuildSummary {
@@ -164,6 +165,8 @@ export interface RoomMemberLike {
   userId: string;
   name: string;
   membership: string;
+  /** Avatar mxc:// URL do membro. */
+  avatarUrl?: string | null;
   /** Objeto User do SDK; presença vem daqui. */
   user?: { presence?: string } | null;
 }

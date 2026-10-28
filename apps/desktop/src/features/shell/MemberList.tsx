@@ -2,9 +2,11 @@ import { useState, useMemo } from "react";
 import { useSyncStore, selectMembers } from "@/stores/syncStore";
 import type { MemberSummary } from "@/lib/matrix/types";
 import { useUiStore } from "@/stores/uiStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import MemberDropdownContent from "./MemberDropdownContent";
+import MxcImage from "@/components/media/MxcImage";
 
 export interface MemberListProps {
   /** `overlay` flutua acima do chat abaixo 1150px; `static` é a coluna dockada. */
@@ -27,6 +29,7 @@ export default function MemberList({
   const activeChannelId = useUiStore((state) => state.activeChannelId);
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const myUserId = useUiStore((state) => state.myUserId);
+  const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
 
   // Canais da guilda ativa (para agregar membros quando não há canal selecionado).
   const channelsByGuild = useSyncStore((state) => state.channelsByGuild);
@@ -56,10 +59,11 @@ export default function MemberList({
         userId: myUserId,
         displayName: myUserId.replace(/^@/, ''),
         presence: "online",
+        avatarUrl: myAppwriteAvatarUrl ?? null,
       });
     }
     return merged;
-  }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId]);
+  }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId, myAppwriteAvatarUrl]);
 
   // Usa membros do canal ativo, ou agregados da guilda, ou vazio.
   const members: MemberSummary[] = activeChannelId
@@ -164,6 +168,12 @@ export default function MemberList({
                       ? "bg-dnd"
                       : "bg-offline";
                   const initial = (member.displayName || member.userId.replace(/^@/, "")).charAt(0).toUpperCase();
+
+                  // Fallback chain: Matrix avatar → Appwrite avatar (my user) → initials
+                  const effectiveAvatarUrl = isMe
+                    ? (member.avatarUrl ?? myAppwriteAvatarUrl ?? null)
+                    : (member.avatarUrl ?? null);
+
                   return (
                     <li key={member.userId} className="relative">
                       <Popover>
@@ -177,9 +187,17 @@ export default function MemberList({
                               }`}
                           >
                             <div className="relative w-8 h-8 shrink-0">
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-sm border-4 border-surf bg-acc">
-                                {initial}
-                              </div>
+                              {effectiveAvatarUrl ? (
+                                <MxcImage
+                                  mxcUrl={effectiveAvatarUrl}
+                                  alt="Avatar"
+                                  className="w-8 h-8 rounded-full object-cover border-2 border-bd bg-surf2"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-sm border-4 border-surf bg-acc">
+                                  {initial}
+                                </div>
+                              )}
                               <span
                                 className={`absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-bg shrink-0 ${presenceColor}`}
                               />

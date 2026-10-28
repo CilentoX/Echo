@@ -547,7 +547,7 @@ export class MatrixService {
     });
   }
 
-  /** Membros com membership "join" de uma sala, com presença. */
+  /** Membros com membership "join" de uma sala, com presença e avatar. */
   async listMembers(roomId: string): Promise<import("./types").MemberSummary[]> {
     const client = this.requireClient();
     const room = client.getRoom(roomId);
@@ -559,6 +559,7 @@ export class MatrixService {
         userId: m.userId,
         displayName: m.name ?? m.userId,
         presence: m.user?.presence ? mapPresence(m.user.presence) : "offline",
+        avatarUrl: m.avatarUrl ?? null,
       });
     }
     return out;
