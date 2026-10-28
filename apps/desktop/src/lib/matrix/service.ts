@@ -18,6 +18,7 @@ import { AuthApi } from "./api/auth";
 import { SyncApi } from "./api/sync";
 import { MessagesApi } from "./api/messages";
 import { GuildsApi } from "./api/guilds";
+import { ChannelsApi } from "./api/channels";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -58,6 +59,7 @@ export class MatrixService {
   private readonly syncApi: SyncApi;
   private readonly messagesApi: MessagesApi;
   private readonly guildsApi: GuildsApi;
+  private readonly channelsApi: ChannelsApi;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
@@ -66,6 +68,7 @@ export class MatrixService {
     this.syncApi = new SyncApi(null, clientFactory);
     this.messagesApi = new MessagesApi(this.client!, clientFactory);
     this.guildsApi = new GuildsApi(this.client!, clientFactory);
+    this.channelsApi = new ChannelsApi(this.client!, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
@@ -74,10 +77,11 @@ export class MatrixService {
     const session = await this.authApi.loginWithSsoToken(loginToken);
     // Sync the client instance from AuthApi
     this.client = this.authApi.getClient();
-    // Update SyncApi, MessagesApi, and GuildsApi with the credentialled client
+    // Update SyncApi, MessagesApi, GuildsApi, and ChannelsApi with the credentialled client
     this.syncApi.setClient(this.client);
     this.messagesApi.setClient(this.client);
     this.guildsApi.setClient(this.client);
+    this.channelsApi.setClient(this.client);
     return session;
   }
 
@@ -88,6 +92,7 @@ export class MatrixService {
     this.syncApi.setClient(this.client);
     this.messagesApi.setClient(this.client);
     this.guildsApi.setClient(this.client);
+    this.channelsApi.setClient(this.client);
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
@@ -323,30 +328,7 @@ export class MatrixService {
     guildId: string,
     data: { name: string; type: string; topic?: string; category?: string }
   ): Promise<ChannelSummary> {
-    const client = this.requireClient();
-    const trimmed = data.name.trim().toLowerCase().replace(/\s+/g, "-");
-    if (!trimmed) throw new Error("createChannel: nome é obrigatório");
-    const space = client.getRoom(guildId);
-    if (!space || !isSpace(space)) throw new Error("createChannel: guilda não encontrada");
-    const res = await client.createRoom({
-      name: trimmed,
-      topic: data.topic || undefined,
-      visibility: Visibility.Private,
-      preset: Preset.PrivateChat,
-      creation_content: {
-        "m.federate": false,
-      },
-    });
-    if (!res?.room_id) throw new Error("createChannel: resposta sem room_id");
-    await client.sendStateEvent(guildId, "m.space.child", { via: [guildId] }, res.room_id);
-    return {
-      channelId: res.room_id,
-      name: trimmed,
-      topic: data.topic || undefined,
-      type: data.type,
-      category: data.category || undefined,
-      unreadCount: 0,
-    };
+    return this.channelsApi.createChannel(guildId, data);
   }
 
   /** Edita uma guilda própria individualmente (nome, ícone, banner, descrição). */
@@ -364,27 +346,24 @@ export class MatrixService {
 
   /** Canais (filhos declarados via m.space.child) de um Space. */
   async listChannels(guildId: string): Promise<ChannelSummary[]> {
-    const client = this.requireClient();
-    const space = client.getRoom(guildId);
-    if (!space) return [];
+    return this.channelsApi.listChannels(guildId);
+  }
 
-    const childIds = space.currentState
-      .getStateEvents("m.space.child")
-      .filter((ev) => {
-        const via = ev.getContent().via;
-        return Array.isArray(via) && via.length > 0;
-      })
-      .map((ev) => ev.getStateKey())
-      .filter((stateKey): stateKey is string => typeof stateKey === "string");
+  /** Edita um canal (nome, tópico, categoria). */
+  async editChannel(
+    channelId: string,
+    data: {
+      name?: string;
+      topic?: string | null;
+      category?: string | null;
+    }
+  ): Promise<void> {
+    return this.channelsApi.editChannel(channelId, data);
+  }
 
-    return childIds.map((childId) => {
-      const room = client.getRoom(childId);
-      return {
-        channelId: childId,
-        name: (room && stateEventName(room, "m.room.name")) ?? childId,
-        unreadCount: room?.getUnreadNotificationCount() ?? 0,
-      };
-    });
+  /** Sai (deleta) um canal próprio. */
+  async deleteChannel(channelId: string): Promise<void> {
+    return this.channelsApi.deleteChannel(channelId);
   }
 
   /** Membros com membership "join" de uma sala, com presença e avatar. */
