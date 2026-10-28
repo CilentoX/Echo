@@ -75,19 +75,32 @@ export default function MxcImage({
         ? mxcToThumbnail(mxcUrl, width, height, "crop")
         : mxcToHttp(mxcUrl);
 
+  // If no URL provided, don't show loading spinner - show fallback immediately
+  if (!mxcUrl) {
+    return (
+      <div
+        className={`flex items-center justify-center rounded-full bg-surf2 text-mut ${className ?? ""}`}
+        style={style}
+        role="img"
+        aria-label={alt || "Imagem não disponível"}
+      >
+        {fallback || (
+          <span className="text-xl font-medium text-mut/50">?</span>
+        )}
+      </div>
+    );
+  }
+
   const handleError = () => {
     setLoading(false);
+    // If already tried thumbnail or no width/height, don't retry
     if (fallbackToThumbnail && !useThumbnail && width && height && retryCount < 2) {
       // Try thumbnail as fallback
       setUseThumbnail(true);
       setRetryCount(c => c + 1);
       return;
     }
-    if (retryCount < 2) {
-      setRetryCount(c => c + 1);
-      // Force reload by toggling a key
-      return;
-    }
+    // Max retries reached or not using thumbnail - show error
     setError(true);
     onError?.();
   };
