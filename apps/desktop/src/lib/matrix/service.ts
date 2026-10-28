@@ -16,6 +16,7 @@ import type {
 } from "./types";
 import { AuthApi } from "./api/auth";
 import { SyncApi } from "./api/sync";
+import { MessagesApi } from "./api/messages";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -54,12 +55,14 @@ export class MatrixService {
   private client: MatrixClientLike | null = null;
   private readonly authApi: AuthApi;
   private readonly syncApi: SyncApi;
+  private readonly messagesApi: MessagesApi;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
     this.clientFactory = clientFactory;
     this.authApi = new AuthApi(baseUrl, clientFactory);
     this.syncApi = new SyncApi(null, clientFactory);
+    this.messagesApi = new MessagesApi(this.client!, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
@@ -68,8 +71,9 @@ export class MatrixService {
     const session = await this.authApi.loginWithSsoToken(loginToken);
     // Sync the client instance from AuthApi
     this.client = this.authApi.getClient();
-    // Update SyncApi with the credentialled client
+    // Update SyncApi and MessagesApi with the credentialled client
     this.syncApi.setClient(this.client);
+    this.messagesApi.setClient(this.client);
     return session;
   }
 
@@ -78,6 +82,7 @@ export class MatrixService {
     this.authApi.restoreSession(session);
     this.client = this.authApi.getClient();
     this.syncApi.setClient(this.client);
+    this.messagesApi.setClient(this.client);
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
@@ -115,81 +120,47 @@ export class MatrixService {
 
   /** Send an m.text message; resolves with the resulting event id. */
   async sendMessage(roomId: string, body: string): Promise<string> {
-    const res: SendEventResponseLike = await this.requireClient().sendMessage(roomId, {
-      msgtype: "m.text",
-      body,
-    });
-    if (typeof res === "string") return res;
-    if (!res?.event_id) throw new Error("sendMessage failed: missing event_id");
-    return res.event_id;
+    return this.messagesApi.sendMessage(roomId, body);
   }
 
   /** Sends an m.file message: uploads the file, then sends m.message with m.file content. */
   async sendFile(roomId: string, file: File, body?: string): Promise<string> {
-    const url = await this.uploadMedia(file);
-    const res: SendEventResponseLike = await this.requireClient().sendEvent(roomId, "m.message", {
-      msgtype: "m.file",
-      body: body ?? file.name,
-      url,
-      info: {
-        mimetype: file.type,
-        size: file.size,
-      },
-    } as Record<string, unknown>);
-    if (typeof res === "string") return res;
-    if (!res?.event_id) throw new Error("sendFile failed: missing event_id");
-    return res.event_id;
+    return this.messagesApi.sendFile(roomId, file, body);
   }
 
   /** Envia uma reação m.reaction (m.annotation com m.relates_to) a um evento. */
   async sendReaction(roomId: string, targetEventId: string, emoji: string): Promise<string> {
-    const res = await this.requireClient().sendEvent(roomId, "m.reaction", {
-      "m.relates_to": {
-        rel_type: "m.annotation",
-        event_id: targetEventId,
-      },
-      "m.annotation": {
-        emoji,
-      },
-    });
-    if (!res?.event_id) throw new Error("sendReaction failed: missing event_id");
-    return res.event_id;
+    return this.messagesApi.sendReaction(roomId, targetEventId, emoji);
   }
 
   /** Remove a própria reação de um evento (redige o evento de reação). */
   async removeReaction(roomId: string, reactionEventId: string): Promise<void> {
-    await this.requireClient().redactEvent(roomId, reactionEventId);
+    return this.messagesApi.removeReaction(roomId, reactionEventId);
   }
 
   /** Marca o canal como lido até o evento dado (recibo de leitura real no server). */
   async markAsRead(roomId: string, eventId: string): Promise<void> {
-    await this.requireClient().sendReadReceipt(
-      { getId: () => eventId, getRoomId: () => roomId } as unknown as Parameters<
-        MatrixClientLike["sendReadReceipt"]
-      >[0],
-    );
+    return this.messagesApi.markAsRead(roomId, eventId);
   }
 
   /** Redige (exclui) um evento próprio. */
   async redact(roomId: string, eventId: string): Promise<void> {
-    await this.requireClient().redactEvent(roomId, eventId);
+    return this.messagesApi.redact(roomId, eventId);
   }
 
   /** Define o estado de digitação em uma sala (m.typing ephemeral). */
   async setTyping(roomId: string, isTyping: boolean): Promise<void> {
-    await this.requireClient().sendTyping(roomId, isTyping);
+    return this.messagesApi.setTyping(roomId, isTyping);
+  }
+
+  /** Edita uma mensagem existente (m.replace). */
+  async editMessage(roomId: string, eventId: string, newBody: string): Promise<void> {
+    return this.messagesApi.editMessage(roomId, eventId, newBody);
   }
 
   /** Carrega histórico antigo de uma sala (scrollback) e retorna os eventos. */
   async loadOlder(roomId: string, limit = 20): Promise<NormalizedEvent[]> {
-    const client = this.requireClient();
-    const room = client.getRoom(roomId);
-    if (!room) return [];
-    const scrollbacked = await client.scrollback(room, limit);
-    const events = (scrollbacked as { getLiveTimeline: () => { getEvents: () => TimelineEventLike[] } }).getLiveTimeline().getEvents();
-    return events
-      .map((e) => normalizeTimelineEvent(e))
-      .filter((e): e is NormalizedEvent => e !== null);
+    return this.messagesApi.loadOlder(roomId, limit);
   }
 
   /** Perfil de um usuário (sem args = próprio usuário). */
@@ -206,12 +177,7 @@ export class MatrixService {
 
   /** Envia um arquivo de mídia (avatar, banner, anexo) e devolve o mxc:// URI. */
   async uploadMedia(file: File): Promise<string> {
-    const res = await this.requireClient().uploadContent(file, {
-      name: file.name,
-      type: file.type,
-    });
-    if (!res?.content_uri) throw new Error("uploadMedia: resposta sem content_uri");
-    return res.content_uri;
+    return this.messagesApi.uploadMedia(file);
   }
 
   /** Define o avatar do próprio usuário (mxc:// URI ou null para remover). */
