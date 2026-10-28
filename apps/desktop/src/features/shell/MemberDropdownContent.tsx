@@ -36,8 +36,13 @@ export default function MemberDropdownContent({
 
     const load = async () => {
       try {
-        // Busca unificada: um único chamado ao servidor Matrix
-        const fetched = await matrixService.getUserProfile(userId)
+        // Timeout de 5s para evitar loading infinito se o SDK travar
+        const fetched = await Promise.race([
+          matrixService.getUserProfile(userId),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout perfil")), 5000)
+          ),
+        ])
 
         if (!cancelled) {
           setProfile(fetched)
