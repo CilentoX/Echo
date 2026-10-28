@@ -140,36 +140,37 @@ describe("ProfileApi", () => {
   });
 
   describe("getBannerUrl", () => {
-    it("returns banner_url from getProfileInfo when present", async () => {
+    it("always returns null (banner not in Matrix profile)", async () => {
       fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Test", avatar_url: null, banner_url: "mxc://banner" });
       const result = await api.getBannerUrl();
-      expect(result).toBe("mxc://banner");
+      expect(result).toBeNull();
     });
 
-    it("returns null when banner_url is undefined", async () => {
+    it("returns null when no client", async () => {
       fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Test", avatar_url: null });
       const result = await api.getBannerUrl();
       expect(result).toBeNull();
     });
 
-    it("throws when no client is set", async () => {
+    it("does not throw when no client (returns null)", async () => {
       api.setClient(null);
-      await expect(api.getBannerUrl()).rejects.toThrow("no active session");
+      const result = await api.getBannerUrl();
+      expect(result).toBeNull();
     });
   });
 
   describe("getUserProfile", () => {
-    it("returns full UserProfile with all fields", async () => {
+    it("returns full UserProfile with all fields from Matrix profile", async () => {
       fakeClient.getProfileInfo = vi.fn().mockResolvedValue({
         displayname: "Test User",
         avatar_url: "mxc://avatar",
-        banner_url: "mxc://banner",
+        // banner_url não existe no perfil Matrix padrão
       });
       const result = await api.getUserProfile("@user:echo.litteris.online");
       expect(result).toEqual({
         displayName: "Test User",
         avatarUrl: "mxc://avatar",
-        bannerUrl: "mxc://banner",
+        bannerUrl: null, // banner não vem do perfil Matrix padrão
         bio: null,
         role: null,
       });
@@ -193,131 +194,7 @@ describe("ProfileApi", () => {
     });
   });
 
-  describe("getUserBanner", () => {
-    it("returns banner URL from DM room state event", async () => {
-      const mockRoom = {
-        getType: vi.fn().mockReturnValue("m.direct"),
-        getJoinedMembers: vi.fn().mockReturnValue([{ userId: "@target:echo.litteris.online" }]),
-        currentState: {
-          getStateEvents: vi.fn().mockReturnValue([{ getContent: () => ({ url: "mxc://banner" }) }]),
-        },
-        roomId: "!dm:echo.litteris.online",
-      };
-      fakeClient.getRooms = vi.fn().mockReturnValue([mockRoom]);
-      fakeClient.getRoom = vi.fn().mockReturnValue(mockRoom);
-
-      const result = await api.getUserBanner("@target:echo.litteris.online");
-      expect(result).toBe("mxc://banner");
-    });
-
-    it("returns null when no DM room found", async () => {
-      fakeClient.getRooms = vi.fn().mockReturnValue([]);
-      const result = await api.getUserBanner("@target:echo.litteris.online");
-      expect(result).toBeNull();
-    });
-
-    it("returns null when DM room has no banner event", async () => {
-      const mockRoom = {
-        getType: vi.fn().mockReturnValue("m.direct"),
-        getJoinedMembers: vi.fn().mockReturnValue([{ userId: "@target:echo.litteris.online" }]),
-        currentState: { getStateEvents: vi.fn().mockReturnValue([]) },
-        roomId: "!dm:echo.litteris.online",
-      };
-      fakeClient.getRooms = vi.fn().mockReturnValue([mockRoom]);
-      const result = await api.getUserBanner("@target:echo.litteris.online");
-      expect(result).toBeNull();
-    });
-
-    it("returns null when banner URL is empty", async () => {
-      const mockRoom = {
-        getType: vi.fn().mockReturnValue("m.direct"),
-        getJoinedMembers: vi.fn().mockReturnValue([{ userId: "@target:echo.litteris.online" }]),
-        currentState: { getStateEvents: vi.fn().mockReturnValue([{ getContent: () => ({ url: "" }) }]) },
-        roomId: "!dm:echo.litteris.online",
-      };
-      fakeClient.getRooms = vi.fn().mockReturnValue([mockRoom]);
-      const result = await api.getUserBanner("@target:echo.litteris.online");
-      expect(result).toBeNull();
-    });
-
-    it("throws when no client is set", async () => {
-      api.setClient(null);
-      await expect(api.getUserBanner("@target:echo.litteris.online")).rejects.toThrow("no active session");
-    });
-  });
-
-  describe("setUserBanner", () => {
-    it("sends state event to existing DM room", async () => {
-      const mockRoom = {
-        getType: vi.fn().mockReturnValue("m.direct"),
-        getJoinedMembers: vi.fn().mockReturnValue([{ userId: "@target:echo.litteris.online" }]),
-        currentState: { getStateEvents: vi.fn().mockReturnValue([{ getId: () => "$banner-event" }]) },
-        roomId: "!dm:echo.litteris.online",
-      };
-      fakeClient.getRooms = vi.fn().mockReturnValue([mockRoom]);
-      fakeClient.getRoom = vi.fn().mockReturnValue(mockRoom);
-      fakeClient.sendStateEvent = vi.fn().mockResolvedValue({ event_id: "$new-banner" });
-      fakeClient.redactEvent = vi.fn();
-
-      await api.setUserBanner("@target:echo.litteris.online", "mxc://new-banner");
-
-      expect(fakeClient.sendStateEvent).toHaveBeenCalledWith(
-        "!dm:echo.litteris.online",
-        "echo.user.banner",
-        { url: "mxc://new-banner" },
-      );
-    });
-
-    it("creates DM room if none exists", async () => {
-      fakeClient.getRooms = vi.fn().mockReturnValue([]);
-      fakeClient.createRoom = vi.fn().mockResolvedValue({ room_id: "!new-dm:echo.litteris.online" });
-      const mockNewRoom = {
-        roomId: "!new-dm:echo.litteris.online",
-        getType: vi.fn().mockReturnValue("m.direct"),
-        getJoinedMembers: vi.fn().mockReturnValue([{ userId: "@target:echo.litteris.online" }]),
-        currentState: { getStateEvents: vi.fn().mockReturnValue([]) },
-      };
-      fakeClient.getRoom = vi.fn().mockReturnValue(mockNewRoom);
-      fakeClient.sendStateEvent = vi.fn().mockResolvedValue({ event_id: "$new-banner" });
-
-      await api.setUserBanner("@target:echo.litteris.online", "mxc://new-banner");
-
-      expect(fakeClient.createRoom).toHaveBeenCalledWith(
-        expect.objectContaining({
-          is_direct: true,
-          invite: ["@target:echo.litteris.online"],
-        }),
-      );
-    });
-
-    it("redacts banner event when bannerUrl is null", async () => {
-      const mockRoom = {
-        getType: vi.fn().mockReturnValue("m.direct"),
-        getJoinedMembers: vi.fn().mockReturnValue([{ userId: "@target:echo.litteris.online" }]),
-        currentState: { getStateEvents: vi.fn().mockReturnValue([{ getId: () => "$banner-event" }]) },
-        roomId: "!dm:echo.litteris.online",
-      };
-      fakeClient.getRooms = vi.fn().mockReturnValue([mockRoom]);
-      fakeClient.getRoom = vi.fn().mockReturnValue(mockRoom);
-      fakeClient.redactEvent = vi.fn().mockResolvedValue({ event_id: "$redact" });
-
-      await api.setUserBanner("@target:echo.litteris.online", null);
-
-      expect(fakeClient.redactEvent).toHaveBeenCalledWith("!dm:echo.litteris.online", "$banner-event");
-    });
-
-    it("does nothing when DM room not found and bannerUrl is null", async () => {
-      fakeClient.getRooms = vi.fn().mockReturnValue([]);
-      fakeClient.createRoom = vi.fn();
-      await api.setUserBanner("@target:echo.litteris.online", null);
-      expect(fakeClient.createRoom).not.toHaveBeenCalled();
-    });
-
-    it("throws when no client is set", async () => {
-      api.setClient(null);
-      await expect(api.setUserBanner("@target:echo.litteris.online", "mxc://banner")).rejects.toThrow("no active session");
-    });
-  });
+  // getUserBanner e setUserBanner removidos - banner deve vir de fonte global (Appwrite/Database), não de DM rooms
 
   describe("setClient", () => {
     it("updates internal client reference", async () => {

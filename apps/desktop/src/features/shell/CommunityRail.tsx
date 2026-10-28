@@ -4,7 +4,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { Gear, Plus, User } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import GuildDropdownContent from "@/features/guild/GuildDropdownContent";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import { matrixService } from "@/lib/matrix/instance";
 
 /** Iniciais do nome da guilda (até 2 palavras) — guildas sem avatar (avatarUrl vem de mxc://, render na Fase 2). */
@@ -35,26 +35,30 @@ function GuildButton({
     setOpen(true);
   };
 
+  const handleClick = () => {
+    // Left-click: apenas seleciona a guilda, NÃO abre o dropdown
+    onSelect(guild.guildId);
+  };
+
   return (
     <div className="relative">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            title={guild.name}
-            aria-label={guild.name}
-            aria-current={active ? "true" : undefined}
-            onClick={() => onSelect(guild.guildId)}
-            onContextMenu={handleContextMenu}
-            className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full font-display text-sm transition-colors ${
-              active
-                ? "bg-acc text-bg"
-                : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
-            }`}
-          >
-            {initials(guild.name)}
-          </button>
-        </PopoverTrigger>
+        {/* Botão SEM PopoverTrigger — clique esquerdo só seleciona, clique direito abre dropdown */}
+        <button
+          type="button"
+          title={guild.name}
+          aria-label={guild.name}
+          aria-current={active ? "true" : undefined}
+          onClick={handleClick}
+          onContextMenu={handleContextMenu}
+          className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full font-display text-sm transition-colors ${
+            active
+              ? "bg-acc text-bg"
+              : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
+          }`}
+        >
+          {initials(guild.name)}
+        </button>
         <PopoverContent
           side="right"
           sideOffset={8}

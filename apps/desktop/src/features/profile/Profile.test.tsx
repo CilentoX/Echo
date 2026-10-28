@@ -93,7 +93,6 @@ vi.mock("@/components/media/ImageUploadWithEdit", () => {
 
 const mockUploadMedia = vi.mocked(matrixService.uploadMedia);
 const mockSetAvatarUrl = vi.mocked(matrixService.setAvatarUrl);
-const mockSetUserBanner = vi.mocked(matrixService.setUserBanner);
 const mockSetDisplayName = vi.mocked(matrixService.setDisplayName);
 const mockGetUserId = vi.mocked(matrixService.getUserId);
 const mockUploadImage = vi.mocked(uploadImage);
@@ -125,7 +124,6 @@ function resetStore() {
   });
   mockUploadMedia.mockResolvedValue("mxc://hs/file");
   mockSetAvatarUrl.mockResolvedValue(undefined);
-  mockSetUserBanner.mockResolvedValue(undefined);
   mockSetDisplayName.mockResolvedValue(undefined);
   mockGetUserId.mockReturnValue("@test:echo.litteris.online");
   mockUploadImage.mockResolvedValue("https://appwrite.example.com/file.png");

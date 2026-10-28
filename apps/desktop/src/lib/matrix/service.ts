@@ -243,16 +243,6 @@ export class MatrixService {
     return this.mediaApi.mxcUrlToHttp(mxcUrl, width, height, resizeMethod, true, true, useAuthentication ?? true);
   }
 
-  /** Devolve o banner do perfil de um usuário (estado custom echo.user.banner no quarto DM direto). */
-  async getUserBanner(userId: string): Promise<string | null> {
-    return this.profileApi.getUserBanner(userId);
-  }
-
-  /** Define o banner do perfil do usuário (estado custom echo.user.banner no quarto DM direto). */
-  async setUserBanner(userId: string, bannerUrl: string | null): Promise<void> {
-    return this.profileApi.setUserBanner(userId, bannerUrl);
-  }
-
   /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
   async listGuilds(): Promise<GuildSummary[]> {
     return this.guildsApi.listGuilds();

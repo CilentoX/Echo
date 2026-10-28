@@ -86,6 +86,7 @@ export function useImageUploadWithMatrix(): UseImageUploadWithMatrixReturn {
       setAppwriteBannerUrl(appwriteUrl)
 
       // 2. Tentar upload no Matrix (best-effort: não bloqueia se falhar)
+      // Nota: banner não tem suporte global no Matrix ainda, só Appwrite
       try {
         const response = await fetch(appwriteUrl)
         if (!response.ok) {
@@ -94,19 +95,14 @@ export function useImageUploadWithMatrix(): UseImageUploadWithMatrixReturn {
         const blob = await response.blob()
         const fileForMatrix = new File([blob], file.name, { type: file.type })
 
-        // 3. Upload no Matrix (gera mxc:// URI)
+        // 3. Upload no Matrix (gera mxc:// URI) - guardado como fallback
         const mxcUri = await matrixService.uploadMedia(fileForMatrix)
         console.log("[ImageUpload] Matrix upload OK:", mxcUri)
 
-        // 4. Atualiza banner no Matrix (via estado custom echo.user.banner)
-        const myUserId = useUiStore.getState().myUserId
-        if (!myUserId) throw new Error("Usuário não autenticado")
-        await matrixService.setUserBanner(myUserId, mxcUri)
-
-        // 5. Atualiza store local
+        // 4. Atualiza store local com mxc:// (fallback apenas)
         setBannerUrl(mxcUri)
 
-        console.log("[ImageUpload] Banner sincronizado:", mxcUri)
+        console.log("[ImageUpload] Banner sincronizado (fallback Matrix):", mxcUri)
       } catch (matrixErr) {
         console.warn("[ImageUpload] Matrix upload falhou (não bloqueia):", matrixErr)
         // Não define bannerUrl para mxc:// — mantém apenas appwriteBannerUrl

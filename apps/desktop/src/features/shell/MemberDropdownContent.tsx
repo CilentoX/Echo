@@ -24,6 +24,7 @@ export default function MemberDropdownContent({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl)
+  const myAppwriteBannerUrl = useProfileStore((state) => state.appwriteBannerUrl)
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message)
@@ -107,10 +108,16 @@ export default function MemberDropdownContent({
 
   const initial = (profile?.displayName ?? cleanUserId(userId)).charAt(0).toUpperCase()
 
-  // Fallback chain: Matrix avatar → Appwrite avatar (my user only) → null (initials)
+  // Fallback chain para avatar:
+  // - Próprio usuário: Appwrite (localStorage) → Matrix mxc:// → inicials
+  // - Outros usuários: Matrix mxc:// → inicials
   const effectiveAvatarUrl = isMyUser
-    ? (profile?.avatarUrl ?? myAppwriteAvatarUrl ?? null)
+    ? (myAppwriteAvatarUrl ?? profile?.avatarUrl ?? null)
     : (profile?.avatarUrl ?? null)
+
+  // Banner: não disponível globalmente ainda → sempre fallback gradiente
+  // TODO: implementar busca global de banner via Appwrite Database
+  const effectiveBannerUrl = isMyUser ? myAppwriteBannerUrl : null
 
   return (
     <div
@@ -119,9 +126,9 @@ export default function MemberDropdownContent({
     >
       {/* Banner do membro com fallback gradiente */}
       <div className="relative w-full h-20 rounded-xl overflow-hidden mb-4">
-        {profile?.bannerUrl ? (
+        {effectiveBannerUrl ? (
           <MxcImage
-            mxcUrl={profile.bannerUrl}
+            mxcUrl={effectiveBannerUrl}
             alt="Banner"
             className="w-full h-full object-cover object-center"
           />

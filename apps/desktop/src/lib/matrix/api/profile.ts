@@ -54,78 +54,22 @@ export class ProfileApi {
     return res.avatar_url ?? null;
   }
 
-  /** Get banner URL of a user (defaults to current user). */
+  /** Get banner URL of a user (defaults to current user). 
+   * Note: Matrix profile doesn't have banner_url by default.
+   * This returns null; banner should come from global source (Appwrite/Database). */
   async getBannerUrl(userId?: string): Promise<string | null> {
-    const client = this.requireClient();
-    const resolvedUserId = userId ?? client.getUserId() ?? undefined;
-    const res = await client.getProfileInfo(resolvedUserId);
-    return (res as { banner_url?: string }).banner_url ?? null;
+    return null;
   }
 
-  /** Get full user profile in a single call. */
+  /** Get full user profile in a single call (Matrix profile only). */
   async getUserProfile(userId: string): Promise<UserProfile> {
     const res = await this.requireClient().getProfileInfo(userId);
     return {
       displayName: res.displayname ?? null,
       avatarUrl: res.avatar_url ?? null,
-      bannerUrl: (res as { banner_url?: string }).banner_url ?? null,
+      bannerUrl: null, // banner não vem do perfil Matrix padrão
       bio: null,
       role: null,
     };
-  }
-
-  /** Get user banner from DM room state event (echo.user.banner). */
-  async getUserBanner(userId: string): Promise<string | null> {
-    const client = this.requireClient();
-    const rooms = client.getRooms();
-    for (const room of rooms) {
-      if (room.getType() !== "m.direct") continue;
-      const members = room.getJoinedMembers();
-      const hasUser = members.some((m) => m.userId === userId);
-      if (!hasUser) continue;
-      const bannerEv = room.currentState.getStateEvents("echo.user.banner")[0];
-      const url = bannerEv?.getContent().url;
-      return typeof url === "string" && url.length > 0 ? url : null;
-    }
-    return null;
-  }
-
-  /** Set user banner in DM room state event (echo.user.banner). */
-  async setUserBanner(userId: string, bannerUrl: string | null): Promise<void> {
-    const client = this.requireClient();
-    const rooms = client.getRooms();
-    let dmRoom: RoomLike | null = rooms.find((r) => {
-      if (r.getType() !== "m.direct") return false;
-      return r.getJoinedMembers().some((m) => m.userId === userId);
-    }) ?? null;
-
-    if (!dmRoom) {
-      if (!bannerUrl) return; // nothing to do
-      const res = await client.createRoom({
-        preset: "private_chat" as any,
-        is_direct: true,
-        invite: [userId],
-        visibility: "private" as any,
-      });
-      dmRoom = client.getRoom(res.room_id);
-    }
-
-    if (dmRoom) {
-      if (bannerUrl) {
-        await client.sendStateEvent(dmRoom.roomId, "echo.user.banner", { url: bannerUrl });
-      } else {
-        const eventId = await this._findBannerEventId(dmRoom.roomId);
-        if (eventId) {
-          await client.redactEvent(dmRoom.roomId, eventId);
-        }
-      }
-    }
-  }
-
-  private async _findBannerEventId(roomId: string): Promise<string> {
-    const room = this.requireClient().getRoom(roomId);
-    if (!room) return "";
-    const ev = room.currentState.getStateEvents("echo.user.banner")[0];
-    return ev?.getId() ?? "";
   }
 }
