@@ -202,9 +202,10 @@ export default function ChannelSidebar({
         }
         onCreated={(channel) => {
           setActiveChannel(channel.channelId);
+          const currentChannels = useSyncStore.getState().channelsByGuild[activeGuildId ?? ""] ?? [];
           setChannels(activeGuildId ?? "", [
             { ...channel, unreadCount: 0 },
-            ...(Array.isArray(allChannels) ? allChannels : []),
+            ...currentChannels,
           ]);
         }}
       />
