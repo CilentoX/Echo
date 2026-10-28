@@ -15,6 +15,7 @@ import type {
   UserProfile,
 } from "./types";
 import { AuthApi } from "./api/auth";
+import { SyncApi } from "./api/sync";
 
 /**
  * Injection point for tests: by default we build a real SDK client,
@@ -52,16 +53,13 @@ export class MatrixService {
   private readonly clientFactory: ClientFactory;
   private client: MatrixClientLike | null = null;
   private readonly authApi: AuthApi;
-  private syncListener: ((...args: unknown[]) => void) | null = null;
-  private timelineListener: ((...args: unknown[]) => void) | null = null;
-  private typingListener: ((...args: unknown[]) => void) | null = null;
-  private presenceListener: ((...args: unknown[]) => void) | null = null;
-  private membersListener: ((...args: unknown[]) => void) | null = null;
+  private readonly syncApi: SyncApi;
 
   constructor(baseUrl: string, clientFactory: ClientFactory = defaultClientFactory) {
     this.baseUrl = baseUrl;
     this.clientFactory = clientFactory;
     this.authApi = new AuthApi(baseUrl, clientFactory);
+    this.syncApi = new SyncApi(null, clientFactory);
   }
 
   /** Login with an SSO loginToken (m.login.token); the returned Session is
@@ -70,6 +68,8 @@ export class MatrixService {
     const session = await this.authApi.loginWithSsoToken(loginToken);
     // Sync the client instance from AuthApi
     this.client = this.authApi.getClient();
+    // Update SyncApi with the credentialled client
+    this.syncApi.setClient(this.client);
     return session;
   }
 
@@ -77,6 +77,7 @@ export class MatrixService {
   restoreSession(session: Session): void {
     this.authApi.restoreSession(session);
     this.client = this.authApi.getClient();
+    this.syncApi.setClient(this.client);
   }
 
   /** SSO redirect URL, wrapping the SDK client. Used by services/sso.ts, which
@@ -89,6 +90,7 @@ export class MatrixService {
   /** Logout: clear session and disconnect client. */
   async logout(): Promise<void> {
     await this.authApi.logout();
+    this.syncApi.stopSync();
     this.client = null;
   }
 
@@ -104,77 +106,11 @@ export class MatrixService {
    * - onReadReceipt → cada recibo de leitura
    */
   startSyncHandlers(handlers: SyncHandlers): void {
-    const client = this.requireClient();
-
-    this.syncListener = (...args: unknown[]) => {
-      const status = SYNC_STATE_STATUS[args[0] as string];
-      if (!status) return;
-      const error = extractSyncError(args[2]);
-      if (error) handlers.onStatus(status, error);
-      else handlers.onStatus(status);
-    };
-    this.timelineListener = (...args: unknown[]) => {
-      const normalized = normalizeTimelineEvent(args[0] as TimelineEventLike);
-      if (normalized) handlers.onEvent(normalized);
-    };
-    this.typingListener = (...args: unknown[]) => {
-      // RoomMember.typing: (event, member) — event.getRoomId() + member.typing + member.userId
-      const event = args[0] as { getRoomId?: () => string | null } | undefined;
-      const member = args[1] as { userId?: string; typing?: boolean } | undefined;
-      const roomId = event?.getRoomId?.() ?? null;
-      if (!roomId || !member || !member.userId || typeof member.typing !== "boolean") return;
-      if (handlers.onTyping) {
-        handlers.onTyping(roomId, member.userId, member.typing);
-      }
-    };
-    this.presenceListener = (...args: unknown[]) => {
-      // User.presence: (event, user) — user.presence string + user.userId
-      const user = args[1] as { userId?: string; presence?: string } | undefined;
-      if (!user || !user.userId || !user.presence) return;
-      if (handlers.onPresence) handlers.onPresence(user.userId, mapPresence(user.presence));
-    };
-    this.membersListener = (...args: unknown[]) => {
-      // RoomStateEvent.Members: (event, member) — membro mudou de sala
-      const member = args[1] as {
-        userId?: string;
-        name?: string;
-        membership?: string;
-        user?: { presence?: string } | null;
-      } | undefined;
-      if (!member || !member.userId) return;
-      if (handlers.onMembers) {
-        handlers.onMembers(member.userId, [
-          {
-            userId: member.userId,
-            displayName: member.name ?? member.userId,
-            presence: mapPresence(member.user?.presence ?? "offline"),
-          },
-        ]);
-      }
-    };
-
-    client.on("sync", this.syncListener);
-    client.on("Room.timeline", this.timelineListener);
-    client.on("RoomMember.typing", this.typingListener);
-    client.on("User.presence", this.presenceListener);
-    client.on("RoomStateEvent.Members", this.membersListener);
-    client.startClient(DEFAULT_START_CLIENT_OPTS);
+    this.syncApi.startSyncHandlers(handlers);
   }
 
   stopSync(): void {
-    if (!this.client) return;
-    if (this.syncListener) this.client.removeListener("sync", this.syncListener);
-    if (this.timelineListener) this.client.removeListener("Room.timeline", this.timelineListener);
-    if (this.typingListener) this.client.removeListener("RoomMember.typing", this.typingListener);
-    if (this.presenceListener) this.client.removeListener("User.presence", this.presenceListener);
-    if (this.membersListener)
-      this.client.removeListener("RoomStateEvent.Members", this.membersListener);
-    this.client.stopClient();
-    this.syncListener = null;
-    this.timelineListener = null;
-    this.typingListener = null;
-    this.presenceListener = null;
-    this.membersListener = null;
+    this.syncApi.stopSync();
   }
 
   /** Send an m.text message; resolves with the resulting event id. */
