@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useMemo } from "react";
-import { Pencil, X, Camera, Image, Trash, User, At, Hash, Calendar } from "@phosphor-icons/react";
+import { Pencil, X, Camera, User, At, Hash, Calendar } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -300,49 +300,11 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
 
             <Separator />
 
-            {/* Avatar Upload - usando ImageUploadWithEdit unificado */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-txt flex items-center gap-2">
-                <Camera size={16} className="text-mut" aria-hidden="true" />
-                Foto do perfil
-              </Label>
-              <ImageUploadWithEdit
-                value={editAvatarUrl}
-                label=""
-                placeholder="Foto do perfil (PNG/JPG, até 2 MB)"
-                onChange={handleAvatarChange}
-                onRemove={handleAvatarRemove}
-                type="avatar"
-                preset="large"
-                previewHeight="h-24"
-                editTitle="Editar foto do perfil"
-                editable={!isSaving}
-                maxSizeMB={2}
-                appwriteUrl={editAvatarUrl}
-              />
-            </div>
-
-            {/* Banner Upload - usando ImageUploadWithEdit unificado */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-txt flex items-center gap-2">
-                <Image size={16} className="text-mut" aria-hidden="true" />
-                Banner do perfil
-              </Label>
-              <ImageUploadWithEdit
-                value={editBannerUrl}
-                label=""
-                placeholder="Banner do perfil (PNG/JPG, até 5 MB)"
-                onChange={handleBannerChange}
-                onRemove={handleBannerRemove}
-                type="banner"
-                preset="medium"
-                previewHeight="h-32"
-                editTitle="Editar banner do perfil"
-                editable={!isSaving}
-                maxSizeMB={5}
-                appwriteUrl={editBannerUrl}
-              />
-            </div>
+            {/* Dica: avatar e banner são editados clicando nas imagens acima */}
+            <p className="text-xs text-mut flex items-center gap-2">
+              <Camera size={14} aria-hidden="true" />
+              Para alterar a foto ou o banner, clique nas imagens acima.
+            </p>
 
             {error && (
               <div className="rounded-lg bg-err/10 p-4 text-sm text-err border border-err/20">
