@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { Gear, Plus, User } from "@phosphor-icons/react";
@@ -18,6 +18,70 @@ function initials(name: string): string {
   );
 }
 
+/** Botão de guilda individual com dropdown próprio (estilo Discord: clique direito abre). */
+function GuildButton({
+  guild,
+  active,
+  onSelect,
+}: {
+  guild: { guildId: string; name: string; avatarUrl: string | null; unreadCount: number };
+  active: boolean;
+  onSelect: (guildId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setOpen(true);
+  };
+
+  return (
+    <div className="relative">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            title={guild.name}
+            aria-label={guild.name}
+            aria-current={active ? "true" : undefined}
+            onClick={() => onSelect(guild.guildId)}
+            onContextMenu={handleContextMenu}
+            className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full font-display text-sm transition-colors ${
+              active
+                ? "bg-acc text-bg"
+                : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
+            }`}
+          >
+            {initials(guild.name)}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          sideOffset={8}
+          align="start"
+          className="w-auto p-0"
+        >
+          <GuildDropdownContent
+            guildId={guild.guildId}
+            guildName={guild.name}
+            avatarUrl={guild.avatarUrl}
+            unreadCount={guild.unreadCount}
+            onClose={() => setOpen(false)}
+          />
+        </PopoverContent>
+      </Popover>
+      {guild.unreadCount > 0 && (
+        <span
+          aria-label={`${guild.unreadCount} não lidas em ${guild.name}`}
+          className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-err px-1 text-[11px] font-bold text-bg"
+        >
+          {guild.unreadCount}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export interface CommunityRailProps {
   onOpenProfile: () => void;
   onOpenSettings: () => void;
@@ -30,29 +94,10 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
   const [createOpen, setCreateOpen] = useState(false);
 
-  // Dropdown de guilda controlado manualmente para abrir apenas com clique direito.
-  const [openGuildId, setOpenGuildId] = useState<string | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
   const handleCreated = (guild: { guildId: string; name: string }) => {
     // Adiciona ao store (sem perder as existentes) e seleciona a nova guilda.
     useSyncStore.getState().setGuilds([...guilds, { ...guild, avatarUrl: null, unreadCount: 0 }]);
     setActiveGuild(guild.guildId);
-  };
-
-  const handleContextMenu = (
-    e: React.MouseEvent,
-    guildId: string,
-    btn: HTMLButtonElement | null,
-  ) => {
-    e.preventDefault();
-    triggerRef.current = btn;
-    setOpenGuildId(guildId);
-  };
-
-  const handleCloseDropdown = () => {
-    setOpenGuildId(null);
-    triggerRef.current = null;
   };
 
   return (
@@ -63,52 +108,13 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
     >
       {guilds.map((guild) => {
         const active = guild.guildId === activeGuildId;
-        const dropdownOpen = openGuildId === guild.guildId;
         return (
-          <div key={guild.guildId} className="relative">
-            <Popover open={dropdownOpen} onOpenChange={(open) => open || handleCloseDropdown()}>
-              <PopoverTrigger asChild>
-                <button
-                  ref={triggerRef}
-                  type="button"
-                  title={guild.name}
-                  aria-label={guild.name}
-                  aria-current={active ? "true" : undefined}
-                  onClick={() => setActiveGuild(guild.guildId)}
-                  onContextMenu={(e) => handleContextMenu(e, guild.guildId, triggerRef.current)}
-                  className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full font-display text-sm transition-colors ${
-                    active
-                      ? "bg-acc text-bg"
-                      : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
-                  }`}
-                >
-                  {initials(guild.name)}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                side="right"
-                sideOffset={8}
-                align="start"
-                className="w-auto p-0"
-              >
-                <GuildDropdownContent
-                  guildId={guild.guildId}
-                  guildName={guild.name}
-                  avatarUrl={guild.avatarUrl}
-                  unreadCount={guild.unreadCount}
-                  onClose={handleCloseDropdown}
-                />
-              </PopoverContent>
-            </Popover>
-            {guild.unreadCount > 0 && (
-              <span
-                aria-label={`${guild.unreadCount} não lidas em ${guild.name}`}
-                className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-err px-1 text-[11px] font-bold text-bg"
-              >
-                {guild.unreadCount}
-              </span>
-            )}
-          </div>
+          <GuildButton
+            key={guild.guildId}
+            guild={guild}
+            active={active}
+            onSelect={setActiveGuild}
+          />
         );
       })}
 

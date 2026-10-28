@@ -65,6 +65,15 @@ export interface ChannelSummary {
   unreadCount: number;
 }
 
+/** Perfil completo de um usuário (busca única no servidor Matrix). */
+export interface UserProfile {
+  displayName: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  bio: string | null;
+  role: string | null;
+}
+
 export type SyncStatus = "connecting" | "syncing" | "error";
 
 /**

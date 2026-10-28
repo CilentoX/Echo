@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useUiStore } from "@/stores/uiStore"
 import { useProfileStore } from "@/stores/profileStore"
 import { matrixService } from "@/lib/matrix/instance"
+import type { UserProfile } from "@/lib/matrix/types"
 import { Chats, User, Copy } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -18,17 +19,11 @@ export default function MemberDropdownContent({
   const isMyUser = userId === myUserId
   const presence = useUiStore((state) => state.presence[userId] ?? "offline")
 
-  const [displayName, setDisplayName] = useState<string | null>(null)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [bio, setBio] = useState<string | null>(null)
-  const [role, setRole] = useState<string | null>(null)
-  const [bannerUrl, setBannerUrl] = useState<string | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  const myAvatarUrl = useProfileStore((state) => state.avatarUrl)
-  const myBio = useProfileStore((state) => state.bio)
-  const myRole = useProfileStore((state) => state.role)
+  const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl)
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message)
@@ -40,23 +35,19 @@ export default function MemberDropdownContent({
     setLoading(true)
 
     const load = async () => {
-      if (isMyUser) {
-        setAvatarUrl(myAvatarUrl ?? null)
-        setBio(myBio ?? null)
-        setRole(myRole ?? null)
-      }
+      try {
+        // Busca unificada: um único chamado ao servidor Matrix
+        const fetched = await matrixService.getUserProfile(userId)
 
-      const [name, avatar, banner] = await Promise.all([
-        matrixService.getDisplayName(userId),
-        matrixService.getAvatarUrl(userId),
-        matrixService.getUserBanner(userId),
-      ])
-
-      if (!cancelled) {
-        setDisplayName(name ?? null)
-        if (!isMyUser) setAvatarUrl(avatar ?? null)
-        setBannerUrl(banner ?? null)
-        setLoading(false)
+        if (!cancelled) {
+          setProfile(fetched)
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) {
+          setProfile(null)
+          setLoading(false)
+        }
       }
     }
 
@@ -64,7 +55,7 @@ export default function MemberDropdownContent({
     return () => {
       cancelled = true
     }
-  }, [userId, isMyUser, myAvatarUrl, myBio, myRole])
+  }, [userId])
 
   const copyUserId = useCallback(async () => {
     try {
@@ -109,7 +100,12 @@ export default function MemberDropdownContent({
     )
   }
 
-  const initial = (displayName ?? cleanUserId(userId)).charAt(0).toUpperCase()
+  const initial = (profile?.displayName ?? cleanUserId(userId)).charAt(0).toUpperCase()
+
+  // Fallback chain: Matrix avatar → Appwrite avatar (my user only) → null (initials)
+  const effectiveAvatarUrl = isMyUser
+    ? (profile?.avatarUrl ?? myAppwriteAvatarUrl ?? null)
+    : (profile?.avatarUrl ?? null)
 
   return (
     <div
@@ -118,9 +114,9 @@ export default function MemberDropdownContent({
     >
       {/* Banner do membro com fallback gradiente */}
       <div className="relative w-full h-20 rounded-xl overflow-hidden mb-4">
-        {bannerUrl ? (
+        {profile?.bannerUrl ? (
           <MxcImage
-            mxcUrl={bannerUrl}
+            mxcUrl={profile.bannerUrl}
             alt="Banner"
             className="w-full h-full object-cover object-center"
           />
@@ -136,9 +132,9 @@ export default function MemberDropdownContent({
       {/* Cabeçalho: avatar + nome + status */}
       <div className="flex items-center gap-3 px-2">
         <div className="relative shrink-0">
-          {avatarUrl ? (
+          {effectiveAvatarUrl ? (
             <MxcImage
-              mxcUrl={avatarUrl}
+              mxcUrl={effectiveAvatarUrl}
               alt="Avatar"
               className="w-16 h-16 rounded-full object-cover border-2 border-bd bg-surf2"
             />
@@ -153,15 +149,15 @@ export default function MemberDropdownContent({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-display font-bold text-lg text-txt truncate leading-tight" title={displayName ?? cleanUserId(userId)}>
-            {displayName ?? cleanUserId(userId)}
+          <p className="font-display font-bold text-lg text-txt truncate leading-tight" title={profile?.displayName ?? cleanUserId(userId)}>
+            {profile?.displayName ?? cleanUserId(userId)}
           </p>
           <p className="text-xs text-mut truncate">
             @{cleanUserId(userId)} {isMyUser && " (você)"}
           </p>
-          {role && (
+          {profile?.role && (
             <span className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-acc/10 text-xs font-medium text-acc border border-acc/20">
-              {role}
+              {profile.role}
             </span>
           )}
         </div>
@@ -223,9 +219,9 @@ export default function MemberDropdownContent({
         </Button>
       </div>
 
-      {bio && (
+      {profile?.bio && (
         <div className="mt-4 px-2 py-2.5 rounded-xl bg-surf2 border border-bd/50">
-          <p className="text-xs text-mut leading-relaxed">{bio}</p>
+          <p className="text-xs text-mut leading-relaxed">{profile.bio}</p>
         </div>
       )}
     </div>

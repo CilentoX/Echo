@@ -12,6 +12,7 @@ import type {
   SyncStatus,
   TimelineEventLike,
   PresenceState,
+  UserProfile,
 } from "./types";
 
 /**
@@ -308,6 +309,18 @@ export class MatrixService {
     const resolvedUserId = userId ?? this.requireClient().getUserId() ?? undefined;
     const res = await this.requireClient().getProfileInfo(resolvedUserId);
     return (res as { banner_url?: string }).banner_url ?? null;
+  }
+
+  /** Busca todo o perfil de um usuário em uma única chamada ao servidor Matrix. */
+  async getUserProfile(userId: string): Promise<UserProfile> {
+    const res = await this.requireClient().getProfileInfo(userId);
+    return {
+      displayName: res.displayname ?? null,
+      avatarUrl: res.avatar_url ?? null,
+      bannerUrl: (res as { banner_url?: string }).banner_url ?? null,
+      bio: null,
+      role: null,
+    };
   }
 
   /** Devolve o MXID do usuário logado. */
