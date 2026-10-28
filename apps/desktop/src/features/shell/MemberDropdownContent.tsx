@@ -44,14 +44,11 @@ export default function MemberDropdownContent({
           ),
         ])
 
-        console.debug("[MemberDropdownContent] fetched profile:", fetched);
-
         if (!cancelled) {
           setProfile(fetched)
           setLoading(false)
         }
-      } catch (e) {
-        console.error("[MemberDropdownContent] load error:", e);
+      } catch {
         if (!cancelled) {
           setProfile(null)
           setLoading(false)
@@ -114,8 +111,6 @@ export default function MemberDropdownContent({
   const effectiveAvatarUrl = isMyUser
     ? (profile?.avatarUrl ?? myAppwriteAvatarUrl ?? null)
     : (profile?.avatarUrl ?? null)
-
-  console.debug("[MemberDropdownContent] effectiveAvatarUrl:", effectiveAvatarUrl, { isMyUser, profileAvatar: profile?.avatarUrl, myAppwriteAvatarUrl });
 
   return (
     <div

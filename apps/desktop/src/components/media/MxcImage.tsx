@@ -62,7 +62,6 @@ export default function MxcImage({
   fallbackToThumbnail?: boolean;
   showLoading?: boolean;
 }) {
-  console.debug("[MxcImage] received mxcUrl:", mxcUrl);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
@@ -75,8 +74,6 @@ export default function MxcImage({
       : width && height
         ? mxcToThumbnail(mxcUrl, width, height, "crop")
         : mxcToHttp(mxcUrl);
-
-  console.debug("[MxcImage] httpUrl:", httpUrl, { mxcUrl, width, height });
 
   // If no URL provided, don't show loading spinner - show fallback immediately
   if (!mxcUrl) {
