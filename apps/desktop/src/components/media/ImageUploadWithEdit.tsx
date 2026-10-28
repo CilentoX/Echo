@@ -192,14 +192,9 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                 console.warn("[ImageUploadWithEdit] Falha ao carregar imagem:", e.currentTarget.src)
               }}
             />
-            {/* Hover overlay - sempre visível quando editable */}
+            {/* Hover overlay - apenas escurece a imagem quando editable */}
             {editable && !uploading && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 group-hover:bg-black/60 transition-colors duration-200">
-                <Pencil size={20} className="text-white mb-2 drop-shadow-lg" />
-                <span className="text-sm text-white font-medium drop-shadow-lg">
-                  {selectedFile ? "Recortar" : "Editar"}
-                </span>
-              </div>
+              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors duration-200" />
             )}
             {/* Botão remover - sempre no canto quando editable e tem imagem */}
             {editable && onRemove && hasImage && !uploading && (
