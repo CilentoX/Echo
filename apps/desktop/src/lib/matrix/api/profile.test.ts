@@ -2,13 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { MatrixClientLike, UserProfile } from "../types";
 import { ProfileApi } from "./profile";
 
-// Mock do módulo Appwrite profiles (caminho relativo usado no ProfileApi)
-vi.mock("../../appwrite/profiles", () => ({
+// Mock do módulo PostgreSQL profiles (caminho relativo usado no ProfileApi)
+vi.mock("../../postgres/profiles", () => ({
   getGlobalProfile: vi.fn(),
+  upsertGlobalProfile: vi.fn(),
+  patchGlobalProfile: vi.fn(),
+  initUserProfilesTable: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { getGlobalProfile } = await import("../../appwrite/profiles");
+const { getGlobalProfile, upsertGlobalProfile, patchGlobalProfile } = await import("../../postgres/profiles");
 const mockGetGlobalProfile = vi.mocked(getGlobalProfile);
+const mockUpsertGlobalProfile = vi.mocked(upsertGlobalProfile);
+const mockPatchGlobalProfile = vi.mocked(patchGlobalProfile);
 
 // Helper to create a fake MatrixClientLike
 function createFakeClient(overrides: Partial<MatrixClientLike> = {}): MatrixClientLike {
@@ -229,7 +234,7 @@ describe("ProfileApi", () => {
   });
 
   describe("getUserProfile", () => {
-    it("returns full UserProfile with Matrix profile fields, banner/bio from Appwrite", async () => {
+    it("returns full UserProfile with Matrix profile fields, banner/bio from PostgreSQL", async () => {
       const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
         ok: true,
         json: async () => ({
@@ -239,24 +244,23 @@ describe("ProfileApi", () => {
       } as Response);
 
       mockGetGlobalProfile.mockResolvedValue({
-        $id: "@user:echo.litteris.online",
-        userId: "@user:echo.litteris.online",
-        avatarUrl: "https://appwrite.example.com/avatar.png",
-        bannerUrl: "https://appwrite.example.com/banner.png",
+        user_id: "@user:echo.litteris.online",
+        avatar_url: "https://appwrite.example.com/avatar.png",
+        banner_url: "https://appwrite.example.com/banner.png",
         bio: "Hello world",
         links: [{ label: "GitHub", url: "https://github.com/test" }],
-        $createdAt: "2026-01-01T00:00:00.000Z",
-        $updatedAt: "2026-01-01T00:00:00.000Z",
+        created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
       });
 
       const result = await api.getUserProfile("@user:echo.litteris.online");
 
       expect(result).toEqual({
         displayName: "Test User",
-        avatarUrl: "mxc://avatar",
-        bannerUrl: "https://appwrite.example.com/banner.png",
-        bio: "Hello world",
-        role: null,
+        avatarUrl: "mxc://avatar", // avatar do Matrix
+        bannerUrl: "https://appwrite.example.com/banner.png", // banner do PostgreSQL (campo banner_url)
+        bio: "Hello world", // bio do PostgreSQL
+        role: null, // roles são por guilda
       });
       expect(mockGetGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online");
       expect(global.fetch).toHaveBeenCalledWith(
@@ -326,16 +330,15 @@ describe("ProfileApi", () => {
   });
 
   describe("getGlobalProfile", () => {
-    it("returns global profile from Appwrite", async () => {
+    it("returns global profile from PostgreSQL", async () => {
       const mockProfile = {
-        $id: "@user:echo.litteris.online",
-        userId: "@user:echo.litteris.online",
-        avatarUrl: "https://appwrite.example.com/avatar.png",
-        bannerUrl: "https://appwrite.example.com/banner.png",
+        user_id: "@user:echo.litteris.online",
+        avatar_url: "https://appwrite.example.com/avatar.png",
+        banner_url: "https://appwrite.example.com/banner.png",
         bio: "Global bio",
         links: [],
-        $createdAt: "2026-01-01T00:00:00.000Z",
-        $updatedAt: "2026-01-01T00:00:00.000Z",
+        created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
       };
       mockGetGlobalProfile.mockResolvedValue(mockProfile);
 
@@ -359,6 +362,51 @@ describe("ProfileApi", () => {
     });
   });
 
+  describe("updateGlobalProfile", () => {
+    it("calls upsertGlobalProfile with userId and data", async () => {
+      mockUpsertGlobalProfile.mockResolvedValue(undefined);
+      
+      await api.updateGlobalProfile("@user:echo.litteris.online", {
+        avatarUrl: "https://example.com/avatar.png",
+        bannerUrl: "https://example.com/banner.png",
+        bio: "New bio",
+        links: [{ label: "GitHub", url: "https://github.com/test" }],
+      });
+
+      expect(mockUpsertGlobalProfile).toHaveBeenCalledWith({
+        userId: "@user:echo.litteris.online",
+        avatarUrl: "https://example.com/avatar.png",
+        bannerUrl: "https://example.com/banner.png",
+        bio: "New bio",
+        links: [{ label: "GitHub", url: "https://github.com/test" }],
+      });
+    });
+
+    it("throws when no client is set", async () => {
+      api.setClient(null);
+      await expect(api.updateGlobalProfile("@user:echo.litteris.online", { bio: "test" })).rejects.toThrow("no active session");
+    });
+  });
+
+  describe("patchGlobalProfile", () => {
+    it("calls patchGlobalProfile with userId and partial data", async () => {
+      mockPatchGlobalProfile.mockResolvedValue(undefined);
+      
+      await api.patchGlobalProfile("@user:echo.litteris.online", {
+        bio: "Updated bio",
+      });
+
+      expect(mockPatchGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online", {
+        bio: "Updated bio",
+      });
+    });
+
+    it("throws when no client is set", async () => {
+      api.setClient(null);
+      await expect(api.patchGlobalProfile("@user:echo.litteris.online", { bio: "test" })).rejects.toThrow("no active session");
+    });
+  });
+
   describe("setClient", () => {
     it("updates internal client reference", async () => {
       const newClient = createFakeClient({ getUserId: vi.fn(() => "@new:echo.litteris.online") });
@@ -371,7 +419,7 @@ describe("ProfileApi", () => {
 
       const result = await api.getDisplayName();
       expect(result).toBe("New User");
-      (global.fetch as vi.Mock).mockRestore();
+      mockFetch.mockRestore();
     });
   });
 });

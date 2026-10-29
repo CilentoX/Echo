@@ -1,5 +1,5 @@
 import type { MatrixClientLike, RoomLike, UserProfile } from "../types";
-import { getGlobalProfile, GlobalProfile } from "../../appwrite/profiles";
+import { getGlobalProfile, upsertGlobalProfile, patchGlobalProfile, initUserProfilesTable, GlobalProfile } from "../../postgres/profiles";
 
 export type ClientFactory = (opts: Record<string, unknown>) => MatrixClientLike;
 
@@ -10,6 +10,8 @@ export class ProfileApi {
   constructor(client: MatrixClientLike | null, clientFactory: ClientFactory) {
     this.client = client;
     this.clientFactory = clientFactory;
+    // Initialize the user_profiles table on startup
+    initUserProfilesTable().catch(err => console.error("[ProfileApi] Failed to init user_profiles table:", err));
   }
 
   /** Update the internal client reference (used after login/restoreSession). */
@@ -75,10 +77,10 @@ export class ProfileApi {
 
   /** Get banner URL of a user (defaults to current user). Matrix doesn't have global banners. */
   async getBannerUrl(userId?: string): Promise<string | null> {
-    return null; // Global banner comes from Appwrite Database
+    return null; // Global banner comes from PostgreSQL Database
   }
 
-  /** Get full user profile from Matrix (displayName, avatarUrl). Bio/links/banner from Appwrite if available. */
+  /** Get full user profile from Matrix (displayName, avatarUrl). Bio/links/banner from PostgreSQL if available. */
   async getUserProfile(userId: string): Promise<UserProfile> {
     const client = this.requireClient();
     const accessToken = client.getAccessToken();
@@ -99,20 +101,32 @@ export class ProfileApi {
 
     const res = await response.json();
 
-    // Try to get global profile from Appwrite for bio, links, banner
+    // Try to get global profile from PostgreSQL for bio, links, banner
     const global = await getGlobalProfile(userId);
     return {
       displayName: res.displayname ?? null,
       avatarUrl: res.avatar_url ?? null,
-      bannerUrl: global?.bannerUrl ?? null,
+      bannerUrl: global?.banner_url ?? null,
       bio: global?.bio ?? null,
       role: null, // Roles are guild-specific (Matrix power levels), not global
     };
   }
 
-  /** Get global profile from Appwrite Database (avatar, banner, bio, links). */
+  /** Get global profile from PostgreSQL Database (avatar, banner, bio, links). */
   async getGlobalProfile(userId: string): Promise<GlobalProfile | null> {
     this.requireClient(); // Ensure session exists
     return getGlobalProfile(userId);
+  }
+
+  /** Update global profile in PostgreSQL (avatar, banner, bio, links). */
+  async updateGlobalProfile(userId: string, data: { avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; links?: Array<{ label: string; url: string }> }): Promise<void> {
+    this.requireClient();
+    await upsertGlobalProfile({ userId, ...data });
+  }
+
+  /** Partially update global profile in PostgreSQL. */
+  async patchGlobalProfile(userId: string, data: { avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; links?: Array<{ label: string; url: string }> }): Promise<void> {
+    this.requireClient();
+    await patchGlobalProfile(userId, data);
   }
 }
