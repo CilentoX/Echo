@@ -68,10 +68,11 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   },
   loadProfile: async () => {
     try {
-      const [avatar, banner, displayName] = await Promise.all([
+      const [avatar, banner, displayName, userProfile] = await Promise.all([
         matrixService.getAvatarUrl(),
         matrixService.getBannerUrl(),
         matrixService.getDisplayName(),
+        matrixService.getUserProfile(),
       ]);
 
       // Restaura URLs do Appwrite persistidas (sobrevivem a reload/F5)
@@ -82,6 +83,8 @@ export const useProfileStore = create<ProfileState>()((set) => ({
         avatarUrl: avatar ?? null,
         bannerUrl: banner ?? null,
         displayName: displayName ?? "",
+        bio: userProfile?.bio ?? null,
+        role: userProfile?.role ?? null,
         appwriteAvatarUrl: persistedAvatar ?? null,
         appwriteBannerUrl: persistedBanner ?? null,
       });
