@@ -125,12 +125,13 @@ export default function MemberDropdownContent({
 
   const initial = (profile?.displayName ?? cleanUserId(userId)).charAt(0).toUpperCase()
 
-  // Fallback chain para avatar:
-  // - Próprio usuário: Appwrite (localStorage) → Matrix mxc:// → inicials
-  // - Outros usuários: Matrix mxc:// → inicials
-  const effectiveAvatarUrl = isMyUser
-    ? (myAppwriteAvatarUrl ?? profile?.avatarUrl ?? null)
-    : (profile?.avatarUrl ?? null)
+  // Fallback chain para avatar (unificado para ambos):
+  // 1. profile.avatarUrl (Matrix mxc:// do getUserProfile) - PRIORIDADE
+  // 2. Próprio usuário: myAppwriteAvatarUrl (localStorage) - FALLBACK
+  // 3. Iniciais - ÚLTIMO RECURSO
+  const effectiveAvatarUrl = profile?.avatarUrl
+    ?? (isMyUser ? myAppwriteAvatarUrl : null)
+    ?? null
 
   // Banner: global profile (Appwrite Database) → own user Appwrite localStorage → gradient fallback
   const effectiveBannerUrl = profile?.bannerUrl ?? (isMyUser ? myAppwriteBannerUrl : null)
