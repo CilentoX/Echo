@@ -162,9 +162,11 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-mut">
-        {label}
-      </label>
+      {label && (
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-mut">
+          {label}
+        </label>
+      )}
 
       <div
         className={`relative w-full rounded-xl border border-bd bg-surf2 flex items-center justify-center group overflow-hidden ${previewHeight} ${editable ? "cursor-pointer" : "cursor-default"}`}
