@@ -26,6 +26,8 @@ const mockClient: Record<string, ReturnType<typeof vi.fn>> = {
   sendStateEvent: vi.fn(),
   uploadContent: vi.fn(),
   setAvatarUrl: vi.fn(),
+  getAccessToken: vi.fn(() => "fake-token"),
+  getBaseUrl: vi.fn(() => "https://echo.litteris.online"),
 };
 
 vi.mock("matrix-js-sdk", async (importOriginal) => {
@@ -170,10 +172,18 @@ describe("MatrixService (SDK mockado)", () => {
     });
 
     it("getDisplayName devolve o nome do perfil", async () => {
-      mockClient.getProfileInfo.mockResolvedValue({ displayname: "Alice" });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ displayname: "Alice" }),
+      } as Response);
       const name = await service.getDisplayName("@alice:hs");
       expect(name).toBe("Alice");
-      expect(mockClient.getProfileInfo).toHaveBeenCalledWith("@alice:hs");
+      // The mock client returns "fake-token" by default
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://echo.litteris.online/_matrix/client/v3/profile/%40alice%3Ahs",
+        expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer fake-token" }) })
+      );
+      (global.fetch as vi.Mock).mockRestore();
     });
 
     it("setDisplayName altera o nome de exibição", async () => {
@@ -367,10 +377,17 @@ describe("MatrixService (SDK mockado)", () => {
     });
 
     it("getProfileInfo devolve o avatar_url do usuário", async () => {
-      mockClient.getProfileInfo.mockResolvedValue({ avatar_url: "mxc://hs/avatar", displayname: "Alice" });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ avatar_url: "mxc://hs/avatar", displayname: "Alice" }),
+      } as Response);
       const info = await service.getAvatarUrl("@alice:hs");
       expect(info).toBe("mxc://hs/avatar");
-      expect(mockClient.getProfileInfo).toHaveBeenCalledWith("@alice:hs");
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://echo.litteris.online/_matrix/client/v3/profile/%40alice%3Ahs",
+        expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer fake-token" }) })
+      );
+      (global.fetch as vi.Mock).mockRestore();
     });
   });
 });

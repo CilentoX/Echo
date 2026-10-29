@@ -68,24 +68,60 @@ describe("ProfileApi", () => {
   });
 
   describe("getDisplayName", () => {
-    it("returns displayname from getProfileInfo when userId provided", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Test User", avatar_url: "mxc://avatar" });
+    it("returns displayname from fetch when userId provided", async () => {
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ displayname: "Test User", avatar_url: "mxc://avatar" }),
+      } as Response);
+
       const result = await api.getDisplayName("@other:echo.litteris.online");
       expect(result).toBe("Test User");
-      expect(fakeClient.getProfileInfo).toHaveBeenCalledWith("@other:echo.litteris.online");
+      
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://echo.litteris.online/_matrix/client/v3/profile/%40other%3Aecho.litteris.online",
+        expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer fake-token" }) })
+      );
+      
+      mockFetch.mockRestore();
     });
 
     it("uses client's userId when userId not provided", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Me", avatar_url: null });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ displayname: "Me", avatar_url: null }),
+      } as Response);
+
       const result = await api.getDisplayName();
       expect(result).toBe("Me");
-      expect(fakeClient.getProfileInfo).toHaveBeenCalledWith("@me:echo.litteris.online");
+      
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://echo.litteris.online/_matrix/client/v3/profile/%40me%3Aecho.litteris.online",
+        expect.any(Object)
+      );
+      
+      mockFetch.mockRestore();
     });
 
     it("returns null when displayname is undefined", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ avatar_url: "mxc://avatar" });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ avatar_url: "mxc://avatar" }),
+      } as Response);
+
       const result = await api.getDisplayName();
       expect(result).toBeNull();
+      mockFetch.mockRestore();
+    });
+
+    it("returns null when fetch fails", async () => {
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: false,
+        status: 404,
+      } as Response);
+
+      const result = await api.getDisplayName();
+      expect(result).toBeNull();
+      mockFetch.mockRestore();
     });
 
     it("throws when no client is set", async () => {
@@ -124,22 +160,48 @@ describe("ProfileApi", () => {
   });
 
   describe("getAvatarUrl", () => {
-    it("returns avatar_url from getProfileInfo when userId provided", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Test", avatar_url: "mxc://avatar" });
+    it("returns avatar_url from fetch when userId provided", async () => {
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ displayname: "Test", avatar_url: "mxc://avatar" }),
+      } as Response);
+
       const result = await api.getAvatarUrl("@other:echo.litteris.online");
       expect(result).toBe("mxc://avatar");
+      mockFetch.mockRestore();
     });
 
     it("uses client's userId when userId not provided", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Me", avatar_url: "mxc://my-avatar" });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ displayname: "Me", avatar_url: "mxc://my-avatar" }),
+      } as Response);
+
       const result = await api.getAvatarUrl();
       expect(result).toBe("mxc://my-avatar");
+      mockFetch.mockRestore();
     });
 
     it("returns null when avatar_url is undefined", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Test" });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ displayname: "Test" }),
+      } as Response);
+
       const result = await api.getAvatarUrl();
       expect(result).toBeNull();
+      mockFetch.mockRestore();
+    });
+
+    it("returns null when fetch fails", async () => {
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: false,
+        status: 404,
+      } as Response);
+
+      const result = await api.getAvatarUrl();
+      expect(result).toBeNull();
+      mockFetch.mockRestore();
     });
 
     it("throws when no client is set", async () => {
@@ -150,13 +212,11 @@ describe("ProfileApi", () => {
 
   describe("getBannerUrl", () => {
     it("always returns null (banner not in Matrix profile)", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Test", avatar_url: null, banner_url: "mxc://banner" });
       const result = await api.getBannerUrl();
       expect(result).toBeNull();
     });
 
     it("returns null when no client", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "Test", avatar_url: null });
       const result = await api.getBannerUrl();
       expect(result).toBeNull();
     });
@@ -170,10 +230,14 @@ describe("ProfileApi", () => {
 
   describe("getUserProfile", () => {
     it("returns full UserProfile with Matrix profile fields, banner/bio from Appwrite", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({
-        displayname: "Test User",
-        avatar_url: "mxc://avatar",
-      });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          displayname: "Test User",
+          avatar_url: "mxc://avatar",
+        }),
+      } as Response);
+
       mockGetGlobalProfile.mockResolvedValue({
         $id: "@user:echo.litteris.online",
         userId: "@user:echo.litteris.online",
@@ -189,19 +253,28 @@ describe("ProfileApi", () => {
 
       expect(result).toEqual({
         displayName: "Test User",
-        avatarUrl: "mxc://avatar", // avatar do Matrix
-        bannerUrl: "https://appwrite.example.com/banner.png", // banner do Appwrite
-        bio: "Hello world", // bio do Appwrite
-        role: null, // roles são por guilda
+        avatarUrl: "mxc://avatar",
+        bannerUrl: "https://appwrite.example.com/banner.png",
+        bio: "Hello world",
+        role: null,
       });
       expect(mockGetGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online");
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://echo.litteris.online/_matrix/client/v3/profile/%40user%3Aecho.litteris.online",
+        expect.any(Object)
+      );
+      (global.fetch as vi.Mock).mockRestore();
     });
 
     it("handles missing global profile gracefully", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({
-        displayname: "Test User",
-        avatar_url: "mxc://avatar",
-      });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          displayname: "Test User",
+          avatar_url: "mxc://avatar",
+        }),
+      } as Response);
+
       mockGetGlobalProfile.mockResolvedValue(null);
 
       const result = await api.getUserProfile("@user:echo.litteris.online");
@@ -213,10 +286,15 @@ describe("ProfileApi", () => {
         bio: null,
         role: null,
       });
+      (global.fetch as vi.Mock).mockRestore();
     });
 
     it("handles missing Matrix profile fields gracefully", async () => {
-      fakeClient.getProfileInfo = vi.fn().mockResolvedValue({});
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      } as Response);
+
       mockGetGlobalProfile.mockResolvedValue(null);
 
       const result = await api.getUserProfile("@user:echo.litteris.online");
@@ -228,6 +306,17 @@ describe("ProfileApi", () => {
         bio: null,
         role: null,
       });
+      (global.fetch as vi.Mock).mockRestore();
+    });
+
+    it("throws when fetch fails", async () => {
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: false,
+        status: 401,
+      } as Response);
+
+      await expect(api.getUserProfile("@user:echo.litteris.online")).rejects.toThrow("Failed to fetch profile: 401");
+      (global.fetch as vi.Mock).mockRestore();
     });
 
     it("throws when no client is set", async () => {
@@ -275,9 +364,14 @@ describe("ProfileApi", () => {
       const newClient = createFakeClient({ getUserId: vi.fn(() => "@new:echo.litteris.online") });
       api.setClient(newClient);
       // Verify by calling a method that uses the client
-      newClient.getProfileInfo = vi.fn().mockResolvedValue({ displayname: "New User" });
+      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ displayname: "New User" }),
+      } as Response);
+
       const result = await api.getDisplayName();
       expect(result).toBe("New User");
+      (global.fetch as vi.Mock).mockRestore();
     });
   });
 });

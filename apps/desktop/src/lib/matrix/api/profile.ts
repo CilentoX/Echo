@@ -28,7 +28,16 @@ export class ProfileApi {
   async getDisplayName(userId?: string): Promise<string | null> {
     const client = this.requireClient();
     const resolvedUserId = userId ?? client.getUserId() ?? undefined;
-    const res = await client.getProfileInfo(resolvedUserId);
+    if (!resolvedUserId) return null;
+
+    const accessToken = client.getAccessToken();
+    const baseUrl = client.getBaseUrl();
+    const encodedUserId = encodeURIComponent(resolvedUserId);
+    const response = await fetch(`${baseUrl}/_matrix/client/v3/profile/${encodedUserId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) return null;
+    const res = await response.json();
     return res.displayname ?? null;
   }
 
@@ -51,7 +60,16 @@ export class ProfileApi {
   async getAvatarUrl(userId?: string): Promise<string | null> {
     const client = this.requireClient();
     const resolvedUserId = userId ?? client.getUserId() ?? undefined;
-    const res = await client.getProfileInfo(resolvedUserId);
+    if (!resolvedUserId) return null;
+
+    const accessToken = client.getAccessToken();
+    const baseUrl = client.getBaseUrl();
+    const encodedUserId = encodeURIComponent(resolvedUserId);
+    const response = await fetch(`${baseUrl}/_matrix/client/v3/profile/${encodedUserId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) return null;
+    const res = await response.json();
     return res.avatar_url ?? null;
   }
 
@@ -63,7 +81,24 @@ export class ProfileApi {
   /** Get full user profile from Matrix (displayName, avatarUrl). Bio/links/banner from Appwrite if available. */
   async getUserProfile(userId: string): Promise<UserProfile> {
     const client = this.requireClient();
-    const res = await client.getProfileInfo(userId);
+    const accessToken = client.getAccessToken();
+    const baseUrl = client.getBaseUrl();
+
+    // Workaround for matrix-js-sdk 44.x bug with userId containing special chars (@:)
+    // Direct HTTP call instead of client.getProfileInfo(userId)
+    const encodedUserId = encodeURIComponent(userId);
+    const response = await fetch(`${baseUrl}/_matrix/client/v3/profile/${encodedUserId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch profile: ${response.status}`);
+    }
+
+    const res = await response.json();
+
     // Try to get global profile from Appwrite for bio, links, banner
     const global = await getGlobalProfile(userId);
     return {
