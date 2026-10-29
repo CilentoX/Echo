@@ -1,5 +1,5 @@
 import type { MatrixClientLike, RoomLike, UserProfile } from "../types";
-import { getGlobalProfile, upsertGlobalProfile, patchGlobalProfile, initUserProfilesTable, GlobalProfile } from "../../postgres/profiles";
+import { getGlobalProfile, upsertGlobalProfile, patchGlobalProfile, GlobalProfile } from "../../postgres/profiles";
 
 export type ClientFactory = (opts: Record<string, unknown>) => MatrixClientLike;
 
@@ -10,8 +10,6 @@ export class ProfileApi {
   constructor(client: MatrixClientLike | null, clientFactory: ClientFactory) {
     this.client = client;
     this.clientFactory = clientFactory;
-    // Initialize the user_profiles table on startup
-    initUserProfilesTable().catch(err => console.error("[ProfileApi] Failed to init user_profiles table:", err));
   }
 
   /** Update the internal client reference (used after login/restoreSession). */
@@ -112,21 +110,24 @@ export class ProfileApi {
     };
   }
 
-  /** Get global profile from PostgreSQL Database (avatar, banner, bio, links). */
+  /** Get global profile from Profile API (avatar, banner, bio, links). */
   async getGlobalProfile(userId: string): Promise<GlobalProfile | null> {
-    this.requireClient(); // Ensure session exists
-    return getGlobalProfile(userId);
+    const client = this.requireClient();
+    const accessToken = client.getAccessToken();
+    return getGlobalProfile(userId, accessToken ?? undefined);
   }
 
-  /** Update global profile in PostgreSQL (avatar, banner, bio, links). */
+  /** Update global profile in Profile API (avatar, banner, bio, links). */
   async updateGlobalProfile(userId: string, data: { avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; links?: Array<{ label: string; url: string }> }): Promise<void> {
-    this.requireClient();
-    await upsertGlobalProfile({ userId, ...data });
+    const client = this.requireClient();
+    const accessToken = client.getAccessToken();
+    await upsertGlobalProfile({ userId, ...data }, accessToken ?? undefined);
   }
 
-  /** Partially update global profile in PostgreSQL. */
+  /** Partially update global profile in Profile API. */
   async patchGlobalProfile(userId: string, data: { avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; links?: Array<{ label: string; url: string }> }): Promise<void> {
-    this.requireClient();
-    await patchGlobalProfile(userId, data);
+    const client = this.requireClient();
+    const accessToken = client.getAccessToken();
+    await patchGlobalProfile(userId, data, accessToken ?? undefined);
   }
 }

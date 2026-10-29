@@ -1,62 +1,58 @@
-import { POSTGRES_CONFIG } from "./config";
+import { PROFILE_API_CONFIG } from "./config";
 
 /**
- * Estrutura do perfil global no PostgreSQL.
+ * Estrutura do perfil global (retornado pela Profile API).
  * Roles NÃO estão aqui — são por guilda (Matrix power levels).
  */
 export interface GlobalProfile {
-  /** ID do documento (usamos o MXID como primary key) */
   user_id: string;
-  /** URL do avatar no storage (Appwrite/CDN) */
   avatar_url: string | null;
-  /** URL do banner no storage (Appwrite/CDN) */
   banner_url: string | null;
-  /** Bio/descrição do usuário */
   bio: string | null;
-  /** Links sociais (GitHub, Twitter, etc.) */
   links: Array<{ label: string; url: string }> | null;
-  /** Timestamp de criação */
   created_at: string;
-  /** Timestamp de última atualização */
   updated_at: string;
 }
 
 /** Input para criar/atualizar perfil */
-export type GlobalProfileInput = Omit<GlobalProfile, "created_at" | "updated_at">;
-
-/**
- * Pool de conexões PostgreSQL (lazy initialization).
- */
-let pool: ReturnType<typeof import("pg").Pool> | null = null;
-
-function getPool() {
-  if (!pool) {
-    const { Pool } = require("pg");
-    pool = new Pool({
-      connectionString: POSTGRES_CONFIG.connectionString,
-      max: POSTGRES_CONFIG.max,
-      idleTimeoutMillis: POSTGRES_CONFIG.idleTimeoutMillis,
-      connectionTimeoutMillis: POSTGRES_CONFIG.connectionTimeoutMillis,
-    });
-  }
-  return pool;
-}
+export type GlobalProfileInput = {
+  userId: string;
+  avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  bio?: string | null;
+  links?: Array<{ label: string; url: string }>;
+};
 
 /**
  * Busca o perfil global de um usuário pelo MXID.
- * Retorna null se não existir.
+ * Retorna null se não existir (404).
  */
-export async function getGlobalProfile(userId: string): Promise<GlobalProfile | null> {
-  const pool = getPool();
+export async function getGlobalProfile(userId: string, accessToken?: string): Promise<GlobalProfile | null> {
   try {
-    const result = await pool.query(
-      "SELECT user_id, avatar_url, banner_url, bio, links, created_at, updated_at FROM user_profiles WHERE user_id = $1",
-      [userId]
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+    const response = await fetch(
+      `${PROFILE_API_CONFIG.baseUrl}/api/profiles/${encodeURIComponent(userId)}`,
+      {
+        method: "GET",
+        headers,
+        signal: AbortSignal.timeout(PROFILE_API_CONFIG.timeout),
+      }
     );
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as GlobalProfile;
+
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      console.error("[Profile API] Get falhou:", response.status);
+      return null;
+    }
+
+    return (await response.json()) as GlobalProfile;
   } catch (err) {
-    console.error("[PostgreSQL profiles] Get falhou:", err);
+    console.error("[Profile API] Erro ao buscar perfil:", err);
     return null; // Falha silenciosa — não bloqueia a UI
   }
 }
@@ -65,26 +61,35 @@ export async function getGlobalProfile(userId: string): Promise<GlobalProfile | 
  * Cria ou atualiza o perfil global do usuário (upsert).
  * Usa o MXID como primary key.
  */
-export async function upsertGlobalProfile(input: GlobalProfileInput): Promise<GlobalProfile> {
-  const pool = getPool();
-  try {
-    const result = await pool.query(
-      `INSERT INTO user_profiles (user_id, avatar_url, banner_url, bio, links, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-       ON CONFLICT (user_id) DO UPDATE SET
-         avatar_url = EXCLUDED.avatar_url,
-         banner_url = EXCLUDED.banner_url,
-         bio = EXCLUDED.bio,
-         links = EXCLUDED.links,
-         updated_at = NOW()
-       RETURNING user_id, avatar_url, banner_url, bio, links, created_at, updated_at`,
-      [input.userId, input.avatarUrl, input.bannerUrl, input.bio, JSON.stringify(input.links ?? [])]
-    );
-    return result.rows[0] as GlobalProfile;
-  } catch (err) {
-    console.error("[PostgreSQL profiles] Upsert falhou:", err);
-    throw err;
+export async function upsertGlobalProfile(input: GlobalProfileInput, accessToken?: string): Promise<GlobalProfile> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
   }
+  const response = await fetch(
+    `${PROFILE_API_CONFIG.baseUrl}/api/profiles/${encodeURIComponent(input.userId)}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        avatar_url: input.avatarUrl ?? null,
+        banner_url: input.bannerUrl ?? null,
+        bio: input.bio ?? null,
+        links: input.links ?? null,
+      }),
+      signal: AbortSignal.timeout(PROFILE_API_CONFIG.timeout),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[Profile API] Upsert falhou:", response.status, errorText);
+    throw new Error(`Profile API upsert failed: ${errorText}`);
+  }
+
+  return (await response.json()) as GlobalProfile;
 }
 
 /**
@@ -92,87 +97,62 @@ export async function upsertGlobalProfile(input: GlobalProfileInput): Promise<Gl
  */
 export async function patchGlobalProfile(
   userId: string,
-  patch: Partial<Omit<GlobalProfileInput, "userId">>
+  patch: { avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; links?: Array<{ label: string; url: string }> },
+  accessToken?: string
 ): Promise<GlobalProfile> {
-  const pool = getPool();
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+  const response = await fetch(
+    `${PROFILE_API_CONFIG.baseUrl}/api/profiles/${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        avatar_url: patch.avatarUrl,
+        banner_url: patch.bannerUrl,
+        bio: patch.bio,
+        links: patch.links,
+      }),
+      signal: AbortSignal.timeout(PROFILE_API_CONFIG.timeout),
+    }
+  );
 
-  if (patch.avatarUrl !== undefined) {
-    fields.push(`avatar_url = $${paramIndex++}`);
-    values.push(patch.avatarUrl);
-  }
-  if (patch.bannerUrl !== undefined) {
-    fields.push(`banner_url = $${paramIndex++}`);
-    values.push(patch.bannerUrl);
-  }
-  if (patch.bio !== undefined) {
-    fields.push(`bio = $${paramIndex++}`);
-    values.push(patch.bio);
-  }
-  if (patch.links !== undefined) {
-    fields.push(`links = $${paramIndex++}`);
-    values.push(JSON.stringify(patch.links ?? []));
-  }
-
-  if (fields.length === 0) {
-    // Nada para atualizar, busca o atual
-    const current = await getGlobalProfile(userId);
-    if (!current) throw new Error("Profile not found");
-    return current;
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[Profile API] Patch falhou:", response.status, errorText);
+    throw new Error(`Profile API patch failed: ${errorText}`);
   }
 
-  fields.push(`updated_at = NOW()`);
-  values.push(userId); // para o WHERE
-
-  const pool_ = getPool();
-  try {
-    const result = await pool_.query(
-      `UPDATE user_profiles SET ${fields.join(", ")} WHERE user_id = $${paramIndex} RETURNING user_id, avatar_url, banner_url, bio, links, created_at, updated_at`,
-      values
-    );
-    if (result.rows.length === 0) throw new Error("Profile not found");
-    return result.rows[0] as GlobalProfile;
-  } catch (err) {
-    console.error("[PostgreSQL profiles] Patch falhou:", err);
-    throw err;
-  }
+  return (await response.json()) as GlobalProfile;
 }
 
 /**
  * Remove o perfil global do usuário.
  */
 export async function deleteGlobalProfile(userId: string): Promise<void> {
-  const pool = getPool();
   try {
-    await pool.query("DELETE FROM user_profiles WHERE user_id = $1", [userId]);
+    await fetch(
+      `${PROFILE_API_CONFIG.baseUrl}/api/profiles/${encodeURIComponent(userId)}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(PROFILE_API_CONFIG.timeout),
+      }
+    );
   } catch {
     // falha silenciosa
   }
 }
 
 /**
- * Inicializa a tabela user_profiles (executa uma vez na inicialização).
+ * Inicializa a conexão com a Profile API.
  */
-export async function initUserProfilesTable(): Promise<void> {
-  const pool = getPool();
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_profiles (
-        user_id VARCHAR(255) PRIMARY KEY,
-        avatar_url TEXT,
-        banner_url TEXT,
-        bio TEXT,
-        links JSONB,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
-    `);
-    console.log("[PostgreSQL] Tabela user_profiles verificada/criada");
-  } catch (err) {
-    console.error("[PostgreSQL] Erro ao criar tabela user_profiles:", err);
-    throw err;
-  }
+export async function initProfileApi(): Promise<void> {
+  await pingProfileApi();
 }

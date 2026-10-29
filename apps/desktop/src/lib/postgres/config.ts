@@ -1,35 +1,29 @@
 /**
- * PostgreSQL configuration for global profiles.
- * Connection string should be set via DATABASE_URL environment variable.
- * Format: postgresql://user:password@host:5432/database?sslmode=require
+ * Profile API configuration.
+ * The Profile API is a REST microservice running on the VPS.
+ * URL should be set via VITE_PROFILE_API_URL environment variable.
+ * Default: https://profiles.litteris.online
  */
 
-export const POSTGRES_CONFIG = {
-  connectionString: import.meta.env.VITE_DATABASE_URL ?? import.meta.env.DATABASE_URL,
-  // Pool settings
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+export const PROFILE_API_CONFIG = {
+  baseUrl: import.meta.env.VITE_PROFILE_API_URL ?? "https://profiles.litteris.online",
+  timeout: 10000,
 };
 
 /**
- * Verifies the PostgreSQL connection.
+ * Verifies the Profile API connection.
  * Should be called once during app initialization.
  */
-export async function pingPostgres(): Promise<void> {
-  const { Pool } = await import("pg");
-  const pool = new Pool({
-    connectionString: POSTGRES_CONFIG.connectionString,
-    max: 1,
-  });
-
+export async function pingProfileApi(): Promise<void> {
   try {
-    const result = await pool.query("SELECT NOW()");
-    console.log("[PostgreSQL] Conexão OK:", result.rows[0]);
+    const response = await fetch(`${PROFILE_API_CONFIG.baseUrl}/health`, {
+      signal: AbortSignal.timeout(PROFILE_API_CONFIG.timeout),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    console.log("[Profile API] Conexão OK:", data);
   } catch (err) {
-    console.error("[PostgreSQL] Falha na conexão:", err);
+    console.error("[Profile API] Falha na conexão:", err);
     throw err;
-  } finally {
-    await pool.end();
   }
 }

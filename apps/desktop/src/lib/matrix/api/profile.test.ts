@@ -345,7 +345,7 @@ describe("ProfileApi", () => {
       const result = await api.getGlobalProfile("@user:echo.litteris.online");
 
       expect(result).toEqual(mockProfile);
-      expect(mockGetGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online");
+      expect(mockGetGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online", "fake-token");
     });
 
     it("returns null when global profile not found", async () => {
@@ -379,7 +379,7 @@ describe("ProfileApi", () => {
         bannerUrl: "https://example.com/banner.png",
         bio: "New bio",
         links: [{ label: "GitHub", url: "https://github.com/test" }],
-      });
+      }, "fake-token");
     });
 
     it("throws when no client is set", async () => {
@@ -398,7 +398,7 @@ describe("ProfileApi", () => {
 
       expect(mockPatchGlobalProfile).toHaveBeenCalledWith("@user:echo.litteris.online", {
         bio: "Updated bio",
-      });
+      }, "fake-token");
     });
 
     it("throws when no client is set", async () => {
