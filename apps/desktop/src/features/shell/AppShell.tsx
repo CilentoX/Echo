@@ -6,11 +6,13 @@ import ChatPane from "./ChatPane";
 import MemberList from "./MemberList";
 import SyncStatusIndicator from "./SyncStatusIndicator";
 import EmptyState from "./EmptyState";
+import HomePage from "./HomePage";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import Profile from "@/features/profile/Profile";
 import Settings from "@/features/settings/Settings";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface AppShellProps {
   /** Chat area content; placeholder messages are shown when omitted. */
@@ -46,7 +48,17 @@ export default function AppShell({ children }: AppShellProps) {
 
   const guilds = useSyncStore((s) => s.guilds);
   const setGuilds = useSyncStore((s) => s.setGuilds);
-  const showEmptyState = guilds.length === 0;
+  const activeGuildId = useUiStore((s) => s.activeGuildId);
+  const setActiveGuild = useUiStore((s) => s.setActiveGuild);
+  const isHome = activeGuildId === "home";
+  const showEmptyState = guilds.length === 0 && !isHome;
+
+  // Quando não há guildas e nenhuma seleção ativa, default para Home
+  useEffect(() => {
+    if (guilds.length === 0 && activeGuildId === null) {
+      setActiveGuild("home");
+    }
+  }, [guilds.length, activeGuildId, setActiveGuild]);
 
   const handleOpenCreateGuild = () => setCreateGuildOpen(true);
 
@@ -82,15 +94,19 @@ export default function AppShell({ children }: AppShellProps) {
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {sidebarOverlay ? (
-        sidebarOpen && (
-          <ChannelSidebar
-            variant="overlay"
-            onClose={() => setSidebarOpen(false)}
-          />
-        )
-      ) : (
-        <ChannelSidebar />
+      {!isHome && (
+        <>
+          {sidebarOverlay ? (
+            sidebarOpen && (
+              <ChannelSidebar
+                variant="overlay"
+                onClose={() => setSidebarOpen(false)}
+              />
+            )
+          ) : (
+            <ChannelSidebar />
+          )}
+        </>
       )}
 
       <ChatPane
@@ -99,7 +115,13 @@ export default function AppShell({ children }: AppShellProps) {
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onToggleMembers={() => setMembersOpen((open) => !open)}
       >
-        {showEmptyState ? <EmptyState onCreateGuild={handleOpenCreateGuild} /> : children}
+        {isHome ? (
+          <HomePage />
+        ) : showEmptyState ? (
+          <EmptyState onCreateGuild={handleOpenCreateGuild} />
+        ) : (
+          children
+        )}
       </ChatPane>
 
       {membersVisible ? (

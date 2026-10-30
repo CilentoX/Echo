@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import { Pencil, X, Camera, User, At, Hash, Calendar } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
   const { uploadAvatar, uploadBanner } = useImageUploadWithMatrix();
 
   const initials = useMemo(() => {
-    const name = displayName || username;
+    const name = displayName || username || "Usuário";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -62,6 +62,9 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     saveChanges,
   } = useProfileEditor();
 
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Escape") {
@@ -84,11 +87,13 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
   const handleAvatarChange = useCallback(
     async (file: File) => {
       try {
+        setAvatarError(null);
         const appwriteUrl = await uploadAvatar(file);
         setEditAvatarUrl(appwriteUrl);
         setAppwriteAvatarUrl(appwriteUrl);
-      } catch {
-        // erro silencioso: upload falhou, mantém estado anterior
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Falha no upload do avatar";
+        setAvatarError(msg);
       }
     },
     [uploadAvatar, setEditAvatarUrl, setAppwriteAvatarUrl]
@@ -102,11 +107,13 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
   const handleBannerChange = useCallback(
     async (file: File) => {
       try {
+        setBannerError(null);
         const appwriteUrl = await uploadBanner(file);
         setEditBannerUrl(appwriteUrl);
         setAppwriteBannerUrl(appwriteUrl);
-      } catch {
-        // erro silencioso
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Falha no upload do banner";
+        setBannerError(msg);
       }
     },
     [uploadBanner, setEditBannerUrl, setAppwriteBannerUrl]
@@ -140,7 +147,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           editable={isEditing && !isSaving}
           maxSizeMB={5}
           appwriteUrl={currentBannerUrl}
-          initials=""
+          initials={initials}
+          uploadError={bannerError}
         />
       </div>
 
@@ -155,12 +163,14 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             onRemove={handleAvatarRemove}
             type="avatar"
             preset="large"
-            previewHeight="h-24 w-24 rounded-full"
+            previewHeight="h-24 rounded-full"
+            previewW="w-24"
             editTitle="Editar foto do perfil"
             editable={isEditing && !isSaving}
             maxSizeMB={2}
             appwriteUrl={currentAvatarUrl}
             initials={initials}
+            uploadError={avatarError}
           />
         </div>
 

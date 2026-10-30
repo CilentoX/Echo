@@ -25,8 +25,11 @@ export class AuthApi {
   /** Login with an SSO loginToken (m.login.token); the returned Session is
    *  also applied immediately, so the active client is credentialled. */
   async loginWithSsoToken(loginToken: string): Promise<Session> {
+    console.log("[SSO] loginWithSsoToken: creating client for", this.baseUrl);
     const client = this.createClient({ baseUrl: this.baseUrl });
+    console.log("[SSO] loginWithSsoToken: calling loginRequest with m.login.token");
     const res = await client.loginRequest({ type: "m.login.token", token: loginToken });
+    console.log("[SSO] loginWithSsoToken: loginRequest response:", res);
     if (!res.access_token || !res.user_id) {
       throw new Error("matrix login failed: missing access_token or user_id");
     }

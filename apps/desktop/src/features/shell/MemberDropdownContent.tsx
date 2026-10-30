@@ -188,11 +188,7 @@ export default function MemberDropdownContent({
           <p className="text-xs text-mut truncate">
             @{cleanUserId(userId)} {isMyUser && " (você)"}
           </p>
-          {profile?.role && (
-            <span className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-acc/10 text-xs font-medium text-acc border border-acc/20">
-              {profile.role}
-            </span>
-          )}
+
         </div>
       </div>
 

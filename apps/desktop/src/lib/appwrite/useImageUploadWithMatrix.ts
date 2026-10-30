@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { matrixService } from "@/lib/matrix/instance"
-import { uploadImage } from "@/lib/appwrite/storage"
+import { uploadImage } from "@/lib/api/storage"
 import { useProfileStore } from "@/stores/profileStore"
 
 export interface UseImageUploadWithMatrixReturn {

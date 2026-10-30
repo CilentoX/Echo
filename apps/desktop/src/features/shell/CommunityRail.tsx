@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
-import { Gear, Plus, User } from "@phosphor-icons/react";
+import { Compass, Gear, Plus, User } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import GuildDropdownContent from "@/features/guild/GuildDropdownContent";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -96,6 +96,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
   const guilds = useSyncStore((state) => state.guilds);
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
+  const setActiveChannel = useUiStore((state) => state.setActiveChannel);
   const [createOpen, setCreateOpen] = useState(false);
 
   const handleCreated = (guild: { guildId: string; name: string }) => {
@@ -110,6 +111,24 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
       aria-label="Comunidades"
       className="flex h-full w-[72px] shrink-0 flex-col items-center gap-3 border-r border-bd bg-rail py-4"
     >
+      {/* Botão Home — fixo no topo da rail */}
+      <button
+        type="button"
+        aria-label="Home"
+        title="Home"
+        onClick={() => {
+          setActiveGuild("home");
+          setActiveChannel(null);
+        }}
+        className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+          activeGuildId === "home"
+            ? "bg-acc text-bg"
+            : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
+        }`}
+      >
+        <Compass size={20} aria-hidden />
+      </button>
+
       {guilds.map((guild) => {
         const active = guild.guildId === activeGuildId;
         return (

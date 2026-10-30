@@ -1,5 +1,17 @@
 import type { MatrixClientLike, RoomLike, UserProfile } from "../types";
-import { getGlobalProfile, upsertGlobalProfile, patchGlobalProfile, GlobalProfile } from "../../postgres/profiles";
+import {
+  getGlobalProfile,
+  upsertGlobalProfile,
+  patchGlobalProfile,
+  GlobalProfile,
+} from "../../postgres/profiles";
+import {
+  getGuildProfile,
+  upsertGuildProfile,
+  patchGuildProfile,
+  deleteGuildProfile,
+  GuildProfile,
+} from "../../postgres/guilds";
 
 export type ClientFactory = (opts: Record<string, unknown>) => MatrixClientLike;
 
@@ -31,7 +43,7 @@ export class ProfileApi {
     if (!resolvedUserId) return null;
 
     const accessToken = client.getAccessToken();
-    const baseUrl = client.getBaseUrl();
+    const baseUrl = client.getHomeserverUrl();
     const encodedUserId = encodeURIComponent(resolvedUserId);
     const response = await fetch(`${baseUrl}/_matrix/client/v3/profile/${encodedUserId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -63,7 +75,7 @@ export class ProfileApi {
     if (!resolvedUserId) return null;
 
     const accessToken = client.getAccessToken();
-    const baseUrl = client.getBaseUrl();
+    const baseUrl = client.getHomeserverUrl();
     const encodedUserId = encodeURIComponent(resolvedUserId);
     const response = await fetch(`${baseUrl}/_matrix/client/v3/profile/${encodedUserId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -82,7 +94,7 @@ export class ProfileApi {
   async getUserProfile(userId: string): Promise<UserProfile> {
     const client = this.requireClient();
     const accessToken = client.getAccessToken();
-    const baseUrl = client.getBaseUrl();
+    const baseUrl = client.getHomeserverUrl();
 
     // Workaround for matrix-js-sdk 44.x bug with userId containing special chars (@:)
     // Direct HTTP call instead of client.getProfileInfo(userId)
@@ -129,5 +141,44 @@ export class ProfileApi {
     const client = this.requireClient();
     const accessToken = client.getAccessToken();
     await patchGlobalProfile(userId, data, accessToken ?? undefined);
+  }
+
+  /** Get guild profile from Profile API (avatar, banner, description, etc.). */
+  async getGuildProfile(guildId: string): Promise<GuildProfile | null> {
+    const client = this.requireClient();
+    const accessToken = client.getAccessToken();
+    return getGuildProfile(guildId, accessToken ?? undefined);
+  }
+
+  /** Create or update guild profile in Profile API. */
+  async upsertGuildProfile(guildId: string, data: {
+    name: string;
+    description?: string | null;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+    createdBy: string;
+  }): Promise<void> {
+    const client = this.requireClient();
+    const accessToken = client.getAccessToken();
+    await upsertGuildProfile({ guildId, ...data }, accessToken ?? undefined);
+  }
+
+  /** Partially update guild profile in Profile API. */
+  async patchGuildProfile(guildId: string, data: {
+    name?: string;
+    description?: string | null;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+  }): Promise<void> {
+    const client = this.requireClient();
+    const accessToken = client.getAccessToken();
+    await patchGuildProfile(guildId, data, accessToken ?? undefined);
+  }
+
+  /** Delete guild profile from Profile API. */
+  async deleteGuildProfile(guildId: string): Promise<void> {
+    const client = this.requireClient();
+    const accessToken = client.getAccessToken();
+    await deleteGuildProfile(guildId, accessToken ?? undefined);
   }
 }

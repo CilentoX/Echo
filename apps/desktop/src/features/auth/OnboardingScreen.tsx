@@ -44,6 +44,23 @@ export default function OnboardingScreen({
     }
   }, [onboardingDone, onComplete]);
 
+  // Pré-preenche o nickname com o displayName atual do Matrix
+  // (ex: Google SSO preenche "Lucas Cilento", usuário pode alterar para "minhoca")
+  useEffect(() => {
+    const loadCurrentDisplayName = async () => {
+      if (!myUserId) return;
+      try {
+        const currentName = await matrixService.getDisplayName(myUserId);
+        if (currentName && !nickname.trim()) {
+          setNickname(currentName);
+        }
+      } catch {
+        // ignore falha ao carregar displayName atual
+      }
+    };
+    loadCurrentDisplayName();
+  }, [myUserId]);
+
   const handleSubmit = useCallback(async () => {
     if (!nickname.trim()) return;
     if (!myUserId) return;
@@ -56,6 +73,11 @@ export default function OnboardingScreen({
 
       if (avatarUrl) {
         await matrixService.setAvatarUrl(avatarUrl);
+      }
+
+      // Sincroniza avatar com o Profile API (PostgreSQL)
+      if (avatarUrl && myUserId) {
+        await matrixService.patchGlobalProfile(myUserId, { avatarUrl });
       }
 
       markOnboardingCompleted(myUserId ?? undefined);

@@ -46,11 +46,11 @@ describe("runSsoLogin", () => {
 
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "begin_sso_listener");
     expect(service.getSsoLoginUrl).toHaveBeenCalledWith(
-      "http://localhost:49152/callback",
+      "http://127.0.0.1:49152/callback",
       "oidc-google",
     );
     expect(mockedOpenUrl).toHaveBeenCalledWith(
-      "https://hs.example/_matrix/client/v3/login/sso/redirect/oidc-google?redirectUrl=http%3A%2F%2Flocalhost%3A49152%2Fcallback",
+      "https://hs.example/_matrix/client/v3/login/sso/redirect/oidc-google?redirectUrl=http%3A%2F%2F127.0.0.1%3A49152%2Fcallback",
     );
     expect(mockedInvoke).toHaveBeenNthCalledWith(2, "finish_sso_listener", { port: 49152 });
     expect(service.loginWithSsoToken).toHaveBeenCalledWith("LT-1");

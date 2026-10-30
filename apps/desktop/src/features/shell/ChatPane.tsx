@@ -22,18 +22,19 @@ export default function ChatPane({
   onToggleMembers,
 }: ChatPaneProps) {
   const activeChannelId = useUiStore((s) => s.activeChannelId);
+  const activeGuildId = useUiStore((s) => s.activeGuildId);
   const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
 
-  // Sem canal ativo (ou canal ainda não sincronizado) o header fica vazio —
-  // nada de canal falso hardcodado.
+  // Nome do canal ativo, ou "Home" quando na guilda home, ou null sem seleção.
   const channelName = useMemo(() => {
+    if (activeGuildId === "home") return "Home";
     if (!activeChannelId) return null;
     for (const channels of Object.values(channelsByGuild)) {
       const found = channels.find((c) => c.channelId === activeChannelId);
       if (found) return found.name;
     }
     return null;
-  }, [channelsByGuild, activeChannelId]);
+  }, [channelsByGuild, activeChannelId, activeGuildId]);
 
   return (
     <main
@@ -53,7 +54,7 @@ export default function ChatPane({
         )}
         {channelName && (
           <h2 className="font-display text-sm font-semibold text-txt">
-            #{channelName}
+            {activeGuildId === "home" ? channelName : `#${channelName}`}
           </h2>
         )}
         <div className="flex-1" />
@@ -69,7 +70,7 @@ export default function ChatPane({
         )}
       </header>
 
-      <div className="flex-1 px-4 py-4">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-4">{children}</div>
     </main>
   );
 }

@@ -10,7 +10,7 @@ import type { Session } from "./types";
 export const ECHO_HOMESERVER_URL = "https://echo.litteris.online";
 
 /** OIDC provider id configured on Synapse for Google (`oidc_providers[].idp_id`).
- * Synapse expõe o provider com o prefixo "oidc-" na URL de redirect:
+ * O Synapse registra o provider internamente com prefixo "oidc-":
  * /_matrix/client/v3/login/sso/redirect/oidc-google
  */
 const GOOGLE_IDP_ID = "oidc-google";
@@ -44,14 +44,21 @@ export class SsoLoginError extends Error {
  * 5. we exchange the loginToken for a Session via MatrixService.
  */
 export async function runSsoLogin(service: MatrixService): Promise<Session> {
+  console.log("[SSO] Starting SSO login flow...");
   const port = await invoke<number>("begin_sso_listener");
-  const redirectUrl = `http://localhost:${port}/callback`;
+  console.log("[SSO] Listener started on port:", port);
+  const redirectUrl = `http://127.0.0.1:${port}/callback`;
+  console.log("[SSO] Redirect URL:", redirectUrl);
   const loginUrl = service.getSsoLoginUrl(redirectUrl, GOOGLE_IDP_ID);
+  console.log("[SSO] Login URL:", loginUrl);
   await openUrl(loginUrl);
+  console.log("[SSO] Browser opened, waiting for callback...");
 
   let loginToken: string;
   try {
+    console.log("[SSO] Waiting for login token...");
     loginToken = await invoke<string>("finish_sso_listener", { port });
+    console.log("[SSO] Login token received:", loginToken ? "yes" : "no");
   } catch (err) {
     throw new SsoLoginError(
       err instanceof Error ? err.message : "Falha ao aguardar o retorno do login SSO",
@@ -61,8 +68,10 @@ export async function runSsoLogin(service: MatrixService): Promise<Session> {
   }
 
   try {
+    console.log("[SSO] Exchanging token for session...");
     return await service.loginWithSsoToken(loginToken);
   } catch (err) {
+    console.log("[SSO] loginWithSsoToken failed:", err instanceof Error ? err.message : String(err));
     throw new SsoLoginError(
       err instanceof Error ? err.message : "Falha ao autenticar com o token SSO",
       "login",

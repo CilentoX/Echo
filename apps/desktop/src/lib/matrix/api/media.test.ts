@@ -25,7 +25,7 @@ function createFakeClient(overrides: Partial<MatrixClientLike> = {}): MatrixClie
     scrollback: vi.fn(),
     getUserId: vi.fn(() => "@me:echo.litteris.online"),
     getAccessToken: vi.fn(() => "fake-token"),
-    getBaseUrl: vi.fn(() => "https://echo.litteris.online"),
+    getHomeserverUrl: vi.fn(() => "https://echo.litteris.online"),
     mxcUrlToHttp: vi.fn(),
     getProfileInfo: vi.fn(),
     setDisplayName: vi.fn(),
@@ -101,7 +101,7 @@ describe("MediaApi", () => {
   describe("setClient", () => {
     it("updates internal client reference", () => {
       const newClient = createFakeClient({
-        getBaseUrl: vi.fn(() => "https://new.echo.litteris.online"),
+        getHomeserverUrl: vi.fn(() => "https://new.echo.litteris.online"),
         mxcUrlToHttp: vi.fn().mockReturnValue("https://new.echo.litteris.online/_matrix/media/v3/download/echo.litteris.online/abc123"),
       });
       api.setClient(newClient);

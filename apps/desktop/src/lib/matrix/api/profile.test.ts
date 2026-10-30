@@ -39,7 +39,7 @@ function createFakeClient(overrides: Partial<MatrixClientLike> = {}): MatrixClie
     scrollback: vi.fn(),
     getUserId: vi.fn(() => "@me:echo.litteris.online"),
     getAccessToken: vi.fn(() => "fake-token"),
-    getBaseUrl: vi.fn(() => "https://echo.litteris.online"),
+    getHomeserverUrl: vi.fn(() => "https://echo.litteris.online"),
     mxcUrlToHttp: vi.fn(),
     getProfileInfo: vi.fn(),
     setDisplayName: vi.fn(),

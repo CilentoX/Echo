@@ -228,6 +228,38 @@ export class MatrixService {
     return this.profileApi.getGlobalProfile(userId);
   }
 
+  /** Atualiza parcialmente o perfil global no Profile API (avatar, banner, bio, links). */
+  async patchGlobalProfile(userId: string, data: { avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; links?: Array<{ label: string; url: string }> }): Promise<void> {
+    return this.profileApi.patchGlobalProfile(userId, data);
+  }
+
+  /** Atualiza completamente o perfil global no Profile API (avatar, banner, bio, links). */
+  async updateGlobalProfile(userId: string, data: { avatarUrl?: string | null; bannerUrl?: string | null; bio?: string | null; links?: Array<{ label: string; url: string }> }): Promise<void> {
+    return this.profileApi.updateGlobalProfile(userId, data);
+  }
+
+  // ── Perfil de guilda (Profile API) ──
+
+  /** Busca o perfil de uma guilda no Profile API pelo guildId. */
+  async getGuildProfile(guildId: string) {
+    return this.profileApi.getGuildProfile(guildId);
+  }
+
+  /** Cria ou atualiza o perfil de uma guilda no Profile API (avatar, banner, descrição). */
+  async upsertGuildProfile(guildId: string, data: { name: string; description?: string | null; avatarUrl?: string | null; bannerUrl?: string | null; createdBy: string }) {
+    return this.profileApi.upsertGuildProfile(guildId, data);
+  }
+
+  /** Atualiza parcialmente o perfil de uma guilda no Profile API. */
+  async patchGuildProfile(guildId: string, data: { name?: string; description?: string | null; avatarUrl?: string | null; bannerUrl?: string | null }) {
+    return this.profileApi.patchGuildProfile(guildId, data);
+  }
+
+  /** Remove o perfil de uma guilda do Profile API. */
+  async deleteGuildProfile(guildId: string): Promise<void> {
+    return this.profileApi.deleteGuildProfile(guildId);
+  }
+
   /** Devolve o MXID do usuário logado. */
   getUserId(): string | null {
     return this.requireClient().getUserId();
@@ -239,7 +271,7 @@ export class MatrixService {
   }
 
   /** Devolve a base URL do homeserver. */
-  getBaseUrl(): string {
+  getHomeserverUrl(): string {
     return this.baseUrl;
   }
 

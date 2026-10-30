@@ -27,7 +27,7 @@ const mockClient: Record<string, ReturnType<typeof vi.fn>> = {
   uploadContent: vi.fn(),
   setAvatarUrl: vi.fn(),
   getAccessToken: vi.fn(() => "fake-token"),
-  getBaseUrl: vi.fn(() => "https://echo.litteris.online"),
+  getHomeserverUrl: vi.fn(() => "https://echo.litteris.online"),
 };
 
 vi.mock("matrix-js-sdk", async (importOriginal) => {

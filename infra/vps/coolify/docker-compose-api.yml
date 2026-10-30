@@ -1,0 +1,51 @@
+# Echo API — Deploy no Coolify (Docker Compose)
+# Roda ao lado do Synapse, compartilhando a rede `coolify` e o Postgres externo.
+
+services:
+  echo-api:
+    build:
+      context: ../../echo-api  # Caminho relativo ao clone do repositório
+      dockerfile: Dockerfile
+    container_name: echo-api
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      DB_HOST: echo-postgres
+      DB_PORT: 5432
+      DB_USER: synapse
+      DB_PASSWORD: ${ECHO_API_DB_PASSWORD:?ECHO_API_DB_PASSWORD is required}
+      DB_NAME: echo_profiles
+      API_KEY: ${ECHO_API_API_KEY:?ECHO_API_API_KEY is required}
+      UPLOAD_DIR: /app/src/uploads
+      MAX_FILE_SIZE: 10485760
+      PUBLIC_BASE_URL: https://api.echo.litteris.online
+    networks:
+      - internal
+      - coolify
+    volumes:
+      - echo_api_uploads:/app/src/uploads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.echo-api.rule=Host(`api.echo.litteris.online`)"
+      - "traefik.http.routers.echo-api.entryPoints=http"
+      - "traefik.http.services.echo-api.loadbalancer.server.port=3001"
+      - "traefik.http.middlewares.echo-api-proto.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.echo-api.middlewares=echo-api-proto@docker"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  echo_api_uploads:
+    external: true
+    name: echo_api_uploads
+
+networks:
+  internal:
+    driver: bridge
+  coolify:
+    external: true

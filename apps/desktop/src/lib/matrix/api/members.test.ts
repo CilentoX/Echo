@@ -38,7 +38,7 @@ function createMockClient(rooms: Map<string, RoomLike>): MatrixClientLike {
     scrollback: vi.fn(),
     getUserId: () => "@me:example.com",
     getAccessToken: () => "token",
-    getBaseUrl: () => "https://example.com",
+    getHomeserverUrl: () => "https://example.com",
     mxcUrlToHttp: vi.fn(),
     getProfileInfo: vi.fn(),
     setDisplayName: vi.fn(),

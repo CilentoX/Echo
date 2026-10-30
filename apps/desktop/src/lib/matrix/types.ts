@@ -123,7 +123,7 @@ export interface MatrixClientLike {
   /** Access token da sessão ativa, ou null se não houver sessão. */
   getAccessToken(): string | null;
   /** Base URL do homeserver. */
-  getBaseUrl(): string;
+  getHomeserverUrl(): string;
   /** Converte mxc:// URL para HTTP (suporta autenticação para evitar M_FORBIDDEN). */
   mxcUrlToHttp(mxcUrl: string, width?: number, height?: number, resizeMethod?: string, allowDirectLinks?: boolean, allowRedirects?: boolean, useAuthentication?: boolean): string | null;
   /** Perfil de um usuário (sem args = próprio usuário). */

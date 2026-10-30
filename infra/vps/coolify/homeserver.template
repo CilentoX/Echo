@@ -94,6 +94,7 @@ oidc_providers:
     # o callback SSO nunca chega ao listener do app.
     redirect_uris:
       - "http://localhost:1421/callback"
+      - "http://127.0.0.1:1421/callback"
     user_mapping_provider:
       config:
         confirm_localpart: true

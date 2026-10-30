@@ -100,6 +100,16 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
   const saveChanges = useCallback(async () => {
     setState((prev) => ({ ...prev, isSaving: true, error: null }));
 
+    const userId = matrixService.getUserId();
+    if (!userId) {
+      setState((prev) => ({
+        ...prev,
+        isSaving: false,
+        error: "Usuário não autenticado.",
+      }));
+      return;
+    }
+
     try {
       if (state.editDisplayName !== displayName) {
         await matrixService.setDisplayName(state.editDisplayName);
@@ -111,16 +121,25 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
       }
 
       if (state.editBio !== bio) {
+        await matrixService.patchGlobalProfile(userId, {
+          bio: state.editBio || null,
+        });
         setBio(state.editBio || null);
       }
 
       // Avatar e banner já foram sincronizados via useImageUploadWithMatrix
-      // Aqui apenas atualizamos o store local se necessário
+      // Aqui apenas atualizamos o store local e Profile API se necessário
       if (state.editAvatarUrl !== avatarUrl) {
+        await matrixService.patchGlobalProfile(userId, {
+          avatarUrl: state.editAvatarUrl,
+        });
         setAvatarUrl(state.editAvatarUrl);
       }
 
       if (state.editBannerUrl !== bannerUrl) {
+        await matrixService.patchGlobalProfile(userId, {
+          bannerUrl: state.editBannerUrl,
+        });
         setBannerUrl(state.editBannerUrl);
       }
 

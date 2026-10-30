@@ -24,7 +24,7 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
     setStatus("loading");
     try {
       const session = await runSsoLogin(activeService);
-      onSession?.(session);
+      await onSession?.(session);
       setStatus("idle");
     } catch {
       setStatus("error");

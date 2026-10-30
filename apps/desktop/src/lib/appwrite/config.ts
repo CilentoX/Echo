@@ -5,4 +5,5 @@ export const APPWRITE_CONFIG = {
   bucketId: import.meta.env.VITE_APPWRITE_BUCKET_ID ?? "profile-images",
   databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID ?? "echo-db",
   profilesCollectionId: import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID ?? "user_profiles",
+  guildsCollectionId: import.meta.env.VITE_APPWRITE_GUILDS_COLLECTION_ID ?? "guild_profiles",
 };

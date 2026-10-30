@@ -7,7 +7,7 @@ import AppShell from "@/features/shell/AppShell";
 import { matrixService } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
 import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
-import { isNewAccount, markOnboardingCompleted } from "@/lib/onboarding";
+import { isNewAccount, isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
 import { useUiStore } from "@/stores/uiStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { restartApp, runStartupUpdateCheck } from "@/lib/updater";
@@ -68,24 +68,24 @@ export default function SessionGate({ shell }: SessionGateProps) {
   }, []);
 
   const handleSession = useCallback(
-    (session: Session) => {
-      void (async () => {
-        try {
-          await saveSession(session);
-          // loginWithSsoToken já deixou o client credentialled ativo.
-          // Onboarding só para conta nova (sem perfil no servidor Matrix).
-          const isNew = await isNewAccount(matrixService);
-          useOnboardingStore.getState().setCompleted(!isNew);
-          if (isNew) {
-            prepareSession(session, true);
-            setView("onboarding");
-          } else {
-            enterShell(session, true);
-          }
-        } catch {
-          await rejectSession();
+    async (session: Session): Promise<void> => {
+      try {
+        await saveSession(session);
+        // loginWithSsoToken já deixou o client credentialled ativo.
+        // Onboarding: mostra se ainda não foi concluído (mesmo que Google SSO
+        // tenha pré-preenchido o displayName, o usuário precisa escolher o seu).
+        const alreadyCompleted = isOnboardingCompleted(session.userId);
+        if (!alreadyCompleted) {
+          prepareSession(session, true);
+          setView("onboarding");
+        } else {
+          enterShell(session, true);
         }
-      })();
+      } catch (err) {
+        console.error("[SessionGate] handleSession falhou:", err);
+        await rejectSession();
+        throw err;
+      }
     },
     [enterShell, prepareSession, rejectSession],
   );
@@ -119,11 +119,11 @@ export default function SessionGate({ shell }: SessionGateProps) {
         // O client é restaurado ANTES do onboarding — setDisplayName/upload
         // do OnboardingScreen exigem o client credentialled (e o uiStore
         // precisa do myUserId para habilitar o submit).
-        // Onboarding só para conta nova (sem perfil no servidor Matrix).
+        // Onboarding mostra se ainda não foi concluído (mesmo que Google SSO
+        // tenha pré-preenchido o displayName, o usuário precisa escolher o seu).
         prepareSession(session);
-        const isNew = await isNewAccount(matrixService);
-        useOnboardingStore.getState().setCompleted(!isNew);
-        if (isNew) {
+        const alreadyCompleted = isOnboardingCompleted(session.userId);
+        if (!alreadyCompleted) {
           setView("onboarding");
         } else {
           enterShell(session, true);

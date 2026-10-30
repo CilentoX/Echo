@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { X, Upload, Pencil, Trash } from "@phosphor-icons/react"
+import { Upload, Trash } from "@phosphor-icons/react"
 import ImageEditor from "@/components/media/ImageEditor"
 import { useUiStore } from "@/stores/uiStore"
 import { mxcToHttp } from "@/lib/media/mxc"
@@ -18,12 +18,17 @@ export interface ImageUploadWithEditProps {
   type?: "avatar" | "banner" | "guild"
   /** Preset de tamanho (ex: "large", "xlarge") */
   preset?: string
+  /** Altura do preview (classes Tailwind, ex: "h-24", "h-40") */
   previewHeight?: string
+  /** Largura do preview (classes Tailwind, ex: "w-24", "w-full") */
+  previewW?: string
   editTitle?: string
   /** Se true, permite editar (hover mostra controles, click abre crop editor) */
   editable?: boolean
   /** Se true, mostra loading e bloqueia interações */
   uploading?: boolean
+  /** Mensagem de erro de upload (ex: falha no Appwrite) */
+  uploadError?: string | null
   maxSizeMB?: number
   accept?: string
   /** URL do Appwrite usada como exibição principal (evita requisição ao Matrix) */
@@ -40,9 +45,11 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   type = "avatar",
   preset,
   previewHeight = "h-24",
+  previewW,
   editTitle,
   editable = false,
   uploading = false,
+  uploadError = null,
   maxSizeMB = 5,
   accept = "image/*",
   appwriteUrl = null,
@@ -70,6 +77,26 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   }, [previewObjUrl])
 
   const maxSizeBytes = maxSizeMB * 1024 * 1024
+
+  // Cores estilo Discord para o círculo de fallback (iniciais)
+  const FALLBACK_COLORS = [
+    "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500",
+    "bg-lime-500", "bg-green-500", "bg-emerald-500", "bg-teal-500",
+    "bg-cyan-500", "bg-blue-500", "bg-indigo-500", "bg-violet-500",
+    "bg-purple-500", "bg-fuchsia-500", "bg-pink-500", "bg-rose-500",
+  ]
+
+  /// Gera uma classe de cor baseada no hash do texto (iniciais).
+  /// Sempre retorna a mesma cor para o mesmo texto.
+  const fallbackColorClass = useMemo(() => {
+    if (!initials) return FALLBACK_COLORS[0]
+    let hash = 0
+    for (let i = 0; i < initials.length; i++) {
+      hash = initials.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const index = Math.abs(hash) % FALLBACK_COLORS.length
+    return FALLBACK_COLORS[index]
+  }, [initials])
 
   const displaySrc = useMemo(() => {
     if (previewObjUrl) return previewObjUrl
@@ -169,7 +196,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
       )}
 
       <div
-        className={`relative w-full rounded-xl border border-bd bg-surf2 flex items-center justify-center group overflow-hidden ${previewHeight} ${editable ? "cursor-pointer" : "cursor-default"}`}
+        className={`relative border border-bd bg-surf2 flex items-center justify-center group overflow-hidden ${previewHeight} ${previewW ? previewW : "w-full"} ${editable ? "cursor-pointer" : "cursor-default"}`}
         onClick={handleClick}
         role={editable ? "button" : undefined}
         tabIndex={editable ? 0 : -1}
@@ -223,8 +250,13 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
           // Sem imagem - área de drop/upload + file input
           <>
             {initials && (
-              <span className="flex items-center justify-center w-full h-full bg-surf text-txt font-medium text-xl uppercase tracking-tighter">
-                {initials}
+              // Círculo de fallback com iniciais: tamanho fixo em px, sempre visível.
+              // Usa absolute inset-0 para preencher o container, e font-size fixo em pixels.
+              <span
+                className={`absolute inset-0 flex items-center justify-center ${fallbackColorClass} text-txt font-bold uppercase tracking-tighter leading-none select-none drop-shadow-lg`}
+                style={{ fontSize: type === "banner" ? 36 : type === "guild" ? 30 : 24 }}
+              >
+                {initials.slice(0, 2).toUpperCase()}
               </span>
             )}
             {!initials && (
@@ -256,7 +288,9 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
         )}
       </div>
 
-      {error && <p className="text-xs text-err">{error}</p>}
+      {error || uploadError ? (
+        <p className="text-xs text-err">{error || uploadError}</p>
+      ) : null}
 
       {uploading && <p className="text-xs text-mut italic animate-pulse">Processando…</p>}
 
