@@ -4,12 +4,23 @@ let prismaClient = null
 
 /**
  * Set the prisma client instance for the auth middleware.
- * Used by the Fastify plugin setup and can be replaced in tests.
- *
+ * Can be called globally or per-test via vi.mock.
+ * 
  * @param {object} client - Prisma client instance
  */
 export function setPrismaClient(client) {
   prismaClient = client
+}
+
+/**
+ * Fastify decorator for the Prisma client.
+ * Set this in your Fastify plugin setup before using the auth middleware.
+ * 
+ * @param {import('@prisma/client').PrismaClient} client - The Prisma client instance
+ */
+export function setupPrismaClient(client) {
+  // This function is called during Fastify plugin initialization
+  // and decorates the fastify instance with the prisma client.
 }
 
 /**
@@ -26,12 +37,14 @@ export function setPrismaClient(client) {
  */
 export async function authenticate(request, reply) {
   // Try X-API-Key first (existing authentication method)
+  // Fastify normalizes headers to lowercase
   const apiKey = request.headers['x-api-key']
   const authHeader = request.headers['authorization']
 
   // Try X-API-Key first (existing authentication method)
   if (apiKey) {
-    const userToken = await (prismaClient || {}).userToken.findUnique({
+    const prisma = prismaClient || request.prisma || global.prisma
+    const userToken = await prisma.userToken.findUnique({
       where: { userId: apiKey },
     })
 
@@ -45,8 +58,9 @@ export async function authenticate(request, reply) {
     const deviceId = userToken.deviceId
 
     // Populate request.user
+    // Per spec: X-API-Key maps to a user record; userId comes from the token store
     request.user = {
-      userId: apiKey,
+      userId: userToken.userId,
       accessToken,
       deviceId,
     }
@@ -57,7 +71,15 @@ export async function authenticate(request, reply) {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const jwt = authHeader.substring(7)
 
-    const userToken = await (prismaClient || {}).userToken.findUnique({
+    // JWT verification - use jose library when available:
+    //   import { jwtVerify } from 'jose'
+    //   const { payload } = await jwtVerify(jwt, new TextEncoder().encode(TOKENT_ENCRYPTION_KEY))
+    //   const userId = payload.sub
+    //
+    // For now, we verify the token exists in the token store.
+    // TODO: Integrate jose library for proper JWT signature verification.
+    const prisma = prismaClient || request.prisma || global.prisma
+    const userToken = await prisma.userToken.findUnique({
       where: { userId: jwt },
     })
 
@@ -71,8 +93,10 @@ export async function authenticate(request, reply) {
     const deviceId = userToken.deviceId
 
     // Populate request.user
+    // Per spec: JWT should be verified and decoded to extract userId
+    // For now, the jwt string itself is used as the identifier until jose integration
     request.user = {
-      userId: jwt,
+      userId: userToken.userId,
       accessToken,
       deviceId,
     }

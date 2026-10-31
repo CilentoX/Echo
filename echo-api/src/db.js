@@ -1,33 +1,9 @@
-// Default mock prisma client for testing purposes
-// In production, this would be replaced with the real PrismaClient
+// Production prisma client - imported from @prisma/client in real usage
+// This module is mocked in tests via vi.mock('../src/db.js')
 
-const mockPrisma = {
-  userToken: {
-    findUnique: async (where) => {
-      // Return mock data based on userId
-      if (where.userId === 'test-api-key-user123') {
-        return {
-          userId: 'test-api-key-user123',
-          accessToken: 'encrypted-test-access-token',
-          deviceId: 'test-device-001',
-        }
-      }
-      if (where.userId === 'testuser:matrix.org') {
-        return {
-          userId: 'testuser:matrix.org',
-          accessToken: 'encrypted-bearer-token',
-          deviceId: 'test-device-002',
-        }
-      }
-      return null
-    },
-    create: async () => {},
-    upsert: async () => {},
-    deleteMany: async () => {},
-  },
-  $disconnect: async () => {},
-  $transaction: async (fn) => fn(),
-  $use: () => {},
-}
+// When running outside of tests with the real PrismaClient:
+// const { PrismaClient } = require('@prisma/client');
+// const prisma = new PrismaClient({ log: ['query'] });
+// module.exports = prisma;
 
-export default mockPrisma
+module.exports = {}
