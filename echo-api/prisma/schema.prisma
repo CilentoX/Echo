@@ -16,3 +16,27 @@ model UserToken {
   deviceId    String?
   updatedAt   DateTime @updatedAt
 }
+
+model UserProfile {
+  userId    String @unique
+  nickname  String? @unique
+  avatarUrl String?
+  bannerUrl String?
+  bio       String?
+  links     Json   @default("[]")
+}
+
+model ChatMedia {
+  mediaId    String @unique
+  userId     String
+  roomId     String?
+  filePath   String
+  fileType   String // e.g., "image", "audio"
+  mimeType   String
+  fileSize   Int?
+  width      Int?
+  height     Int?
+  duration   Int?
+  synapseMxcUri String?
+  createdAt  DateTime @createdAt
+}
