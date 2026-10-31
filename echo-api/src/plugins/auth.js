@@ -4,6 +4,7 @@ import { decrypt } from '../lib/auth/tokenStore.js'
  * Fastify plugin that sets up the Prisma client decorator.
  * 
  * @param {import('@prisma/client').PrismaClient} client - The Prisma client instance
+ * @param {FastifyFastify} app - The Fastify instance
  */
 export function setupPrismaClient(app, client) {
   app.decorateRequest('prisma', () => client)
@@ -79,13 +80,15 @@ export async function authenticate(request, reply) {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const jwt = authHeader.substring(7)
 
-    // JWT verification will be integrated with the `jose` library:
+    // JWT verification with jose library:
     //   import { jwtVerify } from 'jose'
     //   const { payload } = await jwtVerify(jwt, new TextEncoder().encode(TOKEN_ENCRYPTION_KEY))
     //   const userId = payload.sub
     //
     // For now, we verify the token exists in the token store.
-    // TODO: Replace this token store lookup with proper JWT verification using jose.
+    // TODO: Integrate jose library for proper JWT signature verification.
+    // When jose is available, replace the token store lookup with:
+    //   const userData = await resolveUser(prisma, payload.sub)
     const prisma = request.prisma()
     const userData = await resolveUser(prisma, jwt)
 
