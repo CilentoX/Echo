@@ -1,50 +1,48 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest'
 import Fastify from 'fastify'
-// Import auth functions
-import { setPrismaClient, authenticate } from '../src/plugins/auth.js'
 import { encrypt } from '../src/lib/auth/tokenStore.js'
+import { setupPrismaClient, authenticate } from '../src/plugins/auth.js'
 
-// Set encryption key for tests
-process.env.TOKEN_ENCRYPTION_KEY = 'test-encryption-key-32-chars-long!!'
+// Use a valid base64-encoded 32-byte key for tests
+const TEST_ENCRYPTION_KEY = Buffer.from('test-encryption-key-32-chars-long!!').toString('base64')
 
-// Set up mock prisma client
-const mockPrisma = {
-  userToken: {
-    findUnique: async (args) => {
-      const where = args?.where
-      console.log('Mock findUnique called with userId:', where?.userId)
-      if (where?.userId === 'test-api-key-user123') {
-        return {
-          userId: 'test-api-key-user123',
-          accessToken: encrypt('test-access-token'),
-          deviceId: 'test-device-001',
-        }
-      }
-      if (where?.userId === 'dummy-jwt-token') {
-        return {
-          userId: 'dummy-jwt-token',
-          accessToken: encrypt('bearer-access-token'),
-          deviceId: 'test-device-002',
-        }
-      }
-      console.log('Mock findUnique: no match, returning null')
-      return null
-    },
-  },
-  $disconnect: async () => {},
-  $transaction: async (fn) => fn(),
-  $use: () => {},
-}
+let testAccessToken = ''
+let bearerAccessToken = ''
 
-// Set the prisma client globally before tests
-setPrismaClient(mockPrisma)
+beforeAll(() => {
+  vi.stubEnv('TOKEN_ENCRYPTION_KEY', TEST_ENCRYPTION_KEY)
+  testAccessToken = encrypt('test-access-token')
+  bearerAccessToken = encrypt('bearer-access-token')
+})
 
-describe('Auth Middleware - Integration X-API-Key', () => {
+afterAll(() => {
+  vi.unstubAllEnvs()
+})
+
+describe('Auth Middleware - X-API-Key', () => {
   let app
   const testApiKey = 'test-api-key-user123'
 
   beforeEach(async () => {
     app = Fastify({ logger: false })
+    setupPrismaClient(app, {
+      userToken: {
+        findUnique: async (params) => {
+          const where = params?.where
+          if (where?.userId === testApiKey) {
+            return {
+              userId: testApiKey,
+              accessToken: testAccessToken,
+              deviceId: 'test-device-001',
+            }
+          }
+          return null
+        },
+      },
+      $disconnect: async () => {},
+      $transaction: async (fn) => fn(),
+      $use: () => {},
+    })
     app.post('/test', async (request, reply) => {
       await authenticate(request, reply)
       return { user: request.user }
@@ -96,12 +94,30 @@ describe('Auth Middleware - Integration X-API-Key', () => {
   })
 })
 
-describe('Auth Middleware - Integration Bearer Token', () => {
+describe('Auth Middleware - Bearer Token', () => {
   let app
   const testUserId = 'dummy-jwt-token'
 
   beforeEach(async () => {
     app = Fastify({ logger: false })
+    setupPrismaClient(app, {
+      userToken: {
+        findUnique: async (params) => {
+          const where = params?.where
+          if (where?.userId === testUserId) {
+            return {
+              userId: testUserId,
+              accessToken: bearerAccessToken,
+              deviceId: 'test-device-002',
+            }
+          }
+          return null
+        },
+      },
+      $disconnect: async () => {},
+      $transaction: async (fn) => fn(),
+      $use: () => {},
+    })
     app.post('/test', async (request, reply) => {
       await authenticate(request, reply)
       return { user: request.user }
@@ -117,7 +133,7 @@ describe('Auth Middleware - Integration Bearer Token', () => {
       method: 'POST',
       url: '/test',
       headers: {
-        authorization: 'Bearer dummy-jwt-token',
+        authorization: `Bearer ${testUserId}`,
       },
     })
 

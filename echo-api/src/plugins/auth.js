@@ -1,26 +1,40 @@
 import { decrypt } from '../lib/auth/tokenStore.js'
 
-let prismaClient = null
-
 /**
- * Set the prisma client instance for the auth middleware.
- * Can be called globally or per-test via vi.mock.
- * 
- * @param {object} client - Prisma client instance
- */
-export function setPrismaClient(client) {
-  prismaClient = client
-}
-
-/**
- * Fastify decorator for the Prisma client.
- * Set this in your Fastify plugin setup before using the auth middleware.
+ * Fastify plugin that sets up the Prisma client decorator.
  * 
  * @param {import('@prisma/client').PrismaClient} client - The Prisma client instance
  */
-export function setupPrismaClient(client) {
-  // This function is called during Fastify plugin initialization
-  // and decorates the fastify instance with the prisma client.
+export function setupPrismaClient(app, client) {
+  app.decorateRequest('prisma', () => client)
+}
+
+/**
+ * Resolves a user from the token store by userId.
+ * Extracts common logic from both X-API-Key and Bearer branches.
+ * 
+ * @param {import('@prisma/client').PrismaClient} prisma - The Prisma client instance
+ * @param {string} userId - The user identifier (API key or JWT string)
+ * @returns {Promise<object|null>} User token data or null
+ */
+async function resolveUser(prisma, userId) {
+  const userToken = await prisma.userToken.findUnique({
+    where: { userId },
+  })
+
+  if (!userToken || !userToken.accessToken) {
+    return null
+  }
+
+  try {
+    const accessToken = decrypt(userToken.accessToken)
+    const deviceId = userToken.deviceId
+
+    return { userToken, accessToken, deviceId }
+  } catch (error) {
+    // Decryption failed - invalid key or corrupted data
+    return null
+  }
 }
 
 /**
@@ -43,26 +57,20 @@ export async function authenticate(request, reply) {
 
   // Try X-API-Key first (existing authentication method)
   if (apiKey) {
-    const prisma = prismaClient || request.prisma || global.prisma
-    const userToken = await prisma.userToken.findUnique({
-      where: { userId: apiKey },
-    })
+    const prisma = request.prisma()
+    const userData = await resolveUser(prisma, apiKey)
 
-    if (!userToken || !userToken.accessToken) {
+    if (!userData) {
       reply.code(401).send({ error: 'Unauthorized: invalid API key' })
       return
     }
 
-    // Decrypt the access token
-    const accessToken = decrypt(userToken.accessToken)
-    const deviceId = userToken.deviceId
-
     // Populate request.user
-    // Per spec: X-API-Key maps to a user record; userId comes from the token store
+    // Per spec: X-API-Key maps to a user record via the token store
     request.user = {
-      userId: userToken.userId,
-      accessToken,
-      deviceId,
+      userId: userData.userToken.userId,
+      accessToken: userData.accessToken,
+      deviceId: userData.deviceId,
     }
     return
   }
@@ -71,34 +79,28 @@ export async function authenticate(request, reply) {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const jwt = authHeader.substring(7)
 
-    // JWT verification - use jose library when available:
+    // JWT verification will be integrated with the `jose` library:
     //   import { jwtVerify } from 'jose'
-    //   const { payload } = await jwtVerify(jwt, new TextEncoder().encode(TOKENT_ENCRYPTION_KEY))
+    //   const { payload } = await jwtVerify(jwt, new TextEncoder().encode(TOKEN_ENCRYPTION_KEY))
     //   const userId = payload.sub
     //
     // For now, we verify the token exists in the token store.
-    // TODO: Integrate jose library for proper JWT signature verification.
-    const prisma = prismaClient || request.prisma || global.prisma
-    const userToken = await prisma.userToken.findUnique({
-      where: { userId: jwt },
-    })
+    // TODO: Replace this token store lookup with proper JWT verification using jose.
+    const prisma = request.prisma()
+    const userData = await resolveUser(prisma, jwt)
 
-    if (!userToken || !userToken.accessToken) {
+    if (!userData) {
       reply.code(401).send({ error: 'Unauthorized: invalid bearer token' })
       return
     }
 
-    // Decrypt the access token
-    const accessToken = decrypt(userToken.accessToken)
-    const deviceId = userToken.deviceId
-
     // Populate request.user
     // Per spec: JWT should be verified and decoded to extract userId
-    // For now, the jwt string itself is used as the identifier until jose integration
+    // For now, the userId from the token store is used until jose integration
     request.user = {
-      userId: userToken.userId,
-      accessToken,
-      deviceId,
+      userId: userData.userToken.userId,
+      accessToken: userData.accessToken,
+      deviceId: userData.deviceId,
     }
     return
   }

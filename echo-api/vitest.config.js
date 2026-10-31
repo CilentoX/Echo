@@ -4,7 +4,7 @@ export default defineConfig({
   root: __dirname,
   test: {
     include: ['tests/**/*.test.js'],
-    mockReset: true,
+    mockEnv: ['TOKEN_ENCRYPTION_KEY'],
   },
   resolve: {
     alias: {
@@ -15,5 +15,4 @@ export default defineConfig({
       '../src/db.js': '/src/db.js',
     },
   },
-  mockEnv: true,
 })
