@@ -17,6 +17,7 @@ logs/
 .idea/
 .DS_Store
 Thumbs.db
+*.bak
 
 # Tauri generated
 apps/desktop/src-tauri/gen/

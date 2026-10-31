@@ -1,5 +1,5 @@
 import { decrypt } from '../lib/auth/tokenStore.js'
-import { jwtVerify } from 'jose'
+import { jwtVerify, SignJWT } from 'jose'
 
 /**
  * Fastify plugin that sets up the Prisma client decorator.
@@ -9,6 +9,51 @@ import { jwtVerify } from 'jose'
  */
 export function setupPrismaClient(app, client) {
   app.decorateRequest('prisma', () => client)
+}
+
+/**
+ * Gets the JWT verification secret from env.
+ * Must be a separate key from TOKEN_ENCRYPTION_KEY.
+ * @returns {Uint8Array} The secret key for JWT verification
+ */
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set.')
+  }
+  return Buffer.from(secret, 'base64')
+}
+
+/**
+ * JWT verification options with issuer and audience validation.
+ * @returns {object} Options for jwtVerify
+ */
+function getJwtVerifyOptions() {
+  return {
+    issuer: process.env.JWT_ISSUER || 'echo-api',
+    audience: process.env.JWT_AUDIENCE || 'echo-client',
+  }
+}
+
+/**
+ * Creates a test JWT for testing purposes.
+ * @param {object} payload - JWT payload
+ * @returns {Promise<string>} Signed JWT
+ */
+export async function createTestJwt(payload = {}) {
+  const secret = getJwtSecret()
+  const now = Math.floor(Date.now() / 1000)
+  const defaultPayload = {
+    sub: 'testuser:example.com',
+    iss: getJwtVerifyOptions().issuer,
+    aud: getJwtVerifyOptions().audience,
+    iat: now,
+    exp: now + 3600, // 1 hour
+    ...payload,
+  }
+  return new SignJWT(defaultPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .sign(secret)
 }
 
 /**
@@ -81,24 +126,27 @@ export async function authenticate(request, reply) {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const jwt = authHeader.substring(7)
 
-    // JWT verification with jose library
+    // JWT verification with jose library - separate secret from encryption key
     const prisma = request.prisma()
     let userData = null
     let userId = null
 
     try {
-      // Decode TOKEN_ENCRYPTION_KEY from base64 to get the secret
-      const secretKey = Buffer.from(process.env.TOKEN_ENCRYPTION_KEY || '', 'base64')
-      const { payload } = await jwtVerify(jwt, secretKey)
+      // Use separate JWT_SECRET for signing/verification (not TOKEN_ENCRYPTION_KEY)
+      const secretKey = getJwtSecret()
+      const options = getJwtVerifyOptions()
+      const { payload } = await jwtVerify(jwt, secretKey, options)
       userId = payload.sub
     } catch (error) {
-      // Invalid JWT - fall back to token store lookup (legacy)
-      userId = jwt
+      // Invalid/expired/tampered JWT - NO fallback, return 401 immediately
+      reply.code(401).send({ error: 'Unauthorized: invalid or expired bearer token' })
+      return
     }
 
     userData = await resolveUser(prisma, userId)
 
     if (!userData) {
+      console.error('[AUTH] No user data found for userId:', userId)
       reply.code(401).send({ error: 'Unauthorized: invalid bearer token' })
       return
     }

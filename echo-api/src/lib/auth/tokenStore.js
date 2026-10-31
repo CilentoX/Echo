@@ -2,13 +2,23 @@ import crypto from 'crypto'
 
 /**
  * Validates that a string is valid base64.
+ * Matches Node.js Buffer.from(str, 'base64') behavior which accepts unpadded base64.
  * @param {string} str - The string to validate
  * @returns {boolean} true if valid base64
  */
 function isValidBase64(str) {
   if (typeof str !== 'string') return false
-  // Valid base64: length is multiple of 4, only valid chars, optional padding
-  return /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(str)
+  // Valid base64 per RFC 4648: accepts unpadded base64 like Node's Buffer.from
+  // Allows: standard base64, base64url (no padding, -/_ chars)
+  const base64Regex = /^[A-Za-z0-9+/_-]*=?=?$/
+  if (!base64Regex.test(str)) return false
+  // Try to decode - this will throw if truly invalid
+  try {
+    Buffer.from(str, 'base64')
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
