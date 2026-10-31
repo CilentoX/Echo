@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import { proxyToMatrix } from '../lib/matrix/proxy.js'
 import { handleSyncProxy } from '../lib/matrix/syncProxy.js'
+import { registerMessageRoutes } from '../routes/messageRoutes.js'
 
 const app = Fastify({ logger: true })
 
@@ -41,3 +42,8 @@ app.route({
 app.get('/matrix/sync', { websocket: true }, handleSyncProxy)
 
 export default app
+
+/**
+ * Register all API routes
+ */
+registerMessageRoutes(app)
