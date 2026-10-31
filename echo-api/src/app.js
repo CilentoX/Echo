@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import { proxyToMatrix } from '../lib/matrix/proxy.js'
 import { handleSyncProxy } from '../lib/matrix/syncProxy.js'
 import { registerMessageRoutes } from '../routes/messageRoutes.js'
+import { registerAuthRoutes } from '../routes/authRoutes.js'
 
 const app = Fastify({ logger: true })
 
@@ -40,6 +41,16 @@ app.route({
  * @returns {void}
  */
 app.get('/matrix/sync', { websocket: true }, handleSyncProxy)
+
+/**
+ * Google SSO authentication routes
+ * These routes do NOT require authentication (no API key needed)
+ * - `POST /auth/google` → initiates SSO flow, returns `{ loginUrl, state }`
+ * - `GET /auth/callback` → receives Synapse redirect, exchanges code for tokens
+ * - `POST /auth/token` → desktop exchanges `code` for tokens
+ * - `POST /auth/refresh` → refreshes access token using refresh token
+ */
+registerAuthRoutes(app)
 
 export default app
 
