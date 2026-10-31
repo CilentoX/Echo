@@ -8,7 +8,6 @@ export default defineConfig({
   root: __dirname,
   test: {
     include: ['tests/**/*.test.js'],
-    mockEnv: ['TOKEN_ENCRYPTION_KEY'],
   },
   resolve: {
     alias: {

@@ -1,10 +1,11 @@
 import { decrypt } from '../lib/auth/tokenStore.js'
+import { jwtVerify } from 'jose'
 
 /**
  * Fastify plugin that sets up the Prisma client decorator.
  * 
  * @param {import('@prisma/client').PrismaClient} client - The Prisma client instance
- * @param {FastifyFastify} app - The Fastify instance
+ * @param {import('fastify').FastifyInstance} app - The Fastify instance
  */
 export function setupPrismaClient(app, client) {
   app.decorateRequest('prisma', () => client)
@@ -15,7 +16,7 @@ export function setupPrismaClient(app, client) {
  * Extracts common logic from both X-API-Key and Bearer branches.
  * 
  * @param {import('@prisma/client').PrismaClient} prisma - The Prisma client instance
- * @param {string} userId - The user identifier (API key or JWT string)
+ * @param {string} userId - The user identifier (API key or JWT sub)
  * @returns {Promise<object|null>} User token data or null
  */
 async function resolveUser(prisma, userId) {
@@ -80,17 +81,22 @@ export async function authenticate(request, reply) {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const jwt = authHeader.substring(7)
 
-    // JWT verification with jose library:
-    //   import { jwtVerify } from 'jose'
-    //   const { payload } = await jwtVerify(jwt, new TextEncoder().encode(TOKEN_ENCRYPTION_KEY))
-    //   const userId = payload.sub
-    //
-    // For now, we verify the token exists in the token store.
-    // TODO: Integrate jose library for proper JWT signature verification.
-    // When jose is available, replace the token store lookup with:
-    //   const userData = await resolveUser(prisma, payload.sub)
+    // JWT verification with jose library
     const prisma = request.prisma()
-    const userData = await resolveUser(prisma, jwt)
+    let userData = null
+    let userId = null
+
+    try {
+      // Decode TOKEN_ENCRYPTION_KEY from base64 to get the secret
+      const secretKey = Buffer.from(process.env.TOKEN_ENCRYPTION_KEY || '', 'base64')
+      const { payload } = await jwtVerify(jwt, secretKey)
+      userId = payload.sub
+    } catch (error) {
+      // Invalid JWT - fall back to token store lookup (legacy)
+      userId = jwt
+    }
+
+    userData = await resolveUser(prisma, userId)
 
     if (!userData) {
       reply.code(401).send({ error: 'Unauthorized: invalid bearer token' })
@@ -99,7 +105,6 @@ export async function authenticate(request, reply) {
 
     // Populate request.user
     // Per spec: JWT should be verified and decoded to extract userId
-    // For now, the userId from the token store is used until jose integration
     request.user = {
       userId: userData.userToken.userId,
       accessToken: userData.accessToken,

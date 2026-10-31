@@ -4,11 +4,11 @@ import { encrypt, decrypt } from '../src/lib/auth/tokenStore.js'
 
 describe('Token Store - Encryption', () => {
   beforeEach(() => {
-    vi.stubEnv('TOKEN_ENCRYPTION_KEY', 'Ugi/fXYZWNyn6jNKshlswfB69Akl3MH7z/sp8el1Pqk=')
+    vi.stubEnv('TOKEN_ENCRYPTION_KEY', 'BqMY9SmbfN4+b2UP8JP2+MpIk/HfSseOX3KTw2Nby+E=')
   })
 
   afterEach(() => {
-    vi.stubEnv('TOKEN_ENCRYPTION_KEY', '')
+    vi.unstubAllEnvs()
   })
 
   describe('encrypt', () => {

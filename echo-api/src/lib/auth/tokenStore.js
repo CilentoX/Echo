@@ -7,8 +7,8 @@ import crypto from 'crypto'
  */
 function isValidBase64(str) {
   if (typeof str !== 'string') return false
-  const cleaned = str.replace(/=+$/, '')
-  return cleaned.length % 4 === 0 && /^[A-Za-z0-9+/]*$/.test(cleaned)
+  // Valid base64: length is multiple of 4, only valid chars, optional padding
+  return /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(str)
 }
 
 /**
@@ -17,41 +17,49 @@ function isValidBase64(str) {
  * The key MUST be a 32-byte base64-encoded string (44 characters).
  * No fallback to SHA-256 hashing - fails fast if the key is not properly formatted.
  * 
- * If the key is a valid 32-byte base64 key, it will be used directly.
- * Otherwise, it will be hashed with SHA-256 to produce the key.
+ * - Calls isValidBase64() to validate format before decoding
+ * - If invalid base64 → throws error (fail fast)
+ * - If not exactly 32 bytes after base64 decode → throws error
+ * - No SHA-256 fallback
  * 
  * Example (direct 32-byte key):
  *   TOKEN_ENCRYPTION_KEY=base64encoded-32-byte-key
- * 
- * Example (hashed key - default for backwards compatibility):
- *   TOKEN_ENCRYPTION_KEY=my-secret-key
  */
 
 function deriveKeyFromRaw(rawKey) {
-  // Try to decode as base64 first
-  const keyBuffer = Buffer.from(rawKey, 'base64')
-  
-  // Check if it's a valid 32-byte base64 key
-  if (keyBuffer.length === 32) {
-    return keyBuffer
+  // Validate base64 format FIRST
+  if (!isValidBase64(rawKey)) {
+    throw new Error(
+      `TOKEN_ENCRYPTION_KEY must be a valid base64-encoded string. ` +
+      `Got: "${rawKey}"`
+    )
   }
-  
-  // Otherwise, fall back to SHA-256 hashing for backwards compatibility
-  // This ensures existing keys (like short strings) still work
-  return crypto.createHash('sha256').update(rawKey).digest()
+
+  const keyBuffer = Buffer.from(rawKey, 'base64')
+
+  // Must be exactly 32 bytes (256 bits for AES-256-GCM)
+  if (keyBuffer.length !== 32) {
+    throw new Error(
+      `TOKEN_ENCRYPTION_KEY must be a 32-byte base64-encoded key (44 characters). ` +
+      `Got ${keyBuffer.length} bytes from "${rawKey}" (base64 decoded). ` +
+      'Generate a proper key with: ' +
+      'TOKEN_ENCRYPTION_KEY=$(openssl rand -base64 32)'
+    )
+  }
+
+  return keyBuffer
 }
 
 /**
  * Gets the encryption key from the TOKEN_ENCRYPTION_KEY env var.
  * 
  * @returns {Buffer} A 32-byte key buffer for AES-256-GCM
+ * @throws {Error} If the key is missing, not valid base64, or not 32 bytes
  */
 export function getEncryptionKey() {
   const rawKey = process.env.TOKEN_ENCRYPTION_KEY
   if (!rawKey) {
-    throw new Error(
-      'TOKEN_ENCRYPTION_KEY environment variable is not set. '
-    )
+    throw new Error('TOKEN_ENCRYPTION_KEY environment variable is not set.')
   }
   return deriveKeyFromRaw(rawKey)
 }

@@ -3,8 +3,8 @@ import Fastify from 'fastify'
 import { encrypt } from '../src/lib/auth/tokenStore.js'
 import { setupPrismaClient, authenticate } from '../src/plugins/auth.js'
 
-// Use a valid base64-encoded 32-byte key for tests
-const TEST_ENCRYPTION_KEY = Buffer.from('test-encryption-key-32-chars-long!!').toString('base64')
+// Use a valid base64-encoded 32-byte key for tests (openssl rand -base64 32)
+const TEST_ENCRYPTION_KEY = 'BqMY9SmbfN4+b2UP8JP2+MpIk/HfSseOX3KTw2Nby+E='
 
 let testAccessToken = ''
 let bearerAccessToken = ''
