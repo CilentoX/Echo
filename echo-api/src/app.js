@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import { proxyToMatrix } from '../lib/matrix/proxy.js'
 
 const app = Fastify({ logger: true })
 
@@ -21,7 +22,6 @@ app.route({
       return
     }
 
-    const { proxyToMatrix } = await import('../lib/matrix/proxy.js')
     await proxyToMatrix(request, reply, request.params.matrixPath)
   },
 })
