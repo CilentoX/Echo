@@ -1,24 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import Fastify from 'fastify'
-// Import auth functions - set prisma client before running tests
+// Import auth functions
 import { setPrismaClient, authenticate } from '../src/plugins/auth.js'
+import { encrypt } from '../src/lib/auth/tokenStore.js'
+
+// Set encryption key for tests
+process.env.TOKEN_ENCRYPTION_KEY = 'test-encryption-key-32-chars-long!!'
 
 // Set up mock prisma client
 const mockPrisma = {
   userToken: {
-    findUnique: async (where) => {
+    findUnique: async (args) => {
+      const where = args?.where
       console.log('Mock findUnique called with userId:', where?.userId)
       if (where?.userId === 'test-api-key-user123') {
         return {
           userId: 'test-api-key-user123',
-          accessToken: 'encrypted-test-access-token',
+          accessToken: encrypt('test-access-token'),
           deviceId: 'test-device-001',
         }
       }
-      if (where?.userId === 'testuser:matrix.org') {
+      if (where?.userId === 'dummy-jwt-token') {
         return {
-          userId: 'testuser:matrix.org',
-          accessToken: 'encrypted-bearer-token',
+          userId: 'dummy-jwt-token',
+          accessToken: encrypt('bearer-access-token'),
           deviceId: 'test-device-002',
         }
       }
@@ -39,7 +44,6 @@ describe('Auth Middleware - Integration X-API-Key', () => {
   const testApiKey = 'test-api-key-user123'
 
   beforeEach(async () => {
-    vi.resetModules()
     app = Fastify({ logger: false })
     app.post('/test', async (request, reply) => {
       await authenticate(request, reply)
@@ -94,10 +98,9 @@ describe('Auth Middleware - Integration X-API-Key', () => {
 
 describe('Auth Middleware - Integration Bearer Token', () => {
   let app
-  const testUserId = 'testuser:matrix.org'
+  const testUserId = 'dummy-jwt-token'
 
   beforeEach(async () => {
-    vi.resetModules()
     app = Fastify({ logger: false })
     app.post('/test', async (request, reply) => {
       await authenticate(request, reply)
