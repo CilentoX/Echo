@@ -1,42 +1,46 @@
 # Echo API — Fastify + Prisma + Node.js 20
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
+# Instalar dependências do sistema incluindo OpenSSL para o Prisma
 FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 RUN corepack enable pnpm && pnpm install --frozen-lockfile
 
-# Generate Prisma client
+# Gerar cliente Prisma (precisa do OpenSSL e DATABASE_URL)
 FROM deps AS generator
 WORKDIR /app
 COPY prisma ./prisma/
+ENV DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/echo_profiles?schema=public}
 RUN pnpm prisma generate
 
-# Build the application
+# Build da aplicação
 FROM generator AS builder
 WORKDIR /app
 COPY . .
 RUN pnpm build
 
-# Production image
+# Imagem de produção
 FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Create non-root user
+# Instalar OpenSSL na imagem de produção também
+RUN apk add --no-cache libc6-compat openssl
+
+# Criar usuário não-root
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 echoapi
 
-# Copy built application
+# Copiar aplicação buildada
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma/
 
-# Create uploads directory
+# Criar diretório de uploads
 RUN mkdir -p src/uploads && chown -R echoapi:nodejs src/uploads
 
 USER echoapi
