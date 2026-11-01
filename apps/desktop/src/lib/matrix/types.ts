@@ -3,10 +3,11 @@
  */
 export interface Session {
   baseUrl: string;
+  apiBaseUrl: string;
   accessToken: string;
-  userId: string;
+  refreshToken: string;
   deviceId: string | null;
-  refreshToken?: string;
+  expiresAt: number;
 }
 
 /**

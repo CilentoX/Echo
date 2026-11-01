@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Plus } from "@phosphor-icons/react";
 import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
-import { uploadImage } from "@/lib/appwrite/storage";
+import { useEchoApi } from "@/lib/api/echoApi";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,8 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const echoApi = useEchoApi();
+
   const handleSubmit = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
@@ -46,10 +48,10 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
       let bannerUrl: string | null = null;
 
       if (iconFile) {
-        iconUrl = await uploadImage(iconFile);
+        iconUrl = await echoApi.uploadChatMedia(iconFile);
       }
       if (bannerFile) {
-        bannerUrl = await uploadImage(bannerFile);
+        bannerUrl = await echoApi.uploadChatMedia(bannerFile);
       }
 
       const guild = await onCreate({

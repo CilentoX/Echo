@@ -4,7 +4,7 @@ import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
-import { uploadImage } from "@/lib/appwrite/storage";
+import { useEchoApi } from "@/lib/api/echoApi";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,8 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
   const setActiveChannel = useUiStore((state) => state.setActiveChannel);
   const setGuilds = useSyncStore((state) => state.setGuilds);
 
+  const echoApi = useEchoApi();
+
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
@@ -56,10 +58,10 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
       let iconUrl: string | undefined;
       let bannerUrl: string | undefined;
       if (iconFile) {
-        iconUrl = await uploadImage(iconFile);
+        iconUrl = await echoApi.uploadChatMedia(iconFile);
       }
       if (bannerFile) {
-        bannerUrl = await uploadImage(bannerFile);
+        bannerUrl = await echoApi.uploadChatMedia(bannerFile);
       }
       await onSave({
         name: trimmed,

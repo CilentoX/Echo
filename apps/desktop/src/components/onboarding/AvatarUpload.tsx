@@ -1,7 +1,7 @@
 "use client"
 
+import { useEchoApi } from "@/lib/api/echoApi"
 import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit"
-import { uploadImage } from "@/lib/appwrite/storage"
 
 interface AvatarUploadProps {
   src: string | null
@@ -11,9 +11,11 @@ interface AvatarUploadProps {
 }
 
 export function AvatarUpload({ src, onChange, onRemove, disabled = false }: AvatarUploadProps) {
+  const echoApi = useEchoApi()
+
   const handleUploadFile = async (file: File) => {
     try {
-      const url = await uploadImage(file)
+      const url = await echoApi.uploadChatMedia(file)
       onChange(url)
     } catch {
       // erro é gerenciado pelo ImageUploadWithEdit

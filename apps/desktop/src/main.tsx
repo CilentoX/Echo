@@ -4,10 +4,10 @@ import "@fontsource/inter"
 import "@fontsource/space-grotesk"
 import "./styles.css"
 import App from "./App"
-import { pingAppwrite } from "@/lib/appwrite/client"
+import { pingEchoApi } from "@/lib/api/config"
 
-// Verifica a conexão com o Appwrite ao iniciar a aplicação
-pingAppwrite()
+// Verifica a conexão com a Echo API ao iniciar a aplicação
+pingEchoApi()
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

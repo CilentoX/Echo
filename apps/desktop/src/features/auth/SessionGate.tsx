@@ -4,7 +4,7 @@ import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
 import OnboardingScreen from "@/features/auth/OnboardingScreen";
 import { registerLogoutHandler } from "@/features/auth/logout";
 import AppShell from "@/features/shell/AppShell";
-import { matrixService } from "@/lib/matrix/instance";
+import { echoApi, initEchoApiFromSession } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
 import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
 import { isNewAccount, isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
@@ -31,6 +31,11 @@ export interface SessionGateProps {
  * 3. login — sem sessão salva → GoogleLoginScreen.
  * 4. onboarding — primeira vez após login → define nick + foto antes do shell.
  * 5. shell — AppShell autenticado.
+ *
+ * O login agora usa o Echo API client ao invés de chamar o Matrix SDK diretamente.
+ * O fluxo SSO é iniciado via Echo API /auth/exchange-login-token, que por sua vez
+ * usa o fluxo Rust de loopback local (mesmo mecanismo do Matrix SSO, mas orquestrado
+ * pelo backend Echo API).
  */
 export default function SessionGate({ shell }: SessionGateProps) {
   const [view, setView] = useState<GateView>("booting");
@@ -51,7 +56,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   const enterShell = useCallback(
     (session: Session, clientActive = false) => {
-      if (!clientActive) matrixService.restoreSession(session);
+      if (!clientActive) initEchoApiFromSession();
       const ui = useUiStore.getState();
       ui.setMyUserId(session.userId);
       ui.setPresence(session.userId, "online");
@@ -63,7 +68,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   /** Prepara client + uiStore para telas pré-shell (onboarding), sem ligar o sync. */
   const prepareSession = useCallback((session: Session, clientActive = false) => {
-    if (!clientActive) matrixService.restoreSession(session);
+    if (!clientActive) initEchoApiFromSession();
     useUiStore.getState().setMyUserId(session.userId);
   }, []);
 
@@ -99,28 +104,40 @@ export default function SessionGate({ shell }: SessionGateProps) {
       // sem sessão, o login abre direto (o banner cobre updates depois).
       const updateDone = Promise.resolve(runStartupUpdateCheck()).catch(() => { });
       try {
-        const [session] = await Promise.all([loadSession(), updateDone]);
+        const [session, updateResult] = await Promise.all([loadSession(), updateDone]);
         if (cancelled) return;
         if (!session) {
           setView("login");
           return;
         }
-        if (useUpdateStore.getState().status === "ready") {
-          const relaunched = await restartApp().then(
-            () => true,
-            () => false,
-          );
-          if (relaunched) return; // o processo termina com o relaunch
-          // relaunch falhou — mostra tela de update exigindo reinício manual
-          setView("update-required");
-          return;
+        // Verificar se a sessão expirou e tentar refresh automático
+        const now = Date.now();
+        if (session.expiresAt && session.expiresAt < now) {
+          try {
+            const refreshed = await echoApi.refreshSession(session.refreshToken ?? "");
+            // Refresh bem-sucedido: usar a sessão renovada
+            session.accessToken = refreshed.accessToken;
+            session.refreshToken = refreshed.refreshToken ?? session.refreshToken;
+            session.expiresAt = refreshed.expiresAt;
+            await saveSession(session);
+            // Prosseguir com a sessão renovada
+            prepareSession(session);
+            const alreadyCompleted = isOnboardingCompleted(session.userId);
+            if (!alreadyCompleted) {
+              setView("onboarding");
+            } else {
+              enterShell(session, true);
+            }
+            return;
+          } catch (refreshErr) {
+            // Refresh falhou — limpar sessão e login
+            console.error("[SessionGate] Refresh session failed, clearing session:", refreshErr);
+            await rejectSession();
+            setView("login");
+            return;
+          }
         }
-        // Sessão válida e sem update pendente: verifica onboarding.
-        // O client é restaurado ANTES do onboarding — setDisplayName/upload
-        // do OnboardingScreen exigem o client credentialled (e o uiStore
-        // precisa do myUserId para habilitar o submit).
-        // Onboarding mostra se ainda não foi concluído (mesmo que Google SSO
-        // tenha pré-preenchido o displayName, o usuário precisa escolher o seu).
+        // Sessão válida (não expirada) ou refresh bem-sucedido: verifica onboarding.
         prepareSession(session);
         const alreadyCompleted = isOnboardingCompleted(session.userId);
         if (!alreadyCompleted) {
@@ -200,7 +217,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
   }
 
   if (view === "login") {
-    return <GoogleLoginScreen service={matrixService} onSession={handleSession} />;
+    return <GoogleLoginScreen service={echoApi} onSession={handleSession} />;
   }
 
   if (view === "onboarding") {
@@ -209,7 +226,6 @@ export default function SessionGate({ shell }: SessionGateProps) {
         <OnboardingScreen
           onComplete={async () => {
             // Após o onboarding, entra no shell com a sessão já carregada
-            // (o client já está ativo — preparado no boot/login).
             const session = await loadSession();
             if (session) {
               markOnboardingCompleted(session.userId);

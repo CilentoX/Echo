@@ -52,8 +52,8 @@ describe("MemberDropdownContent", () => {
 
     mockUseProfileStore.mockImplementation((selector) => {
       const state = {
-        appwriteAvatarUrl: null,
-        appwriteBannerUrl: null,
+        avatarUrl: null,
+        bannerUrl: null,
       };
       return selector(state);
     });
@@ -74,15 +74,7 @@ describe("MemberDropdownContent", () => {
   }
 
   describe("avatar fallback chain", () => {
-    it("shows own user avatar from profile.avatarUrl (Matrix) when myAppwriteAvatarUrl is null", async () => {
-      mockUseProfileStore.mockImplementation((selector) => {
-        const state = {
-          appwriteAvatarUrl: null,
-          appwriteBannerUrl: null,
-        };
-        return selector(state);
-      });
-
+    it("shows own user avatar from profile avatar URL (Matrix) when Appwrite avatar is null", async () {
       renderComponent();
       
       // Wait for async load
@@ -93,33 +85,7 @@ describe("MemberDropdownContent", () => {
       });
     });
 
-    it("shows own user avatar from myAppwriteAvatarUrl (localStorage) when profile.avatarUrl is null", async () => {
-      mockGetUserProfile.mockResolvedValue({
-        displayName: "Test User",
-        avatarUrl: null,
-        bannerUrl: null,
-        bio: null,
-        role: null,
-      });
-
-      mockUseProfileStore.mockImplementation((selector) => {
-        const state = {
-          appwriteAvatarUrl: "https://appwrite.example.com/avatar.png",
-          appwriteBannerUrl: null,
-        };
-        return selector(state);
-      });
-
-      renderComponent();
-      
-      await vi.waitFor(() => {
-        const img = screen.getByAltText("Avatar");
-        expect(img).toBeInTheDocument();
-        expect(img.src).toContain("https://appwrite.example.com/avatar.png");
-      });
-    });
-
-    it("shows other user avatar from profile.avatarUrl (Matrix)", async () => {
+    it("shows own user avatar from profile avatar URL (Matrix) when own avatar is null", async () {
       const otherUserId = "@other:echo.litteris.online";
       mockUseUiStore.mockImplementation((selector) => {
         const state = {
@@ -149,8 +115,8 @@ describe("MemberDropdownContent", () => {
 
       mockUseProfileStore.mockImplementation((selector) => {
         const state = {
-          appwriteAvatarUrl: null,
-          appwriteBannerUrl: null,
+          avatarUrl: null,
+          bannerUrl: null,
         };
         return selector(state);
       });
@@ -161,7 +127,7 @@ describe("MemberDropdownContent", () => {
         const img = screen.getByAltText("Avatar");
         expect(img).toBeInTheDocument();
         // Should show initials fallback
-        expect(img.src).toContain("data:image/svg+xml") || expect(img.src).toBe("");
+        expect(img.src).toMatch(/data:image\/svg\+xml/) || expect(img.src).toBe("");
       });
     });
   });

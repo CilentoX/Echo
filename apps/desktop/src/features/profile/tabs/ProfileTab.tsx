@@ -11,7 +11,7 @@ import { useProfileEditor } from "../hooks/useProfileEditor";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
-import { useImageUploadWithMatrix } from "@/lib/appwrite/useImageUploadWithMatrix";
+import { useEchoApi } from "@/lib/api/echoApi";
 
 interface ProfileTabProps {
   onClose: () => void;
@@ -31,7 +31,15 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     setAppwriteBannerUrl,
   } = useProfileStore();
 
-  const { uploadAvatar, uploadBanner } = useImageUploadWithMatrix();
+  const echoApi = useEchoApi();
+
+  const uploadAvatar = async (file: File): Promise<string> => {
+    return echoApi.uploadChatMedia(file);
+  };
+
+  const uploadBanner = async (file: File): Promise<string> => {
+    return echoApi.uploadChatMedia(file);
+  };
 
   const initials = useMemo(() => {
     const name = displayName || username || "Usuário";

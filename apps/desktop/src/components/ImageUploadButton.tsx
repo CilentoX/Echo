@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Upload, Image as ImageIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
-import { useImageUploadWithMatrix } from "@/lib/appwrite/useImageUploadWithMatrix"
+import { useEchoApi } from "@/lib/api/echoApi"
 import ImageEditor from "@/components/media/ImageEditor"
 import { mxcToHttp } from "@/lib/media/mxc"
 
@@ -32,12 +32,20 @@ const ImageUploadButton = memo(function ImageUploadButton({
   aspect = 1,
   editTitle,
 }: ImageUploadButtonProps) {
-  const { uploadAvatar, uploadBanner, uploading } = useImageUploadWithMatrix()
+  const echoApi = useEchoApi()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewObjUrl, setPreviewObjUrl] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+
+  const uploadAvatar = async (file: File): Promise<string> => {
+    return echoApi.uploadChatMedia(file)
+  }
+
+  const uploadBanner = async (file: File): Promise<string> => {
+    return echoApi.uploadChatMedia(file)
+  }
 
   const sizeConfig: Record<string, { w: string; h: string }> = {
     sm: { w: "w-12", h: "h-12" },
@@ -45,6 +53,8 @@ const ImageUploadButton = memo(function ImageUploadButton({
     lg: { w: "w-32", h: "h-32" },
   }
   const { w, h } = sizeConfig[previewSize]
+
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -94,6 +104,7 @@ const ImageUploadButton = memo(function ImageUploadButton({
   const handleEditorConfirm = useCallback(
     async (croppedFile: File) => {
       setEditError(null)
+      setUploading(true)
       try {
         // Avatar (aspect 1) ou Banner (16:9)
         const isBanner = aspect !== 1
@@ -108,6 +119,8 @@ const ImageUploadButton = memo(function ImageUploadButton({
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Falha no upload"
         setEditError(msg)
+      } finally {
+        setUploading(false)
       }
     },
     [onUpload],

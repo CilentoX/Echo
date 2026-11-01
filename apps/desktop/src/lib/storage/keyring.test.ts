@@ -13,9 +13,12 @@ const mockedInvoke = vi.mocked(invoke);
 
 const SESSION: Session = {
   baseUrl: ECHO_HOMESERVER_URL,
+  apiBaseUrl: ECHO_HOMESERVER_URL,
   accessToken: "syt-at-1",
-  userId: "@nina:echo.litteris.online",
+  refreshToken: "rt-abc123",
   deviceId: "DEV123",
+  userId: "@nina:echo.litteris.online",
+  expiresAt: 0,
 };
 
 beforeEach(() => {
@@ -31,6 +34,10 @@ describe("keyring storage", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("store_token", {
       userId: SESSION.userId,
       token: SESSION.accessToken,
+      refreshToken: SESSION.refreshToken,
+      deviceId: SESSION.deviceId,
+      apiBaseUrl: SESSION.apiBaseUrl,
+      expiresAt: SESSION.expiresAt,
     });
   });
 
@@ -38,6 +45,10 @@ describe("keyring storage", () => {
     mockedInvoke.mockResolvedValueOnce({
       userId: SESSION.userId,
       token: SESSION.accessToken,
+      refreshToken: SESSION.refreshToken,
+      deviceId: SESSION.deviceId,
+      apiBaseUrl: SESSION.apiBaseUrl,
+      expiresAt: SESSION.expiresAt,
     });
 
     const session = await loadSession();
@@ -45,9 +56,12 @@ describe("keyring storage", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("load_token");
     expect(session).toEqual({
       baseUrl: ECHO_HOMESERVER_URL,
+      apiBaseUrl: ECHO_HOMESERVER_URL,
       accessToken: SESSION.accessToken,
+      refreshToken: SESSION.refreshToken,
+      deviceId: SESSION.deviceId,
       userId: SESSION.userId,
-      deviceId: null,
+      expiresAt: SESSION.expiresAt,
     });
   });
 

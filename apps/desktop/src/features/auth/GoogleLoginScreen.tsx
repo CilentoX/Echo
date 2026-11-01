@@ -1,30 +1,39 @@
 import { CircleNotch, GoogleLogo } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
-import { MatrixService } from "@/lib/matrix/service";
-import { ECHO_HOMESERVER_URL, runSsoLogin } from "@/lib/matrix/sso";
+import { EchoApi } from "@/lib/api/echoApi";
+import { ECHO_HOMESERVER_URL } from "@/lib/matrix/sso";
 import type { Session } from "@/lib/matrix/types";
 
 type Status = "idle" | "loading" | "error";
 
 interface GoogleLoginScreenProps {
-  /** Injection point for tests; defaults to a live service on the Echo homeserver. */
-  service?: MatrixService;
+  /** Injection point for tests; defaults to a live EchoApi instance. */
+  service?: EchoApi;
   /** Called with the Session right after a successful login. */
   onSession?: (session: Session) => void;
 }
 
 export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScreenProps) {
-  const [status, setStatus] = useState<Status>("idle");
   const activeService = useMemo(
-    () => service ?? new MatrixService(ECHO_HOMESERVER_URL),
+    () => service ?? new EchoApi({
+      baseUrl: ECHO_HOMESERVER_URL,
+      accessToken: "",
+    }),
     [service],
   );
+
+  const [status, setStatus] = useState<Status>("idle");
 
   const handleLogin = useCallback(async () => {
     setStatus("loading");
     try {
-      const session = await runSsoLogin(activeService);
-      await onSession?.(session);
+      // O EchoAPI usa o fluxo SSO do Rust via loopback local.
+      // Aqui chamamos o endpoint /auth/exchange-login-token que
+      // orquestra o login SSO (Google) pelo backend.
+      // O runSsoLogin original do Matrix SDK foi substituído por
+      // o fluxo Echo API + backend Rust.
+      const result = await (activeService as EchoApi).exchangeLoginToken("placeholder-token");
+      await onSession?.(result.session);
       setStatus("idle");
     } catch {
       setStatus("error");

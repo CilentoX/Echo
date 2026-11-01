@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
 import { matrixService } from "@/lib/matrix/instance";
+import { useEchoApi } from "@/lib/api/echoApi";
 
 interface GuildProfileTabProps {
   guildId: string;
@@ -47,7 +48,9 @@ export function GuildProfileTab({
       .slice(0, 2) || "G";
   }, [guildName]);
 
-  // Carrega o perfil da guilda do Appwrite
+  const echoApi = useEchoApi();
+
+  // Carrega o perfil da guilda do Echo API (via Matrix)
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -157,26 +160,8 @@ export function GuildProfileTab({
           onChange={async (file: File) => {
             try {
               setBannerError(null);
-              const response = await fetch(
-                `${import.meta.env.VITE_APPWRITE_ENDPOINT ?? "https://fra.cloud.appwrite.io/v1"}/storage/buckets/${import.meta.env.VITE_APPWRITE_BUCKET_ID ?? "profile-images"}/files`,
-                {
-                  method: "POST",
-                  headers: {
-                    "X-Appwrite-Project": import.meta.env.VITE_APPWRITE_PROJECT_ID ?? "6ad904ff0035aa68066c",
-                    "X-Appwrite-Key": import.meta.env.VITE_APPWRITE_API_KEY,
-                  },
-                  body: (() => {
-                    const fd = new FormData();
-                    fd.append("fileId", crypto.randomUUID());
-                    fd.append("file", file);
-                    return fd;
-                  })(),
-                }
-              );
-              if (!response.ok) throw new Error("Upload falhou");
-              const data = await response.json();
-              const appwriteUrl = `${import.meta.env.VITE_APPWRITE_ENDPOINT ?? "https://fra.cloud.appwrite.io/v1"}/storage/buckets/${import.meta.env.VITE_APPWRITE_BUCKET_ID ?? "profile-images"}/files/${data.\$id}/view?project=${import.meta.env.VITE_APPWRITE_PROJECT_ID ?? "6ad904ff0035aa68066c"}`;
-              setEditBannerUrl(appwriteUrl);
+              const url = await echoApi.uploadChatMedia(file);
+              setEditBannerUrl(url);
             } catch (err) {
               const msg = err instanceof Error ? err.message : "Falha no upload do banner";
               setBannerError(msg);
@@ -205,26 +190,8 @@ export function GuildProfileTab({
             onChange={async (file: File) => {
               try {
                 setAvatarError(null);
-                const response = await fetch(
-                  `${import.meta.env.VITE_APPWRITE_ENDPOINT ?? "https://fra.cloud.appwrite.io/v1"}/storage/buckets/${import.meta.env.VITE_APPWRITE_BUCKET_ID ?? "profile-images"}/files`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "X-Appwrite-Project": import.meta.env.VITE_APPWRITE_PROJECT_ID ?? "6ad904ff0035aa68066c",
-                      "X-Appwrite-Key": import.meta.env.VITE_APPWRITE_API_KEY,
-                    },
-                    body: (() => {
-                      const fd = new FormData();
-                      fd.append("fileId", crypto.randomUUID());
-                      fd.append("file", file);
-                      return fd;
-                    })(),
-                  }
-                );
-                if (!response.ok) throw new Error("Upload falhou");
-                const data = await response.json();
-                const appwriteUrl = `${import.meta.env.VITE_APPWRITE_ENDPOINT ?? "https://fra.cloud.appwrite.io/v1"}/storage/buckets/${import.meta.env.VITE_APPWRITE_BUCKET_ID ?? "profile-images"}/files/${data.\$id}/view?project=${import.meta.env.VITE_APPWRITE_PROJECT_ID ?? "6ad904ff0035aa68066c"}`;
-                setEditAvatarUrl(appwriteUrl);
+                const url = await echoApi.uploadChatMedia(file);
+                setEditAvatarUrl(url);
               } catch (err) {
                 const msg = err instanceof Error ? err.message : "Falha no upload da foto";
                 setAvatarError(msg);
