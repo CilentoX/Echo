@@ -11,10 +11,11 @@ RUN corepack enable pnpm && pnpm install --frozen-lockfile
 # Gerar cliente Prisma (precisa do OpenSSL e DATABASE_URL)
 # DATABASE_URL dummy usado durante o build - Prisma generate não precisa
 # de conexão real com o banco para gerar o cliente
+# Usar file: para evitar tentativa de conexão de rede durante o build
 FROM deps AS generator
 WORKDIR /app
 COPY prisma ./prisma/
-ENV DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/echo_profiles?schema=public}
+ENV DATABASE_URL=${DATABASE_URL:-file:./dev.db}
 RUN pnpm prisma generate
 
 # Build da aplicação
