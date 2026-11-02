@@ -33,7 +33,7 @@ export async function uploadImage(file: File): Promise<string> {
  */
 export async function deleteImage(imageUrl: string): Promise<void> {
   try {
-    // Extrai o nome do arquivo da URL (ex: https://api.echo.litteris.online/uploads/abc-123.png)
+    // Extrai o nome do arquivo da URL (ex: https://apiecho.litteris.online/uploads/abc-123.png)
     const match = imageUrl.match(/\/uploads\/([^/?]+)(\?|$)/);
     if (!match) return;
 

@@ -2,11 +2,11 @@
  * Echo API configuration.
  * A API própria roda no Coolify + VPS.
  * URL deve ser definida via VITE_ECHO_API_URL.
- * Default: https://api.echo.litteris.online
+ * Default: https://apiecho.litteris.online
  */
 
 export const ECHO_API_CONFIG = {
-  baseUrl: import.meta.env.VITE_ECHO_API_URL ?? "https://api.echo.litteris.online",
+  baseUrl: import.meta.env.VITE_ECHO_API_URL ?? "https://apiecho.litteris.online",
   timeout: 10000,
 };
 

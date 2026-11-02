@@ -9,7 +9,7 @@
  * user's access token and used throughout the app.
  */
 export interface EchoApiInit {
-  /** Base URL of the Echo API middleware (e.g. https://api.echo.litteris.online) */
+  /** Base URL of the Echo API middleware (e.g. https://apiecho.litteris.online) */
   baseUrl: string;
   /** Access token obtained after Echo API login (stored in keyring). */
   accessToken: string;

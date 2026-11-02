@@ -117,7 +117,7 @@ function openSyncWebSocket(accessToken: string): void {
     syncWs = null;
   }
 
-  // Use Echo API URL for sync WebSocket (wss://api.echo.litteris.online/matrix/sync)
+  // Use Echo API URL for sync WebSocket (wss://apiecho.litteris.online/matrix/sync)
   const wsBaseUrl = ECHO_API_CONFIG.baseUrl.replace(/^http/, "ws");
   syncWs = new WebSocket(`${wsBaseUrl}/matrix/sync?access_token=${accessToken}`);
 
