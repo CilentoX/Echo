@@ -4,7 +4,7 @@
 services:
   echo-api:
     build:
-      context: ../../echo-api  # Caminho relativo ao clone do repositório
+      context: ../../../echo-api  # Caminho relativo ao clone do repositório
       dockerfile: Dockerfile
     container_name: echo-api
     restart: unless-stopped

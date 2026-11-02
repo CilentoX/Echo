@@ -14,7 +14,7 @@
 services:
   api:
     build:
-      context: ./echo-api
+      context: ../echo-api
       dockerfile: Dockerfile
     container_name: echo-api
     restart: unless-stopped
