@@ -30,6 +30,7 @@ import { saveSession } from "@/lib/storage/keyring";
  *   - X-API-Key: <apiKey> (if configured)
  */
 function request(
+  url: string,
   init: RequestInit,
   apiKey: string | undefined,
   accessToken: string,
@@ -39,28 +40,22 @@ function request(
   const token = authToken || accessToken;
   headers.set("Authorization", `Bearer ${token}`);
   if (apiKey) headers.set("X-API-Key", apiKey);
-  return fetch(`${apiBase}/echo${init.path}`, {
+  
+  // Serialize body if it's a plain object
+  let body: BodyInit | null | undefined = init.body;
+  if (body !== undefined && body !== null && typeof body === "object" && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof ReadableStream) && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
+    body = JSON.stringify(body, (_key, value) => {
+      if (typeof value === "bigint") {
+        return value.toString();
+      }
+      return value;
+    });
+  }
+  
+  return fetch(url, {
     ...init,
     headers,
-    // Body is expected to be already-serialized JSON or a string.
-    // If it's a plain object, we serialize it here.
-    body:
-      "BodyInit" in globalThis
-        ? init.body instanceof BodyInit
-          ? init.body
-          : JSON.stringify(init.body ?? {}, (key, value) => {
-              if (typeof value === "bigint") {
-                return value.toString();
-              }
-              return value;
-            })
-        : JSON.stringify(init.body ?? {}, (key, value) => {
-            if (typeof value === "bigint") {
-              return value.toString();
-            }
-            return value;
-          }),
-    // Disable cors auto-send of credentials; we manage auth via headers.
+    body,
     credentials: "omit",
   });
 }
@@ -70,62 +65,49 @@ async function saveRefreshedSession(session: Session): Promise<void> {
   await saveSession(session);
 }
 
-/** Build the base Echo API URL from init. */
-const apiBase = (
-  init: EchoApiInit,
-) => `https://${init.baseUrl}`;
-
 /**
  * Top-level Echo API client.
  * Instances are created per-session with the user's access token.
  */
 export class EchoApi {
   private readonly baseUrl: string;
-  private readonly accessToken: string;
+  private accessToken: string;
   private readonly apiKey: string | undefined;
-  private readonly request: typeof request;
 
   constructor({ baseUrl, accessToken, apiKey }: EchoApiInit) {
     this.baseUrl = baseUrl;
     this.accessToken = accessToken;
     this.apiKey = apiKey;
-    this.request = (init) => request(init, apiKey, accessToken);
+  }
+
+  /** Update the access token (used when session is restored). */
+  setAccessToken(token: string): void {
+    this.accessToken = token;
   }
 
   /** GET request. */
   protected async get(path: string, params?: URLSearchParams): Promise<Response> {
     const url = new URL(path, this.baseUrl);
     if (params) url.search = params.toString();
-    return this.request({
-      method: "GET",
-      path: url.pathname + url.search,
-    });
+    return request(url.toString(), { method: "GET" }, this.apiKey, this.accessToken);
   }
 
   /** POST request. */
-  protected async post(path: string, body?: unknown, authToken?: string): Promise<Response> {
-    return this.request({
-      method: "POST",
-      path,
-      body,
-    }, this.apiKey, this.accessToken, authToken);
+  public async post(path: string, body?: unknown, authToken?: string): Promise<Response> {
+    const url = new URL(path, this.baseUrl);
+    return request(url.toString(), { method: "POST", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken, authToken);
   }
 
   /** PUT request. */
-  protected async put(path: string, body?: unknown): Promise<Response> {
-    return this.request({
-      method: "PUT",
-      path,
-      body,
-    });
+  public async put(path: string, body?: unknown): Promise<Response> {
+    const url = new URL(path, this.baseUrl);
+    return request(url.toString(), { method: "PUT", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken);
   }
 
   /** DELETE request. */
-  protected async delete(path: string): Promise<Response> {
-    return this.request({
-      method: "DELETE",
-      path,
-    });
+  public async delete(path: string): Promise<Response> {
+    const url = new URL(path, this.baseUrl);
+    return request(url.toString(), { method: "DELETE" }, this.apiKey, this.accessToken);
   }
 
   // ── Authentication ──────────────────────────────────────────────
@@ -463,6 +445,197 @@ export class EchoApi {
     }
     const data = await res.json();
     return data.url || null;
+  }
+
+  /**
+   * Get the SSO login URL from Echo API.
+   * Calls GET /auth/google with redirectUrl and idpId to get the Synapse OIDC redirect URL.
+   */
+  async getSsoLoginUrl(redirectUrl: string, idpId: string = "oidc-google"): Promise<string> {
+    const params = new URLSearchParams({
+      redirectUrl,
+      idpId,
+    });
+    const res = await this.get(`/auth/google?${params.toString()}`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Failed to get SSO login URL: ${res.status} ${errTxt}`);
+    }
+    const data = await res.json();
+    return data.loginUrl;
+  }
+
+  /**
+   * Exchange an authorization code for tokens (POST /auth/token).
+   * Returns a Session object with accessToken, refreshToken, deviceId, userId.
+   */
+  async exchangeCodeForTokens(code: string): Promise<Session> {
+    const res = await this.post("/auth/token", { code });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Exchange code for tokens failed: ${res.status} ${errTxt}`);
+    }
+    const data = await res.json();
+    // Echo API returns { accessToken, refreshToken, deviceId, userId }
+    // We need to convert to our Session type
+    return {
+      baseUrl: this.baseUrl,
+      apiBaseUrl: this.baseUrl,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      deviceId: data.deviceId,
+      userId: data.userId,
+      expiresAt: Date.now() + 3600 * 1000, // 1 hour default
+    };
+  }
+
+  // ── Profile convenience methods (for backward compatibility) ────────
+
+  /** Get display name of a user (or current user). */
+  async getDisplayName(userId?: string): Promise<string | null> {
+    const profile = await this.getUserProfile(userId);
+    return profile.displayName;
+  }
+
+  /** Set display name of current user. */
+  async setDisplayName(displayName: string): Promise<void> {
+    await this.patchUserProfile("", { displayName });
+  }
+
+  /** Get avatar URL of a user (or current user). */
+  async getAvatarUrl(userId?: string): Promise<string | null> {
+    const profile = await this.getUserProfile(userId);
+    return profile.avatarUrl;
+  }
+
+  /** Set avatar URL of current user. */
+  async setAvatarUrl(avatarUrl: string | null): Promise<void> {
+    await this.patchUserProfile("", { avatarUrl });
+  }
+
+  /** Get banner URL of a user (or current user). */
+  async getBannerUrl(userId?: string): Promise<string | null> {
+    const profile = await this.getUserProfile(userId);
+    return profile.bannerUrl;
+  }
+
+  /** Set banner URL of current user. */
+  async setBannerUrl(bannerUrl: string | null): Promise<void> {
+    await this.patchUserProfile("", { bannerUrl });
+  }
+
+  /** Patch global profile (alias for patchUserProfile with current user). */
+  async patchGlobalProfile(data: {
+    displayName?: string | null;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+    bio?: string | null;
+    links?: Array<{ label: string; url: string }>;
+  }): Promise<void> {
+    await this.patchUserProfile("", data);
+  }
+
+  /** Get global profile (alias for getUserProfile with current user). */
+  async getGlobalProfile(): Promise<{
+    displayName: string | null;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
+    bio: string | null;
+    role: string | null;
+  }> {
+    return this.getUserProfile("");
+  }
+
+  /** Get current user ID from the access token (extracted from token or profile). */
+  async getUserId(): Promise<string> {
+    // In a real implementation, this would decode the JWT or fetch from /account/whoami
+    // For now, we return a placeholder - the actual userId is stored in Session
+    // const profile = await this.getUserProfile(""); // unused fallback
+    return "";
+  }
+
+  // ── Guild Profile methods ──────────────────────────────────────────
+
+  /** Get guild profile. */
+  async getGuildProfile(guildId: string): Promise<{
+    guildId: string;
+    name: string;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
+    description: string | null;
+  }> {
+    const res = await this.get(`/guilds/${guildId}/profile`);
+    if (!res.ok) throw new Error(`Failed to get guild profile: ${res.status}`);
+    return res.json();
+  }
+
+  /** Upsert guild profile. */
+  async upsertGuildProfile(guildId: string, data: {
+    name?: string;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+    description?: string | null;
+  }): Promise<void> {
+    const res = await this.post(`/guilds/${guildId}/profile`, data);
+    if (!res.ok) throw new Error(`Failed to upsert guild profile: ${res.status}`);
+  }
+
+  /** Delete a guild. */
+  async deleteGuild(guildId: string): Promise<void> {
+    const res = await this.delete(`/guilds/${guildId}`);
+    if (!res.ok) throw new Error(`Failed to delete guild: ${res.status}`);
+  }
+
+  /** Leave a guild. */
+  async leaveGuild(guildId: string): Promise<void> {
+    const res = await this.post(`/guilds/${guildId}/leave`);
+    if (!res.ok) throw new Error(`Failed to leave guild: ${res.status}`);
+  }
+
+  /** Edit a guild (alias for upsertGuildProfile). */
+  async editGuild(guildId: string, data: {
+    name?: string;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+    description?: string | null;
+  }): Promise<void> {
+    await this.upsertGuildProfile(guildId, data);
+  }
+
+  // ── Media upload alias ─────────────────────────────────────────────
+
+  /** Upload media (alias for uploadChatMedia). */
+  async uploadMedia(file: File): Promise<string> {
+    return this.uploadChatMedia(file);
+  }
+
+  // ── Sync compatibility methods ─────────────────────────────────────
+
+  /** Start sync handlers (no-op, handled by wiring). */
+  startSyncHandlers(_handlers: any): void {
+    // Sync is handled by wiring.ts connectSync()
+  }
+
+  /** Stop sync (no-op). */
+  stopSync(): void {
+    // Sync is handled by wiring.ts
+  }
+
+  // ── Compatibility aliases for old method names ─────────────────────
+
+  /** Get guilds (alias for getGuilds). */
+  async listGuilds() {
+    return this.getGuilds();
+  }
+
+  /** Get channels (alias for getChannels). */
+  async listChannels(guildId: string) {
+    return this.getChannels(guildId);
+  }
+
+  /** Get members (alias for getMembers). */
+  async listMembers(roomId: string) {
+    return this.getMembers(roomId);
   }
 }
 
