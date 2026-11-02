@@ -11,11 +11,28 @@ vi.mock("@/lib/storage/keyring", () => ({
   clearSession: vi.fn(),
 }));
 
+vi.mock("@/lib/matrix/sso", () => ({
+  runSsoLogin: vi.fn(),
+  SsoLoginError: class SsoLoginError extends Error {
+    readonly code: "listener" | "login";
+    readonly cause?: unknown;
+    constructor(message: string, code: "listener" | "login", cause?: unknown) {
+      super(message);
+      this.name = "SsoLoginError";
+      this.code = code;
+      this.cause = cause;
+    }
+  },
+}));
+
 const SESSION: Session = {
   baseUrl: "https://echo.litteris.online",
+  apiBaseUrl: "https://echo.litteris.online",
   accessToken: "syt-at-1",
+  refreshToken: "rt-1",
   userId: "@nina:echo.litteris.online",
   deviceId: "DEV123",
+  expiresAt: Date.now() + 3600 * 1000,
 };
 
 function makeEchoApi(): EchoApi {
@@ -23,27 +40,7 @@ function makeEchoApi(): EchoApi {
     baseUrl: "https://echo.litteris.online",
     accessToken: "",
     apiKey: undefined,
-    request: async (init: RequestInit) => {
-      if (init.method === "POST" && typeof init.body === "object") {
-        const body = init.body as { loginToken: string };
-        if (body.loginToken === "LT-1") {
-          return new Response(JSON.stringify({
-            session: {
-              baseUrl: "https://echo.litteris.online",
-              accessToken: "syt-at-1",
-              userId: "@nina:echo.litteris.online",
-              deviceId: "DEV123",
-            },
-            user: {
-              id: "@nina:echo.litteris.online",
-              displayName: "Nina",
-              avatarUrl: null,
-            },
-          }), { status: 200 });
-        }
-      }
-      return new Response(null, { status: 200 });
-    },
+    request: async (init: RequestInit) => new Response(null, { status: 200 }),
   } as unknown as EchoApi;
 }
 
@@ -59,7 +56,9 @@ describe("GoogleLoginScreen", () => {
     expect(screen.getByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
   });
 
-  it("clicar no botão dispara exchangeLoginToken e chama onSession", async () => {
+  it("clicar no botão dispara runSsoLogin e chama onSession", async () => {
+    const { runSsoLogin } = await import("@/lib/matrix/sso");
+    (runSsoLogin as ReturnType<typeof vi.fn>).mockResolvedValueOnce(SESSION);
     const onSession = vi.fn();
     render(<GoogleLoginScreen service={makeEchoApi()} onSession={onSession} />);
 
@@ -70,19 +69,27 @@ describe("GoogleLoginScreen", () => {
   });
 
   it("enquanto carrega, o botão fica desabilitado mostrando 'Entrando...'", async () => {
-    const api = makeEchoApi();
-    // Mock exchangeLoginToken to resolve slowly
-    vi.spyOn(api, "exchangeLoginToken").mockResolvedValueOnce(SESSION as any);
+    const { runSsoLogin } = await import("@/lib/matrix/sso");
+    let resolveLogin: (session: Session) => void;
+    const loginPromise = new Promise<Session>((resolve) => {
+      resolveLogin = resolve;
+    });
+    (runSsoLogin as ReturnType<typeof vi.fn>).mockReturnValueOnce(loginPromise);
 
-    render(<GoogleLoginScreen service={api} />);
+    render(<GoogleLoginScreen service={makeEchoApi()} />);
 
     await userEvent.click(screen.getByRole("button", { name: /Entrar com Google/ }));
 
     const loading = screen.getByRole("button", { name: /Entrando\.\.\./ });
     expect(loading.hasAttribute("disabled")).toBe(true);
+
+    resolveLogin!(SESSION);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Entrar com Google/ })).toBeTruthy());
   });
 
   it("sucesso → chama onSession com a Session e volta ao estado idle", async () => {
+    const { runSsoLogin } = await import("@/lib/matrix/sso");
+    (runSsoLogin as ReturnType<typeof vi.fn>).mockResolvedValueOnce(SESSION);
     const onSession = vi.fn();
     render(<GoogleLoginScreen service={makeEchoApi()} onSession={onSession} />);
 
@@ -93,19 +100,19 @@ describe("GoogleLoginScreen", () => {
   });
 
   it("rejeição → mensagem de erro PT-BR + 'Tentar de novo' refaz o fluxo", async () => {
+    const { runSsoLogin, SsoLoginError } = await import("@/lib/matrix/sso");
     const onSession = vi.fn();
-    const api = makeEchoApi();
-    vi.spyOn(api, "exchangeLoginToken").mockRejectedValueOnce(new Error("tempo esgotado"));
+    (runSsoLogin as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new SsoLoginError("Falha no listener", "listener"));
 
-    render(<GoogleLoginScreen service={api} onSession={onSession} />);
+    render(<GoogleLoginScreen service={makeEchoApi()} onSession={onSession} />);
 
     await userEvent.click(screen.getByRole("button", { name: /Entrar com Google/ }));
 
     expect((await screen.findByRole("alert")).textContent).toMatch(
-      /Não foi possível concluir o login com o Google/,
+      /Falha ao abrir o navegador para login/,
     );
 
-    vi.spyOn(api, "exchangeLoginToken").mockResolvedValueOnce(SESSION as any);
+    (runSsoLogin as ReturnType<typeof vi.fn>).mockResolvedValueOnce(SESSION);
     await userEvent.click(screen.getByRole("button", { name: /Tentar de novo/ }));
 
     expect(onSession).toHaveBeenCalledTimes(1);

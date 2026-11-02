@@ -14,9 +14,12 @@ const mockedOpenUrl = vi.mocked(openUrl);
 
 const SESSION: Session = {
   baseUrl: "https://echo.litteris.online",
+  apiBaseUrl: "https://echo.litteris.online",
   accessToken: "syt-at-1",
+  refreshToken: "rt-1",
   userId: "@nina:echo.litteris.online",
   deviceId: "DEV123",
+  expiresAt: Date.now() + 3600 * 1000,
 };
 
 /** EchoApi double: só os métodos que o runSsoLogin consome. */
@@ -26,28 +29,44 @@ function makeEchoApi(): EchoApi {
     accessToken: "",
     apiKey: undefined,
     request: async (init: any) => {
-      // Mock the fetch call - for exchangeLoginToken we test the flow differently
-      if (init.method === "POST" && init.path === "/auth/exchange-login-token") {
-        const body = init.body as { loginToken: string };
-        if (body.loginToken === "LT-1") {
+      // Mock getSsoLoginUrl call
+      if (init.method === "GET" && init.path.startsWith("/auth/google")) {
+        return new Response(JSON.stringify({
+          loginUrl: "https://echo.litteris.online/_synapse/client/oidc/redirect/google?redirectUrl=...",
+        }), { status: 200 });
+      }
+      // Mock exchangeCodeForTokens call
+      if (init.method === "POST" && init.path === "/auth/token") {
+        const body = init.body as { code: string };
+        if (body.code === "AUTH_CODE_1") {
           return new Response(JSON.stringify({
-            session: {
-              baseUrl: "https://echo.litteris.online",
-              accessToken: "syt-at-1",
-              userId: "@nina:echo.litteris.online",
-              deviceId: "DEV123",
-            },
-            user: {
-              id: "@nina:echo.litteris.online",
-              displayName: "Nina",
-              avatarUrl: null,
-            },
+            accessToken: "syt-at-1",
+            refreshToken: "rt-1",
+            deviceId: "DEV123",
+            userId: "@nina:echo.litteris.online",
           }), { status: 200 });
         }
-        return new Response("Invalid token", { status: 400 });
+        return new Response("Invalid code", { status: 400 });
       }
       return new Response(null, { status: 200 });
     },
+    getSsoLoginUrl: vi.fn(async (redirectUrl: string, idpId?: string) => {
+      return `https://echo.litteris.online/_synapse/client/oidc/redirect/google?redirectUrl=${encodeURIComponent(redirectUrl)}`;
+    }),
+    exchangeCodeForTokens: vi.fn(async (code: string) => {
+      if (code === "AUTH_CODE_1") {
+        return {
+          baseUrl: "https://echo.litteris.online",
+          apiBaseUrl: "https://echo.litteris.online",
+          accessToken: "syt-at-1",
+          refreshToken: "rt-1",
+          deviceId: "DEV123",
+          userId: "@nina:echo.litteris.online",
+          expiresAt: Date.now() + 3600 * 1000,
+        };
+      }
+      throw new Error("Invalid code");
+    }),
   } as unknown as EchoApi;
 }
 
@@ -57,10 +76,10 @@ beforeEach(() => {
 });
 
 describe("runSsoLogin", () => {
-  it("fluxo completo: listener → URL SSO → browser → token → exchangeLoginToken", async () {
+  it("fluxo completo: listener → URL SSO → browser → code → exchangeCodeForTokens", async () => {
     mockedInvoke
       .mockResolvedValueOnce(49152) // begin_sso_listener -> porta
-      .mockResolvedValueOnce("LT-1"); // finish_sso_listener -> loginToken
+      .mockResolvedValueOnce("AUTH_CODE_1"); // finish_sso_listener -> authorization code
     const echoApi = makeEchoApi();
 
     const session = await runSsoLogin(echoApi);
@@ -71,10 +90,10 @@ describe("runSsoLogin", () => {
       "oidc-google",
     );
     expect(mockedOpenUrl).toHaveBeenCalledWith(
-      "https://echo.litteris.online/auth/sso-redirect?redirectUrl=http%3A%2F%2F127.0.0.1%3A49152%2Fcallback&idpId=oidc-google",
+      expect.stringContaining("https://echo.litteris.online/_synapse/client/oidc/redirect/google"),
     );
     expect(mockedInvoke).toHaveBeenNthCalledWith(2, "finish_sso_listener", { port: 49152 });
-    expect(echoApi.exchangeLoginToken).toHaveBeenCalledWith("LT-1");
+    expect(echoApi.exchangeCodeForTokens).toHaveBeenCalledWith("AUTH_CODE_1");
     expect(session).toEqual(SESSION);
   });
 
@@ -89,13 +108,13 @@ describe("runSsoLogin", () => {
     expect(err).toBeInstanceOf(SsoLoginError);
     expect((err as SsoLoginError).code).toBe("listener");
     expect((err as SsoLoginError).message).toContain("tempo esgotado");
-    expect(echoApi.exchangeLoginToken).not.toHaveBeenCalled();
+    expect(echoApi.exchangeCodeForTokens).not.toHaveBeenCalled();
   });
 
-  it("falha no exchangeLoginToken → SsoLoginError com code 'login'", async () => {
-    mockedInvoke.mockResolvedValueOnce(49154).mockResolvedValueOnce("LT-2");
+  it("falha no exchangeCodeForTokens → SsoLoginError com code 'login'", async () => {
+    mockedInvoke.mockResolvedValueOnce(49154).mockResolvedValueOnce("AUTH_CODE_2");
     const echoApi = makeEchoApi();
-    (echoApi.exchangeLoginToken as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+    (echoApi.exchangeCodeForTokens as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error("echo api login failed"),
     );
 
