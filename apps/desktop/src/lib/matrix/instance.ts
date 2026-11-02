@@ -29,7 +29,7 @@ export async function initEchoApiFromSession(): Promise<void> {
   const stored = await useKeyring.getItem("echo:session");
   if (stored) {
     const session = JSON.parse(stored);
-    echoApi.setAccessToken(session.accessToken ?? "");
+    echoApi.setAccessToken(session.accessToken ?? "", session.userId ?? undefined);
     // apiKey is optional; if the middleware requires it, configure here.
   }
 }

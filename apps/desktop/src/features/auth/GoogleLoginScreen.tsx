@@ -1,7 +1,8 @@
 import { CircleNotch, GoogleLogo } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { EchoApi } from "@/lib/api/echoApi";
-import { ECHO_HOMESERVER_URL, runSsoLogin, SsoLoginError } from "@/lib/matrix/sso";
+import { ECHO_API_CONFIG } from "@/lib/api/config";
+import { runSsoLogin, SsoLoginError } from "@/lib/matrix/sso";
 import type { Session } from "@/lib/matrix/types";
 
 type Status = "idle" | "loading" | "error";
@@ -16,7 +17,7 @@ interface GoogleLoginScreenProps {
 export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScreenProps) {
   const activeService = useMemo(
     () => service ?? new EchoApi({
-      baseUrl: ECHO_HOMESERVER_URL,
+      baseUrl: ECHO_API_CONFIG.baseUrl,
       accessToken: "",
     }),
     [service],

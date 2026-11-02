@@ -9,10 +9,12 @@
  * user's access token and used throughout the app.
  */
 export interface EchoApiInit {
-  /** Base URL of the Echo API middleware (e.g. https://echo.litteris.online) */
+  /** Base URL of the Echo API middleware (e.g. https://api.echo.litteris.online) */
   baseUrl: string;
   /** Access token obtained after Echo API login (stored in keyring). */
   accessToken: string;
+  /** MXID of the logged-in user (e.g. "@user:domain"). */
+  userId?: string;
   /** Optional API key for the Echo API middleware. */
   apiKey?: string;
 }
@@ -72,17 +74,25 @@ async function saveRefreshedSession(session: Session): Promise<void> {
 export class EchoApi {
   private readonly baseUrl: string;
   private accessToken: string;
+  private userId: string | null = null;
   private readonly apiKey: string | undefined;
 
-  constructor({ baseUrl, accessToken, apiKey }: EchoApiInit) {
+  constructor({ baseUrl, accessToken, apiKey, userId }: EchoApiInit) {
     this.baseUrl = baseUrl;
     this.accessToken = accessToken;
+    this.userId = userId ?? null;
     this.apiKey = apiKey;
   }
 
   /** Update the access token (used when session is restored). */
-  setAccessToken(token: string): void {
+  setAccessToken(token: string, userId?: string): void {
     this.accessToken = token;
+    if (userId) this.userId = userId;
+  }
+
+  /** Returns the current user's MXID, or empty string if not known. */
+  getUserId(): string {
+    return this.userId ?? "";
   }
 
   /** GET request. */
@@ -419,7 +429,7 @@ export class EchoApi {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", "chat");
-    const res = await fetch(`${this.baseUrl}/echo/media/upload`, {
+    const res = await fetch(`${this.baseUrl}/api/upload/`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -478,6 +488,7 @@ export class EchoApi {
     const data = await res.json();
     // Echo API returns { accessToken, refreshToken, deviceId, userId }
     // We need to convert to our Session type
+    this.userId = data.userId ?? null;
     return {
       baseUrl: this.baseUrl,
       apiBaseUrl: this.baseUrl,
@@ -544,14 +555,6 @@ export class EchoApi {
     role: string | null;
   }> {
     return this.getUserProfile("");
-  }
-
-  /** Get current user ID from the access token (extracted from token or profile). */
-  async getUserId(): Promise<string> {
-    // In a real implementation, this would decode the JWT or fetch from /account/whoami
-    // For now, we return a placeholder - the actual userId is stored in Session
-    // const profile = await this.getUserProfile(""); // unused fallback
-    return "";
   }
 
   // ── Guild Profile methods ──────────────────────────────────────────

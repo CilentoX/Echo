@@ -146,7 +146,7 @@ export function GuildProfileTab({
 
   // Fetch current user ID for ownership check
   useEffect(() => {
-    matrixService.getUserId().then(setCurrentUserId).catch(() => setCurrentUserId(null));
+    setCurrentUserId(matrixService.getUserId() || null);
   }, []);
 
   const isOwner = currentUserId ? profileData?.createdBy === currentUserId : false;
