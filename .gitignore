@@ -26,3 +26,6 @@ minisign-secret.key
 # Echo API uploads (local dev files)
 echo-api/uploads/
 echo-api/uploads/**/*
+
+# Echo API - separate repository
+echo-api/
