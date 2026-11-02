@@ -645,10 +645,22 @@ export class EchoApi {
 /** Singleton instance for use throughout the app. */
 let echoApiInstance: EchoApi | null = null;
 
-/** Get or create the singleton EchoApi instance. */
+/** Get or create the singleton EchoApi instance.
+ * Lazily initializes from the shared instance in matrix/instance.ts if
+ * not yet created, so any component can call useEchoApi() without
+ * needing to call useEchoApi.init() first. */
 export function useEchoApi(): EchoApi {
   if (!echoApiInstance) {
-    throw new Error("EchoApi not initialized. Call useEchoApi.init() first.");
+    // Read from globalThis where instance.ts registers the shared echoApi.
+    // This avoids a circular import cycle (instance.ts imports echoApi from
+    // this module) while keeping access synchronous at runtime.
+    echoApiInstance = (globalThis as any).__echoApiInstance ?? null;
+    if (!echoApiInstance) {
+      throw new Error(
+        "EchoApi not initialized. The shared instance from matrix/instance.ts " +
+        "has not been registered yet.",
+      );
+    }
   }
   return echoApiInstance;
 }
