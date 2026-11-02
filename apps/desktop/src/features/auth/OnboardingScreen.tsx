@@ -76,8 +76,8 @@ export default function OnboardingScreen({
       }
 
       // Sincroniza avatar com o Profile API (PostgreSQL)
-      if (avatarUrl && myUserId) {
-        await matrixService.patchGlobalProfile(myUserId, { avatarUrl });
+      if (avatarUrl) {
+        await matrixService.patchGlobalProfile({ avatarUrl });
       }
 
       markOnboardingCompleted(myUserId ?? undefined);

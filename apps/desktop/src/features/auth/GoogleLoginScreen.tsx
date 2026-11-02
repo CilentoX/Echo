@@ -1,7 +1,7 @@
 import { CircleNotch, GoogleLogo } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { EchoApi } from "@/lib/api/echoApi";
-import { ECHO_HOMESERVER_URL } from "@/lib/matrix/sso";
+import { ECHO_HOMESERVER_URL, runSsoLogin, SsoLoginError } from "@/lib/matrix/sso";
 import type { Session } from "@/lib/matrix/types";
 
 type Status = "idle" | "loading" | "error";
@@ -23,19 +23,22 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
   );
 
   const [status, setStatus] = useState<Status>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleLogin = useCallback(async () => {
     setStatus("loading");
+    setErrorMessage(null);
     try {
-      // O EchoAPI usa o fluxo SSO do Rust via loopback local.
-      // Aqui chamamos o endpoint /auth/exchange-login-token que
-      // orquestra o login SSO (Google) pelo backend.
-      // O runSsoLogin original do Matrix SDK foi substituído por
-      // o fluxo Echo API + backend Rust.
-      const result = await (activeService as EchoApi).exchangeLoginToken("placeholder-token");
-      await onSession?.(result.session);
+      // Fluxo SSO real via Rust loopback listener + Echo API
+      const session = await runSsoLogin(activeService);
+      await onSession?.(session);
       setStatus("idle");
-    } catch {
+    } catch (err) {
+      const message = err instanceof SsoLoginError
+        ? (err.code === "listener" ? "Falha ao abrir o navegador para login. Tente novamente." : "Falha ao autenticar com o Google. Tente novamente.")
+        : "Erro inesperado no login. Tente novamente.";
+      console.error("[GoogleLoginScreen] Login failed:", err);
+      setErrorMessage(message);
       setStatus("error");
     }
   }, [activeService, onSession]);
@@ -57,7 +60,7 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
       {status === "error" ? (
         <div className="flex flex-col items-center gap-4">
           <p role="alert" className="text-sm text-err">
-            Não foi possível concluir o login com o Google. Tente novamente.
+            {errorMessage || "Não foi possível concluir o login com o Google. Tente novamente."}
           </p>
           <button
             type="button"

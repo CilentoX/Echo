@@ -7,12 +7,11 @@ import AppShell from "@/features/shell/AppShell";
 import { echoApi, initEchoApiFromSession } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
 import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
-import { isNewAccount, isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
+import { isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
 import { useUiStore } from "@/stores/uiStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { restartApp, runStartupUpdateCheck } from "@/lib/updater";
 import { useUpdateStore } from "@/stores/updateStore";
-import { useOnboardingStore } from "@/stores/onboardingStore";
 import { Button } from "@/components/ui/button";
 
 type GateView = "booting" | "update-required" | "login" | "onboarding" | "shell";
@@ -58,9 +57,11 @@ export default function SessionGate({ shell }: SessionGateProps) {
     (session: Session, clientActive = false) => {
       if (!clientActive) initEchoApiFromSession();
       const ui = useUiStore.getState();
-      ui.setMyUserId(session.userId);
-      ui.setPresence(session.userId, "online");
-      startSyncWiring(rejectSession);
+      const userId = session.userId ?? "";
+      ui.setMyUserId(userId);
+      ui.setPresence(userId, "online");
+      // Fire-and-forget: startSyncWiring is async but we don't need to wait for it
+      void startSyncWiring();
       setView("shell");
     },
     [rejectSession],
@@ -69,7 +70,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
   /** Prepara client + uiStore para telas pré-shell (onboarding), sem ligar o sync. */
   const prepareSession = useCallback((session: Session, clientActive = false) => {
     if (!clientActive) initEchoApiFromSession();
-    useUiStore.getState().setMyUserId(session.userId);
+    useUiStore.getState().setMyUserId(session.userId ?? "");
   }, []);
 
   const handleSession = useCallback(
@@ -79,7 +80,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
         // loginWithSsoToken já deixou o client credentialled ativo.
         // Onboarding: mostra se ainda não foi concluído (mesmo que Google SSO
         // tenha pré-preenchido o displayName, o usuário precisa escolher o seu).
-        const alreadyCompleted = isOnboardingCompleted(session.userId);
+        const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
         if (!alreadyCompleted) {
           prepareSession(session, true);
           setView("onboarding");
@@ -104,7 +105,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
       // sem sessão, o login abre direto (o banner cobre updates depois).
       const updateDone = Promise.resolve(runStartupUpdateCheck()).catch(() => { });
       try {
-        const [session, updateResult] = await Promise.all([loadSession(), updateDone]);
+        const [session, _updateResult] = await Promise.all([loadSession(), updateDone]);
         if (cancelled) return;
         if (!session) {
           setView("login");
@@ -122,7 +123,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
             await saveSession(session);
             // Prosseguir com a sessão renovada
             prepareSession(session);
-            const alreadyCompleted = isOnboardingCompleted(session.userId);
+            const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
             if (!alreadyCompleted) {
               setView("onboarding");
             } else {
@@ -139,7 +140,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
         }
         // Sessão válida (não expirada) ou refresh bem-sucedido: verifica onboarding.
         prepareSession(session);
-        const alreadyCompleted = isOnboardingCompleted(session.userId);
+        const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
         if (!alreadyCompleted) {
           setView("onboarding");
         } else {

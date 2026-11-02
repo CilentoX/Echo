@@ -28,10 +28,10 @@ export class SsoLoginError extends Error {
  * Full SSO login flow via Echo API:
  * 1. Rust opens a one-shot loopback HTTP listener on a random 127.0.0.1 port;
  * 2. we build the Echo API SSO redirect URL pointing back to that port;
- * 3. the system browser opens Google's consent page;
- * 4. Echo API redirects to `http://127.0.0.1:<port>/callback?loginToken=...`
- *    and the Rust listener captures the token;
- * 5. we exchange the loginToken for a Session via Echo API.
+ * 3. the system browser opens Google's consent page via Synapse OIDC;
+ * 4. Synapse redirects to `http://127.0.0.1:<port>/callback?code=...&state=...`
+ *    and the Rust listener captures the authorization code;
+ * 5. we exchange the code for a Session via Echo API /auth/token.
  */
 export async function runSsoLogin(echoApi: EchoApi): Promise<Session> {
   console.log("[SSO] Starting SSO login flow...");
@@ -40,17 +40,17 @@ export async function runSsoLogin(echoApi: EchoApi): Promise<Session> {
   const redirectUrl = `http://127.0.0.1:${port}/callback`;
   console.log("[SSO] Redirect URL:", redirectUrl);
 
-  // Build the SSO login URL via Echo API
-  const loginUrl = echoApi.getSsoLoginUrl(redirectUrl, GOOGLE_IDP_ID);
+  // Build the SSO login URL via Echo API (async call to /auth/google)
+  const loginUrl = await echoApi.getSsoLoginUrl(redirectUrl, GOOGLE_IDP_ID);
   console.log("[SSO] Login URL:", loginUrl);
   await openUrl(loginUrl);
   console.log("[SSO] Browser opened, waiting for callback...");
 
-  let loginToken: string;
+  let code: string;
   try {
-    console.log("[SSO] Waiting for login token...");
-    loginToken = await invoke<string>("finish_sso_listener", { port });
-    console.log("[SSO] Login token received:", loginToken ? "yes" : "no");
+    console.log("[SSO] Waiting for authorization code...");
+    code = await invoke<string>("finish_sso_listener", { port });
+    console.log("[SSO] Authorization code received:", code ? "yes" : "no");
   } catch (err) {
     throw new SsoLoginError(
       err instanceof Error ? err.message : "Falha ao aguardar o retorno do login SSO",
@@ -60,14 +60,14 @@ export async function runSsoLogin(echoApi: EchoApi): Promise<Session> {
   }
 
   try {
-    console.log("[SSO] Exchanging token for session...");
-    const session = await echoApi.exchangeLoginToken(loginToken);
+    console.log("[SSO] Exchanging code for session...");
+    const session = await echoApi.exchangeCodeForTokens(code);
     console.log("[SSO] Session received:", session);
     return session;
   } catch (err) {
-    console.log("[SSO] exchangeLoginToken failed:", err instanceof Error ? err.message : String(err));
+    console.log("[SSO] exchangeCodeForTokens failed:", err instanceof Error ? err.message : String(err));
     throw new SsoLoginError(
-      err instanceof Error ? err.message : "Falha ao autenticar com o token SSO",
+      err instanceof Error ? err.message : "Falha ao autenticar com o código SSO",
       "login",
       err,
     );

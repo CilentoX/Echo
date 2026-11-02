@@ -1,13 +1,13 @@
 //! SSO loopback listener.
 //!
 //! Opens a one-shot HTTP server on `127.0.0.1:1421` that captures the
-//! `loginToken` query param Synapse redirects back after the Google OIDC flow:
-//! `http://127.0.0.1:1421/callback?loginToken=...`.
+//! `code` and `state` query params Synapse redirects back after the Google OIDC flow:
+//! `http://127.0.0.1:1421/callback?code=...&state=...`.
 //!
 //! Two Tauri commands wrap this module (see `lib.rs`):
 //! - `begin_sso_listener() -> u16`: starts the listener and returns the port;
-//! - `finish_sso_listener(port) -> String`: resolves with the captured
-//!   `loginToken`, or rejects after 5 minutes / if the listener was consumed.
+//! - `finish_sso_listener(port) -> String`: resolves with the captured `code`,
+//!   or rejects after 5 minutes / if the listener was consumed.
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
@@ -32,10 +32,10 @@ const CALLBACK_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta cha
 display:grid;place-items:center;height:100vh;margin:0\">\
 <p>Login conclu\u{ed}do. Voc\u{ea} j\u{a} pode voltar ao Echo.</p></body></html>";
 
-const MISSING_TOKEN_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
+const MISSING_CODE_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
 <title>Echo</title></head><body style=\"background:#0D1017;color:#F87171;font-family:sans-serif;\
 display:grid;place-items:center;height:100vh;margin:0\">\
-<p>Token de login ausente no retorno.</p></body></html>";
+<p>C\u{f3}digo de autoriza\u{e7}\u{e3}o ausente no retorno.</p></body></html>";
 
 fn http_response(status: &str, body: &str) -> Vec<u8> {
     format!(
@@ -47,7 +47,7 @@ fn http_response(status: &str, body: &str) -> Vec<u8> {
     .into_bytes()
 }
 
-/// Port -> receiver of the captured loginToken (one-shot, removed on read).
+/// Port -> receiver of the captured authorization code (one-shot, removed on read).
 static LISTENERS: LazyLock<Mutex<HashMap<u16, mpsc::Receiver<String>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -80,7 +80,7 @@ pub async fn begin_sso_listener() -> Result<u16, String> {
 }
 
 /// Consumes the listener registered for `port` and resolves with the
-/// `loginToken`; rejects on timeout or if the listener no longer exists.
+/// authorization `code`; rejects on timeout or if the listener no longer exists.
 pub async fn finish_sso_listener(port: u16) -> Result<String, String> {
     let mut rx = LISTENERS
         .lock()
@@ -89,16 +89,16 @@ pub async fn finish_sso_listener(port: u16) -> Result<String, String> {
         .ok_or_else(|| "listener SSO não encontrado ou já consumido".to_string())?;
 
     match tokio::time::timeout(SSO_TIMEOUT, rx.recv()).await {
-        Ok(Some(token)) => {
-            eprintln!("[SSO] finish_sso_listener: token received successfully");
-            Ok(token)
+        Ok(Some(code)) => {
+            eprintln!("[SSO] finish_sso_listener: code received successfully");
+            Ok(code)
         }
         Ok(None) => {
-            eprintln!("[SSO] finish_sso_listener: channel closed without token");
-            Err("listener SSO cancelado antes de receber o token".to_string())
+            eprintln!("[SSO] finish_sso_listener: channel closed without code");
+            Err("listener SSO cancelado antes de receber o código".to_string())
         }
         Err(_) => {
-            eprintln!("[SSO] finish_sso_listener: timeout waiting for token");
+            eprintln!("[SSO] finish_sso_listener: timeout waiting for code");
             Err("tempo esgotado aguardando o login SSO".to_string())
         }
     }
@@ -125,8 +125,8 @@ async fn accept_loop(listener: TcpListener, tx: mpsc::Sender<String>) {
     }
 }
 
-/// Handles a single HTTP connection: reads the request, extracts loginToken,
-/// sends the token via channel, and sends an HTML response back to the browser.
+/// Handles a single HTTP connection: reads the request, extracts authorization code,
+/// sends the code via channel, and sends an HTML response back to the browser.
 async fn handle_connection(
     mut stream: tokio::net::TcpStream,
     tx: mpsc::Sender<String>,
@@ -159,7 +159,7 @@ async fn handle_connection(
         Some(p) => p,
         None => {
             // No complete headers received; send 400 and close
-            let res = http_response("400 Bad Request", MISSING_TOKEN_HTML);
+            let res = http_response("400 Bad Request", MISSING_CODE_HTML);
             let _ = stream.write_all(&res).await;
             return Ok(());
         }
@@ -176,22 +176,22 @@ async fn handle_connection(
     eprintln!("[SSO] Request: {} {}", parts.get(0).copied().unwrap_or("?"), path_and_query);
     eprintln!("[SSO] Query: {:?}", query);
 
-    // Extract loginToken from query string
-    let token = extract_login_token(query);
+    // Extract authorization code from query string
+    let code = extract_auth_code(query);
 
-    let (status, body) = match token {
-        Some(ref t) => {
-            eprintln!("[SSO] Token extracted: {}", t);
-            // Send token to the waiting finish_sso_listener
-            match tx.try_send(t.clone()) {
-                Ok(()) => eprintln!("[SSO] Token sent to finish_sso_listener channel"),
-                Err(e) => eprintln!("[SSO] Failed to send token to channel: {:?}", e),
+    let (status, body) = match code {
+        Some(ref c) => {
+            eprintln!("[SSO] Code extracted: {}", c);
+            // Send code to the waiting finish_sso_listener
+            match tx.try_send(c.clone()) {
+                Ok(()) => eprintln!("[SSO] Code sent to finish_sso_listener channel"),
+                Err(e) => eprintln!("[SSO] Failed to send code to channel: {:?}", e),
             }
             ("200 OK", CALLBACK_HTML)
         }
         None => {
-            eprintln!("[SSO] No loginToken in query");
-            ("400 Bad Request", MISSING_TOKEN_HTML)
+            eprintln!("[SSO] No authorization code in query");
+            ("400 Bad Request", MISSING_CODE_HTML)
         }
     };
 
@@ -200,16 +200,16 @@ async fn handle_connection(
     Ok(())
 }
 
-/// Extracts the `loginToken` query param value (first occurrence), percent-decoded.
-fn extract_login_token(query: Option<&str>) -> Option<String> {
+/// Extracts the `code` query param value (first occurrence), percent-decoded.
+fn extract_auth_code(query: Option<&str>) -> Option<String> {
     let query = query?;
     eprintln!("[SSO] Raw query string: {:?}", query);
     let result = query
         .split('&')
         .filter_map(|pair| pair.split_once('='))
-        .find(|(key, _)| *key == "loginToken")
+        .find(|(key, _)| *key == "code")
         .map(|(_, value)| percent_decode(value));
-    eprintln!("[SSO] Extracted loginToken result: {:?}", result);
+    eprintln!("[SSO] Extracted code result: {:?}", result);
     result
 }
 
@@ -231,6 +231,29 @@ fn percent_decode(value: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&decoded).into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_auth_code_reads_query_param() {
+        assert_eq!(
+            extract_auth_code(Some("code=abc123")),
+            Some("abc123".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_auth_code_ignores_other_params_and_percent_decodes() {
+        assert_eq!(
+            extract_auth_code(Some("foo=1&code=abc%2Ddef")),
+            Some("abc-def".to_string())
+        );
+        assert_eq!(extract_auth_code(Some("other=1")), None);
+        assert_eq!(extract_auth_code(None), None);
+    }
 }
 
 #[cfg(test)]
