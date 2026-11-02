@@ -110,7 +110,7 @@ const ImageEditor = memo(function ImageEditor({
   useEffect(() => {
     if (imageLoaded && imgRef.current && containerRef.current) {
       const img = imgRef.current
-      const container = containerRef.current
+      // const container = containerRef.current // unused
       
       // Calcula zoom inicial para preencher o frame
       const imgAspect = img.naturalWidth / img.naturalHeight
@@ -232,8 +232,8 @@ const ImageEditor = memo(function ImageEditor({
       }
 
       // Calcula a área do frame em pixels da imagem original
-      const frameRect = container.getBoundingClientRect()
-      const imgAspect = img.naturalWidth / img.naturalHeight
+      // const frameRect = container.getBoundingClientRect() // unused
+      // const imgAspect = img.naturalWidth / img.naturalHeight // unused
       
       // O frame tem tamanho fixo frameSize
       // A imagem está transformada com translateX, translateY, zoom, rotation, flip
@@ -313,7 +313,8 @@ const ImageEditor = memo(function ImageEditor({
     userId
   ])
 
-  const aspectRatio = useMemo(() => (aspect > 0 ? aspect : 1), [aspect])
+  // const aspectRatio = useMemo(() => (aspect > 0 ? aspect : 1), [aspect])
+  // aspectRatio is computed but not directly used in render; kept for potential future use
 
   if (!open || !imageSrc) return null
 

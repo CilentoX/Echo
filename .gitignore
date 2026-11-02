@@ -22,3 +22,7 @@ Thumbs.db
 # Tauri generated
 apps/desktop/src-tauri/gen/
 minisign-secret.key
+
+# Echo API uploads (local dev files)
+echo-api/uploads/
+echo-api/uploads/**/*

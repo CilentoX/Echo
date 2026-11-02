@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, X, Users, Hash, ShieldCheck, Calendar } from "@phosphor-icons/react";
 import { useGuildProfileStore } from "@/stores/guildProfileStore";
@@ -38,6 +36,7 @@ export function GuildProfileTab({
     bannerUrl: string | null;
     createdBy: string | null;
   } | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const initials = useMemo(() => {
     return guildName
@@ -57,7 +56,10 @@ export function GuildProfileTab({
       try {
         const profile = await matrixService.getGuildProfile(guildId);
         if (!cancelled) {
-          setProfileData(profile ?? {
+          setProfileData(profile ? {
+            ...profile,
+            createdBy: (profile as any).createdBy ?? null,
+          } : {
             name: guildName,
             description: guildDescription,
             avatarUrl: guildAvatarUrl,
@@ -69,11 +71,19 @@ export function GuildProfileTab({
             description: guildDescription,
             avatarUrl: guildAvatarUrl,
             bannerUrl: null,
+            createdBy: null,
           });
         }
       } catch {
         if (!cancelled) {
           setProfileData({
+            name: guildName,
+            description: guildDescription,
+            avatarUrl: guildAvatarUrl,
+            bannerUrl: null,
+            createdBy: null,
+          });
+          setGuildProfile({
             name: guildName,
             description: guildDescription,
             avatarUrl: guildAvatarUrl,
@@ -109,6 +119,7 @@ export function GuildProfileTab({
     description: guildDescription,
     avatarUrl: guildAvatarUrl,
     bannerUrl: null,
+    createdBy: null,
   });
 
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -133,8 +144,12 @@ export function GuildProfileTab({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const userId = matrixService.getUserId();
-  const isOwner = userId ? profileData?.createdBy === userId : false;
+  // Fetch current user ID for ownership check
+  useEffect(() => {
+    matrixService.getUserId().then(setCurrentUserId).catch(() => setCurrentUserId(null));
+  }, []);
+
+  const isOwner = currentUserId ? profileData?.createdBy === currentUserId : false;
 
   // URLs atuais para exibição (edit state tem prioridade)
   const currentAvatarUrl = editAvatarUrl ?? profileData?.avatarUrl ?? guildAvatarUrl;
@@ -369,7 +384,6 @@ export function GuildProfileTab({
               icon={<Hash size={18} />}
               label="ID da guilda"
               value={guildId}
-              copyable
             />
             <InfoCard
               icon={<Calendar size={18} />}
@@ -394,12 +408,10 @@ function InfoCard({
   icon,
   label,
   value,
-  copyable,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  copyable?: boolean;
 }) {
   return (
     <Card className="border-bd bg-surf hover:bg-surf2/50 transition-colors">

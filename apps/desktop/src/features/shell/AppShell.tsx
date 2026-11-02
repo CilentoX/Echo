@@ -62,6 +62,8 @@ export default function AppShell({ children }: AppShellProps) {
 
   const handleOpenCreateGuild = () => setCreateGuildOpen(true);
 
+  const myUserId = useUiStore((s) => s.myUserId);
+
   const handleCreateGuild = async (
     data: {
       name: string;
@@ -70,7 +72,8 @@ export default function AppShell({ children }: AppShellProps) {
       description?: string | null;
     },
   ): Promise<{ guildId: string; name: string; avatarUrl: string | null; unreadCount: number }> => {
-    const guild = await matrixService.createGuild(data);
+    if (!myUserId) throw new Error("User not logged in");
+    const guild = await matrixService.createGuild(data, myUserId);
     return {
       guildId: guild.guildId,
       name: guild.name,

@@ -18,6 +18,8 @@ export interface ImageUploadWithEditProps {
   type?: "avatar" | "banner" | "guild"
   /** Preset de tamanho (ex: "large", "xlarge") */
   preset?: string
+  /** Aspect ratio override (width / height). Se não informado, calculado a partir do type/preset. */
+  aspect?: number
   /** Altura do preview (classes Tailwind, ex: "h-24", "h-40") */
   previewHeight?: string
   /** Largura do preview (classes Tailwind, ex: "w-24", "w-full") */
@@ -27,6 +29,8 @@ export interface ImageUploadWithEditProps {
   editable?: boolean
   /** Se true, mostra loading e bloqueia interações */
   uploading?: boolean
+  /** Se true, desabilita o componente */
+  disabled?: boolean
   /** Mensagem de erro de upload (ex: falha no Appwrite) */
   uploadError?: string | null
   maxSizeMB?: number
@@ -44,11 +48,13 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   onRemove,
   type = "avatar",
   preset,
+  aspect,
   previewHeight = "h-24",
   previewW,
   editTitle,
   editable = false,
   uploading = false,
+  disabled = false,
   uploadError = null,
   maxSizeMB = 5,
   accept = "image/*",
@@ -66,7 +72,10 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
     const size = getImageSize(type, preset ?? "large")
     return size ?? { width: 512, height: 512 }
   }, [type, preset])
-  const aspect = useMemo(() => outputSize.width / outputSize.height, [outputSize])
+  const resolvedAspect = useMemo(() => {
+    if (aspect !== undefined) return aspect
+    return outputSize.width / outputSize.height
+  }, [aspect, outputSize])
 
   useEffect(() => {
     return () => {
@@ -233,7 +242,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                   e.stopPropagation()
                   handleRemove()
                 }}
-                disabled={uploading}
+                disabled={uploading || disabled}
                 className="absolute top-2 right-2 w-8 h-8 rounded-full bg-err/90 flex items-center justify-center text-sm text-bg hover:bg-err transition-colors z-20 disabled:opacity-50 disabled:pointer-events-none drop-shadow-lg"
                 aria-label="Remover imagem"
               >
@@ -281,7 +290,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
               type="file"
               accept={accept}
               className="hidden"
-              disabled={uploading}
+              disabled={uploading || disabled}
               onChange={handleFileSelect}
             />
           </>
@@ -298,7 +307,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
         open={editorOpen}
         imageSrc={displaySrc || null}
         title={editTitle || `Editar ${label}`}
-        aspect={aspect}
+        aspect={resolvedAspect}
         outputWidth={outputSize.width}
         outputHeight={outputSize.height}
         onConfirm={handleEditorConfirm}

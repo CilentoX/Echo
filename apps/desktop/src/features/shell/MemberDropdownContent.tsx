@@ -46,7 +46,8 @@ export default function MemberDropdownContent({
             ),
           ]),
           Promise.race([
-            matrixService.getGlobalProfile(userId),
+            // getGlobalProfile is for current user only; for other users, use getUserProfile
+            matrixService.getUserProfile(userId),
             new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("Timeout global profile")), 5000)
             ),

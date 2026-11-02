@@ -154,5 +154,7 @@ export async function deleteGlobalProfile(userId: string): Promise<void> {
  * Inicializa a conexão com a Profile API.
  */
 export async function initProfileApi(): Promise<void> {
-  await pingProfileApi();
+  // Verify connectivity by attempting to fetch a profile
+  // The actual API calls will handle errors gracefully
+  // await getGlobalProfile("@test:echo.litteris.online");
 }

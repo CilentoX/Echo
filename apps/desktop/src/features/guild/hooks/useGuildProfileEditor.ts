@@ -24,7 +24,7 @@ export interface GuildProfileEditorActions {
 
 export function useGuildProfileEditor(
   guildId: string,
-  currentProfile: { name: string; description: string | null; avatarUrl: string | null; bannerUrl: string | null }
+  currentProfile: { name: string; description: string | null; avatarUrl: string | null; bannerUrl: string | null; createdBy?: string | null }
 ): GuildProfileEditorState & GuildProfileEditorActions {
   const { setGuildProfile } = useGuildProfileStore();
 
@@ -97,7 +97,6 @@ export function useGuildProfileEditor(
         description: state.editDescription || null,
         avatarUrl: state.editAvatarUrl,
         bannerUrl: state.editBannerUrl,
-        createdBy: userId,
       });
 
       setGuildProfile({

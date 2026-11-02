@@ -121,7 +121,7 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
       }
 
       if (state.editBio !== bio) {
-        await matrixService.patchGlobalProfile(userId, {
+        await matrixService.patchGlobalProfile({
           bio: state.editBio || null,
         });
         setBio(state.editBio || null);
@@ -130,14 +130,14 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
       // Avatar e banner já foram sincronizados via useImageUploadWithMatrix
       // Aqui apenas atualizamos o store local e Profile API se necessário
       if (state.editAvatarUrl !== avatarUrl) {
-        await matrixService.patchGlobalProfile(userId, {
+        await matrixService.patchGlobalProfile({
           avatarUrl: state.editAvatarUrl,
         });
         setAvatarUrl(state.editAvatarUrl);
       }
 
       if (state.editBannerUrl !== bannerUrl) {
-        await matrixService.patchGlobalProfile(userId, {
+        await matrixService.patchGlobalProfile({
           bannerUrl: state.editBannerUrl,
         });
         setBannerUrl(state.editBannerUrl);

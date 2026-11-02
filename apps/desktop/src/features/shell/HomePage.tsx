@@ -18,11 +18,6 @@ export default function HomePage() {
   const setActiveGuild = useUiStore((s) => s.setActiveGuild);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
 
-  const handleCreateGuild = async () => {
-    // O modal de criação é aberto via CommunityRail; aqui apenas navegamos para o fluxo
-    // O botão "+" na rail já dispara o modal
-  };
-
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg">
       {/* Header da Home */}

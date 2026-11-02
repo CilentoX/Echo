@@ -97,6 +97,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
   const setActiveChannel = useUiStore((state) => state.setActiveChannel);
+  const myUserId = useUiStore((state) => state.myUserId);
   const [createOpen, setCreateOpen] = useState(false);
 
   const handleCreated = (guild: { guildId: string; name: string }) => {
@@ -177,7 +178,7 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
       <CreateGuildModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(data) => matrixService.createGuild(data)}
+        onCreate={(data) => matrixService.createGuild(data, myUserId ?? "")}
         onCreated={handleCreated}
       />
     </nav>
