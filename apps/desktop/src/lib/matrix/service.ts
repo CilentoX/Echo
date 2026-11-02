@@ -199,15 +199,14 @@ export class MatrixService {
     await this.echoApi.patchUserProfile(userId, data);
   }
 
-  // ── Perfil de guilda (Profile API) ──────────────────────────────
+  // ── Perfil de guilda (Echo API) ──────────────────────────────
 
-  /** Busca o perfil de uma guilda no Profile API pelo guildId. */
+  /** Busca o perfil de uma guilda pelo guildId. */
   async getGuildProfile(guildId: string) {
-    // Guild profiles come from PostgreSQL; Echo API proxies to it
-    return this.echoApi.post("/guilds/profile", { guildId });
+    return this.echoApi.getGuildProfile(guildId);
   }
 
-  /** Cria ou atualiza o perfil de uma guilda no Profile API (avatar, banner, descrição). */
+  /** Cria ou atualiza o perfil de uma guilda (avatar, banner, descrição). */
   async upsertGuildProfile(guildId: string, data: {
     name: string;
     description?: string | null;
@@ -215,22 +214,27 @@ export class MatrixService {
     bannerUrl?: string | null;
     createdBy: string;
   }) {
-    await this.echoApi.post("/guilds/profile/upsert", { guildId, data });
+    return this.echoApi.upsertGuildProfile(guildId, {
+      name: data.name,
+      avatarUrl: data.avatarUrl,
+      bannerUrl: data.bannerUrl,
+      description: data.description,
+    });
   }
 
-  /** Atualiza parcialmente o perfil de uma guilda no Profile API. */
+  /** Atualiza parcialmente o perfil de uma guilda. */
   async patchGuildProfile(guildId: string, data: {
     name?: string;
     description?: string | null;
     avatarUrl?: string | null;
     bannerUrl?: string | null;
   }) {
-    await this.echoApi.post("/guilds/profile/patch", { guildId, data });
+    return this.echoApi.patch(`/api/guilds/${guildId}/profile`, data);
   }
 
-  /** Remove o perfil de uma guilda do Profile API. */
+  /** Remove o perfil de uma guilda. */
   async deleteGuildProfile(guildId: string): Promise<void> {
-    await this.echoApi.post("/guilds/profile/delete", { guildId });
+    await this.echoApi.delete(`/api/guilds/${guildId}/profile`);
   }
 
   /** Devolve o MXID do usuário logado. */

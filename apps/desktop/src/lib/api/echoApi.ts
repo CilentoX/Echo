@@ -122,7 +122,7 @@ export class EchoApi {
 
   // ── Authentication ──────────────────────────────────────────────
 
-  /** Exchange an SSO loginToken for a session (POST /auth/google callback). */
+  /** Exchange an SSO loginToken for a session (POST /auth/token). */
   async exchangeLoginToken(loginToken: string): Promise<{
     session: {
       baseUrl: string;
@@ -137,7 +137,7 @@ export class EchoApi {
       avatarUrl?: string;
     };
   }> {
-    return this.post("/auth/exchange-login-token", { loginToken }).then(
+    return this.post("/auth/token", { code: loginToken }).then(
       async (res) => {
         if (!res.ok) {
           const errTxt = await res.text();
@@ -183,7 +183,7 @@ export class EchoApi {
     role: string | null;
   }> {
     const targetId = userId ?? "";
-    return this.post("/profile/get", { userId: targetId }).then(
+    return this.get(`/api/profiles/me?userId=${encodeURIComponent(targetId)}`).then(
       async (res) => {
         if (!res.ok) throw new Error(`Failed to get user profile: ${res.status}`);
         return res.json();
@@ -199,7 +199,7 @@ export class EchoApi {
     bio?: string | null;
     links?: Array<{ label: string; url: string }>;
   }): Promise<void> {
-    return this.post("/profile/patch", { userId, data }).then(
+    return this.patch(`/api/profiles/me/nickname`, { userId, data }).then(
       async (res) => {
         if (!res.ok) throw new Error(`Failed to patch user profile: ${res.status}`);
       },
@@ -292,7 +292,7 @@ export class EchoApi {
 
   /** Send an m.text message. */
   async sendMessage(roomId: string, body: string): Promise<string> {
-    const res = await this.post("/messages/send", { roomId, body });
+    const res = await this.post(`/api/rooms/${roomId}/messages`, { roomId, body });
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Failed to send message: ${res.status} ${errTxt}`);
@@ -313,7 +313,7 @@ export class EchoApi {
     redacted?: boolean;
     senderAvatarUrl?: string | null;
   }[]> {
-    const res = await this.get(`/messages/older?roomId=${roomId}&limit=${limit}`);
+    const res = await this.get(`/api/rooms/${roomId}/messages/older?limit=${limit}`);
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Failed to load older: ${res.status} ${errTxt}`);
@@ -327,7 +327,7 @@ export class EchoApi {
     targetEventId: string,
     emoji: string,
   ): Promise<string> {
-    const res = await this.post("/messages/reaction", {
+    const res = await this.post(`/api/rooms/${roomId}/messages/${targetEventId}/reactions`, {
       roomId,
       targetEventId,
       emoji,
@@ -344,7 +344,7 @@ export class EchoApi {
 
   /** Set typing status in a room. */
   async setTyping(roomId: string, isTyping: boolean): Promise<void> {
-    await this.post("/messages/typing", { roomId, isTyping }).then(
+    await this.put(`/api/rooms/${roomId}/typing`, { roomId, isTyping }).then(
       async (res) => {
         if (!res.ok) {
           const errTxt = await res.text();
@@ -358,7 +358,7 @@ export class EchoApi {
 
   /** Set the power level of a user in a room. */
   async setPowerLevel(roomId: string, userId: string, level: number): Promise<void> {
-    await this.post("/members/set-power-level", {
+    await this.put(`/api/rooms/${roomId}/power-levels`, {
       roomId,
       userId,
       level,
@@ -381,7 +381,7 @@ export class EchoApi {
     presence: "online" | "offline" | "unavailable";
     avatarUrl?: string | null;
   }[]> {
-    const res = await this.get(`/members?roomId=${roomId}`);
+    const res = await this.get(`/api/rooms/${roomId}/members`);
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Failed to get members: ${res.status} ${errTxt}`);
@@ -391,7 +391,7 @@ export class EchoApi {
 
   /** Invite a user to a room. */
   async inviteUser(roomId: string, userId: string): Promise<string> {
-    const res = await this.post("/members/invite", { roomId, userId });
+    const res = await this.post(`/api/rooms/${roomId}/invite`, { roomId, userId });
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Failed to invite user: ${res.status} ${errTxt}`);
@@ -402,7 +402,7 @@ export class EchoApi {
 
   /** Kick a user from a room. */
   async kickUser(roomId: string, userId: string, reason?: string): Promise<string> {
-    const res = await this.post("/members/kick", { roomId, userId, reason });
+    const res = await this.post(`/api/rooms/${roomId}/kick`, { roomId, userId, reason });
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Failed to kick user: ${res.status} ${errTxt}`);
@@ -413,7 +413,7 @@ export class EchoApi {
 
   /** Ban a user from a room. */
   async banUser(roomId: string, userId: string, reason?: string): Promise<string> {
-    const res = await this.post("/members/ban", { roomId, userId, reason });
+    const res = await this.post(`/api/rooms/${roomId}/ban`, { roomId, userId, reason });
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Failed to ban user: ${res.status} ${errTxt}`);
@@ -557,6 +557,18 @@ export class EchoApi {
     return this.getUserProfile("");
   }
 
+  /** Mark a room as read up to the given event. */
+  async markAsRead(roomId: string, eventId: string): Promise<void> {
+    await this.put(`/api/rooms/${roomId}/receipt`, { roomId, eventId }).then(
+      async (res) => {
+        if (!res.ok) {
+          const errTxt = await res.text();
+          throw new Error(`Failed to mark as read: ${res.status} ${errTxt}`);
+        }
+      },
+    );
+  }
+
   // ── Guild Profile methods ──────────────────────────────────────────
 
   /** Get guild profile. */
@@ -567,7 +579,7 @@ export class EchoApi {
     bannerUrl: string | null;
     description: string | null;
   }> {
-    const res = await this.get(`/guilds/${guildId}/profile`);
+    const res = await this.get(`/api/guilds/${guildId}/profile`);
     if (!res.ok) throw new Error(`Failed to get guild profile: ${res.status}`);
     return res.json();
   }
@@ -579,7 +591,7 @@ export class EchoApi {
     bannerUrl?: string | null;
     description?: string | null;
   }): Promise<void> {
-    const res = await this.post(`/guilds/${guildId}/profile`, data);
+    const res = await this.patch(`/api/guilds/${guildId}/profile`, data);
     if (!res.ok) throw new Error(`Failed to upsert guild profile: ${res.status}`);
   }
 
