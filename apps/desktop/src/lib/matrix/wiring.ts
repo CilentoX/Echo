@@ -1,7 +1,8 @@
-import { EchoApi } from "@/lib/api/echoApi";
+// import { EchoApi } from "@/lib/api/echoApi"; // unused
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useKeyring } from "@/lib/storage/keyring";
+import { ECHO_API_CONFIG } from "@/lib/api/config";
 
 /**
  * Wiring EchoApi ↔ stores (tudo via Echo API / WebSocket sync).
@@ -36,7 +37,7 @@ const typingByRoom = new Map<string, Set<string>>();
 
 /** WebSocket de sync ativo; gerenciado pelo Echo API connectSync. */
 let syncWs: WebSocket | null = null;
-let syncHandlersInstalled = false;
+// let syncHandlersInstalled = false; // unused
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_RECONNECT_DELAY = 1000; // ms
@@ -116,11 +117,13 @@ function openSyncWebSocket(accessToken: string): void {
     syncWs = null;
   }
 
-  syncWs = new WebSocket(`${ECHO_HOMESERVER_URL}/matrix/sync?access_token=${accessToken}`);
+  // Use Echo API URL for sync WebSocket (wss://api.echo.litteris.online/matrix/sync)
+  const wsBaseUrl = ECHO_API_CONFIG.baseUrl.replace(/^http/, "ws");
+  syncWs = new WebSocket(`${wsBaseUrl}/matrix/sync?access_token=${accessToken}`);
 
   syncWs.onopen = () => {
     reconnectAttempts = 0;
-    syncHandlersInstalled = false;
+    // syncHandlersInstalled = false; // unused
   };
 
   syncWs.onmessage = (event) => {
@@ -146,7 +149,7 @@ function openSyncWebSocket(accessToken: string): void {
           break;
         }
         case "status": {
-          handleStatus(message.status, message.error);
+          handleStatus(message.status as string, message.error as { errcode: string } | undefined);
           break;
         }
         case "typing": {
@@ -264,12 +267,12 @@ function mapPresence(presence: string | undefined): "online" | "offline" | "unav
 }
 
 /** Liga o sync loop aos stores; chamar uma única vez por sessão ativa. */
-export function startSyncWiring(onAuthFailure: () => void): void {
+export async function startSyncWiring(): Promise<void> {
   if (started) return;
   started = true;
 
-  // Obter o token da sessão - usamos sync storage para evitar await no topo
-  const storedSession = useKeyring.getItem("echo:session");
+  // Obter o token da sessão
+  const storedSession = await useKeyring.getItem("echo:session");
   const sessionJson = storedSession ? JSON.parse(storedSession) : null;
   const session = sessionJson ? sessionJson.accessToken : null;
 
@@ -291,7 +294,7 @@ export function startSyncWiring(onAuthFailure: () => void): void {
   });
 
   // Marca que os handlers foram instalados
-  syncHandlersInstalled = true;
+  // syncHandlersInstalled = true; // unused
 }
 
 /** Desliga o sync, limpa flags internas e reseta os stores (logout). */

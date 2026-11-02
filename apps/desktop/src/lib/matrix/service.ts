@@ -1,7 +1,6 @@
 import { EchoApi, type EchoApiInit } from "@/lib/api/echoApi";
 import type { Session } from "./types";
 import { ECHO_HOMESERVER_URL } from "./sso";
-import { initEchoApiFromSession } from "./instance";
 import { useKeyring } from "@/lib/storage/keyring";
 
 /**
@@ -29,22 +28,22 @@ export class MatrixService {
     this.echoApi = new EchoApi(init);
   }
 
-  /** Login with an SSO loginToken (m.login.token) via Echo API. */
-  async loginWithSsoToken(loginToken: string): Promise<Session> {
-    const result = await this.echoApi.exchangeLoginToken(loginToken);
-    const { session, user } = result;
+  /** Login with an authorization code via Echo API /auth/token. */
+  async loginWithCode(code: string): Promise<Session> {
+    const session = await this.echoApi.exchangeCodeForTokens(code);
 
     // Store session in keyring for persistence
     await useKeyring.setItem("echo:session", JSON.stringify(session));
 
-    this.session = {
-      baseUrl: session.baseUrl || this.baseUrl,
-      accessToken: session.accessToken,
-      userId: session.userId || user.id || "",
-      deviceId: session.deviceId ?? null,
-    };
+    this.session = session;
 
     return this.session;
+  }
+
+  /** @deprecated Use loginWithCode instead. Kept for test compatibility. */
+  async loginWithSsoToken(loginToken: string): Promise<Session> {
+    // For backward compatibility with tests, treat loginToken as code
+    return this.loginWithCode(loginToken);
   }
 
   /** Recreate a client from a persisted session (no request is made). */
@@ -55,10 +54,8 @@ export class MatrixService {
   }
 
   /** SSO redirect URL, wrapping the Echo API client. */
-  getSsoLoginUrl(redirectUrl: string, idpId?: string): string {
-    // Echo API doesn't use Matrix SDK SSO; this is a placeholder.
-    // The actual SSO flow is handled by the Echo API /auth/exchange-login-token endpoint.
-    return `${this.baseUrl}/auth/sso-redirect?redirectUrl=${encodeURIComponent(redirectUrl)}&idpId=${idpId ?? ""}`;
+  async getSsoLoginUrl(redirectUrl: string, idpId?: string): Promise<string> {
+    return this.echoApi.getSsoLoginUrl(redirectUrl, idpId);
   }
 
   /** Logout: clear session and disconnect client. */
@@ -69,7 +66,7 @@ export class MatrixService {
   }
 
   /** Liga o sync loop aos handlers. Chamar uma única vez por sessão ativa. */
-  startSyncHandlers(handlers: import("./types").SyncHandlers): void {
+  startSyncHandlers(_handlers: unknown): void {
     // Echo API WebSocket sync is managed separately via connectSync()
     // This is kept for compatibility; real sync uses connectSync()
   }
@@ -90,22 +87,22 @@ export class MatrixService {
   }
 
   /** Envia uma reação m.reaction (m.annotation com m.relates_to) a um evento. */
-  async sendReaction(roomId: string, targetEventId: string, emoji: string): Promise<string> {
-    return this.echoApi.sendReaction(roomId, targetEventId, emoji);
+  async sendReaction(_roomId: string, _targetEventId: string, _emoji: string): Promise<string> {
+    return this.echoApi.sendReaction(_roomId, _targetEventId, _emoji);
   }
 
   /** Remove a própria reação de um evento (redige o evento de reação). */
-  async removeReaction(roomId: string, reactionEventId: string): Promise<void> {
+  async removeReaction(_roomId: string, _reactionEventId: string): Promise<void> {
     // Reactions are handled via sendReaction toggle; no-op if using Echo API's built-in reaction handling
   }
 
   /** Marca o canal como lido até o evento dado (recibo de leitura real no server). */
-  async markAsRead(roomId: string, eventId: string): Promise<void> {
+  async markAsRead(_roomId: string, _eventId: string): Promise<void> {
     // Read receipts are handled by the Echo API sync protocol
   }
 
   /** Redige (exclui) um evento próprio. */
-  async redact(roomId: string, eventId: string): Promise<void> {
+  async redact(_roomId: string, _eventId: string): Promise<void> {
     // Redaction is handled server-side via Echo API
   }
 
@@ -133,7 +130,7 @@ export class MatrixService {
 
   /** Altera o nome de exibição da própria conta. */
   async setDisplayName(name: string): Promise<void> {
-    await this.echoApi.patchUserProfile(undefined, { displayName: name });
+    await this.echoApi.patchUserProfile("", { displayName: name });
   }
 
   /** Envia um arquivo de mídia (avatar, banner, anexo) e devolve o mxc:// URI. */
@@ -145,12 +142,12 @@ export class MatrixService {
   async setAvatarUrl(url: string | null): Promise<void> {
     if (!url) {
       // Remove avatar — Echo API handles this via profile patch
-      await this.echoApi.patchUserProfile(undefined, { avatarUrl: null });
+      await this.echoApi.patchUserProfile("", { avatarUrl: null });
       return;
     }
     // If url is already an mxc:// URI, we need to upload it via the media endpoint
     // or store it as-is. For now, just store the reference.
-    await this.echoApi.patchUserProfile(undefined, { avatarUrl: url });
+    await this.echoApi.patchUserProfile("", { avatarUrl: url });
   }
 
   /** Devolve o avatar_url de um usuário (sem args = próprio usuário). */
@@ -252,7 +249,7 @@ export class MatrixService {
   }
 
   /** Converte mxc:// URL para HTTP (suporta autenticação para evitar M_FORBIDDEN). */
-  mxcUrlToHttp(mxcUrl: string, width?: number, height?: number, resizeMethod?: string, _allowDirectLinks?: boolean, _allowRedirects?: boolean, useAuthentication?: boolean): string | null {
+  mxcUrlToHttp(mxcUrl: string): string | null {
     // Echo API handles media URLs natively; return null for mxc:// URLs
     // as the Echo API serves media HTTP endpoints directly.
     if (mxcUrl.startsWith("mxc://")) {
@@ -289,7 +286,7 @@ export class MatrixService {
   }
 
   /** Sai de uma guilda (sem excluí-la). */
-  async leaveGuild(guildId: string): Promise<void> {
+  async leaveGuild(_guildId: string): Promise<void> {
     // Echo API doesn't have a "leave guild" concept beyond deleting the guild
     // or the user just stops participating
   }
@@ -383,13 +380,6 @@ export class MatrixService {
   async setPowerLevel(roomId: string, userId: string, level: number): Promise<string> {
     await this.echoApi.setPowerLevel(roomId, userId, level);
     return `${roomId}:${userId}:${level}`;
-  }
-
-  private requireSession(): Session {
-    if (!this.session) {
-      throw new Error("MatrixService: no active session — call loginWithSsoToken or restoreSession first");
-    }
-    return this.session;
   }
 }
 

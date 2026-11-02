@@ -8,6 +8,7 @@ export interface Session {
   refreshToken: string;
   deviceId: string | null;
   expiresAt: number;
+  userId?: string;
 }
 
 /**
@@ -91,9 +92,24 @@ export interface SyncErrorInfo {
 /**
  * Structural subset of matrix-js-sdk's MatrixClient that MatrixService uses.
  * Lets tests inject a fake client without loading the real SDK.
- * (ICreateRoomOpts é import type-only: zero custo em runtime.)
  */
-import type { ICreateRoomOpts } from "matrix-js-sdk";
+
+/** Room creation options (mirrors matrix-js-sdk ICreateRoomOpts). */
+interface ICreateRoomOpts {
+  name?: string;
+  topic?: string;
+  is_direct?: boolean;
+  room_alias_name?: string;
+  visibility?: "public" | "private";
+  invite?: string[];
+  preset?: "public_chat" | "private_chat" | "trusted_private_chat";
+  creation_content?: Record<string, unknown>;
+  initial_state?: Array<{
+    type: string;
+    state_key: string;
+    content: Record<string, unknown>;
+  }>;
+}
 
 export interface MatrixClientLike {
   loginRequest(req: { type: "m.login.token"; token: string }): Promise<LoginResponseLike>;

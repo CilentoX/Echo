@@ -1,16 +1,16 @@
 import { EchoApi } from "@/lib/api/echoApi";
 import { useKeyring } from "@/lib/storage/keyring";
-import { ECHO_HOMESERVER_URL } from "./sso";
+import { ECHO_API_CONFIG } from "@/lib/api/config";
 
 /**
- * Singleton EchoApi for todo the app: client factory padrão
- * (Echo API client) apontando para o homeserver da rede Eco.
+ * Singleton EchoApi for the app: client factory padrão
+ * (Echo API client) apontando para a Echo API.
  * SessionGate, stores e telas compartilham esta mesma instância,
  * para que o client credentialled criado no login seja o mesmo usado
  * na sincronização.
  */
 export const echoApi = new EchoApi({
-  baseUrl: ECHO_HOMESERVER_URL,
+  baseUrl: ECHO_API_CONFIG.baseUrl,
   accessToken: "",
 });
 
@@ -29,7 +29,7 @@ export async function initEchoApiFromSession(): Promise<void> {
   const stored = await useKeyring.getItem("echo:session");
   if (stored) {
     const session = JSON.parse(stored);
-    echoApi.accessToken = session.accessToken ?? "";
+    echoApi.setAccessToken(session.accessToken ?? "");
     // apiKey is optional; if the middleware requires it, configure here.
   }
 }
