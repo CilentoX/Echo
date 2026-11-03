@@ -30,6 +30,7 @@ export default function MemberList({
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const myUserId = useUiStore((state) => state.myUserId);
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
+  const myAvatarUrl = useProfileStore((state) => state.avatarUrl);
 
   // Canais da guilda ativa (para agregar membros quando não há canal selecionado).
   const channelsByGuild = useSyncStore((state) => state.channelsByGuild);
@@ -59,11 +60,11 @@ export default function MemberList({
         userId: myUserId,
         displayName: myUserId.replace(/^@/, ''),
         presence: "online",
-        avatarUrl: myAppwriteAvatarUrl ?? null,
+        avatarUrl: myAppwriteAvatarUrl ?? myAvatarUrl ?? null,
       });
     }
     return merged;
-  }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId, myAppwriteAvatarUrl]);
+  }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId, myAppwriteAvatarUrl, myAvatarUrl]);
 
   // Usa membros do canal ativo, ou agregados da guilda, ou vazio.
   const members: MemberSummary[] = activeChannelId
@@ -169,9 +170,9 @@ export default function MemberList({
                       : "bg-offline";
                   const initial = (member.displayName || member.userId.replace(/^@/, "")).charAt(0).toUpperCase();
 
-                  // Fallback chain: Matrix avatar → Appwrite avatar (my user) → initials
+                  // Fallback chain: Matrix avatar → Appwrite avatar (my user) → local avatarUrl → initials
                   const effectiveAvatarUrl = isMe
-                    ? (member.avatarUrl ?? myAppwriteAvatarUrl ?? null)
+                    ? (member.avatarUrl ?? myAppwriteAvatarUrl ?? myAvatarUrl ?? null)
                     : (member.avatarUrl ?? null);
 
                   return (

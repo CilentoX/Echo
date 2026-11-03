@@ -159,9 +159,12 @@ export default function Profile({ open, onClose }: ProfileProps) {
 }
 
 function ProfileSidebarPreview({ onClose }: { onClose: () => void }) {
-  const { displayName, username, appwriteAvatarUrl, nickname } = useProfileStore();
+  const { displayName, username, avatarUrl, appwriteAvatarUrl, nickname } = useProfileStore();
+  const effectiveAvatar = appwriteAvatarUrl ?? avatarUrl;
+  const effectiveDisplayName = displayName || nickname || (username ? username.replace(/^@/, "").split(":")[0] : "");
+  const effectiveHandle = nickname || (username ? username.replace(/^@/, "").split(":")[0] : "");
 
-  const initials = (displayName ?? username ?? "?")
+  const initials = (effectiveDisplayName || "?")
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -176,16 +179,16 @@ function ProfileSidebarPreview({ onClose }: { onClose: () => void }) {
       aria-label="Fechar configurações"
     >
       <div className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-surf2 flex items-center justify-center">
-        {appwriteAvatarUrl ? (
-          <img src={appwriteAvatarUrl} alt="" className="w-full h-full object-cover" />
+        {effectiveAvatar ? (
+          <img src={effectiveAvatar} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="font-display text-sm font-bold text-txt">{initials}</span>
         )}
         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-online border-2 border-bg" />
       </div>
       <div className="flex-1 min-w-0 text-left">
-        <p className="font-medium text-sm truncate text-txt">{displayName || username}</p>
-        <p className="text-xs truncate text-mut">@{nickname || username.replace(/^@/, "")}</p>
+        <p className="font-medium text-sm truncate text-txt">{effectiveDisplayName || "Usuário"}</p>
+        <p className="text-xs truncate text-mut">@{effectiveHandle}</p>
       </div>
       <X size={16} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>

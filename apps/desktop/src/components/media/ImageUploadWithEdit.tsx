@@ -267,17 +267,17 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
         ) : (
           // Sem imagem - área de drop/upload + file input
           <>
-            {initials && (
-              // Círculo de fallback com iniciais: tamanho fixo em px, sempre visível.
+            {initials && type === "avatar" && (
+              // Círculo de fallback com iniciais: tamanho fixo em px, sempre visível para avatar.
               // Usa absolute inset-0 para preencher o container, e font-size fixo em pixels.
               <span
                 className={`absolute inset-0 flex items-center justify-center ${fallbackColorClass} text-txt font-bold uppercase tracking-tighter leading-none select-none drop-shadow-lg`}
-                style={{ fontSize: type === "banner" ? 36 : type === "guild" ? 30 : 24 }}
+                style={{ fontSize: 24 }}
               >
                 {initials.slice(0, 2).toUpperCase()}
               </span>
             )}
-            {!initials && (
+            {(!initials || type !== "avatar") && (
               <>
                 {editable ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-mut">

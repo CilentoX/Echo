@@ -6,6 +6,7 @@ import { markOnboardingCompleted, triggerFullAccountReset } from "@/lib/onboardi
 import { useEchoApi } from "@/lib/api/echoApi";
 import { useUiStore } from "@/stores/uiStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,11 +77,20 @@ export default function OnboardingScreen({
         await matrixService.setAvatarUrl(avatarUrl);
         // Sincroniza avatar com o Profile API (PostgreSQL)
         try {
-          await matrixService.patchGlobalProfile({ avatarUrl });
+          await matrixService.patchGlobalProfile({ avatarUrl, nickname: nickname.trim() });
         } catch (profileErr) {
           console.warn("[OnboardingScreen] Falha ao sincronizar profile Postgres:", profileErr);
         }
       }
+
+      // Atualiza o store imediatamente para refletir em toda a UI
+      useProfileStore.getState().setDisplayName(nickname.trim());
+      useProfileStore.getState().setNickname(nickname.trim());
+      if (avatarUrl) {
+        useProfileStore.getState().setAvatarUrl(avatarUrl);
+        useProfileStore.getState().setAppwriteAvatarUrl(avatarUrl);
+      }
+      await useProfileStore.getState().loadProfile();
 
       markOnboardingCompleted(myUserId ?? undefined);
       useOnboardingStore.getState().setCompleted(true);

@@ -68,25 +68,28 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   },
   loadProfile: async () => {
     try {
-      const [avatar, banner, displayName, userProfile] = await Promise.all([
-        matrixService.getAvatarUrl(),
-        matrixService.getBannerUrl(),
-        matrixService.getDisplayName(),
-        matrixService.getUserProfile(),
-      ]);
+      const userProfile = await matrixService.getUserProfile().catch(() => null);
+      const myUserId = matrixService.getUserId() ?? userProfile?.userId ?? "";
 
-      // Restaura URLs do Appwrite persistidas (sobrevivem a reload/F5)
+      // Restaura URLs persistidas (sobrevivem a reload/F5)
       const persistedAvatar = localStorage.getItem("echo:appwriteAvatarUrl");
       const persistedBanner = localStorage.getItem("echo:appwriteBannerUrl");
 
+      const avatar = userProfile?.avatarUrl ?? persistedAvatar ?? null;
+      const banner = userProfile?.bannerUrl ?? persistedBanner ?? null;
+      const nickname = userProfile?.nickname ?? userProfile?.displayName ?? null;
+      const displayName = userProfile?.displayName ?? userProfile?.nickname ?? (myUserId ? myUserId.replace(/^@/, "").split(":")[0] : "");
+
       set({
-        avatarUrl: avatar ?? null,
-        bannerUrl: banner ?? null,
-        displayName: displayName ?? "",
+        username: myUserId,
+        nickname: nickname,
+        displayName: displayName,
+        avatarUrl: avatar,
+        bannerUrl: banner,
         bio: userProfile?.bio ?? null,
         role: userProfile?.role ?? null,
-        appwriteAvatarUrl: persistedAvatar ?? null,
-        appwriteBannerUrl: persistedBanner ?? null,
+        appwriteAvatarUrl: avatar,
+        appwriteBannerUrl: banner,
       });
     } catch {
       // falha silenciosa: perfil será preenchido à medida que for usado

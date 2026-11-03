@@ -163,8 +163,10 @@ export class MatrixService {
   }
 
   /** Devolve o perfil completo de um usuário em uma única chamada ao servidor. */
-  async getUserProfile(userId: string): Promise<{
+  async getUserProfile(userId?: string): Promise<{
+    userId?: string;
     displayName: string | null;
+    nickname?: string | null;
     avatarUrl: string | null;
     bannerUrl: string | null;
     bio: string | null;

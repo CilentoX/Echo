@@ -25,6 +25,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     bio,
     role,
     joinedAt,
+    avatarUrl,
+    bannerUrl,
     appwriteAvatarUrl,
     appwriteBannerUrl,
     setAppwriteAvatarUrl,
@@ -41,15 +43,18 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     return echoApi.uploadChatMedia(file);
   };
 
+  const effectiveDisplayName = displayName || nickname || (username ? username.replace(/^@/, "").split(":")[0] : "");
+  const effectiveHandle = nickname || (username ? username.replace(/^@/, "").split(":")[0] : "");
+
   const initials = useMemo(() => {
-    const name = displayName || username || "Usuário";
+    const name = effectiveDisplayName || "Usuário";
     return name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  }, [displayName, username]);
+  }, [effectiveDisplayName]);
 
   const {
     isEditing,
@@ -135,8 +140,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
   const isOwnProfile = true;
 
   // URLs atuais para exibição (edit state tem prioridade)
-  const currentAvatarUrl = editAvatarUrl ?? appwriteAvatarUrl;
-  const currentBannerUrl = editBannerUrl ?? appwriteBannerUrl;
+  const currentAvatarUrl = editAvatarUrl ?? appwriteAvatarUrl ?? avatarUrl;
+  const currentBannerUrl = editBannerUrl ?? appwriteBannerUrl ?? bannerUrl;
 
   return (
     <div className="flex flex-col gap-6" onKeyDown={handleKeyDown}>
@@ -155,7 +160,6 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           editable={isEditing && !isSaving}
           maxSizeMB={5}
           appwriteUrl={currentBannerUrl}
-          initials={initials}
           uploadError={bannerError}
         />
       </div>
@@ -185,7 +189,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
         <div className="flex flex-col items-center gap-1 text-center w-full">
           <div className="flex items-center gap-2">
             <h1 className="font-display text-2xl font-bold text-txt truncate max-w-xs">
-              {displayName || username}
+              {effectiveDisplayName || "Usuário"}
             </h1>
             {role && (
               <span className="flex-shrink-0 px-2.5 py-0.5 text-xs font-medium rounded-full bg-acc/10 text-acc border border-acc/20 whitespace-nowrap">
@@ -197,7 +201,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             <span className="h-2 w-2 rounded-full bg-online" aria-hidden="true" />
             <span>Online</span>
             <span aria-hidden="true">·</span>
-            <span className="font-mono">@{nickname || username.replace(/^@/, "")}</span>
+            <span className="font-mono">@{effectiveHandle}</span>
           </div>
           {joinedAt && (
             <p className="text-xs text-mut flex items-center gap-1">

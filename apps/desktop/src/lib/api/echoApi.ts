@@ -195,17 +195,28 @@ export class EchoApi {
 
   /** Get the profile of a user (default: current user). */
   async getUserProfile(userId?: string): Promise<{
+    userId?: string;
     displayName: string | null;
+    nickname: string | null;
     avatarUrl: string | null;
     bannerUrl: string | null;
     bio: string | null;
     role: string | null;
   }> {
-    const targetId = userId ?? "";
-    return this.get(`/api/profiles/me?userId=${encodeURIComponent(targetId)}`).then(
+    const targetPath = userId ? `/api/profiles/${encodeURIComponent(userId)}` : `/api/profiles/me`;
+    return this.get(targetPath).then(
       async (res) => {
         if (!res.ok) throw new Error(`Failed to get user profile: ${res.status}`);
-        return res.json();
+        const data = await res.json();
+        return {
+          userId: data.userId,
+          displayName: data.displayName ?? data.nickname ?? null,
+          nickname: data.nickname ?? data.displayName ?? null,
+          avatarUrl: data.avatarUrl ?? null,
+          bannerUrl: data.bannerUrl ?? null,
+          bio: data.bio ?? null,
+          role: data.role ?? null,
+        };
       },
     );
   }
@@ -213,14 +224,17 @@ export class EchoApi {
   /** Patch (partial update) the profile of a user (default: current user). */
   async patchUserProfile(userId: string, data: {
     displayName?: string | null;
+    nickname?: string | null;
     avatarUrl?: string | null;
     bannerUrl?: string | null;
     bio?: string | null;
     links?: Array<{ label: string; url: string }>;
   }): Promise<void> {
     const targetPath = userId ? `/api/profiles/${encodeURIComponent(userId)}` : `/api/profiles/me`;
+    const nickname = data.nickname ?? data.displayName;
     return this.patch(targetPath, {
-      nickname: data.displayName,
+      nickname,
+      displayName: nickname,
       avatarUrl: data.avatarUrl,
       bannerUrl: data.bannerUrl,
       bio: data.bio,

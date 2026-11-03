@@ -117,6 +117,9 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
       }
 
       if (state.editNickname !== nickname) {
+        await matrixService.patchGlobalProfile({
+          nickname: state.editNickname || null,
+        });
         setNickname(state.editNickname || null);
       }
 

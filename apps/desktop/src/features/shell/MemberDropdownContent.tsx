@@ -153,11 +153,7 @@ export default function MemberDropdownContent({
             height={540}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-acc/25 via-bg/60 to-surf2 border border-bd/50 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-lg border-2 border-surf bg-acc">
-              {initial}
-            </div>
-          </div>
+          <div className="w-full h-full bg-gradient-to-br from-acc/20 via-surf to-surf2 border border-bd/40" />
         )}
       </div>
 
@@ -183,13 +179,12 @@ export default function MemberDropdownContent({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-display font-bold text-lg text-txt truncate leading-tight" title={profile?.displayName ?? cleanUserId(userId)}>
-            {profile?.displayName ?? cleanUserId(userId)}
+          <p className="font-display font-bold text-lg text-txt truncate leading-tight" title={profile?.displayName ?? profile?.nickname ?? cleanUserId(userId)}>
+            {profile?.displayName ?? profile?.nickname ?? cleanUserId(userId)}
           </p>
           <p className="text-xs text-mut truncate">
-            @{cleanUserId(userId)} {isMyUser && " (você)"}
+            @{profile?.nickname || cleanUserId(userId)} {isMyUser && " (você)"}
           </p>
-
         </div>
       </div>
 
@@ -258,7 +253,7 @@ export default function MemberDropdownContent({
   )
 }
 
-const cleanUserId = (id: string) => id.replace(/^@/, "").replace(/:litteris\.online$/, "")
+const cleanUserId = (id: string) => id.replace(/^@/, "").split(":")[0]
 
 const statusLabel: Record<string, string> = {
   online: "Online",
