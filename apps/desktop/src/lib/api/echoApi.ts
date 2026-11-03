@@ -43,12 +43,17 @@ function request(
 ): Promise<Response> {
   const headers = new Headers(init.headers);
   const token = authToken || accessToken;
-  headers.set("Authorization", `Bearer ${token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
   if (apiKey) headers.set("X-API-Key", apiKey);
   
   // Serialize body if it's a plain object
   let body: BodyInit | null | undefined = init.body;
   if (body !== undefined && body !== null && typeof body === "object" && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof ReadableStream) && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
     body = JSON.stringify(body, (_key, value) => {
       if (typeof value === "bigint") {
         return value.toString();
