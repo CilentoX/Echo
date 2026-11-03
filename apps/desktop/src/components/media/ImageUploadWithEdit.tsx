@@ -161,12 +161,16 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
 
   const handleEditorConfirm = useCallback(
     (croppedFile: File) => {
+      if (previewObjUrl) {
+        URL.revokeObjectURL(previewObjUrl)
+      }
+      const newUrl = URL.createObjectURL(croppedFile)
+      setPreviewObjUrl(newUrl)
+      setSelectedFile(croppedFile)
       onChange(croppedFile)
-      setSelectedFile(null)
-      setPreviewObjUrl(null)
       setEditorOpen(false)
     },
-    [onChange],
+    [onChange, previewObjUrl],
   )
 
   const handleEditorClose = useCallback(() => {
@@ -205,7 +209,11 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
       )}
 
       <div
-        className={`relative border border-bd bg-surf2 flex items-center justify-center group overflow-hidden ${previewHeight} ${previewW ? previewW : "w-full"} ${editable ? "cursor-pointer" : "cursor-default"}`}
+        className={`relative border border-bd bg-surf2 flex items-center justify-center group overflow-hidden ${
+          type === "avatar" ? "rounded-full" : "rounded-xl"
+        } ${previewHeight} ${
+          previewW ? previewW : type === "avatar" ? previewHeight.replace("h-", "w-") : "w-full"
+        } ${editable ? "cursor-pointer" : "cursor-default"}`}
         onClick={handleClick}
         role={editable ? "button" : undefined}
         tabIndex={editable ? 0 : -1}

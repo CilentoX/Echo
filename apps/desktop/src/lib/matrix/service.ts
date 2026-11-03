@@ -180,12 +180,24 @@ export class MatrixService {
   }
 
   /** Atualiza parcialmente o perfil global no Profile API (avatar, banner, bio, links). */
-  async patchGlobalProfile(userId: string, data: {
-    avatarUrl?: string | null;
-    bannerUrl?: string | null;
-    bio?: string | null;
-    links?: Array<{ label: string; url: string }>;
-  }): Promise<void> {
+  async patchGlobalProfile(
+    userIdOrData:
+      | string
+      | {
+          avatarUrl?: string | null;
+          bannerUrl?: string | null;
+          bio?: string | null;
+          links?: Array<{ label: string; url: string }>;
+        },
+    maybeData?: {
+      avatarUrl?: string | null;
+      bannerUrl?: string | null;
+      bio?: string | null;
+      links?: Array<{ label: string; url: string }>;
+    },
+  ): Promise<void> {
+    const userId = typeof userIdOrData === "string" ? userIdOrData : "";
+    const data = typeof userIdOrData === "object" ? userIdOrData : (maybeData ?? {});
     await this.echoApi.patchUserProfile(userId, data);
   }
 

@@ -173,11 +173,22 @@ const ImageEditor = memo(function ImageEditor({
     setDragState(prev => ({ ...prev, isDragging: false }))
   }, [])
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -0.1 : 0.1
-    setZoom(prev => Math.max(1, Math.min(5, prev + delta)))
-  }, [])
+  // Non-passive wheel event listener to avoid "Unable to preventDefault inside passive event listener invocation"
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const handleWheelNative = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -0.1 : 0.1
+      setZoom(prev => Math.max(1, Math.min(5, Number((prev + delta).toFixed(2)))))
+    }
+
+    el.addEventListener("wheel", handleWheelNative, { passive: false })
+    return () => {
+      el.removeEventListener("wheel", handleWheelNative)
+    }
+  }, [open, imageSrc])
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLImageElement>) => {
     if (e.touches.length === 1) {
@@ -188,14 +199,11 @@ const ImageEditor = memo(function ImageEditor({
         startX: touch.clientX,
         startY: touch.clientY,
       }))
-    } else if (e.touches.length === 2) {
-      // Pinch zoom - handled by wheel for now
     }
   }, [])
 
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLImageElement>) => {
     if (!dragState.isDragging || e.touches.length !== 1) return
-    e.preventDefault()
     const touch = e.touches[0]
     const dx = (touch.clientX - dragState.startX) / zoom
     const dy = (touch.clientY - dragState.startY) / zoom
@@ -387,7 +395,6 @@ const ImageEditor = memo(function ImageEditor({
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onWheel={handleWheel}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -402,8 +409,12 @@ const ImageEditor = memo(function ImageEditor({
               }}
             />
             
-            {/* Overlay de borda do frame */}
-            <div className="absolute inset-0 border-2 border-acc/50 pointer-events-none" />
+            {/* Overlay de corte circular para avatar ou retangular para outros */}
+            {aspect === 1 ? (
+              <div className="absolute inset-0 rounded-full border-2 border-acc shadow-[0_0_0_9999px_rgba(13,16,23,0.7)] pointer-events-none z-10" />
+            ) : (
+              <div className="absolute inset-0 border-2 border-acc/50 pointer-events-none z-10" />
+            )}
           </div>
         </div>
 

@@ -470,7 +470,11 @@ export class EchoApi {
       throw new Error(`Failed to upload media: ${res.status} ${errTxt}`);
     }
     const data = await res.json();
-    return data.mxcUri || data.contentUri || data.url || "";
+    const rawUrl = data.mxcUri || data.contentUri || data.url || "";
+    if (rawUrl && rawUrl.startsWith("/")) {
+      return `${this.baseUrl}${rawUrl}`;
+    }
+    return rawUrl;
   }
 
   /** Get the profile URL for a user (avatar/banner). */

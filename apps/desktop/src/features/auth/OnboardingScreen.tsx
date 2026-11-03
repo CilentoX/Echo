@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { AvatarUpload } from "@/components/onboarding/AvatarUpload";
 
 /**
- * Onboarding de primeiro acesso com 2 etapas (estilo Discord):
+ * Onboarding de primeiro acesso com 2 etapas:
  * 1. Welcome — boas-vindas ao Echo
  * 2. Perfil — nickname e avatar
  *
@@ -45,7 +45,7 @@ export default function OnboardingScreen({
   }, [onboardingDone, onComplete]);
 
   // Pré-preenche o nickname com o displayName atual do Matrix
-  // (ex: Google SSO preenche "Lucas Cilento", usuário pode alterar para "minhoca")
+  // (ex: Google SSO preenche "Lucas Cilento", usuário pode alterar)
   useEffect(() => {
     const loadCurrentDisplayName = async () => {
       if (!myUserId) return;
@@ -73,11 +73,12 @@ export default function OnboardingScreen({
 
       if (avatarUrl) {
         await matrixService.setAvatarUrl(avatarUrl);
-      }
-
-      // Sincroniza avatar com o Profile API (PostgreSQL)
-      if (avatarUrl) {
-        await matrixService.patchGlobalProfile({ avatarUrl });
+        // Sincroniza avatar com o Profile API (PostgreSQL)
+        try {
+          await matrixService.patchGlobalProfile(myUserId, { avatarUrl });
+        } catch (profileErr) {
+          console.warn("[OnboardingScreen] Falha ao sincronizar profile Postgres:", profileErr);
+        }
       }
 
       markOnboardingCompleted(myUserId ?? undefined);
@@ -89,13 +90,6 @@ export default function OnboardingScreen({
     }
   }, [nickname, avatarUrl, myUserId]);
 
-  // Revoga URLs de objeto criadas quando o componente desmonta
-  useEffect(() => {
-    return () => {
-      // avatarUrl é uma URL do Appwrite, não um objeto URL
-    };
-  }, [avatarUrl]);
-
   if (onboardingDone) {
     return null;
   }
@@ -103,75 +97,86 @@ export default function OnboardingScreen({
   const canAdvance = step === "welcome";
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-bg font-ui">
-      <Card className="w-full max-w-md bg-bg border border-bd shadow-lg">
-        <CardHeader className="flex flex-col items-center gap-3 pt-8">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0D1017] p-4 font-ui relative overflow-hidden select-none">
+      {/* Brilho sutil de fundo */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] bg-[#0FB9A8]/5 rounded-full blur-3xl pointer-events-none" />
+
+      <Card className="w-full max-w-md bg-[#131722] border border-[#242B3D] shadow-[0_16px_50px_rgba(0,0,0,0.85),0_0_20px_rgba(15,185,168,0.06)] rounded-2xl relative z-10">
+        <CardHeader className="flex flex-col items-center gap-3 pt-8 pb-4">
           {step === "welcome" && (
             <>
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc text-bg">
-                <CheckCircle size={32} />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0FB9A8]/15 border border-[#0FB9A8]/30 text-[#0FB9A8] shadow-[0_0_20px_rgba(15,185,168,0.2)]">
+                <CheckCircle size={32} weight="fill" />
               </div>
-              <CardTitle className="text-2xl font-display font-bold text-txt">Bem-vindo ao Echo</CardTitle>
-              <CardDescription className="text-center text-mut">
+              <CardTitle className="text-2xl font-display font-bold text-[#E9EDF2]">Bem-vindo ao Echo</CardTitle>
+              <CardDescription className="text-center text-[#94A3B8]">
                 Seu novo espaço para conversar com a comunidade.
               </CardDescription>
             </>
           )}
           {step === "profile" && (
             <>
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc text-bg">
-                <User size={32} />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0FB9A8]/15 border border-[#0FB9A8]/30 text-[#0FB9A8] shadow-[0_0_20px_rgba(15,185,168,0.2)]">
+                <User size={32} weight="fill" />
               </div>
-              <CardTitle className="text-2xl font-display font-bold text-txt">Seu perfil</CardTitle>
-              <CardDescription className="text-center text-mut">
+              <CardTitle className="text-2xl font-display font-bold text-[#E9EDF2]">Seu perfil</CardTitle>
+              <CardDescription className="text-center text-[#94A3B8]">
                 Escolha como você vai aparecer para os outros.
               </CardDescription>
             </>
           )}
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-6 p-8">
+        <CardContent className="flex flex-col gap-6 px-8 py-4">
           {step === "welcome" && (
             <div className="flex flex-col items-center gap-6 text-center">
-              <p className="text-txt">
-                Conecte-se à sua rede Matrix e comece a conversar em
-                tempo real, com privacidade e controle total.
+              <p className="text-[#CBD5E1] text-sm leading-relaxed">
+                Conecte-se à sua rede Matrix e converse em tempo real,
+                com privacidade absoluta, chamadas de voz e controle total.
               </p>
-              <div className="flex items-center gap-4 text-sm text-mut">
-                <ShieldCheck size={14} className="text-acc" />
-                <span>Criptografia de ponta a ponta</span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-mut">
-                <Globe size={14} className="text-acc" />
-                <span>Federado com a rede Matrix</span>
+              <div className="flex flex-col gap-3 w-full max-w-xs pt-2">
+                <div className="flex items-center gap-3 text-sm text-[#94A3B8] bg-[#1A202E] p-3 rounded-xl border border-[#242B3D]/70">
+                  <ShieldCheck size={18} weight="bold" className="text-[#0FB9A8] shrink-0" />
+                  <span className="text-left text-xs">Criptografia de ponta a ponta</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-[#94A3B8] bg-[#1A202E] p-3 rounded-xl border border-[#242B3D]/70">
+                  <Globe size={18} weight="bold" className="text-[#0FB9A8] shrink-0" />
+                  <span className="text-left text-xs">Protocolo aberto e federado Matrix</span>
+                </div>
               </div>
             </div>
           )}
           {step === "profile" && (
             <form
-              className="flex flex-col gap-6 w-full"
+              className="flex flex-col gap-5 w-full"
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSubmit();
               }}
             >
               <div className="flex flex-col gap-2">
-                <Label htmlFor="nickname">Nome de exibição</Label>
+                <Label htmlFor="nickname" className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                  Nome de exibição
+                </Label>
                 <Input
                   id="nickname"
                   type="text"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  placeholder="Seu nome"
+                  placeholder="Seu nome ou apelido"
                   maxLength={64}
                   required
+                  className="h-11 bg-[#1A202E] border-[#242B3D] text-[#E9EDF2] placeholder:text-[#64748B] focus-visible:border-[#0FB9A8] focus-visible:ring-1 focus-visible:ring-[#0FB9A8]/40 rounded-xl px-3.5"
                 />
-                <p className="text-xs text-mut">
-                  Esse é o nome que aparecerá para outros usuários.
+                <p className="text-[11px] text-[#64748B]">
+                  Esse é o nome visível para os outros usuários nos canais e chats.
                 </p>
               </div>
+
               <div className="flex flex-col gap-2">
-                <Label htmlFor="avatar">Foto do perfil</Label>
+                <Label htmlFor="avatar" className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8] text-center">
+                  Foto do perfil
+                </Label>
                 <AvatarUpload
                   src={avatarUrl}
                   onChange={(url) => {
@@ -180,40 +185,41 @@ export default function OnboardingScreen({
                   disabled={isLoading}
                 />
               </div>
+
               {error && (
-                <div className="rounded-lg bg-err/10 p-4 text-sm text-err border border-err/20">
+                <div className="rounded-xl bg-red-500/10 p-3.5 text-xs text-red-400 border border-red-500/20 text-center">
                   {error}
                 </div>
               )}
+
               <Button
                 type="submit"
-                className="w-full py-3.5 bg-acc text-bg font-semibold rounded-xl hover:bg-acc-press transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full h-11 bg-[#0FB9A8] text-[#0D1017] font-bold rounded-xl hover:bg-[#14DAA6] transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none shadow-md cursor-pointer mt-2"
                 disabled={isLoading || !nickname.trim()}
               >
-                {isLoading ? "Salvando…" : "Concluir e entrar"}
+                {isLoading ? "Salvando perfil…" : "Concluir e entrar"}
               </Button>
             </form>
           )}
         </CardContent>
 
-        <CardFooter className="flex items-center justify-between px-8 pb-8">
-          {step !== "profile" && (
+        <CardFooter className="flex items-center justify-between px-8 pt-2 pb-8">
+          {step === "welcome" ? (
             <Button
               type="button"
               disabled={!canAdvance || isLoading}
               onClick={() => setStep("profile")}
-              className="bg-acc text-bg font-semibold rounded-xl hover:bg-acc-press transition-colors disabled:opacity-50 disabled:pointer-events-none px-6"
+              className="w-full h-11 bg-[#0FB9A8] text-[#0D1017] font-bold rounded-xl hover:bg-[#14DAA6] transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-2"
             >
-              Avançar <ArrowRight size={18} />
+              Avançar <ArrowRight size={18} weight="bold" />
             </Button>
-          )}
-          {step !== "welcome" && (
+          ) : (
             <button
               type="button"
               onClick={() => setStep("welcome")}
-              className="text-sm text-mut hover:text-txt underline underline-offset-4 transition-colors"
+              className="text-xs text-[#94A3B8] hover:text-[#E9EDF2] flex items-center gap-1 transition-colors cursor-pointer"
             >
-              <ArrowLeft size={14} className="mr-1" />
+              <ArrowLeft size={14} />
               Voltar
             </button>
           )}
