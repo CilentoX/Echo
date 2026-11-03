@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
 import OnboardingScreen from "@/features/auth/OnboardingScreen";
 import { registerLogoutHandler } from "@/features/auth/logout";
-import DiscordUpdaterSplash from "@/features/updater/DiscordUpdaterSplash";
+import UpdaterSplash from "@/features/updater/UpdaterSplash";
 import AppShell from "@/features/shell/AppShell";
 import { echoApi, initEchoApiFromSession, matrixService } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
@@ -23,10 +23,10 @@ export interface SessionGateProps {
 }
 
 /**
- * Portão de boot: decide entre splash de atualização (estilo Discord), login, onboarding e shell.
+ * Portão de boot: decide entre splash do updater, login, onboarding e shell.
  *
  * Fluxo:
- * 1. booting — splash compacta com auto-updater (estilo Discord): checa atualizações em paralelo à sessão.
+ * 1. booting — splash compacta do auto-updater: checa atualizações em paralelo à sessão.
  * 2. update-required — atualização pronta; reinicia ou mostra botão "Reiniciar agora".
  * 3. login — sem sessão salva → GoogleLoginScreen (janela principal).
  * 4. onboarding — primeira vez após login → define nick + foto antes do shell.
@@ -96,14 +96,14 @@ export default function SessionGate({ shell }: SessionGateProps) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      console.log("[SessionGate] Boot iniciado. Exibindo splash do updater estilo Discord...");
+      console.log("[SessionGate] Boot iniciado. Exibindo splash do updater...");
       const startTime = Date.now();
       const isDesktopApp = isTauri();
-      // No app desktop (dev ou exe), garante um tempo mínimo agradável de exibição (2.2s) como no Discord.
+      // No app desktop (dev ou exe), garante um tempo mínimo agradável de exibição (2.2s).
       // Em testes automatizados (onde isTauri() é false), o tempo é 0 para máxima velocidade.
       const minSplashDuration = isDesktopApp ? 2200 : 0;
 
-      // Pre-loading estilo Discord: o check de update roda na janela compacta.
+      // O check de update roda na janela compacta.
       const updateDone = Promise.resolve(runStartupUpdateCheck()).catch((err) => {
         console.warn("[SessionGate] Falha no update check:", err);
       });
@@ -119,7 +119,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
           return;
         }
 
-        // Garante a exibição mínima da animação e slogan do Discord
+        // Garante a exibição mínima da animação e slogan
         const elapsed = Date.now() - startTime;
         if (elapsed < minSplashDuration) {
           await new Promise((r) => setTimeout(r, minSplashDuration - elapsed));
@@ -191,9 +191,9 @@ export default function SessionGate({ shell }: SessionGateProps) {
     };
   }, [enterShell, prepareSession, rejectSession]);
 
-  // Splash de boot (estilo Discord)
+  // Splash de boot
   if (view === "booting") {
-    return <DiscordUpdaterSplash />;
+    return <UpdaterSplash />;
   }
 
   // Tela de update obrigatória (relaunch falhou)

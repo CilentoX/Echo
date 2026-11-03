@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
-import DiscordUpdaterSplash from "./DiscordUpdaterSplash";
+import UpdaterSplash from "./UpdaterSplash";
 import { useUpdateStore } from "@/stores/updateStore";
 import * as updater from "@/lib/updater";
 
@@ -12,7 +12,7 @@ vi.mock("@/lib/updater", () => ({
   isTauri: vi.fn(() => false),
 }));
 
-describe("DiscordUpdaterSplash — Splash compacta do Updater", () => {
+describe("UpdaterSplash — Splash compacta do Echo Updater", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useUpdateStore.getState().reset();
@@ -26,7 +26,7 @@ describe("DiscordUpdaterSplash — Splash compacta do Updater", () => {
   it("renderiza o logo, slogan e o status 'CHECKING FOR UPDATES' no boot", () => {
     useUpdateStore.getState().beginCheck();
 
-    render(<DiscordUpdaterSplash />);
+    render(<UpdaterSplash />);
 
     // Logo Echo presente
     const logo = screen.getByAltText("Echo");
@@ -36,19 +36,19 @@ describe("DiscordUpdaterSplash — Splash compacta do Updater", () => {
     expect(screen.getByText("CHECKING FOR UPDATES")).toBeTruthy();
   });
 
-  it("exibe o progresso de download formatado estilo Discord", () => {
+  it("exibe o progresso de download formatado", () => {
     useUpdateStore.getState().beginDownload("0.2.0");
     useUpdateStore.getState().setProgress(65);
 
-    render(<DiscordUpdaterSplash />);
+    render(<UpdaterSplash />);
 
     expect(screen.getByText("DOWNLOADING UPDATE (65%)")).toBeTruthy();
   });
 
-  it("exibe fallback 'DOWNLOADING UPDATE 1 OF 1' quando sem progresso numérico", () => {
+  it("exibe a versão quando sem porcentagem numérica", () => {
     useUpdateStore.getState().beginDownload("0.2.0");
 
-    render(<DiscordUpdaterSplash />);
+    render(<UpdaterSplash />);
 
     expect(screen.getByText("DOWNLOADING UPDATE (0.2.0)")).toBeTruthy();
   });
@@ -56,19 +56,19 @@ describe("DiscordUpdaterSplash — Splash compacta do Updater", () => {
   it("exibe 'RESTARTING ECHO...' quando o update está pronto", () => {
     useUpdateStore.getState().markReady();
 
-    render(<DiscordUpdaterSplash />);
+    render(<UpdaterSplash />);
 
     expect(screen.getByText("RESTARTING ECHO...")).toBeTruthy();
   });
 
   it("permite customStatus via prop ou store", () => {
-    render(<DiscordUpdaterSplash customStatus="CUSTOM STATUS TEST" />);
+    render(<UpdaterSplash customStatus="CUSTOM STATUS TEST" />);
 
     expect(screen.getByText("CUSTOM STATUS TEST")).toBeTruthy();
   });
 
   it("botão vermelho fecha o aplicativo", () => {
-    render(<DiscordUpdaterSplash />);
+    render(<UpdaterSplash />);
 
     const closeBtn = screen.getByTitle("Fechar");
     fireEvent.click(closeBtn);
@@ -77,7 +77,7 @@ describe("DiscordUpdaterSplash — Splash compacta do Updater", () => {
   });
 
   it("botão amarelo minimiza a janela", () => {
-    render(<DiscordUpdaterSplash />);
+    render(<UpdaterSplash />);
 
     const minBtn = screen.getByTitle("Minimizar");
     fireEvent.click(minBtn);

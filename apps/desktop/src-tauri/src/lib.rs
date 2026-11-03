@@ -32,7 +32,7 @@ fn clear_token() -> Result<(), String> {
     keyring_cmds::clear_token()
 }
 
-/// Ajusta o tamanho da janela para o modo splash/updater (estilo Discord: 312x380).
+/// Ajusta o tamanho da janela para o modo splash do updater (312x380).
 #[tauri::command]
 async fn set_splash_mode(window: tauri::Window) -> Result<(), String> {
     let _ = window.set_decorations(false);

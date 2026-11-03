@@ -11,7 +11,7 @@ import { useUpdateStore } from "@/stores/updateStore";
  * O plugin consulta o endpoint configurado em `src-tauri/tauri.conf.json`
  * (`plugins.updater.endpoints` → latest.json), compara com a versão do app e
  * baixa/instala em background; a atualização entra em vigor no próximo
- * restart. O progresso é anunciado ao `updateStore` para o splash estilo Discord
+ * restart. O progresso é anunciado ao `updateStore` para a splash
  * e banner visual — o boot nunca quebra, falhas são silenciosas.
  */
 
@@ -86,7 +86,7 @@ export async function downloadAndInstall(): Promise<boolean> {
 }
 
 /** Hook de boot do App: checa e instala silenciosamente, sem jamais quebrar o boot.
- * Anuncia o estado "checking" no store para a splash estilo Discord.
+ * Anuncia o estado "checking" no store para a splash do updater.
  *
  * `timeoutMs` evita a splash infinita: se o endpoint demorar (rede lenta,
  * Cloudflare fora), o boot segue e o download continua em background —
@@ -113,7 +113,7 @@ export async function restartApp(): Promise<void> {
   await relaunch();
 }
 
-/** Ajusta a janela nativa para o modo splash estilo Discord (312x380, centralizado, sem bordas). */
+/** Ajusta a janela nativa para o modo splash do updater (312x380, centralizado, sem bordas). */
 export async function setSplashWindowMode(): Promise<void> {
   if (!isTauri()) return;
   try {

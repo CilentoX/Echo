@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 /**
- * Estado do auto-updater para a UI (splash estilo Discord + banner).
+ * Estado do auto-updater para a UI (splash compacta + banner).
  * `idle` = nada a mostrar; `checking` = verificando no boot;
  * `downloading` = baixando em background; `ready` = instalado, aplica no próximo restart.
  */

@@ -110,7 +110,7 @@ describe("SessionGate — pre-loading com updater", () => {
     expect(screen.queryByText("shell-mock")).toBeNull();
   });
 
-  it("splash mostra o estado do update enquanto baixa (estilo Discord)", async () => {
+  it("splash mostra o estado do update enquanto baixa", async () => {
     vi.mocked(loadSession).mockImplementation(() => new Promise(() => {}));
     useUpdateStore.getState().beginDownload("9.9.9");
 
