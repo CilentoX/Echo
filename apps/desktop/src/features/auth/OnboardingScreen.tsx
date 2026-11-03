@@ -76,7 +76,7 @@ export default function OnboardingScreen({
         await matrixService.setAvatarUrl(avatarUrl);
         // Sincroniza avatar com o Profile API (PostgreSQL)
         try {
-          await matrixService.patchGlobalProfile(myUserId, { avatarUrl });
+          await matrixService.patchGlobalProfile({ avatarUrl });
         } catch (profileErr) {
           console.warn("[OnboardingScreen] Falha ao sincronizar profile Postgres:", profileErr);
         }

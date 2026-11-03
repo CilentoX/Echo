@@ -567,14 +567,27 @@ export class EchoApi {
   }
 
   /** Patch global profile (alias for patchUserProfile with current user). */
-  async patchGlobalProfile(data: {
-    displayName?: string | null;
-    avatarUrl?: string | null;
-    bannerUrl?: string | null;
-    bio?: string | null;
-    links?: Array<{ label: string; url: string }>;
-  }): Promise<void> {
-    await this.patchUserProfile("", data);
+  async patchGlobalProfile(
+    userIdOrData:
+      | string
+      | {
+          displayName?: string | null;
+          avatarUrl?: string | null;
+          bannerUrl?: string | null;
+          bio?: string | null;
+          links?: Array<{ label: string; url: string }>;
+        },
+    maybeData?: {
+      displayName?: string | null;
+      avatarUrl?: string | null;
+      bannerUrl?: string | null;
+      bio?: string | null;
+      links?: Array<{ label: string; url: string }>;
+    },
+  ): Promise<void> {
+    const userId = typeof userIdOrData === "string" ? userIdOrData : "";
+    const data = typeof userIdOrData === "object" ? userIdOrData : (maybeData ?? {});
+    await this.patchUserProfile(userId, data);
   }
 
   /** Delete current user's profile and reset account on server. */
