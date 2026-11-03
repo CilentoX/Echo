@@ -74,6 +74,10 @@ services:
           # The bare service name "postgres" is avoided on purpose: it collides
           # with coolify-db's alias on the shared coolify network.
           - echo-postgres
+      # Also connect to coolify network so echo-api can reach it
+      coolify:
+        aliases:
+          - echo-postgres
     volumes:
       # External: reuses the volume from the previous compose project.
       - eco_pgdata:/var/lib/postgresql/data
