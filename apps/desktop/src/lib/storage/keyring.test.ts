@@ -6,13 +6,14 @@ vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 
 import { invoke } from "@tauri-apps/api/core";
 import { ECHO_HOMESERVER_URL } from "@/lib/matrix/sso";
+import { ECHO_API_CONFIG } from "@/lib/api/config";
 import type { Session } from "@/lib/matrix/types";
 import { clearSession, loadSession, saveSession } from "./keyring";
 
 const mockedInvoke = vi.mocked(invoke);
 
 const SESSION: Session = {
-  baseUrl: ECHO_HOMESERVER_URL,
+  baseUrl: ECHO_API_CONFIG.baseUrl,
   apiBaseUrl: ECHO_HOMESERVER_URL,
   accessToken: "syt-at-1",
   refreshToken: "rt-abc123",
@@ -55,7 +56,7 @@ describe("keyring storage", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("load_token");
     expect(session).toEqual({
-      baseUrl: ECHO_HOMESERVER_URL,
+      baseUrl: ECHO_API_CONFIG.baseUrl,
       apiBaseUrl: ECHO_HOMESERVER_URL,
       accessToken: SESSION.accessToken,
       refreshToken: SESSION.refreshToken,

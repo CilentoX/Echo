@@ -1,8 +1,8 @@
-// import { EchoApi } from "@/lib/api/echoApi"; // unused
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useKeyring } from "@/lib/storage/keyring";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
+import { matrixService } from "./instance";
 
 /**
  * Wiring EchoApi ↔ stores (tudo via Echo API / WebSocket sync).
@@ -30,6 +30,7 @@ import { ECHO_API_CONFIG } from "@/lib/api/config";
 let started = false;
 let initialDataLoaded = false;
 let unsubscribeUi: (() => void) | null = null;
+let authFailureCallback: (() => void) | null = null;
 /** Guildas com canais já carregados (evita refetch a cada sync/troca). */
 const loadedGuilds = new Set<string>();
 /** roomId → conjunto de usuários digitando agora (agregação do RoomMember.typing). */
@@ -37,7 +38,6 @@ const typingByRoom = new Map<string, Set<string>>();
 
 /** WebSocket de sync ativo; gerenciado pelo Echo API connectSync. */
 let syncWs: WebSocket | null = null;
-// let syncHandlersInstalled = false; // unused
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_RECONNECT_DELAY = 1000; // ms
@@ -48,7 +48,7 @@ function isAuthError(error: { errcode: string } | undefined): boolean {
 
 async function loadMembersFor(roomId: string): Promise<void> {
   try {
-    const members = await (await import("./service")).matrixService.listMembers(roomId);
+    const members = await matrixService.listMembers(roomId);
     useSyncStore.getState().setMembers(roomId, members);
   } catch {
     // best-effort: se falhar, a lista de membros fica vazia até o próximo evento
@@ -59,7 +59,7 @@ async function loadChannelsFor(guildId: string): Promise<void> {
   if (loadedGuilds.has(guildId)) return;
   loadedGuilds.add(guildId); // marca antes do await: dedup de chamadas concorrentes
   try {
-    const channels = await (await import("./service")).matrixService.listChannels(guildId);
+    const channels = await matrixService.listChannels(guildId);
     useSyncStore.getState().setChannels(guildId, channels);
     // Carrega membros de cada canal para popular membersByRoom
     await Promise.all(channels.map((ch) => loadMembersFor(ch.channelId)));
@@ -70,7 +70,7 @@ async function loadChannelsFor(guildId: string): Promise<void> {
 
 async function loadInitialData(): Promise<void> {
   try {
-    const guilds = await (await import("./service")).matrixService.listGuilds();
+    const guilds = await matrixService.listGuilds();
     useSyncStore.getState().setGuilds(guilds);
 
     const ui = useUiStore.getState();
@@ -90,18 +90,16 @@ async function loadInitialData(): Promise<void> {
   }
 }
 
-function handleStatus(status: string, error?: { errcode: string }): void {
+async function handleStatus(status: string, error?: { errcode: string }): Promise<void> {
   useSyncStore.getState().setStatus(status as any);
 
   if (status === "syncing") {
-    if (!initialDataLoaded) void loadInitialData();
+    if (!initialDataLoaded) await loadInitialData();
     return;
   }
 
   if (status === "error" && isAuthError(error)) {
-    // Token inválido/expirado: desloga sempre — mesmo depois de syncs
-    // bem-sucedidos (o server pode revogar o access token a qualquer momento).
-    // O SessionGate handler será chamado pelo reconnect logic.
+    authFailureCallback?.();
   }
 }
 
@@ -123,7 +121,6 @@ function openSyncWebSocket(accessToken: string): void {
 
   syncWs.onopen = () => {
     reconnectAttempts = 0;
-    // syncHandlersInstalled = false; // unused
   };
 
   syncWs.onmessage = (event) => {
@@ -267,9 +264,40 @@ function mapPresence(presence: string | undefined): "online" | "offline" | "unav
 }
 
 /** Liga o sync loop aos stores; chamar uma única vez por sessão ativa. */
-export async function startSyncWiring(): Promise<void> {
+export async function startSyncWiring(onAuthFailure?: () => void): Promise<void> {
   if (started) return;
   started = true;
+  authFailureCallback = onAuthFailure ?? null;
+
+  // Hook sync handlers into matrixService
+  matrixService.startSyncHandlers({
+    onStatus: (status: any, error?: any) => handleStatus(status, error),
+    onEvent: (event: any) => {
+      const normalized = normalizeSyncEvent(event);
+      if (normalized) useSyncStore.getState().applyEvent(normalized);
+    },
+    onTyping: (roomId: string, userIds: string[]) => {
+      useUiStore.getState().setTypingUsers(roomId, userIds);
+    },
+    onPresence: (userId: string, presence: any) => {
+      useUiStore.getState().setPresence(userId, mapPresence(presence));
+    },
+    onMembers: (roomId: string, members: any[]) => {
+      useSyncStore.getState().setMembers(roomId, members.map((m) => ({
+        userId: m.userId,
+        displayName: m.displayName,
+        presence: mapPresence(m.presence),
+        avatarUrl: m.avatarUrl,
+      })));
+    },
+    onReaction: (reaction: any) => {
+      const normalized = normalizeSyncReaction(reaction);
+      if (normalized) useSyncStore.getState().applyReaction(normalized);
+    },
+    onReadReceipt: (roomId: string, userId: string, eventId: string) => {
+      useSyncStore.getState().markRead(roomId, userId, eventId);
+    },
+  });
 
   // Obter o token da sessão
   const storedSession = await useKeyring.getItem("echo:session");
@@ -292,9 +320,6 @@ export async function startSyncWiring(): Promise<void> {
       void loadChannelsFor(state.activeGuildId);
     }
   });
-
-  // Marca que os handlers foram instalados
-  // syncHandlersInstalled = true; // unused
 }
 
 /** Desliga o sync, limpa flags internas e reseta os stores (logout). */
@@ -307,6 +332,8 @@ export function stopSyncWiring(): void {
   unsubscribeUi = null;
   started = false;
   initialDataLoaded = false;
+  authFailureCallback = null;
+  matrixService.stopSync();
   loadedGuilds.clear();
   typingByRoom.clear();
 
@@ -319,8 +346,8 @@ export function stopSyncWiring(): void {
 
 /** Carrega histórico antigo de um canal e insere no topo da timeline. */
 export async function loadOlder(channelId: string, limit = 20): Promise<void> {
-  const events = await (await import("./service")).matrixService.loadOlder(channelId, limit);
-  if (events.length > 0) {
+  const events = await matrixService.loadOlder(channelId, limit);
+  if (events && events.length > 0) {
     useSyncStore.getState().prependEvents(channelId, events);
   }
 }
@@ -329,19 +356,20 @@ export async function loadOlder(channelId: string, limit = 20): Promise<void> {
 export async function markAsRead(roomId: string, eventId: string): Promise<void> {
   const ui = useUiStore.getState();
   if (!ui.myUserId) return;
-  await (await import("./service")).matrixService.markAsRead(roomId, eventId);
+  await matrixService.markAsRead(roomId, eventId);
   useSyncStore.getState().markRead(roomId, ui.myUserId, eventId);
 }
 
 /** Define o estado de digitação em uma sala (m.typing ephemeral). */
 export async function setTyping(roomId: string, isTyping: boolean): Promise<void> {
-  await (await import("./service")).matrixService.setTyping(roomId, isTyping);
+  await matrixService.setTyping(roomId, isTyping);
 }
 
 /** Reseta estado interno do wiring (usado em testes). */
 export function __resetWiringState(): void {
   started = false;
   initialDataLoaded = false;
+  authFailureCallback = null;
   loadedGuilds.clear();
   typingByRoom.clear();
   unsubscribeUi?.();

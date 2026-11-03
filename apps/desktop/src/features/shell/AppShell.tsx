@@ -49,16 +49,8 @@ export default function AppShell({ children }: AppShellProps) {
   const guilds = useSyncStore((s) => s.guilds);
   const setGuilds = useSyncStore((s) => s.setGuilds);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
-  const setActiveGuild = useUiStore((s) => s.setActiveGuild);
   const isHome = activeGuildId === "home";
   const showEmptyState = guilds.length === 0 && !isHome;
-
-  // Quando não há guildas e nenhuma seleção ativa, default para Home
-  useEffect(() => {
-    if (guilds.length === 0 && activeGuildId === null) {
-      setActiveGuild("home");
-    }
-  }, [guilds.length, activeGuildId, setActiveGuild]);
 
   const handleOpenCreateGuild = () => setCreateGuildOpen(true);
 

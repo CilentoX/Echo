@@ -18,15 +18,25 @@ const { fakeService, loadSession } = vi.hoisted(() => ({
     listGuilds: vi.fn(async () => [] as GuildSummary[]),
     listChannels: vi.fn(async () => [] as ChannelSummary[]),
     loadOlder: vi.fn(async () => []),
+    isActive: vi.fn(() => false),
   },
   loadSession: vi.fn(),
 }));
 
-vi.mock("@/lib/matrix/instance", () => ({ matrixService: fakeService }));
+vi.mock("@/lib/matrix/instance", () => ({
+  matrixService: fakeService,
+  echoApi: fakeService,
+  initEchoApiFromSession: vi.fn(),
+}));
 vi.mock("@/lib/storage/keyring", () => ({
   loadSession,
   saveSession: vi.fn(async () => {}),
   clearSession: vi.fn(async () => {}),
+  useKeyring: {
+    getItem: vi.fn(async () => null),
+    setItem: vi.fn(async () => {}),
+    removeItem: vi.fn(async () => {}),
+  },
 }));
 
 const SESSION = {
@@ -34,6 +44,8 @@ const SESSION = {
   accessToken: "fake-at",
   userId: "@eu:hs.example",
   deviceId: null,
+  apiBaseUrl: "https://hs.example",
+  expiresAt: 0,
 };
 
 /** Dispara o status capturado pelo wiring (última chamada do startSyncHandlers fake). */

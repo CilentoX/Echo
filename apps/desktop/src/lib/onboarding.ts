@@ -8,10 +8,11 @@ const ONBOARDING_KEY = "echo:onboarding:completed";
  */
 export function isOnboardingCompleted(userId?: string): boolean {
   if (typeof window === "undefined") return false;
-  if (!userId) return false;
   try {
-    const raw = localStorage.getItem(`${ONBOARDING_KEY}:${userId}`);
-    return raw === "1";
+    if (userId && localStorage.getItem(`${ONBOARDING_KEY}:${userId}`) === "1") {
+      return true;
+    }
+    return localStorage.getItem(ONBOARDING_KEY) === "1";
   } catch {
     return false;
   }
@@ -22,9 +23,11 @@ export function isOnboardingCompleted(userId?: string): boolean {
  */
 export function markOnboardingCompleted(userId?: string): void {
   if (typeof window === "undefined") return;
-  if (!userId) return;
   try {
-    localStorage.setItem(`${ONBOARDING_KEY}:${userId}`, "1");
+    if (userId) {
+      localStorage.setItem(`${ONBOARDING_KEY}:${userId}`, "1");
+    }
+    localStorage.setItem(ONBOARDING_KEY, "1");
   } catch {
     // falha silenciosa — onboarding reapresentará no próximo boot
   }
@@ -35,9 +38,11 @@ export function markOnboardingCompleted(userId?: string): void {
  */
 export function resetOnboarding(userId?: string): void {
   if (typeof window === "undefined") return;
-  if (!userId) return;
   try {
-    localStorage.removeItem(`${ONBOARDING_KEY}:${userId}`);
+    if (userId) {
+      localStorage.removeItem(`${ONBOARDING_KEY}:${userId}`);
+    }
+    localStorage.removeItem(ONBOARDING_KEY);
   } catch {
     // no-op
   }

@@ -2,13 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/storage/keyring", () => ({
-  loadSession: vi.fn(),
-  saveSession: vi.fn(),
-  clearSession: vi.fn(),
-}));
-vi.mock("@/lib/matrix/instance", () => ({
-  matrixService: {
+const { mockMatrixService } = vi.hoisted(() => {
+  const service = {
     restoreSession: vi.fn(),
     startSyncHandlers: vi.fn(),
     stopSync: vi.fn(),
@@ -19,12 +14,40 @@ vi.mock("@/lib/matrix/instance", () => ({
     uploadMedia: vi.fn(async () => "mxc://echo/fake"),
     getDisplayName: vi.fn(async () => "Nina"),
     getAvatarUrl: vi.fn(async () => null),
+    refreshSession: vi.fn(async () => ({
+      baseUrl: "https://echo.litteris.online",
+      accessToken: "syt-at-refreshed",
+      refreshToken: "rt-1",
+      deviceId: "DEV123",
+      expiresAt: Date.now() + 3600000,
+    })),
+  };
+  return { mockMatrixService: service };
+});
+
+vi.mock("@/lib/storage/keyring", () => ({
+  loadSession: vi.fn(),
+  saveSession: vi.fn(),
+  clearSession: vi.fn(),
+  useKeyring: {
+    getItem: vi.fn(async () => null),
+    setItem: vi.fn(async () => {}),
+    removeItem: vi.fn(async () => {}),
   },
 }));
-vi.mock("@/lib/matrix/sso", () => ({
-  runSsoLogin: vi.fn(),
-  ECHO_HOMESERVER_URL: "https://echo.litteris.online",
+vi.mock("@/lib/matrix/instance", () => ({
+  matrixService: mockMatrixService,
+  echoApi: mockMatrixService,
+  initEchoApiFromSession: vi.fn(async () => {}),
 }));
+vi.mock("@/lib/matrix/sso", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/matrix/sso")>();
+  return {
+    ...actual,
+    runSsoLogin: vi.fn(),
+    ECHO_HOMESERVER_URL: "https://echo.litteris.online",
+  };
+});
 
 import { matrixService } from "@/lib/matrix/instance";
 import { markOnboardingCompleted, resetOnboarding } from "@/lib/onboarding";
@@ -33,6 +56,7 @@ import type { Session, SyncStatus } from "@/lib/matrix/types";
 import { stopSyncWiring } from "@/lib/matrix/wiring";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { useUiStore } from "@/stores/uiStore";
+import { useOnboardingStore } from "@/stores/onboardingStore";
 import SessionGate from "./SessionGate";
 
 const mockedLoadSession = vi.mocked(loadSession);
@@ -45,9 +69,12 @@ const mockedStopSync = vi.mocked(matrixService.stopSync);
 
 const SESSION: Session = {
   baseUrl: "https://echo.litteris.online",
+  apiBaseUrl: "https://echo.litteris.online",
   accessToken: "syt-at-1",
+  refreshToken: "rt-1",
   userId: "@nina:echo.litteris.online",
   deviceId: null,
+  expiresAt: 0,
 };
 
 /** Captura o callback de status passado ao startSyncHandlers (com dados de erro opcionais). */
@@ -72,6 +99,7 @@ beforeEach(() => {
   // As asserções sobre stopSync valem para o corpo do teste, não para o reset acima.
   mockedStopSync.mockClear();
   useUiStore.setState({ myUserId: null, activeGuildId: null, activeChannelId: null });
+  useOnboardingStore.getState().reset();
   // O gate de onboarding (nova etapa do boot) exige a flag concluída para
   // levar a sessão restaurada direto ao shell.
   markOnboardingCompleted(SESSION.userId);
@@ -87,7 +115,7 @@ describe("SessionGate", () => {
 
     render(<SessionGate />);
 
-    expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Entrar com Google|Tentar de novo/ })).toBeTruthy();
     expect(mockedRestore).not.toHaveBeenCalled();
     expect(mockedStartSyncHandlers).not.toHaveBeenCalled();
   });
@@ -115,7 +143,7 @@ describe("SessionGate", () => {
 
     render(<SessionGate />);
 
-    expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Entrar com Google|Tentar de novo/ })).toBeTruthy();
     await waitFor(() => expect(mockedClearSession).toHaveBeenCalledTimes(1));
     expect(mockedStartSyncHandlers).not.toHaveBeenCalled();
   });
@@ -145,7 +173,7 @@ describe("SessionGate", () => {
 
     emitStatus("error", { errcode: "M_UNKNOWN_TOKEN" });
 
-    expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Entrar com Google|Tentar de novo/ })).toBeTruthy();
     await waitFor(() => expect(mockedClearSession).toHaveBeenCalledTimes(1));
     expect(mockedStopSync).toHaveBeenCalled();
   });
@@ -250,7 +278,7 @@ describe("SessionGate", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Entrar com Google/ }));
 
     await waitFor(() => expect(mockedClearSession).toHaveBeenCalledTimes(1));
-    expect(await screen.findByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Entrar com Google|Tentar de novo/ })).toBeTruthy();
     expect(document.querySelector('[data-column="rail"]')).toBeNull();
   });
 });

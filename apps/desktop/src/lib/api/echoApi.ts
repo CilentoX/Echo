@@ -25,6 +25,9 @@ import type { Session } from "@/lib/matrix/types";
 /** Save session to keyring after refresh. */
 import { saveSession } from "@/lib/storage/keyring";
 
+/** Default config for Echo API */
+import { ECHO_API_CONFIG } from "@/lib/api/config";
+
 /**
  * Low-level request helper that adds auth headers.
  * The Echo API middleware expects:
@@ -90,6 +93,11 @@ export class EchoApi {
     if (userId) this.userId = userId;
   }
 
+  /** Recreate or restore client session. */
+  restoreSession(session: Session): void {
+    this.setAccessToken(session.accessToken ?? "", session.userId ?? undefined);
+  }
+
   /** Returns the current user's MXID, or empty string if not known. */
   getUserId(): string {
     return this.userId ?? "";
@@ -112,6 +120,12 @@ export class EchoApi {
   public async put(path: string, body?: unknown): Promise<Response> {
     const url = new URL(path, this.baseUrl);
     return request(url.toString(), { method: "PUT", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken);
+  }
+
+  /** PATCH request. */
+  public async patch(path: string, body?: unknown): Promise<Response> {
+    const url = new URL(path, this.baseUrl);
+    return request(url.toString(), { method: "PATCH", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken);
   }
 
   /** DELETE request. */
@@ -199,7 +213,15 @@ export class EchoApi {
     bio?: string | null;
     links?: Array<{ label: string; url: string }>;
   }): Promise<void> {
-    return this.patch(`/api/profiles/me/nickname`, { userId, data }).then(
+    const targetPath = userId ? `/api/profiles/${encodeURIComponent(userId)}` : `/api/profiles/me`;
+    return this.patch(targetPath, {
+      nickname: data.displayName,
+      avatarUrl: data.avatarUrl,
+      bannerUrl: data.bannerUrl,
+      bio: data.bio,
+      links: data.links,
+      data,
+    }).then(
       async (res) => {
         if (!res.ok) throw new Error(`Failed to patch user profile: ${res.status}`);
       },
@@ -668,10 +690,11 @@ export function useEchoApi(): EchoApi {
     // this module) while keeping access synchronous at runtime.
     echoApiInstance = (globalThis as any).__echoApiInstance ?? null;
     if (!echoApiInstance) {
-      throw new Error(
-        "EchoApi not initialized. The shared instance from matrix/instance.ts " +
-        "has not been registered yet.",
-      );
+      echoApiInstance = new EchoApi({
+        baseUrl: ECHO_API_CONFIG.baseUrl,
+        accessToken: "",
+      });
+      (globalThis as any).__echoApiInstance = echoApiInstance;
     }
   }
   return echoApiInstance;

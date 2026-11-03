@@ -9,17 +9,28 @@ vi.mock("@/lib/storage/keyring", () => ({
   loadSession: vi.fn(),
   saveSession: vi.fn(async () => {}),
   clearSession: vi.fn(async () => {}),
+  useKeyring: {
+    getItem: vi.fn(async () => null),
+    setItem: vi.fn(async () => {}),
+    removeItem: vi.fn(async () => {}),
+  },
 }));
 vi.mock("@/lib/matrix/wiring", () => ({
   startSyncWiring: vi.fn(),
   stopSyncWiring: vi.fn(),
 }));
-vi.mock("@/lib/matrix/instance", () => ({
-  matrixService: {
-    restoreSession: vi.fn(),
+const { fakeService } = vi.hoisted(() => ({
+  fakeService: {
+    restoreSession: vi.fn(async () => {}),
     getDisplayName: vi.fn(async () => "Lucas"),
     getAvatarUrl: vi.fn(async () => null),
+    isActive: vi.fn(() => false),
   },
+}));
+vi.mock("@/lib/matrix/instance", () => ({
+  echoApi: fakeService,
+  matrixService: fakeService,
+  initEchoApiFromSession: vi.fn(),
 }));
 vi.mock("@/lib/updater", () => ({
   runStartupUpdateCheck: vi.fn(async () => {}),
@@ -37,11 +48,13 @@ import SessionGate from "@/features/auth/SessionGate";
 import { loadSession } from "@/lib/storage/keyring";
 
 const SESSION = {
-  userId: "@ preload:echo.litteris.online",
+  userId: "@preload:echo.litteris.online",
   accessToken: "tok",
   deviceId: "DEV",
-  refreshToken: undefined,
+  refreshToken: "rt-tok",
   baseUrl: "https://echo.litteris.online",
+  apiBaseUrl: "https://echo.litteris.online",
+  expiresAt: 0,
 } as const;
 
 describe("SessionGate — pre-loading com updater", () => {

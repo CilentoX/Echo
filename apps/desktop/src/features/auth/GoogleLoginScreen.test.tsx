@@ -40,7 +40,7 @@ function makeEchoApi(): EchoApi {
     baseUrl: "https://echo.litteris.online",
     accessToken: "",
     apiKey: undefined,
-    request: async (init: RequestInit) => new Response(null, { status: 200 }),
+    request: async (_init: RequestInit) => new Response(null, { status: 200 }),
   } as unknown as EchoApi;
 }
 

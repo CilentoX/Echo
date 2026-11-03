@@ -26,27 +26,32 @@ export async function saveSession(session: Session): Promise<void> {
 
 /** Reconstrói a Session persistida, ou null se não houver sessão salva. */
 export async function loadSession(): Promise<Session | null> {
-  const stored = await invoke<
-    | {
-        userId: string;
-        token: string;
-        refreshToken: string;
-        deviceId: string | null;
-        apiBaseUrl: string;
-        expiresAt: number;
-      }
-    | null
-  >("load_token");
-  if (!stored) return null;
-  return {
-    baseUrl: ECHO_API_CONFIG.baseUrl,
-    apiBaseUrl: stored.apiBaseUrl,
-    accessToken: stored.token,
-    refreshToken: stored.refreshToken,
-    deviceId: stored.deviceId ?? null,
-    userId: stored.userId,
-    expiresAt: stored.expiresAt,
-  };
+  try {
+    const stored = await invoke<
+      | {
+          userId: string;
+          token: string;
+          refreshToken: string;
+          deviceId: string | null;
+          apiBaseUrl: string;
+          expiresAt: number;
+        }
+      | null
+    >("load_token");
+    if (!stored) return null;
+    return {
+      baseUrl: ECHO_API_CONFIG.baseUrl,
+      apiBaseUrl: stored.apiBaseUrl,
+      accessToken: stored.token,
+      refreshToken: stored.refreshToken,
+      deviceId: stored.deviceId ?? null,
+      userId: stored.userId,
+      expiresAt: stored.expiresAt,
+    };
+  } catch {
+    // Tauri command not available (e.g. running in browser/dev without Tauri)
+    return null;
+  }
 }
 
 /** Remove a sessão persistida do keyring do SO. */
@@ -70,7 +75,7 @@ export async function setItem(key: string, value: string): Promise<void> {
 /** Recupera um valor do keyring. */
 export async function getItem(key: string): Promise<string | null> {
   try {
-    return invoke("get_item", { key });
+    return await invoke("get_item", { key });
   } catch {
     // Tauri command not available (e.g. running in browser/dev without Tauri)
     return null;

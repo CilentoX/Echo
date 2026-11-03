@@ -50,7 +50,7 @@ function makeEchoApi(): EchoApi {
       }
       return new Response(null, { status: 200 });
     },
-    getSsoLoginUrl: vi.fn(async (redirectUrl: string, idpId?: string) => {
+    getSsoLoginUrl: vi.fn(async (redirectUrl: string, _idpId?: string) => {
       return `https://echo.litteris.online/_synapse/client/oidc/redirect/google?redirectUrl=${encodeURIComponent(redirectUrl)}`;
     }),
     exchangeCodeForTokens: vi.fn(async (code: string) => {
@@ -94,7 +94,10 @@ describe("runSsoLogin", () => {
     );
     expect(mockedInvoke).toHaveBeenNthCalledWith(2, "finish_sso_listener", { port: 49152 });
     expect(echoApi.exchangeCodeForTokens).toHaveBeenCalledWith("AUTH_CODE_1");
-    expect(session).toEqual(SESSION);
+    expect(session).toEqual({
+      ...SESSION,
+      expiresAt: expect.any(Number),
+    });
   });
 
   it("rejeição do finish_sso_listener (timeout) → SsoLoginError tipado, sem tentar login", async () => {

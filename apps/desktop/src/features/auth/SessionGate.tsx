@@ -4,10 +4,10 @@ import GoogleLoginScreen from "@/features/auth/GoogleLoginScreen";
 import OnboardingScreen from "@/features/auth/OnboardingScreen";
 import { registerLogoutHandler } from "@/features/auth/logout";
 import AppShell from "@/features/shell/AppShell";
-import { echoApi, initEchoApiFromSession } from "@/lib/matrix/instance";
+import { echoApi, initEchoApiFromSession, matrixService } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
 import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
-import { isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
+import { isNewAccount, isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
 import { useUiStore } from "@/stores/uiStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { restartApp, runStartupUpdateCheck } from "@/lib/updater";
@@ -55,13 +55,16 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   const enterShell = useCallback(
     (session: Session, clientActive = false) => {
-      if (!clientActive) initEchoApiFromSession();
+      if (!clientActive) {
+        initEchoApiFromSession();
+        matrixService.restoreSession(session);
+      }
       const ui = useUiStore.getState();
       const userId = session.userId ?? "";
       ui.setMyUserId(userId);
       ui.setPresence(userId, "online");
       // Fire-and-forget: startSyncWiring is async but we don't need to wait for it
-      void startSyncWiring();
+      void startSyncWiring(() => rejectSession());
       setView("shell");
     },
     [rejectSession],
@@ -69,7 +72,10 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   /** Prepara client + uiStore para telas pré-shell (onboarding), sem ligar o sync. */
   const prepareSession = useCallback((session: Session, clientActive = false) => {
-    if (!clientActive) initEchoApiFromSession();
+    if (!clientActive) {
+      initEchoApiFromSession();
+      matrixService.restoreSession(session);
+    }
     useUiStore.getState().setMyUserId(session.userId ?? "");
   }, []);
 
@@ -107,6 +113,10 @@ export default function SessionGate({ shell }: SessionGateProps) {
       try {
         const [session, _updateResult] = await Promise.all([loadSession(), updateDone]);
         if (cancelled) return;
+        if (useUpdateStore.getState().status === "ready") {
+          await restartApp();
+          return;
+        }
         if (!session) {
           setView("login");
           return;
@@ -141,7 +151,8 @@ export default function SessionGate({ shell }: SessionGateProps) {
         // Sessão válida (não expirada) ou refresh bem-sucedido: verifica onboarding.
         prepareSession(session);
         const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
-        if (!alreadyCompleted) {
+        const isNew = !alreadyCompleted || (await isNewAccount(matrixService));
+        if (isNew) {
           setView("onboarding");
         } else {
           enterShell(session, true);

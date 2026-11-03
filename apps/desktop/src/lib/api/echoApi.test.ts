@@ -4,8 +4,6 @@ import { EchoApi } from "./echoApi";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 
-const mockInvoke = vi.mocked(vi.fn);
-
 const MOCK_BASE_URL = "https://echo.litteris.online";
 
 describe("EchoApi.refreshSession", () => {
@@ -39,8 +37,8 @@ describe("EchoApi.refreshSession", () => {
       const result = await api.refreshSession(mockRefreshToken);
 
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      const fetchCall = global.fetch.mock.calls[0];
-      expect(fetchCall[0]).toContain("/echo/auth/refresh");
+      const fetchCall = (global.fetch as any).mock.calls[0];
+      expect(fetchCall[0]).toContain("/auth/refresh");
       expect(fetchCall[1]?.body).toContain("refreshToken");
       // The auth header should use the refreshToken passed to refreshSession
       expect(fetchCall[1]?.headers.get("Authorization")).toContain("Bearer");

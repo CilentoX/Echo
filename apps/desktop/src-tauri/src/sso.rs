@@ -35,7 +35,7 @@ display:grid;place-items:center;height:100vh;margin:0\">\
 const MISSING_CODE_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
 <title>Echo</title></head><body style=\"background:#0D1017;color:#F87171;font-family:sans-serif;\
 display:grid;place-items:center;height:100vh;margin:0\">\
-<p>C\u{f3}digo de autoriza\u{e7}\u{e3}o ausente no retorno.</p></body></html>";
+<p>Token de autentica\u{e7}\u{e3}o ausente no retorno.</p></body></html>";
 
 fn http_response(status: &str, body: &str) -> Vec<u8> {
     format!(
@@ -200,16 +200,16 @@ async fn handle_connection(
     Ok(())
 }
 
-/// Extracts the `code` query param value (first occurrence), percent-decoded.
+/// Extracts the `loginToken` or `code` query param value (first occurrence), percent-decoded.
 fn extract_auth_code(query: Option<&str>) -> Option<String> {
     let query = query?;
     eprintln!("[SSO] Raw query string: {:?}", query);
     let result = query
         .split('&')
         .filter_map(|pair| pair.split_once('='))
-        .find(|(key, _)| *key == "code")
+        .find(|(key, _)| *key == "loginToken" || *key == "code")
         .map(|(_, value)| percent_decode(value));
-    eprintln!("[SSO] Extracted code result: {:?}", result);
+    eprintln!("[SSO] Extracted token result: {:?}", result);
     result
 }
 
@@ -238,7 +238,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn extract_auth_code_reads_query_param() {
+    fn extract_auth_code_reads_code_query_param() {
         assert_eq!(
             extract_auth_code(Some("code=abc123")),
             Some("abc123".to_string())
@@ -246,35 +246,24 @@ mod tests {
     }
 
     #[test]
-    fn extract_auth_code_ignores_other_params_and_percent_decodes() {
+    fn extract_auth_code_reads_login_token_query_param() {
         assert_eq!(
-            extract_auth_code(Some("foo=1&code=abc%2Ddef")),
-            Some("abc-def".to_string())
-        );
-        assert_eq!(extract_auth_code(Some("other=1")), None);
-        assert_eq!(extract_auth_code(None), None);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn extract_login_token_reads_query_param() {
-        assert_eq!(
-            extract_login_token(Some("loginToken=abc123")),
+            extract_auth_code(Some("loginToken=abc123")),
             Some("abc123".to_string())
         );
     }
 
     #[test]
-    fn extract_login_token_ignores_other_params_and_percent_decodes() {
+    fn extract_auth_code_ignores_other_params_and_percent_decodes() {
         assert_eq!(
-            extract_login_token(Some("foo=1&loginToken=abc%2Ddef")),
+            extract_auth_code(Some("foo=1&loginToken=abc%2Ddef")),
             Some("abc-def".to_string())
         );
-        assert_eq!(extract_login_token(Some("other=1")), None);
-        assert_eq!(extract_login_token(None), None);
+        assert_eq!(
+            extract_auth_code(Some("foo=1&code=xyz%2D123")),
+            Some("xyz-123".to_string())
+        );
+        assert_eq!(extract_auth_code(Some("other=1")), None);
+        assert_eq!(extract_auth_code(None), None);
     }
 }
