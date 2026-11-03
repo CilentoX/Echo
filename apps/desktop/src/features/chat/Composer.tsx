@@ -223,7 +223,7 @@ export default function Composer({
         )}
       </div>
 
-      <div className="flex items-end gap-1.5 rounded-lg bg-surf px-3 py-2">
+      <div className="flex items-end gap-1.5 rounded-2xl border border-bd/80 bg-surf/90 px-3.5 py-2.5 shadow-sm transition-all focus-within:border-acc/40 focus-within:ring-2 focus-within:ring-acc/10">
         {/* Botão emoji */}
         <button
           type="button"
@@ -319,7 +319,7 @@ export default function Composer({
           type="button"
           onClick={handleSend}
           disabled={draft.trim() === "" && !attachment}
-          className="cursor-pointer flex items-center gap-1.5 rounded bg-acc px-2.5 py-1.5 text-sm font-semibold text-bg hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-pointer flex items-center gap-1.5 rounded-xl bg-acc px-3 py-1.5 text-sm font-semibold text-bg hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 transition-all shadow-sm"
         >
           <Send size={16} aria-hidden />
           Enviar

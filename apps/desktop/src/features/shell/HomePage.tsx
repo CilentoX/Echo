@@ -10,6 +10,8 @@ import {
 } from "@phosphor-icons/react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useProfileStore } from "@/stores/profileStore";
+import MxcImage from "@/components/media/MxcImage";
 
 export interface HomePageProps {
   onCreateGuild?: () => void;
@@ -24,9 +26,16 @@ export default function HomePage({
 }: HomePageProps = {}) {
   const guilds = useSyncStore((s) => s.guilds);
   const myUserId = useUiStore((s) => s.myUserId);
+  const nickname = useProfileStore((s) => s.nickname);
+  const displayName = useProfileStore((s) => s.displayName);
+  const avatarUrl = useProfileStore((s) => s.avatarUrl);
+  const appwriteAvatarUrl = useProfileStore((s) => s.appwriteAvatarUrl);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const setActiveGuild = useUiStore((s) => s.setActiveGuild);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
+
+  const effectiveAvatar = appwriteAvatarUrl ?? avatarUrl;
+  const effectiveName = nickname || displayName || myUserId?.replace(/^@/, "").split(":")[0] || "Usuário";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg">
@@ -109,24 +118,36 @@ export default function HomePage({
         {myUserId && (
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-display font-bold text-txt">Seu perfil</h2>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc text-bg shrink-0">
-                {myUserId.split(":")[0].replace("@", "").toUpperCase().slice(0, 2) || "U"}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center p-4 rounded-xl bg-surf border border-bd">
+              <div className="relative shrink-0">
+                {effectiveAvatar ? (
+                  <MxcImage
+                    mxcUrl={effectiveAvatar}
+                    alt="Avatar"
+                    className="h-16 w-16 rounded-full object-cover border border-bd shadow-md"
+                    width={64}
+                    height={64}
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc font-display text-lg font-bold text-bg shadow-md">
+                    {effectiveName.charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="font-display font-semibold text-txt">
-                  {myUserId.replace(/^@/, "").split(":")[0]}
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <h3 className="font-display font-bold text-lg text-txt truncate">
+                  {effectiveName}
                 </h3>
-                <p className="text-sm text-mut">{myUserId}</p>
+                <p className="text-xs text-mut font-mono">{myUserId}</p>
               </div>
               <div className="flex-1" />
               <button
                 type="button"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surf border border-bd text-sm font-medium text-txt hover:bg-surf2 transition-colors"
-                onClick={() => {}}
+                className="cursor-pointer flex items-center gap-2 px-4 py-2 rounded-xl bg-surf2 border border-bd text-sm font-medium text-txt hover:bg-acc hover:text-bg hover:border-acc transition-all active:scale-95 shadow-sm"
+                onClick={onOpenProfile}
               >
-                <Gear size={14} className="text-mut" aria-hidden />
-                <span className="text-mut">Editar perfil</span>
+                <Gear size={16} aria-hidden />
+                <span>Editar perfil</span>
               </button>
             </div>
 

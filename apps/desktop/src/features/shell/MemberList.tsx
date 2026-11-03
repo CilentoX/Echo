@@ -203,15 +203,17 @@ export default function MemberList({
                                 <MxcImage
                                   mxcUrl={effectiveAvatarUrl}
                                   alt="Avatar"
-                                  className="w-8 h-8 rounded-full object-cover border-2 border-bd bg-surf2"
+                                  className="w-8 h-8 rounded-full object-cover border border-bd/60 bg-surf2"
+                                  width={32}
+                                  height={32}
                                 />
                               ) : (
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-sm border-4 border-surf bg-acc">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm">
                                   {initial}
                                 </div>
                               )}
                               <span
-                                className={`absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-bg shrink-0 ${presenceColor}`}
+                                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-rail ${presenceColor}`}
                               />
                             </div>
                             <div className="flex-1 min-w-0">

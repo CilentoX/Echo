@@ -3,37 +3,36 @@
 
 @layer base {
   :focus-visible {
-    outline: 2px solid rgba(20, 218, 166, 0.6);
+    outline: 2px solid var(--acc);
     outline-offset: 2px;
   }
 
-  /* Scrollbar global personalizada — tema escuro Eco */
+  /* Scrollbar global refinada e translúcida — tema escuro Echo */
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--bg);
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--bd);
-    border: 3px solid var(--bg);
+    background: rgba(255, 255, 255, 0.12);
     border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--mut);
+    background: rgba(255, 255, 255, 0.24);
   }
 
   ::-webkit-scrollbar-corner {
-    background: var(--bg);
+    background: transparent;
   }
 
   /* Firefox scrollbar */
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--mut) var(--bg);
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
   }
 }

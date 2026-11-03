@@ -112,10 +112,15 @@ export default function AppShell({ children }: AppShellProps) {
               <ChannelSidebar
                 variant="overlay"
                 onClose={() => setSidebarOpen(false)}
+                onOpenProfile={() => setProfileOpen(true)}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
             )
           ) : (
-            <ChannelSidebar />
+            <ChannelSidebar
+              onOpenProfile={() => setProfileOpen(true)}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
           )}
         </>
       )}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Hash } from "@phosphor-icons/react";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useShallow } from "zustand/shallow";
@@ -143,6 +144,20 @@ export default function ChatPane({
       className="flex min-w-0 flex-1 flex-col bg-bg font-ui"
     >
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-4">
+        {/* Channel Hero Banner */}
+        <div className="px-4 pt-4 pb-3 mb-2">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surf2 border border-bd text-acc mb-2 shadow-sm">
+            <Hash size={24} weight="bold" />
+          </div>
+          <h2 className="font-display text-xl font-bold text-txt">
+            Bem-vindo a #{channelName ?? "geral"}!
+          </h2>
+          <p className="mt-0.5 text-xs text-mut max-w-lg">
+            Este é o início do canal #{channelName ?? "geral"}. Diga olá e comece a conversa!
+          </p>
+          <div className="w-full h-[1px] bg-bd/40 mt-3" />
+        </div>
+
         {timeline.length === 0 && (
           <p className="px-4 text-sm text-mut">Nenhuma mensagem ainda. Diga olá!</p>
         )}

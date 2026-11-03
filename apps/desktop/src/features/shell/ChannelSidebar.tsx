@@ -11,17 +11,22 @@ import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import EditGuildModal from "@/features/guild/EditGuildModal";
 import InviteModal from "@/features/guild/InviteModal";
+import UserBar from "./UserBar";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
   variant?: "static" | "overlay";
   onClose?: () => void;
+  onOpenProfile?: () => void;
+  onOpenSettings?: () => void;
 }
 
 /** Channel sidebar: 232px column listing the active community's text channels. */
 export default function ChannelSidebar({
   variant = "static",
   onClose,
+  onOpenProfile,
+  onOpenSettings,
 }: ChannelSidebarProps) {
   const overlay = variant === "overlay";
 
@@ -203,6 +208,11 @@ export default function ChannelSidebar({
               </ul>
             </section>
           </div>
+
+          <UserBar
+            onOpenProfile={onOpenProfile}
+            onOpenSettings={onOpenSettings}
+          />
         </>
       )}
 

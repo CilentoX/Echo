@@ -1,7 +1,7 @@
 /*
- * Eco design tokens — dark-first semantic palette.
+ * Echo design tokens — dark-first semantic palette.
  * Single source of truth for colors and fonts.
- * Accent: verde água da logo (#0FB9A8), não verde brilhante nem blurple Discord.
+ * Accent: verde água da logo Echo (#0FB9A8).
  *
  * `@theme inline` is used because every value references another CSS
  * variable: Tailwind inlines `var(--bg)` (etc.) directly into the
@@ -14,10 +14,14 @@
   --surf: #171B24;
   --surf2: #1D222D;
   --bd: #2A3546;
+  --bd-subtle: rgba(255, 255, 255, 0.06);
+  --bd-glass: rgba(255, 255, 255, 0.1);
   --txt: #E9EDF2;
   --mut: #97A2B0;
   --acc: #0FB9A8;
   --acc-press: #0D9E8A;
+  --acc-glow: rgba(15, 185, 168, 0.2);
+  --acc-muted: rgba(15, 185, 168, 0.12);
   --online: #34D399;
   --idle: #FAA81A;
   --dnd: #F04747;
@@ -33,10 +37,14 @@
   --color-surf: var(--surf);
   --color-surf2: var(--surf2);
   --color-bd: var(--bd);
+  --color-bd-subtle: var(--bd-subtle);
+  --color-bd-glass: var(--bd-glass);
   --color-txt: var(--txt);
   --color-mut: var(--mut);
   --color-acc: var(--acc);
   --color-acc-press: var(--acc-press);
+  --color-acc-glow: var(--acc-glow);
+  --color-acc-muted: var(--acc-muted);
   --color-online: var(--online);
   --color-idle: var(--idle);
   --color-dnd: var(--dnd);

@@ -1,4 +1,4 @@
-import { Chats } from "@phosphor-icons/react";
+import { ArrowBendUpLeft, Chats, Copy } from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { senderLabel } from "./groupMessages";
 import ReplyChip from "./ReplyChip";
@@ -52,8 +52,54 @@ export default function MessageBubble({
       data-event-id={event.eventId}
       data-pending={pending || undefined}
       data-is-sender={isSender || undefined}
-      className={`flex gap-3 px-4 py-0.5 ${isSender ? "justify-end" : "justify-start"} hover:bg-surf/40`}
+      className={`group relative flex gap-3 px-4 py-1 transition-colors ${isSender ? "justify-end" : "justify-start"} hover:bg-surf/40`}
     >
+      {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
+      {!pending && (
+        <div
+          data-testid="message-hover-bar"
+          className="absolute right-4 -top-3.5 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-surf/95 px-1 py-0.5 shadow-lg shadow-black/40 backdrop-blur z-10 transition-all"
+        >
+          <button
+            type="button"
+            title="Curtir"
+            aria-label="Reagir com coração"
+            onClick={() => onToggleReaction?.(event.eventId, "❤️")}
+            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
+          >
+            ❤️
+          </button>
+          <button
+            type="button"
+            title="Joinha"
+            aria-label="Reagir com joinha"
+            onClick={() => onToggleReaction?.(event.eventId, "👍")}
+            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
+          >
+            👍
+          </button>
+          <button
+            type="button"
+            title="Risada"
+            aria-label="Reagir com risada"
+            onClick={() => onToggleReaction?.(event.eventId, "😂")}
+            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
+          >
+            😂
+          </button>
+          <div className="w-[1px] h-3.5 bg-bd mx-0.5" />
+          <button
+            type="button"
+            title="Copiar texto"
+            aria-label="Copiar texto"
+            onClick={() => navigator.clipboard.writeText(event.body)}
+            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-mut hover:text-txt transition-colors active:scale-95"
+          >
+            <Copy size={13} />
+          </button>
+        </div>
+      )}
+
       {/* Avatar do remetente (apenas receiver, primeiro do grupo) */}
       {!isSender && showHeader && (
         <div className="shrink-0 w-9 h-9 mt-0.5">
