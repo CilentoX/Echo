@@ -7,7 +7,7 @@ import {
 } from "@/lib/updater";
 
 const SLOGANS: string[] = [
-  "CALIBRANDO AS CÂMARAS DE ECO...",
+  "CALIBRANDO AS CÂMARAS DE ECHO...",
   "SINTONIZANDO FREQUÊNCIAS...",
   "ROTEANDO PACOTES QUÂNTICOS...",
   "CONECTANDO À MATRIX...",
