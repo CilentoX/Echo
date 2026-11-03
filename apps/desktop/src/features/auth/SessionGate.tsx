@@ -41,16 +41,6 @@ export default function SessionGate({ shell }: SessionGateProps) {
     setView("login");
   }, []);
 
-  // Transição suave da splash estilo Discord para a tela principal
-  const finishBoot = useCallback(async (targetView: GateView) => {
-    if (isTauri()) {
-      useUpdateStore.getState().setStatusText("STARTING ECHO...");
-      await new Promise((r) => setTimeout(r, 600));
-      await setMainWindowMode();
-    }
-    setView(targetView);
-  }, []);
-
   // O botão "Sair da conta" (Settings) executa este handler via logout.ts.
   useEffect(() => {
     registerLogoutHandler(() => rejectSession());
@@ -87,7 +77,6 @@ export default function SessionGate({ shell }: SessionGateProps) {
     async (session: Session): Promise<void> => {
       try {
         await saveSession(session);
-        // loginWithSsoToken já deixou o client credentialled ativo.
         const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
         if (!alreadyCompleted) {
           prepareSession(session, true);
@@ -107,23 +96,58 @@ export default function SessionGate({ shell }: SessionGateProps) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      console.log("[SessionGate] Boot iniciado. Exibindo splash do updater estilo Discord...");
+      const startTime = Date.now();
+      const isDesktopApp = isTauri();
+      // No app desktop (dev ou exe), garante um tempo mínimo agradável de exibição (2.2s) como no Discord.
+      // Em testes automatizados (onde isTauri() é false), o tempo é 0 para máxima velocidade.
+      const minSplashDuration = isDesktopApp ? 2200 : 0;
+
       // Pre-loading estilo Discord: o check de update roda na janela compacta.
-      const updateDone = Promise.resolve(runStartupUpdateCheck()).catch(() => { });
+      const updateDone = Promise.resolve(runStartupUpdateCheck()).catch((err) => {
+        console.warn("[SessionGate] Falha no update check:", err);
+      });
+
       try {
         const [session] = await Promise.all([loadSession(), updateDone]);
         if (cancelled) return;
+
+        // Se encontrou update e instalou, reinicia imediatamente
         if (useUpdateStore.getState().status === "ready") {
+          console.log("[SessionGate] Atualização instalada. Reiniciando Echo...");
           await restartApp();
           return;
         }
+
+        // Garante a exibição mínima da animação e slogan do Discord
+        const elapsed = Date.now() - startTime;
+        if (elapsed < minSplashDuration) {
+          await new Promise((r) => setTimeout(r, minSplashDuration - elapsed));
+        }
+        if (cancelled) return;
+
+        // Fase 'STARTING ECHO...' antes de expandir
+        if (isDesktopApp) {
+          console.log("[SessionGate] Transicionando status para STARTING ECHO...");
+          useUpdateStore.getState().setStatusText("STARTING ECHO...");
+          await new Promise((r) => setTimeout(r, 650));
+          if (cancelled) return;
+
+          console.log("[SessionGate] Expandindo janela para o aplicativo principal (1200x800)...");
+          await setMainWindowMode();
+        }
+
         if (!session) {
-          await finishBoot("login");
+          console.log("[SessionGate] Sem sessão salva. Abrindo Google Login...");
+          setView("login");
           return;
         }
+
         // Verificar se a sessão expirou e tentar refresh automático
         const now = Date.now();
         if (session.expiresAt && session.expiresAt < now) {
           try {
+            console.log("[SessionGate] Sessão expirada. Renovando via refresh token...");
             const refreshed = await echoApi.refreshSession(session.refreshToken ?? "");
             session.accessToken = refreshed.accessToken;
             session.refreshToken = refreshed.refreshToken ?? session.refreshToken;
@@ -132,39 +156,40 @@ export default function SessionGate({ shell }: SessionGateProps) {
             prepareSession(session);
             const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
             if (!alreadyCompleted) {
-              await finishBoot("onboarding");
+              setView("onboarding");
             } else {
-              await finishBoot("shell");
               enterShell(session, true);
             }
             return;
           } catch (refreshErr) {
             console.error("[SessionGate] Refresh session failed, clearing session:", refreshErr);
             await rejectSession();
-            await finishBoot("login");
+            setView("login");
             return;
           }
         }
-        // Sessão válida ou refresh bem-sucedido: verifica onboarding.
+
+        // Sessão válida: verifica onboarding
+        console.log("[SessionGate] Sessão válida carregada:", session.userId);
         prepareSession(session);
         const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
         const isNew = !alreadyCompleted || (await isNewAccount(matrixService));
         if (isNew) {
-          await finishBoot("onboarding");
+          setView("onboarding");
         } else {
-          await finishBoot("shell");
           enterShell(session, true);
         }
-      } catch {
+      } catch (err) {
+        console.error("[SessionGate] Erro inesperado durante boot:", err);
         if (cancelled) return;
         await rejectSession();
-        await finishBoot("login");
+        setView("login");
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [enterShell, finishBoot, prepareSession, rejectSession]);
+  }, [enterShell, prepareSession, rejectSession]);
 
   // Splash de boot (estilo Discord)
   if (view === "booting") {

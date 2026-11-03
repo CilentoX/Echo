@@ -1,6 +1,6 @@
 import { check as checkPluginUpdate } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri as coreIsTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { useUpdateStore } from "@/stores/updateStore";
@@ -16,7 +16,12 @@ import { useUpdateStore } from "@/stores/updateStore";
  */
 
 export function isTauri(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+  if (typeof window === "undefined") return false;
+  try {
+    return coreIsTauri() || ("__TAURI_INTERNALS__" in window);
+  } catch {
+    return false;
+  }
 }
 
 /** Verifica se há atualização disponível via plugin-updater.
@@ -28,8 +33,11 @@ export async function checkForUpdates(): Promise<{
 } | null> {
   if (!isTauri()) return null;
   try {
-    return (await checkPluginUpdate()) as any;
-  } catch {
+    console.log("[updater] Verificando endpoint de releases...");
+    const res = await checkPluginUpdate();
+    return res as any;
+  } catch (err) {
+    console.warn("[updater] Falha ao consultar endpoint de atualização:", err);
     return null;
   }
 }
@@ -40,10 +48,11 @@ export async function downloadAndInstall(): Promise<boolean> {
   try {
     const update = await checkForUpdates();
     if (!update) {
-      // Sem atualização disponível: o banner de "verificando" some.
+      console.log("[updater] Nenhuma atualização pendente (versão mais recente ou ambiente local).");
       useUpdateStore.getState().reset();
       return false;
     }
+    console.log(`[updater] Atualização encontrada: versão ${update.version}. Baixando...`);
     useUpdateStore.getState().beginDownload(update.version);
 
     let downloaded = 0;
@@ -53,6 +62,7 @@ export async function downloadAndInstall(): Promise<boolean> {
       if (!event) return;
       if (event.event === "Started") {
         contentLength = event.data?.contentLength ?? 0;
+        console.log(`[updater] Download iniciado: ${contentLength} bytes.`);
       } else if (event.event === "Progress") {
         downloaded += event.data?.chunkLength ?? 0;
         if (contentLength > 0) {
@@ -60,15 +70,16 @@ export async function downloadAndInstall(): Promise<boolean> {
           useUpdateStore.getState().setProgress(pct);
         }
       } else if (event.event === "Finished") {
+        console.log("[updater] Download e instalação concluídos.");
         useUpdateStore.getState().setProgress(100);
       }
     });
 
+    console.log("[updater] Atualização pronta. Marcando para reinicialização.");
     useUpdateStore.getState().markReady();
     return true;
   } catch (error: unknown) {
-    // Falha de rede/assinatura/endereço: aborta, sem banner eterno.
-    console.warn("[updater] download da atualização falhou:", error);
+    console.warn("[updater] Download da atualização falhou (seguindo boot normal):", error);
     useUpdateStore.getState().reset();
     return false;
   }
@@ -81,18 +92,24 @@ export async function downloadAndInstall(): Promise<boolean> {
  * Cloudflare fora), o boot segue e o download continua em background —
  * quando terminar, o banner assume ("Reiniciar agora"). */
 export async function runStartupUpdateCheck(timeoutMs = 10_000): Promise<void> {
-  if (!isTauri()) return;
+  if (!isTauri()) {
+    console.log("[updater] Fora do runtime Tauri. Pulando verificação de atualizações.");
+    return;
+  }
+  console.log("[updater] Iniciando checagem de atualizações no startup...");
   useUpdateStore.getState().beginCheck();
   await Promise.race([
     downloadAndInstall(), // nunca lança
     new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
   ]);
+  console.log("[updater] Checagem de startup finalizada.");
 }
 
 /** Reinicia o app já atualizado (botão "Reiniciar agora" do banner).
  * Fora do runtime Tauri é um no-op silencioso. */
 export async function restartApp(): Promise<void> {
   if (!isTauri()) return;
+  console.log("[updater] Relaunching Echo...");
   await relaunch();
 }
 
@@ -110,6 +127,7 @@ export async function setSplashWindowMode(): Promise<void> {
 export async function setMainWindowMode(): Promise<void> {
   if (!isTauri()) return;
   try {
+    console.log("[updater] Redimensionando para janela principal (1200x800)...");
     await invoke("set_main_mode");
   } catch (err) {
     console.warn("[updater] set_main_mode falhou:", err);

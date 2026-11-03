@@ -46,10 +46,10 @@ async fn set_splash_mode(window: tauri::Window) -> Result<(), String> {
 /// Ajusta o tamanho da janela para o modo aplicativo principal (após splash/updater).
 #[tauri::command]
 async fn set_main_mode(window: tauri::Window) -> Result<(), String> {
-    let _ = window.set_decorations(true);
+    let _ = window.set_resizable(true);
     let _ = window.set_min_size(Some(tauri::LogicalSize::new(800.0, 600.0)));
     let _ = window.set_size(tauri::LogicalSize::new(1200.0, 800.0));
-    let _ = window.set_resizable(true);
+    let _ = window.set_decorations(true);
     let _ = window.center();
     Ok(())
 }
