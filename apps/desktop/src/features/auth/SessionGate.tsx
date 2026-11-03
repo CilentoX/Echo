@@ -126,10 +126,10 @@ export default function SessionGate({ shell }: SessionGateProps) {
         }
         if (cancelled) return;
 
-        // Fase 'STARTING ECHO...' antes de expandir
+        // Fase 'INICIANDO O ECHO...' antes de expandir
         if (isDesktopApp) {
-          console.log("[SessionGate] Transicionando status para STARTING ECHO...");
-          useUpdateStore.getState().setStatusText("STARTING ECHO...");
+          console.log("[SessionGate] Transicionando status para INICIANDO O ECHO...");
+          useUpdateStore.getState().setStatusText("INICIANDO O ECHO...");
           await new Promise((r) => setTimeout(r, 650));
           if (cancelled) return;
 

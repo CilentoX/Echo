@@ -7,16 +7,16 @@ import {
 } from "@/lib/updater";
 
 const SLOGANS: string[] = [
-  "CALIBRATING ECHO CHAMBERS...",
-  "TUNING FREQUENCIES...",
-  "TOP DECKING LETHAL.",
-  "CONNECTING TO THE MATRIX...",
-  "ROUTING QUANTUM PACKETS...",
-  "INITIALIZING SYNAPSE...",
-  "WARPING REALITY...",
-  "HOLD ON TO YOUR TRANSMITTERS...",
-  "CHARGING CAPACITORS...",
-  "SYNCHRONIZING AUDIO CHANNELS...",
+  "CALIBRANDO AS CÂMARAS DE ECO...",
+  "SINTONIZANDO FREQUÊNCIAS...",
+  "ROTEANDO PACOTES QUÂNTICOS...",
+  "CONECTANDO À MATRIX...",
+  "INICIALIZANDO O SYNAPSE...",
+  "DOBRANDO O ESPAÇO-TEMPO...",
+  "SEGUREM SEUS TRANSMISSORES...",
+  "CARREGANDO CAPACITORES...",
+  "SINCRONIZANDO CANAIS DE ÁUDIO...",
+  "ESTABELECENDO CONEXÃO SEGURA...",
 ];
 
 export interface UpdaterSplashProps {
@@ -47,24 +47,24 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Determina o texto de status do updater
-  let statusLabel = "CHECKING FOR UPDATES";
+  // Determina o texto de status do updater em português (pt-BR)
+  let statusLabel = "VERIFICANDO ATUALIZAÇÕES...";
   if (customStatus) {
     statusLabel = customStatus;
   } else if (storeStatusText) {
     statusLabel = storeStatusText;
   } else if (status === "downloading") {
     if (progress !== null && progress >= 0) {
-      statusLabel = `DOWNLOADING UPDATE (${progress}%)`;
+      statusLabel = `BAIXANDO ATUALIZAÇÃO (${progress}%)...`;
     } else if (version) {
-      statusLabel = `DOWNLOADING UPDATE (${version})`;
+      statusLabel = `BAIXANDO ATUALIZAÇÃO (${version})...`;
     } else {
-      statusLabel = "DOWNLOADING UPDATE 1 OF 1";
+      statusLabel = "BAIXANDO ATUALIZAÇÃO...";
     }
   } else if (status === "ready") {
-    statusLabel = "RESTARTING ECHO...";
+    statusLabel = "REINICIANDO O ECHO...";
   } else if (status === "idle") {
-    statusLabel = "STARTING ECHO...";
+    statusLabel = "INICIANDO O ECHO...";
   }
 
   return (
@@ -200,7 +200,7 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
 
         {/* Rodapé: Slogan + Status */}
         <div className="w-full pb-7 px-4 flex flex-col items-center justify-center text-center z-10">
-          {/* Slogan com a fonte Space Grotesk do Echo */}
+          {/* Slogan em português com a fonte Space Grotesk do Echo */}
           <p
             className={`font-display text-[#E9EDF2] font-bold italic text-base tracking-wide select-none transition-opacity duration-300 h-6 flex items-center justify-center ${
               sloganVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
@@ -209,7 +209,7 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
             {SLOGANS[sloganIndex]}
           </p>
 
-          {/* Indicador de status em destaque verde-água */}
+          {/* Indicador de status em destaque verde-água em pt-BR */}
           <p
             role="status"
             aria-live="polite"
@@ -222,4 +222,3 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
     </div>
   );
 }
-

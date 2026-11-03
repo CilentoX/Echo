@@ -116,7 +116,7 @@ describe("SessionGate — pre-loading com updater", () => {
 
     render(<SessionGate shell={<div>shell-mock</div>} />);
 
-    expect(await screen.findByText("DOWNLOADING UPDATE (9.9.9)")).toBeTruthy();
+    expect(await screen.findByText("BAIXANDO ATUALIZAÇÃO (9.9.9)...")).toBeTruthy();
     expect(screen.getByRole("status")).toBeTruthy();
   });
 });

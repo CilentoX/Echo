@@ -23,7 +23,7 @@ describe("UpdaterSplash — Splash compacta do Echo Updater", () => {
     useUpdateStore.getState().reset();
   });
 
-  it("renderiza o logo, slogan e o status 'CHECKING FOR UPDATES' no boot", () => {
+  it("renderiza o logo, slogan e o status 'VERIFICANDO ATUALIZAÇÕES...' no boot", () => {
     useUpdateStore.getState().beginCheck();
 
     render(<UpdaterSplash />);
@@ -32,17 +32,17 @@ describe("UpdaterSplash — Splash compacta do Echo Updater", () => {
     const logo = screen.getByAltText("Echo");
     expect(logo).toBeTruthy();
 
-    // Status 'CHECKING FOR UPDATES' visível
-    expect(screen.getByText("CHECKING FOR UPDATES")).toBeTruthy();
+    // Status 'VERIFICANDO ATUALIZAÇÕES...' visível
+    expect(screen.getByText("VERIFICANDO ATUALIZAÇÕES...")).toBeTruthy();
   });
 
-  it("exibe o progresso de download formatado", () => {
+  it("exibe o progresso de download formatado em pt-BR", () => {
     useUpdateStore.getState().beginDownload("0.2.0");
     useUpdateStore.getState().setProgress(65);
 
     render(<UpdaterSplash />);
 
-    expect(screen.getByText("DOWNLOADING UPDATE (65%)")).toBeTruthy();
+    expect(screen.getByText("BAIXANDO ATUALIZAÇÃO (65%)...")).toBeTruthy();
   });
 
   it("exibe a versão quando sem porcentagem numérica", () => {
@@ -50,21 +50,21 @@ describe("UpdaterSplash — Splash compacta do Echo Updater", () => {
 
     render(<UpdaterSplash />);
 
-    expect(screen.getByText("DOWNLOADING UPDATE (0.2.0)")).toBeTruthy();
+    expect(screen.getByText("BAIXANDO ATUALIZAÇÃO (0.2.0)...")).toBeTruthy();
   });
 
-  it("exibe 'RESTARTING ECHO...' quando o update está pronto", () => {
+  it("exibe 'REINICIANDO O ECHO...' quando o update está pronto", () => {
     useUpdateStore.getState().markReady();
 
     render(<UpdaterSplash />);
 
-    expect(screen.getByText("RESTARTING ECHO...")).toBeTruthy();
+    expect(screen.getByText("REINICIANDO O ECHO...")).toBeTruthy();
   });
 
   it("permite customStatus via prop ou store", () => {
-    render(<UpdaterSplash customStatus="CUSTOM STATUS TEST" />);
+    render(<UpdaterSplash customStatus="STATUS DE TESTE" />);
 
-    expect(screen.getByText("CUSTOM STATUS TEST")).toBeTruthy();
+    expect(screen.getByText("STATUS DE TESTE")).toBeTruthy();
   });
 
   it("botão vermelho fecha o aplicativo", () => {
@@ -85,4 +85,3 @@ describe("UpdaterSplash — Splash compacta do Echo Updater", () => {
     expect(updater.minimizeAppWindow).toHaveBeenCalledTimes(1);
   });
 });
-
