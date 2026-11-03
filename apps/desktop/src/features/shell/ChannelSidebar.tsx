@@ -1,4 +1,4 @@
-import { Hash, MagnifyingGlass, Pencil, Plus, SpeakerHigh, X } from "@phosphor-icons/react";
+import { Hash, MagnifyingGlass, Pencil, Plus, SpeakerHigh, UserPlus, X } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import EmptyState from "./EmptyState";
 import {
@@ -10,6 +10,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import EditGuildModal from "@/features/guild/EditGuildModal";
+import InviteModal from "@/features/guild/InviteModal";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
@@ -32,6 +33,7 @@ export default function ChannelSidebar({
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const [editGuildOpen, setEditGuildOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
 
   // Seletores devolvem snapshot vazio estável em miss (sem loop no useSyncExternalStore).
@@ -83,15 +85,26 @@ export default function ChannelSidebar({
             {activeGuild ? activeGuild.name : "Echo"}
           </h1>
           {activeGuild && (
-            <button
-              type="button"
-              aria-label="Editar guilda"
-              title="Editar guilda"
-              onClick={() => setEditGuildOpen(true)}
-              className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
-            >
-              <Pencil size={14} aria-hidden />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                aria-label="Convidar pessoas"
+                title="Convidar pessoas"
+                onClick={() => setInviteOpen(true)}
+                className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
+              >
+                <UserPlus size={14} aria-hidden />
+              </button>
+              <button
+                type="button"
+                aria-label="Editar guilda"
+                title="Editar guilda"
+                onClick={() => setEditGuildOpen(true)}
+                className="cursor-pointer flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
+              >
+                <Pencil size={14} aria-hidden />
+              </button>
+            </div>
           )}
         </div>
         {overlay && (
@@ -219,6 +232,15 @@ export default function ChannelSidebar({
         }}
         onSave={handleEditGuild}
       />
+
+      {activeGuild && (
+        <InviteModal
+          open={inviteOpen}
+          guildId={activeGuild.guildId}
+          guildName={activeGuild.name}
+          onClose={() => setInviteOpen(false)}
+        />
+      )}
     </aside>
   );
 }

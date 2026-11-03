@@ -29,8 +29,17 @@ export default function MemberList({
   const activeChannelId = useUiStore((state) => state.activeChannelId);
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const myUserId = useUiStore((state) => state.myUserId);
+  const presenceMap = useUiStore((state) => state.presence);
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
   const myAvatarUrl = useProfileStore((state) => state.avatarUrl);
+
+  const getMemberPresence = (m: MemberSummary): "online" | "offline" | "unavailable" => {
+    if (m.userId === myUserId) return "online";
+    const live = presenceMap[m.userId];
+    if (live) return live;
+    if (m.presence === "online" || m.presence === "unavailable") return m.presence;
+    return "offline";
+  };
 
   // Canais da guilda ativa (para agregar membros quando não há canal selecionado).
   const channelsByGuild = useSyncStore((state) => state.channelsByGuild);
@@ -73,7 +82,7 @@ export default function MemberList({
 
   const [search, setSearch] = useState("");
 
-  // Agrupa membros por status de presença.
+  // Agrupa membros por status de presença em tempo real.
   const grouped = useMemo(() => {
     const query = search.toLowerCase().trim();
     const list = members.filter((m) => {
@@ -88,12 +97,12 @@ export default function MemberList({
       idle: [],
     };
     for (const m of list) {
-      const key = m.presence ?? "offline";
-      if (groups[key]) groups[key].push(m);
-      else groups.offline.push(m);
+      const p = getMemberPresence(m);
+      const key = p === "unavailable" ? "unavailable" : p === "online" ? "online" : "offline";
+      groups[key].push(m);
     }
     return groups;
-  }, [members, search]);
+  }, [members, search, presenceMap, myUserId]);
 
   const statusOrder: Array<[string, string]> = [
     ["online", "Online"],
@@ -163,11 +172,13 @@ export default function MemberList({
               <ul>
                 {items.map((member) => {
                   const isMe = member.userId === myUserId;
-                  const presenceColor = member.presence === "online"
-                    ? "bg-online"
-                    : member.presence === "unavailable"
-                      ? "bg-dnd"
-                      : "bg-offline";
+                  const effectivePresence = getMemberPresence(member);
+                  const presenceColor =
+                    effectivePresence === "online"
+                      ? "bg-online"
+                      : effectivePresence === "unavailable"
+                        ? "bg-dnd"
+                        : "bg-offline";
                   const initial = (member.displayName || member.userId.replace(/^@/, "")).charAt(0).toUpperCase();
 
                   // Fallback chain: Matrix avatar → Appwrite avatar (my user) → local avatarUrl → initials

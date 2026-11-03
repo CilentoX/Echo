@@ -285,6 +285,62 @@ export class EchoApi {
     );
   }
 
+  // ── Invites ─────────────────────────────────────────────────────
+
+  /** Create an invite link for a guild. */
+  async createGuildInvite(
+    guildId: string,
+    options?: { maxUses?: number; expiresInHours?: number },
+  ): Promise<{
+    code: string;
+    url: string;
+    maxUses: number | null;
+    usesCount: number;
+    expiresAt: string | null;
+  }> {
+    const res = await this.post(`/api/guilds/${guildId}/invites`, options || {});
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Failed to create guild invite: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Get public preview of a guild invite code. */
+  async getInvitePreview(code: string): Promise<{
+    code: string;
+    guildId: string;
+    name: string;
+    description: string | null;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
+    channelsCount: number;
+    expiresAt: string | null;
+  }> {
+    const cleanCode = code.trim().replace(/^.*\/invite\//, "");
+    const res = await this.get(`/api/invites/${cleanCode}`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Failed to get invite preview: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Join a guild via invite code. */
+  async joinGuildViaInvite(code: string): Promise<{
+    success: boolean;
+    guildId: string;
+    name: string;
+  }> {
+    const cleanCode = code.trim().replace(/^.*\/invite\//, "");
+    const res = await this.post(`/api/invites/${cleanCode}/join`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Failed to join guild: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
   // ── Channels ────────────────────────────────────────────────────
 
   /** Get all channels (children) of a guild. */

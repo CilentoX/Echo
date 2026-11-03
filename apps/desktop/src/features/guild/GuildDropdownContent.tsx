@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import ImageUploadButton from "@/components/ImageUploadButton"
 import MxcImage from "@/components/media/MxcImage"
+import InviteModal from "./InviteModal"
 
 export interface GuildDropdownContentProps {
   guildId: string
@@ -26,6 +27,7 @@ export default function GuildDropdownContent({
 }: GuildDropdownContentProps) {
   const activeGuildId = useUiStore((state) => state.activeGuildId)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [inviteOpen, setInviteOpen] = useState(false)
 
   const isActive = activeGuildId === guildId
 
@@ -45,9 +47,8 @@ export default function GuildDropdownContent({
   }, [showToast, onClose])
 
   const handleInvite = useCallback(() => {
-    showToast("Convite copiado")
-    onClose()
-  }, [onClose])
+    setInviteOpen(true)
+  }, [])
 
   const handleCopyId = useCallback(async () => {
     try {
@@ -219,6 +220,16 @@ export default function GuildDropdownContent({
           <span>{toastMessage}</span>
         </div>
       )}
+
+      <InviteModal
+        open={inviteOpen}
+        guildId={guildId}
+        guildName={guildName}
+        onClose={() => {
+          setInviteOpen(false)
+          onClose()
+        }}
+      />
     </div>
   )
 }

@@ -11,7 +11,17 @@ import {
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 
-export default function HomePage() {
+export interface HomePageProps {
+  onCreateGuild?: () => void;
+  onJoinGuild?: () => void;
+  onOpenProfile?: () => void;
+}
+
+export default function HomePage({
+  onCreateGuild,
+  onJoinGuild,
+  onOpenProfile,
+}: HomePageProps = {}) {
   const guilds = useSyncStore((s) => s.guilds);
   const myUserId = useUiStore((s) => s.myUserId);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
@@ -38,31 +48,33 @@ export default function HomePage() {
               icon={<Plus size={20} className="text-acc" />}
               title="Criar guilda"
               description="Crie sua primeira comunidade"
-              onClick={() => {
-                // Dispara o modal via CommunityRail (não há store exposto aqui,
-                // mas o botão + na rail já faz isso)
-              }}
+              onClick={onCreateGuild}
               className="bg-acc/10 border-acc/20 hover:border-acc/40"
             />
             <QuickActionCard
               icon={<Users size={20} className="text-acc" />}
               title="Entrar em guilda"
               description="Aceite um convite ou busque uma comunidade"
-              onClick={() => {}}
+              onClick={onJoinGuild}
               className="bg-acc/10 border-acc/20 hover:border-acc/40"
             />
             <QuickActionCard
               icon={<ImageSquare size={20} className="text-acc" />}
               title="Criar canal"
               description="Organize conversas por tema"
-              onClick={() => {}}
+              onClick={() => {
+                const firstGuild = guilds[0];
+                if (firstGuild) {
+                  setActiveGuild(firstGuild.guildId);
+                }
+              }}
               className="bg-acc/10 border-acc/20 hover:border-acc/40"
             />
             <QuickActionCard
               icon={<User size={20} className="text-acc" />}
               title="Meu perfil"
               description="Edite foto, nome e biografia"
-              onClick={() => {}}
+              onClick={onOpenProfile}
               className="bg-acc/10 border-acc/20 hover:border-acc/40"
             />
           </div>

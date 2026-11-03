@@ -6,6 +6,7 @@ import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import GuildDropdownContent from "@/features/guild/GuildDropdownContent";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { matrixService } from "@/lib/matrix/instance";
+import MxcImage from "@/components/media/MxcImage";
 
 /** Iniciais do nome da guilda (até 2 palavras) — guildas sem avatar (avatarUrl vem de mxc://, render na Fase 2). */
 function initials(name: string): string {
@@ -41,7 +42,16 @@ function GuildButton({
   };
 
   return (
-    <div className="relative">
+    <div className="relative group flex items-center justify-center w-full">
+      {/* Pill indicador ativo/hover */}
+      <span
+        className={`absolute left-0 w-1 rounded-r-full bg-white transition-all duration-200 ${
+          active
+            ? "h-10 opacity-100"
+            : "h-0 opacity-0 group-hover:h-5 group-hover:opacity-100"
+        }`}
+      />
+
       <Popover open={open} onOpenChange={setOpen}>
         {/* Botão SEM PopoverTrigger — clique esquerdo só seleciona, clique direito abre dropdown */}
         <button
@@ -51,13 +61,23 @@ function GuildButton({
           aria-current={active ? "true" : undefined}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
-          className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full font-display text-sm transition-colors ${
+          className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 overflow-hidden ${
             active
-              ? "bg-acc text-bg"
-              : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
+              ? "rounded-2xl bg-acc text-bg shadow-md"
+              : "rounded-full bg-surf2 text-mut hover:rounded-2xl hover:bg-acc-press hover:text-txt"
           }`}
         >
-          {initials(guild.name)}
+          {guild.avatarUrl ? (
+            <MxcImage
+              mxcUrl={guild.avatarUrl}
+              alt={guild.name}
+              className="w-full h-full object-cover"
+              width={48}
+              height={48}
+            />
+          ) : (
+            initials(guild.name)
+          )}
         </button>
         <PopoverContent
           side="right"
@@ -77,7 +97,7 @@ function GuildButton({
       {guild.unreadCount > 0 && (
         <span
           aria-label={`${guild.unreadCount} não lidas em ${guild.name}`}
-          className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-err px-1 text-[11px] font-bold text-bg"
+          className="absolute right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-err px-1 text-[11px] font-bold text-bg shadow-sm"
         >
           {guild.unreadCount}
         </span>
@@ -112,23 +132,35 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
       aria-label="Comunidades"
       className="flex h-full w-[72px] shrink-0 flex-col items-center gap-3 border-r border-bd bg-rail py-4"
     >
-      {/* Botão Home — fixo no topo da rail */}
-      <button
-        type="button"
-        aria-label="Home"
-        title="Home"
-        onClick={() => {
-          setActiveGuild("home");
-          setActiveChannel(null);
-        }}
-        className={`cursor-pointer flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-          activeGuildId === "home"
-            ? "bg-acc text-bg"
-            : "bg-surf2 text-mut hover:bg-acc-press hover:text-txt"
-        }`}
-      >
-        <Compass size={20} aria-hidden />
-      </button>
+      {/* Botão Home — fixo no topo da rail com pill indicador */}
+      <div className="relative group flex items-center justify-center w-full">
+        <span
+          className={`absolute left-0 w-1 rounded-r-full bg-white transition-all duration-200 ${
+            activeGuildId === "home"
+              ? "h-10 opacity-100"
+              : "h-0 opacity-0 group-hover:h-5 group-hover:opacity-100"
+          }`}
+        />
+        <button
+          type="button"
+          aria-label="Home"
+          title="Home"
+          onClick={() => {
+            setActiveGuild("home");
+            setActiveChannel(null);
+          }}
+          className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 ${
+            activeGuildId === "home"
+              ? "rounded-2xl bg-acc text-bg shadow-md"
+              : "rounded-full bg-surf2 text-mut hover:rounded-2xl hover:bg-acc-press hover:text-txt"
+          }`}
+        >
+          <Compass size={20} aria-hidden />
+        </button>
+      </div>
+
+      {/* Separador sutil */}
+      <div className="w-8 h-[2px] bg-bd/60 rounded-full shrink-0 my-0.5" />
 
       {guilds.map((guild) => {
         const active = guild.guildId === activeGuildId;

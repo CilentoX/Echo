@@ -304,9 +304,26 @@ export class MatrixService {
   }
 
   /** Sai de uma guilda (sem excluí-la). */
-  async leaveGuild(_guildId: string): Promise<void> {
-    // Echo API doesn't have a "leave guild" concept beyond deleting the guild
-    // or the user just stops participating
+  async leaveGuild(guildId: string): Promise<void> {
+    await this.echoApi.post(`/guilds/${guildId}/leave`);
+  }
+
+  /** Cria um convite para uma guilda. */
+  async createGuildInvite(
+    guildId: string,
+    options?: { maxUses?: number; expiresInHours?: number },
+  ) {
+    return this.echoApi.createGuildInvite(guildId, options);
+  }
+
+  /** Consulta a prévia de um convite público. */
+  async getInvitePreview(code: string) {
+    return this.echoApi.getInvitePreview(code);
+  }
+
+  /** Entra em uma guilda através de um código ou link de convite. */
+  async joinGuildViaInvite(code: string) {
+    return this.echoApi.joinGuildViaInvite(code);
   }
 
   /** Cria um canal dentro de uma guilda (Space). Aceita tipo, tópico e categoria. */

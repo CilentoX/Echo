@@ -8,6 +8,7 @@ import SyncStatusIndicator from "./SyncStatusIndicator";
 import EmptyState from "./EmptyState";
 import HomePage from "./HomePage";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
+import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import Profile from "@/features/profile/Profile";
 import Settings from "@/features/settings/Settings";
 import { matrixService } from "@/lib/matrix/instance";
@@ -35,6 +36,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createGuildOpen, setCreateGuildOpen] = useState(false);
+  const [joinGuildOpen, setJoinGuildOpen] = useState(false);
 
   // Crossing a breakpoint changes the layout mode; stale overlay
   // state must not make panels reappear open on the way back.
@@ -79,7 +81,21 @@ export default function AppShell({ children }: AppShellProps) {
       ...guilds,
       { guildId: guild.guildId, name: guild.name, avatarUrl: null, unreadCount: 0 },
     ]);
+    useUiStore.getState().setActiveGuild(guild.guildId);
     setCreateGuildOpen(false);
+  };
+
+  const handleGuildJoined = (guild: { guildId: string; name: string }) => {
+    // Evita duplicar se já estiver na lista
+    if (!guilds.some((g) => g.guildId === guild.guildId)) {
+      setGuilds([
+        ...guilds,
+        { guildId: guild.guildId, name: guild.name, avatarUrl: null, unreadCount: 0 },
+      ]);
+    }
+    useUiStore.getState().setActiveGuild(guild.guildId);
+    useUiStore.getState().setActiveChannel(null);
+    setJoinGuildOpen(false);
   };
 
   return (
@@ -106,12 +122,16 @@ export default function AppShell({ children }: AppShellProps) {
 
       <ChatPane
         showSidebarToggle={sidebarOverlay}
-        showMembersToggle={!membersVisible}
+        showMembersToggle={!isHome && !membersVisible}
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onToggleMembers={() => setMembersOpen((open) => !open)}
       >
         {isHome ? (
-          <HomePage />
+          <HomePage
+            onCreateGuild={handleOpenCreateGuild}
+            onJoinGuild={() => setJoinGuildOpen(true)}
+            onOpenProfile={() => setProfileOpen(true)}
+          />
         ) : showEmptyState ? (
           <EmptyState onCreateGuild={handleOpenCreateGuild} />
         ) : (
@@ -119,11 +139,13 @@ export default function AppShell({ children }: AppShellProps) {
         )}
       </ChatPane>
 
-      {membersVisible ? (
-        <MemberList />
-      ) : (
-        membersOpen && (
-          <MemberList variant="overlay" onClose={() => setMembersOpen(false)} />
+      {!isHome && (
+        membersVisible ? (
+          <MemberList />
+        ) : (
+          membersOpen && (
+            <MemberList variant="overlay" onClose={() => setMembersOpen(false)} />
+          )
         )
       )}
 
@@ -137,6 +159,12 @@ export default function AppShell({ children }: AppShellProps) {
         onClose={() => setCreateGuildOpen(false)}
         onCreate={handleCreateGuild}
         onCreated={handleGuildCreated}
+      />
+
+      <JoinGuildModal
+        open={joinGuildOpen}
+        onClose={() => setJoinGuildOpen(false)}
+        onJoined={handleGuildJoined}
       />
     </div>
   );
