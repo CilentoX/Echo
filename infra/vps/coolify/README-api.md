@@ -12,4 +12,4 @@
 #   internal                  — Rede interna entre containers
 #
 # Domains:
-#   api.echo.litteris.online  — Aponta para o container echo-api via Traefik
+#   echo-api.litteris.online  — Aponta para o container echo-api via Traefik

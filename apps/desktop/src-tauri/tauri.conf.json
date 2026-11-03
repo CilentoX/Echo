@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://echo.litteris.online https://api.echo.litteris.online ipc: http://ipc.localhost https://api.github.com https://github.com"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://echo.litteris.online https://echo-api.litteris.online ipc: http://ipc.localhost https://api.github.com https://github.com"
     }
   },
   "bundle": {

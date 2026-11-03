@@ -170,7 +170,7 @@ describe("useImageUpload", () => {
   it("uploads avatar to Echo API and returns URL", async () => {
     (fetch as vi.Mock).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ url: "https://api.echo.litteris.online/uploads/profile/@user_echo.litteris.online/abc123.png" }),
+      json: async () => ({ url: "https://echo-api.litteris.online/uploads/profile/@user_echo.litteris.online/abc123.png" }),
     });
 
     const { result } = renderHook(() => useImageUpload());
@@ -178,7 +178,7 @@ describe("useImageUpload", () => {
     await act(async () => {
       url = await result.current.uploadAvatar(new File(["test"], "avatar.png", { type: "image/png" }));
     });
-    expect(url).toContain("api.echo.litteris.online/uploads/profile/");
+    expect(url).toContain("echo-api.litteris.online/uploads/profile/");
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/upload/profile"),
       expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "X-API-Key": expect.any(String) }) })
@@ -284,8 +284,8 @@ import { useImageUpload } from "@/lib/api/useImageUpload";
 
 vi.mock("@/lib/api/useImageUpload", () => ({
   useImageUpload: () => ({
-    uploadAvatar: vi.fn().mockResolvedValue("https://api.echo.litteris.online/uploads/profile/abc.png"),
-    uploadBanner: vi.fn().mockResolvedValue("https://api.echo.litteris.online/uploads/profile/def.png"),
+    uploadAvatar: vi.fn().mockResolvedValue("https://echo-api.litteris.online/uploads/profile/abc.png"),
+    uploadBanner: vi.fn().mockResolvedValue("https://echo-api.litteris.online/uploads/profile/def.png"),
   }),
 }));
 

@@ -6,7 +6,7 @@
 # Variaveis de ambiente obrigatorias (definir no Coolify):
 #   DATABASE_URL          (postgresql://echo_api:senha@db:5432/echo_profiles?schema=public)
 #   API_KEY               (chave de autenticacao da API)
-#   PUBLIC_BASE_URL       (https://api.echo.litteris.online)
+#   PUBLIC_BASE_URL       (https://echo-api.litteris.online)
 #   POSTGRES_PASSWORD     (senha do postgres superuser)
 #   POSTGRES_USER         (usuario do postgres, default: postgres)
 #   POSTGRES_DB           (nome do banco, default: echo_profiles)
@@ -33,7 +33,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=coolify"
-      - "traefik.http.routers.echo-api.rule=Host(`api.echo.litteris.online`)"
+      - "traefik.http.routers.echo-api.rule=Host(`echo-api.litteris.online`)"
       - "traefik.http.routers.echo-api.entryPoints=http"
       - "traefik.http.services.echo-api.loadbalancer.server.port=3001"
     depends_on:

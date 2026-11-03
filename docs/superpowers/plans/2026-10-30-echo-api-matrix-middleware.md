@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Desktop MUST NOT call Synapse directly — all traffic via `https://api.echo.litteris.online`
+- Desktop MUST NOT call Synapse directly — all traffic via `https://echo-api.litteris.online`
 - Echo API holds the source of truth for: user profiles (nickname, avatar, banner, bio, links), guild profiles, chat media (images + audio), room metadata
 - Synapse remains the realtime engine; Echo API proxies `/sync`, `/send`, `/media`, `/profile`, `/rooms`, `/spaces`, `/members`, `/typing`, `/receipts`, `/reactions`
 - Nickname = `display_name` in Echo API DB, synced to Matrix `m.room.member` displayname on profile update

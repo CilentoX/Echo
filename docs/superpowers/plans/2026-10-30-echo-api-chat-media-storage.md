@@ -383,7 +383,7 @@ cd apps/desktop && pnpm tauri dev
 - [ ] **Step 3: Verificar:**
   1. Imagem enviada → aparece no chat, thumbnail funciona
   2. Áudio enviado → player nativo do Matrix funciona
-  3. Arquivo aparece em `https://api.echo.litteris.online/uploads/chat/...`
+  3. Arquivo aparece em `https://echo-api.litteris.online/uploads/chat/...`
   4. Logs mostram `[Echo API] Chat media uploaded:` ou erro tratado
 
 - [ ] **Step 4: Commit final**
