@@ -36,6 +36,12 @@ vi.mock("@/lib/updater", () => ({
   runStartupUpdateCheck: vi.fn(async () => {}),
   restartApp: vi.fn(async () => {}),
   downloadAndInstall: vi.fn(async () => false),
+  isTauri: vi.fn(() => false),
+  setMainWindowMode: vi.fn(async () => {}),
+  setSplashWindowMode: vi.fn(async () => {}),
+  closeAppWindow: vi.fn(async () => {}),
+  minimizeAppWindow: vi.fn(async () => {}),
+  startDraggingAppWindow: vi.fn(async () => {}),
 }));
 vi.mock("@/features/auth/logout", () => ({
   registerLogoutHandler: vi.fn(),
@@ -104,13 +110,13 @@ describe("SessionGate — pre-loading com updater", () => {
     expect(screen.queryByText("shell-mock")).toBeNull();
   });
 
-  it("splash mostra o estado do update enquanto baixa", async () => {
+  it("splash mostra o estado do update enquanto baixa (estilo Discord)", async () => {
     vi.mocked(loadSession).mockImplementation(() => new Promise(() => {}));
     useUpdateStore.getState().beginDownload("9.9.9");
 
     render(<SessionGate shell={<div>shell-mock</div>} />);
 
-    expect(await screen.findByText("Baixando atualização 9.9.9…")).toBeTruthy();
+    expect(await screen.findByText("DOWNLOADING UPDATE (9.9.9)")).toBeTruthy();
     expect(screen.getByRole("status")).toBeTruthy();
   });
 });

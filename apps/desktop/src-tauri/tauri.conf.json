@@ -13,10 +13,14 @@
     "windows": [
       {
         "title": "Echo",
-        "width": 800,
-        "height": 600,
-        "minWidth": 700,
-        "minHeight": 500
+        "width": 312,
+        "height": 380,
+        "minWidth": 312,
+        "minHeight": 380,
+        "resizable": false,
+        "decorations": false,
+        "center": true,
+        "shadow": true
       }
     ],
     "security": {

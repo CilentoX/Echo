@@ -32,6 +32,28 @@ fn clear_token() -> Result<(), String> {
     keyring_cmds::clear_token()
 }
 
+/// Ajusta o tamanho da janela para o modo splash/updater (estilo Discord: 312x380).
+#[tauri::command]
+async fn set_splash_mode(window: tauri::Window) -> Result<(), String> {
+    let _ = window.set_decorations(false);
+    let _ = window.set_resizable(false);
+    let _ = window.set_min_size(Some(tauri::LogicalSize::new(312.0, 380.0)));
+    let _ = window.set_size(tauri::LogicalSize::new(312.0, 380.0));
+    let _ = window.center();
+    Ok(())
+}
+
+/// Ajusta o tamanho da janela para o modo aplicativo principal (após splash/updater).
+#[tauri::command]
+async fn set_main_mode(window: tauri::Window) -> Result<(), String> {
+    let _ = window.set_decorations(true);
+    let _ = window.set_min_size(Some(tauri::LogicalSize::new(800.0, 600.0)));
+    let _ = window.set_size(tauri::LogicalSize::new(1200.0, 800.0));
+    let _ = window.set_resizable(true);
+    let _ = window.center();
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -43,7 +65,9 @@ pub fn run() {
             finish_sso_listener,
             store_token,
             load_token,
-            clear_token
+            clear_token,
+            set_splash_mode,
+            set_main_mode
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
