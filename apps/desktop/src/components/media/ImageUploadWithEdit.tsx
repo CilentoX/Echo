@@ -1,11 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Upload, Trash } from "@phosphor-icons/react"
+import { Trash } from "@phosphor-icons/react"
 import ImageEditor from "@/components/media/ImageEditor"
 import { useUiStore } from "@/stores/uiStore"
 import { mxcToHttp } from "@/lib/media/mxc"
 import { getImageSize } from "@/lib/media/imagePresets"
+import { UploadIcon } from "lucide-react"
 
 export interface ImageUploadWithEditProps {
   value: string | null
@@ -280,13 +281,12 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
               <>
                 {editable ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-mut">
-                    <Upload size={24} className="opacity-70" />
+                    <UploadIcon size={24} className="opacity-70" />
                     <span className="text-xs font-medium">{placeholder || "Adicionar imagem"}</span>
-                    <span className="text-[10px] opacity-50">Clique para escolher</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 text-mut/50">
-                    <Upload size={24} />
+                    <UploadIcon size={24} />
                     <span className="text-xs font-medium">{placeholder || "Sem imagem"}</span>
                   </div>
                 )}
