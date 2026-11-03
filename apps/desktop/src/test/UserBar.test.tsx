@@ -67,3 +67,4 @@ describe("UserBar Component", () => {
     expect(useSettingsStore.getState().headphonesEnabled).toBe(true);
   });
 });
+

@@ -99,9 +99,9 @@ export default function SessionGate({ shell }: SessionGateProps) {
       console.log("[SessionGate] Boot iniciado. Exibindo splash do updater...");
       const startTime = Date.now();
       const isDesktopApp = isTauri();
-      // No app desktop (dev ou exe), garante um tempo mínimo agradável de exibição (2.2s).
+      // No app desktop (dev ou exe), garante um tempo agradável de exibição (1.1s).
       // Em testes automatizados (onde isTauri() é false), o tempo é 0 para máxima velocidade.
-      const minSplashDuration = isDesktopApp ? 2200 : 0;
+      const minSplashDuration = isDesktopApp ? 1100 : 0;
 
       // O check de update roda na janela compacta.
       const updateDone = Promise.resolve(runStartupUpdateCheck()).catch((err) => {
@@ -130,7 +130,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
         if (isDesktopApp) {
           console.log("[SessionGate] Transicionando status para INICIANDO O ECHO...");
           useUpdateStore.getState().setStatusText("INICIANDO O ECHO...");
-          await new Promise((r) => setTimeout(r, 650));
+          await new Promise((r) => setTimeout(r, 350));
           if (cancelled) return;
 
           console.log("[SessionGate] Expandindo janela para o aplicativo principal (1200x800)...");

@@ -63,22 +63,31 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
     }
   } else if (status === "ready") {
     statusLabel = "REINICIANDO O ECHO...";
-  } else if (status === "idle") {
-    statusLabel = "INICIANDO O ECHO...";
+  } else if (status === "checking" || status === "idle") {
+    statusLabel = "VERIFICANDO ATUALIZAÇÕES...";
   }
+
+  const isCheckingOrBusy =
+    statusLabel.includes("VERIFICANDO") ||
+    statusLabel.includes("BAIXANDO") ||
+    statusLabel.includes("INICIANDO");
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#0D1017] select-none z-50 overflow-hidden font-ui">
       {/* Janela compacta do updater (312px x 380px) com identidade visual Echo */}
       <div
-        className="w-[312px] h-[380px] bg-[#0D1017] flex flex-col justify-between items-center relative overflow-hidden rounded-2xl shadow-[0_12px_45px_rgba(0,0,0,0.85),0_0_24px_rgba(15,185,168,0.14)] border border-[#2A3546]"
+        className="w-[312px] h-[380px] bg-[#0D1017] flex flex-col justify-between items-center relative overflow-hidden rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.95),0_0_35px_rgba(15,185,168,0.22)] border border-[#232D3D]"
         data-tauri-drag-region
         onMouseDown={(e) => {
           if (e.button === 0) void startDraggingAppWindow();
         }}
       >
-        {/* Brilho suave de fundo */}
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#0FB9A8]/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Brilho atmosférico superior e inferior */}
+        <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-52 h-44 bg-[#0FB9A8]/25 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-52 h-36 bg-[#0FB9A8]/15 rounded-full blur-2xl pointer-events-none" />
+
+        {/* Linha tecnológica sutil de varredura na borda inferior */}
+        <div className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#14DAA6] to-transparent opacity-80 animate-pulse pointer-events-none" />
 
         {/* Barra superior com controles de janela */}
         <div
@@ -115,15 +124,18 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
             </span>
           </button>
 
-          {/* Indicador Echo verde-água */}
+          {/* Indicador Echo verde-água vibrante */}
           <div
             title="Echo"
-            className="w-3 h-3 rounded-full bg-[#0FB9A8] opacity-80 cursor-default shadow-[0_0_6px_rgba(15,185,168,0.5)]"
+            className="w-3 h-3 rounded-full bg-[#0FB9A8] cursor-default shadow-[0_0_8px_rgba(15,185,168,0.7)]"
           />
         </div>
 
         {/* Área central com vórtice animado verde-água Echo */}
         <div className="relative flex items-center justify-center my-auto">
+          {/* Concentração de luz atrás do pedestal central */}
+          <div className="absolute w-44 h-44 rounded-full bg-radial from-[#14DAA6]/25 via-[#0FB9A8]/10 to-transparent blur-xl pointer-events-none" />
+
           {/* Anel externo com rotação reversa suave */}
           <svg
             className="absolute w-[156px] h-[156px] animate-[spin_6s_linear_infinite_reverse] pointer-events-none"
@@ -132,27 +144,27 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
           >
             <defs>
               <linearGradient id="echoOuterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#0FB9A8" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.1" />
+                <stop offset="0%" stopColor="#0FB9A8" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.25" />
               </linearGradient>
             </defs>
             <path
               d="M 25 15 A 42 42 0 0 1 75 15"
               stroke="url(#echoOuterGrad)"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeLinecap="round"
             />
             <path
               d="M 75 85 A 42 42 0 0 1 25 85"
               stroke="url(#echoOuterGrad)"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeLinecap="round"
             />
           </svg>
 
-          {/* Vórtice dinâmico Echo */}
+          {/* Vórtice dinâmico Echo de alta definição */}
           <svg
-            className="absolute w-[138px] h-[138px] animate-[spin_1.8s_linear_infinite] pointer-events-none drop-shadow-[0_0_10px_rgba(15,185,168,0.45)]"
+            className="absolute w-[138px] h-[138px] animate-[spin_1.8s_linear_infinite] pointer-events-none drop-shadow-[0_0_14px_rgba(20,218,166,0.65)]"
             viewBox="0 0 100 100"
             fill="none"
           >
@@ -168,32 +180,32 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
               stroke="url(#echoVortexGrad)"
               strokeWidth="6"
               strokeLinecap="round"
-              opacity="0.95"
+              opacity="1"
             />
             <path
               d="M 82 74 A 40 40 0 0 1 40 90"
               stroke="url(#echoVortexGrad)"
               strokeWidth="5.5"
               strokeLinecap="round"
-              opacity="0.85"
+              opacity="0.95"
             />
             <path
               d="M 18 68 A 40 40 0 0 1 14 36"
               stroke="url(#echoVortexGrad)"
               strokeWidth="5"
               strokeLinecap="round"
-              opacity="0.9"
+              opacity="0.95"
             />
           </svg>
 
           {/* Pedestal central com o logo transparente oficial Echo */}
-          <div className="relative w-22 h-22 rounded-full flex items-center justify-center bg-[#171B24]/90 border border-[#2A3546] shadow-[inset_0_2px_8px_rgba(0,0,0,0.6),0_0_20px_rgba(15,185,168,0.2)] backdrop-blur-md z-10">
+          <div className="relative w-22 h-22 rounded-full flex items-center justify-center bg-[#131722] border border-[#0FB9A8]/40 shadow-[0_0_24px_rgba(15,185,168,0.35),inset_0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-md z-10">
             <img
               src="/echo-logo.png"
               width={54}
               height={54}
               alt="Echo"
-              className="drop-shadow-[0_0_12px_rgba(15,185,168,0.6)] select-none pointer-events-none object-contain animate-[pulse_3s_ease-in-out_infinite]"
+              className="drop-shadow-[0_0_16px_rgba(20,218,166,0.85)] select-none pointer-events-none object-contain"
             />
           </div>
         </div>
@@ -202,21 +214,29 @@ export default function UpdaterSplash({ customStatus }: UpdaterSplashProps) {
         <div className="w-full pb-7 px-4 flex flex-col items-center justify-center text-center z-10">
           {/* Slogan em português com a fonte Space Grotesk do Echo */}
           <p
-            className={`font-display text-[#E9EDF2] font-bold italic text-base tracking-wide select-none transition-opacity duration-300 h-6 flex items-center justify-center ${
+            className={`font-display text-[#F1F5F9] font-bold italic text-base tracking-wide select-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] transition-opacity duration-300 h-6 flex items-center justify-center ${
               sloganVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
             }`}
           >
             {SLOGANS[sloganIndex]}
           </p>
 
-          {/* Indicador de status em destaque verde-água em pt-BR */}
-          <p
-            role="status"
-            aria-live="polite"
-            className="text-[11px] font-semibold tracking-wider text-[#0FB9A8] uppercase select-none mt-2 transition-colors duration-200"
-          >
-            {statusLabel}
-          </p>
+          {/* Indicador de status em destaque verde-água em pt-BR com dot pulsante */}
+          <div className="flex items-center justify-center gap-2 mt-2">
+            {isCheckingOrBusy && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#14DAA6] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0FB9A8] shadow-[0_0_8px_#0FB9A8]"></span>
+              </span>
+            )}
+            <p
+              role="status"
+              aria-live="polite"
+              className="text-[11px] font-bold tracking-wider text-[#14DAA6] uppercase select-none drop-shadow-[0_0_8px_rgba(20,218,166,0.5)] transition-colors duration-200"
+            >
+              {statusLabel}
+            </p>
+          </div>
         </div>
       </div>
     </div>

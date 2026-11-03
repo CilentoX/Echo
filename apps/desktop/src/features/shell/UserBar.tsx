@@ -121,3 +121,4 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
     </footer>
   );
 }
+

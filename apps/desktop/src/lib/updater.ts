@@ -50,6 +50,7 @@ export async function downloadAndInstall(): Promise<boolean> {
     if (!update) {
       console.log("[updater] Nenhuma atualização pendente (versão mais recente ou ambiente local).");
       useUpdateStore.getState().reset();
+      useUpdateStore.getState().setStatusText("SISTEMA ATUALIZADO");
       return false;
     }
     console.log(`[updater] Atualização encontrada: versão ${update.version}. Baixando...`);
