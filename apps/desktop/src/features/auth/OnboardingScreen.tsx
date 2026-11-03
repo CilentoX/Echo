@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowLeft, CheckCircle, User } from "@phosphor-icons/react";
 import { ShieldCheck, Globe } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
-import { markOnboardingCompleted } from "@/lib/onboarding";
+import { markOnboardingCompleted, triggerFullAccountReset } from "@/lib/onboarding";
+import { useEchoApi } from "@/lib/api/echoApi";
 import { useUiStore } from "@/stores/uiStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,6 +90,14 @@ export default function OnboardingScreen({
       setIsLoading(false);
     }
   }, [nickname, avatarUrl, myUserId]);
+
+  const echoApi = useEchoApi();
+
+  const handleAccountReset = useCallback(async () => {
+    if (window.confirm("Deseja apagar os dados da sua conta e recomeçar o onboarding do zero?")) {
+      await triggerFullAccountReset(echoApi);
+    }
+  }, [echoApi]);
 
   if (onboardingDone) {
     return null;
@@ -203,7 +212,7 @@ export default function OnboardingScreen({
           )}
         </CardContent>
 
-        <CardFooter className="flex items-center justify-between px-8 pt-2 pb-8">
+        <CardFooter className="flex flex-col gap-3 px-8 pt-2 pb-7">
           {step === "welcome" ? (
             <Button
               type="button"
@@ -214,13 +223,35 @@ export default function OnboardingScreen({
               Avançar <ArrowRight size={18} weight="bold" />
             </Button>
           ) : (
+            <div className="flex items-center justify-between w-full">
+              <button
+                type="button"
+                onClick={() => setStep("welcome")}
+                className="text-xs text-[#94A3B8] hover:text-[#E9EDF2] flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <ArrowLeft size={14} />
+                Voltar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAccountReset}
+                className="text-[11px] text-red-400/80 hover:text-red-300 transition-colors cursor-pointer hover:underline"
+                title="Apaga os dados da conta e recomeça o login"
+              >
+                Redefinir conta
+              </button>
+            </div>
+          )}
+
+          {step === "welcome" && (
             <button
               type="button"
-              onClick={() => setStep("welcome")}
-              className="text-xs text-[#94A3B8] hover:text-[#E9EDF2] flex items-center gap-1 transition-colors cursor-pointer"
+              onClick={handleAccountReset}
+              className="text-[11px] text-red-400/70 hover:text-red-300 transition-colors cursor-pointer hover:underline self-center"
+              title="Apaga os dados da conta e recomeça o login"
             >
-              <ArrowLeft size={14} />
-              Voltar
+              Redefinir conta e recomeçar
             </button>
           )}
         </CardFooter>

@@ -577,6 +577,14 @@ export class EchoApi {
     await this.patchUserProfile("", data);
   }
 
+  /** Delete current user's profile and reset account on server. */
+  async deleteMyProfile(): Promise<void> {
+    const res = await this.delete("/api/profiles/me");
+    if (!res.ok) {
+      console.warn("[EchoApi] Falha ao deletar perfil:", res.status);
+    }
+  }
+
   /** Get global profile (alias for getUserProfile with current user). */
   async getGlobalProfile(): Promise<{
     displayName: string | null;

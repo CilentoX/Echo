@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, Key, LockKeyOpen, Fingerprint, Download } from "@phosphor-icons/react";
+import { Shield, Key, LockKeyOpen, Fingerprint, Download, Trash } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { triggerFullAccountReset } from "@/lib/onboarding";
+import { useEchoApi } from "@/lib/api/echoApi";
 
 export function SecurityTab() {
   const [twoFactor, setTwoFactor] = useState(false);
   const [passkeys, setPasskeys] = useState(false);
+  const echoApi = useEchoApi();
 
   return (
     <section className="space-y-6 max-w-2xl">
@@ -186,6 +189,48 @@ export function SecurityTab() {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction>Redefinir</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+
+      {/* Zona de Perigo: Apagar Conta & Reiniciar Onboarding */}
+      <Card className="border-err/40 bg-[#160D12]">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-400">
+            <Trash size={20} />
+            Apagar Conta & Reiniciar Onboarding
+          </CardTitle>
+          <CardDescription>
+            Exclui seu perfil no servidor, desconecta a sessão atual e limpa todas as configurações para você poder refazer o login e o onboarding do zero.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="w-full justify-start bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer">
+                <Trash size={16} className="mr-2" />
+                Apagar dados da conta e reiniciar
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-[#131722] border border-[#242B3D] text-[#E9EDF2]">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-red-400 font-bold">Apagar conta e reiniciar?</AlertDialogTitle>
+                <AlertDialogDescription className="text-[#94A3B8]">
+                  Esta ação excluirá seu perfil do banco de dados, limpará todas as sessões salvas neste dispositivo e resetará o processo de onboarding. Você voltará para a tela inicial de login com Google.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="bg-[#1A202E] border-[#242B3D] text-[#E9EDF2] hover:bg-[#242B3D]">
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => triggerFullAccountReset(echoApi)}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold"
+                >
+                  Sim, apagar e reiniciar
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

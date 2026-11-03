@@ -1,4 +1,3 @@
-
 const ONBOARDING_KEY = "echo:onboarding:completed";
 
 /**
@@ -54,10 +53,58 @@ export function resetOnboarding(userId?: string): void {
  * retornarem null, considera-se uma conta recém-criada que precisa de
  * onboarding (nick + foto).
  */
-export async function isNewAccount(matrixService: { getDisplayName?: (userId?: string) => Promise<string | null>; getAvatarUrl?: (userId?: string) => Promise<string | null> }): Promise<boolean> {
+export async function isNewAccount(matrixService: {
+  getDisplayName?: (userId?: string) => Promise<string | null>;
+  getAvatarUrl?: (userId?: string) => Promise<string | null>;
+}): Promise<boolean> {
   const [displayName, avatarUrl] = await Promise.all([
     matrixService.getDisplayName?.(),
     matrixService.getAvatarUrl?.(),
   ]);
   return displayName == null && avatarUrl == null;
+}
+
+/**
+ * Executa a limpeza completa da conta e do onboarding:
+ * - Exclui o perfil no echo-api (PostgreSQL) se autenticado
+ * - Limpa as flags de onboarding no localStorage
+ * - Limpa a sessão no keyring e localStorage
+ * - Limpa o storage da aplicação
+ * - Recarrega a aplicação para reiniciar limpo no login
+ */
+export async function triggerFullAccountReset(echoApiInstance?: {
+  deleteMyProfile?: () => Promise<void>;
+}): Promise<void> {
+  try {
+    if (echoApiInstance?.deleteMyProfile) {
+      await echoApiInstance.deleteMyProfile().catch(() => {});
+    }
+  } catch {}
+
+  try {
+    const { clearSession } = await import("@/lib/storage/keyring");
+    await clearSession();
+  } catch {}
+
+  try {
+    resetOnboarding();
+    if (typeof window !== "undefined") {
+      localStorage.clear();
+      sessionStorage.clear();
+    }
+  } catch {}
+
+  if (typeof window !== "undefined") {
+    window.location.reload();
+  }
+}
+
+// Expõe gatilhos globais no console do desenvolvedor (F12)
+if (typeof window !== "undefined") {
+  const win = window as unknown as Record<string, unknown>;
+  win.__resetEchoAccount = () => triggerFullAccountReset();
+  win.__resetOnboarding = () => {
+    resetOnboarding();
+    window.location.reload();
+  };
 }
