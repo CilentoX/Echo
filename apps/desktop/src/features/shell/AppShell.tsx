@@ -7,7 +7,8 @@ import MemberList from "./MemberList";
 import UserBar from "./UserBar";
 import SyncStatusIndicator from "./SyncStatusIndicator";
 import EmptyState from "./EmptyState";
-import HomePage from "./HomePage";
+import HomeSidebar from "./HomeSidebar";
+import FriendsDashboard from "@/features/friends/FriendsDashboard";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import Profile from "@/features/profile/Profile";
@@ -52,6 +53,7 @@ export default function AppShell({ children }: AppShellProps) {
   const guilds = useSyncStore((s) => s.guilds);
   const setGuilds = useSyncStore((s) => s.setGuilds);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
+  const activeChannelId = useUiStore((s) => s.activeChannelId);
   const isHome = activeGuildId === "home";
   const showEmptyState = guilds.length === 0 && !isHome;
 
@@ -108,24 +110,33 @@ export default function AppShell({ children }: AppShellProps) {
           onOpenSettings={() => setSettingsOpen(true)}
         />
 
-        {!isHome && (
-          <>
-            {sidebarOverlay ? (
-              sidebarOpen && (
-                <ChannelSidebar
-                  variant="overlay"
-                  onClose={() => setSidebarOpen(false)}
-                  onOpenProfile={() => setProfileOpen(true)}
-                  onOpenSettings={() => setSettingsOpen(true)}
-                />
-              )
-            ) : (
+        {isHome ? (
+          sidebarOverlay ? (
+            sidebarOpen && (
+              <HomeSidebar
+                variant="overlay"
+                onClose={() => setSidebarOpen(false)}
+              />
+            )
+          ) : (
+            <HomeSidebar />
+          )
+        ) : (
+          sidebarOverlay ? (
+            sidebarOpen && (
               <ChannelSidebar
+                variant="overlay"
+                onClose={() => setSidebarOpen(false)}
                 onOpenProfile={() => setProfileOpen(true)}
                 onOpenSettings={() => setSettingsOpen(true)}
               />
-            )}
-          </>
+            )
+          ) : (
+            <ChannelSidebar
+              onOpenProfile={() => setProfileOpen(true)}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+          )
         )}
 
         <ChatPane
@@ -135,11 +146,11 @@ export default function AppShell({ children }: AppShellProps) {
           onToggleMembers={() => setMembersOpen((open) => !open)}
         >
           {isHome ? (
-            <HomePage
-              onCreateGuild={handleOpenCreateGuild}
-              onJoinGuild={() => setJoinGuildOpen(true)}
-              onOpenProfile={() => setProfileOpen(true)}
-            />
+            activeChannelId ? (
+              children
+            ) : (
+              <FriendsDashboard />
+            )
           ) : showEmptyState ? (
             <EmptyState onCreateGuild={handleOpenCreateGuild} />
           ) : (

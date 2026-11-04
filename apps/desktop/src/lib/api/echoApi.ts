@@ -28,6 +28,42 @@ import { saveSession } from "@/lib/storage/keyring";
 /** Default config for Echo API */
 import { ECHO_API_CONFIG } from "@/lib/api/config";
 
+export interface FriendProfile {
+  userId: string;
+  nickname: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  bio?: string | null;
+  presence?: "online" | "offline" | "unavailable";
+}
+
+export interface FriendItem {
+  friendshipId: string;
+  userId: string;
+  nickname: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  bio?: string | null;
+  status: "accepted";
+  directRoomId: string | null;
+  presence?: "online" | "offline" | "unavailable";
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface FriendRequestItem {
+  friendshipId: string;
+  user: FriendProfile;
+  createdAt: string;
+}
+
+export interface FriendsResponse {
+  friends: FriendItem[];
+  pendingIncoming: FriendRequestItem[];
+  pendingOutgoing: FriendRequestItem[];
+  blocked: FriendRequestItem[];
+}
+
 /**
  * Low-level request helper that adds auth headers.
  * The Echo API middleware expects:
@@ -87,7 +123,12 @@ export class EchoApi {
   private syncHandlers: {
     onStatus?: (status: string, error?: any) => void;
     onEvent?: (event: any) => void;
-    onPresence?: (presence: any) => void;
+    onTyping?: (roomId: string, userIds: string[]) => void;
+    onPresence?: (userId: string, presence: any) => void;
+    onMembers?: (roomId: string, members: any[]) => void;
+    onReaction?: (reaction: any) => void;
+    onReadReceipt?: (roomId: string, userId: string, eventId: string) => void;
+    [key: string]: any;
   } | null = null;
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -795,6 +836,103 @@ export class EchoApi {
       this.syncTimer = null;
     }
     this.syncHandlers = null;
+  }
+
+  // ── Friends & DMs ───────────────────────────────────────────────
+
+  /** Lista amigos, solicitações recebidas, enviadas e bloqueados. */
+  async getFriends(): Promise<FriendsResponse> {
+    const res = await this.get("/api/friends");
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao carregar amigos: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Envia solicitação de amizade. */
+  async sendFriendRequest(target: string): Promise<any> {
+    const res = await this.post("/api/friends/request", { target });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      let msg = errTxt;
+      try {
+        const json = JSON.parse(errTxt);
+        if (json.error) msg = json.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
+  }
+
+  /** Aceita solicitação de amizade. */
+  async acceptFriendRequest(friendshipId: string): Promise<any> {
+    const res = await this.post(`/api/friends/${friendshipId}/accept`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao aceitar pedido: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Recusa solicitação de amizade. */
+  async declineFriendRequest(friendshipId: string): Promise<{ success: boolean }> {
+    const res = await this.post(`/api/friends/${friendshipId}/decline`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao recusar pedido: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Cancela solicitação de amizade enviada. */
+  async cancelFriendRequest(friendshipId: string): Promise<{ success: boolean }> {
+    const res = await this.post(`/api/friends/${friendshipId}/cancel`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao cancelar pedido: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Desfaz amizade. */
+  async removeFriend(friendshipId: string): Promise<{ success: boolean }> {
+    const res = await this.delete(`/api/friends/${friendshipId}`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao desfazer amizade: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Bloqueia um usuário. */
+  async blockUser(targetUserId: string): Promise<any> {
+    const res = await this.post(`/api/friends/${targetUserId}/block`, { targetUserId });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao bloquear usuário: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Desbloqueia um usuário. */
+  async unblockUser(targetUserIdOrFriendshipId: string): Promise<{ success: boolean }> {
+    const res = await this.post(`/api/friends/${targetUserIdOrFriendshipId}/unblock`, { targetUserId: targetUserIdOrFriendshipId });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao desbloquear usuário: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Cria ou obtém sala direta 1-a-1 com o usuário. */
+  async getOrCreateDirectRoom(targetUserId: string): Promise<{ roomId: string }> {
+    const res = await this.post("/api/friends/dm", { targetUserId });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao obter sala direta: ${res.status} ${errTxt}`);
+    }
+    return res.json();
   }
 
   // ── Compatibility aliases for old method names ─────────────────────

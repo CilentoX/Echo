@@ -68,4 +68,34 @@ describe("EchoApi.refreshSession", () => {
       );
     });
   });
+
+  describe("Friends & DMs methods", () => {
+    it("getFriends calls GET /api/friends and returns payload", async () => {
+      const mockFriends = {
+        friends: [{ friendshipId: "f1", userId: "@bob:litteris.online", displayName: "Bob", status: "accepted" }],
+        pendingIncoming: [],
+        pendingOutgoing: [],
+        blocked: [],
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockFriends,
+      } as Response);
+
+      const res = await api.getFriends();
+      expect(res.friends).toHaveLength(1);
+      expect(res.friends[0].userId).toBe("@bob:litteris.online");
+    });
+
+    it("sendFriendRequest calls POST /api/friends/request", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: "f2", status: "pending" }),
+      } as Response);
+
+      const res = await api.sendFriendRequest("@bob:litteris.online");
+      expect(res.id).toBe("f2");
+    });
+  });
 });
