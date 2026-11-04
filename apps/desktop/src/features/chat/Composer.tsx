@@ -224,16 +224,22 @@ export default function Composer({
       </div>
 
       <div className="flex items-end gap-1.5 rounded-2xl border border-bd/80 bg-surf/90 px-3.5 py-2.5 shadow-sm transition-all focus-within:border-acc/40 focus-within:ring-2 focus-within:ring-acc/10">
-        {/* Botão emoji */}
-        <button
-          type="button"
-          aria-label="Escolher emoji"
-          aria-expanded={emojiOpen}
-          onClick={() => setEmojiOpen((o) => !o)}
-          className="p-1.5 hover:bg-surf2 rounded transition-colors text-mut"
+        {/* Botão emoji com Popover acoplado */}
+        <EmojiPicker
+          onSelect={handleEmojiSelect}
+          open={emojiOpen}
+          onOpenChange={setEmojiOpen}
         >
-          <Smile size={16} />
-        </button>
+          <button
+            type="button"
+            aria-label="Escolher emoji"
+            aria-expanded={emojiOpen}
+            onClick={() => setEmojiOpen((o) => !o)}
+            className="cursor-pointer p-1.5 hover:bg-surf2 rounded transition-colors text-mut"
+          >
+            <Smile size={16} />
+          </button>
+        </EmojiPicker>
 
         {/* Botão anexar */}
         <button
@@ -325,15 +331,6 @@ export default function Composer({
           Enviar
         </button>
       </div>
-
-      {/* EmojiPicker (popover controlado manualmente) */}
-      {emojiOpen && (
-        <EmojiPicker
-          onSelect={handleEmojiSelect}
-          open={emojiOpen}
-          onOpenChange={setEmojiOpen}
-        />
-      )}
 
       {/* Lista de mensagens pendentes (placeholder otimista + retry) */}
       {pending.length > 0 && (
