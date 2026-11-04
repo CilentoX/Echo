@@ -2,6 +2,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useSyncStore } from "@/stores/syncStore";
+import { startSyncWiring } from "@/lib/matrix/wiring";
 import MxcImage from "@/components/media/MxcImage";
 import { Gear, Headphones, Microphone, MicrophoneSlash, ShieldCheck } from "@phosphor-icons/react";
 
@@ -159,10 +160,29 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
 
         <div className="h-4 w-[1px] bg-bd/60 mx-1" aria-hidden="true" />
 
-        {/* Indicador de Status Matrix integrado ao Dock */}
-        <div
-          title={`Status da rede: ${syncStatus}`}
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surf2/40 text-[11px] text-mut border border-bd/30 select-none"
+        {/* Indicador de Status Matrix integrado ao Dock (clicável para reconexão/retry) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (syncStatus !== "syncing") {
+              void startSyncWiring();
+            }
+          }}
+          title={
+            syncStatus === "syncing"
+              ? "Rede Matrix: Conectado e sincronizado"
+              : syncStatus === "connecting"
+                ? "Conectando ao Matrix... Clique para tentar novamente"
+                : "Desconectado da rede Matrix. Clique para reconectar"
+          }
+          aria-label={
+            syncStatus === "syncing"
+              ? "Status da rede: Conectado e sincronizado"
+              : syncStatus === "connecting"
+                ? "Status da rede: Conectando. Clique para tentar novamente"
+                : "Status da rede: Desconectado. Clique para reconectar"
+          }
+          className="cursor-pointer hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surf2/40 hover:bg-surf2/70 text-[11px] text-mut border border-bd/30 select-none transition-all active:scale-95"
         >
           <span
             className={`h-2 w-2 rounded-full ${
@@ -176,7 +196,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
           <span className="font-mono text-[10px] text-txt/70">
             {syncStatus === "syncing" ? "Matrix Sync" : syncStatus === "connecting" ? "Syncing…" : "Offline"}
           </span>
-        </div>
+        </button>
 
         <div className="h-4 w-[1px] bg-bd/60 mx-1" aria-hidden="true" />
 

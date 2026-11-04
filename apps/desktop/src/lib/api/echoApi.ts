@@ -84,6 +84,12 @@ export class EchoApi {
   private accessToken: string;
   private userId: string | null = null;
   private readonly apiKey: string | undefined;
+  private syncHandlers: {
+    onStatus?: (status: string, error?: any) => void;
+    onEvent?: (event: any) => void;
+    onPresence?: (presence: any) => void;
+  } | null = null;
+  private syncTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor({ baseUrl, accessToken, apiKey, userId }: EchoApiInit) {
     this.baseUrl = baseUrl;
@@ -92,10 +98,21 @@ export class EchoApi {
     this.apiKey = apiKey;
   }
 
+  /** Retorna o token de acesso ativo. */
+  getAccessToken(): string {
+    return this.accessToken;
+  }
+
   /** Update the access token (used when session is restored). */
   setAccessToken(token: string, userId?: string): void {
     this.accessToken = token;
     if (userId) this.userId = userId;
+    if (token && this.syncHandlers) {
+      if (this.syncTimer) clearTimeout(this.syncTimer);
+      this.syncTimer = setTimeout(() => {
+        this.syncHandlers?.onStatus?.("syncing");
+      }, 50);
+    }
   }
 
   /** Recreate or restore client session. */
@@ -748,14 +765,31 @@ export class EchoApi {
 
   // ── Sync compatibility methods ─────────────────────────────────────
 
-  /** Start sync handlers (no-op, handled by wiring). */
-  startSyncHandlers(_handlers: any): void {
-    // Sync is handled by wiring.ts connectSync()
+  /** Start sync handlers. Transiciona para "syncing" se a sessão já estiver autenticada. */
+  startSyncHandlers(handlers: {
+    onStatus?: (status: string, error?: any) => void;
+    onEvent?: (event: any) => void;
+    onPresence?: (presence: any) => void;
+  }): void {
+    this.syncHandlers = handlers;
+    if (this.syncTimer) {
+      clearTimeout(this.syncTimer);
+      this.syncTimer = null;
+    }
+    if (this.accessToken) {
+      this.syncTimer = setTimeout(() => {
+        this.syncHandlers?.onStatus?.("syncing");
+      }, 50);
+    }
   }
 
-  /** Stop sync (no-op). */
+  /** Stop sync. Limpa os timers e handlers de sincronização. */
   stopSync(): void {
-    // Sync is handled by wiring.ts
+    if (this.syncTimer) {
+      clearTimeout(this.syncTimer);
+      this.syncTimer = null;
+    }
+    this.syncHandlers = null;
   }
 
   // ── Compatibility aliases for old method names ─────────────────────

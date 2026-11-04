@@ -1,6 +1,6 @@
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useKeyring } from "@/lib/storage/keyring";
+import { loadSession, useKeyring } from "@/lib/storage/keyring";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
 import { matrixService } from "./instance";
 
@@ -41,6 +41,7 @@ let syncWs: WebSocket | null = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_RECONNECT_DELAY = 1000; // ms
+let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
 function isAuthError(error: { errcode: string } | undefined): boolean {
   return error !== undefined && ["M_UNKNOWN_TOKEN", "M_MISSING_TOKEN"].includes(error.errcode);
@@ -121,6 +122,7 @@ function openSyncWebSocket(accessToken: string): void {
 
   syncWs.onopen = () => {
     reconnectAttempts = 0;
+    void handleStatus("syncing");
   };
 
   syncWs.onmessage = (event) => {
@@ -206,20 +208,54 @@ function openSyncWebSocket(accessToken: string): void {
   };
 
   syncWs.onerror = (error) => {
-    console.error("[wync] WebSocket error:", error);
-    handleStatus("error", { errcode: "NETWORK_ERROR" });
+    console.warn("[wiring] WebSocket sync indisponível, operando via HTTP REST:", error);
+    if (!initialDataLoaded) {
+      handleStatus("error", { errcode: "NETWORK_ERROR" });
+    }
   };
 
   syncWs.onclose = () => {
-    // Attempt reconnect with exponential backoff
     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
       reconnectAttempts++;
       const delay = BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1);
-      setTimeout(openSyncWebSocket, delay);
-    } else {
-      handleStatus("error", { errcode: "SYNC_FAILED" });
+      setTimeout(() => {
+        if (started && accessToken) {
+          openSyncWebSocket(accessToken);
+        }
+      }, delay);
     }
   };
+}
+
+function startPollingLoop(): void {
+  if (pollingTimer) return;
+  pollingTimer = setInterval(async () => {
+    if (!started) return;
+    const ui = useUiStore.getState();
+    const activeChannelId = ui.activeChannelId;
+    if (activeChannelId) {
+      try {
+        const events = await matrixService.loadOlder(activeChannelId, 20);
+        if (events && events.length > 0) {
+          const store = useSyncStore.getState();
+          for (const ev of events) {
+            store.applyEvent(ev);
+          }
+        }
+      } catch (err: any) {
+        if (isAuthError(err)) {
+          authFailureCallback?.();
+        }
+      }
+    }
+  }, 4000);
+}
+
+function stopPollingLoop(): void {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
 }
 
 function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | null {
@@ -299,18 +335,43 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
     },
   });
 
-  // Obter o token da sessão
-  const storedSession = await useKeyring.getItem("echo:session");
-  const sessionJson = storedSession ? JSON.parse(storedSession) : null;
-  const session = sessionJson ? sessionJson.accessToken : null;
-
-  if (!session) {
-    console.warn("[wiring] Nenhum token de sessão disponível para sync");
-    return;
+  // Obter o token da sessão ativa de forma confiável (sem tocar em restoreSession)
+  let sessionToken: string | null = (matrixService as any).getAccessToken?.() ?? (matrixService as any).accessToken ?? null;
+  if (!sessionToken) {
+    try {
+      const stored = await loadSession();
+      if (stored?.accessToken) {
+        sessionToken = stored.accessToken;
+      }
+    } catch {
+      // ignore
+    }
   }
 
-  // Abrir WebSocket de sync
-  openSyncWebSocket(session);
+  // Fallback para keyring legado (se existir)
+  if (!sessionToken) {
+    try {
+      const storedSession = await useKeyring.getItem("echo:session");
+      const sessionJson = storedSession ? JSON.parse(storedSession) : null;
+      sessionToken = sessionJson?.accessToken ?? null;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (sessionToken) {
+    // Tenta abrir WebSocket em segundo plano (se o backend aceitar)
+    try {
+      openSyncWebSocket(sessionToken);
+    } catch (err) {
+      console.warn("[wiring] Falha ao conectar WebSocket sync:", err);
+    }
+
+    // Inicia polling leve como fallback resiliente
+    startPollingLoop();
+  } else {
+    console.warn("[wiring] Nenhum token de sessão disponível para sync");
+  }
 
   // Subscribe to UI store changes for guild switching
   unsubscribeUi = useUiStore.subscribe((state, prev) => {
@@ -324,8 +385,11 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
 
 /** Desliga o sync, limpa flags internas e reseta os stores (logout). */
 export function stopSyncWiring(): void {
+  stopPollingLoop();
   if (syncWs) {
-    syncWs.close();
+    try {
+      syncWs.close();
+    } catch {}
     syncWs = null;
   }
   unsubscribeUi?.();
@@ -367,6 +431,7 @@ export async function setTyping(roomId: string, isTyping: boolean): Promise<void
 
 /** Reseta estado interno do wiring (usado em testes). */
 export function __resetWiringState(): void {
+  stopPollingLoop();
   started = false;
   initialDataLoaded = false;
   authFailureCallback = null;
@@ -376,7 +441,9 @@ export function __resetWiringState(): void {
   unsubscribeUi = null;
 
   if (syncWs) {
-    syncWs.close();
+    try {
+      syncWs.close();
+    } catch {}
     syncWs = null;
   }
 
