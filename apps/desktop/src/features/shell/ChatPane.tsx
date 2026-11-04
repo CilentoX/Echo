@@ -70,7 +70,9 @@ export default function ChatPane({
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col px-4 py-4">{children}</div>
+      <div className={`flex min-h-0 flex-1 flex-col ${activeGuildId === "home" ? "p-0" : "px-4 py-4"}`}>
+        {children}
+      </div>
     </main>
   );
 }
