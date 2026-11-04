@@ -19,8 +19,8 @@ export interface CreateGuildModalProps {
   onClose: () => void;
   onCreate: (
     data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
-  ) => Promise<{ guildId: string; name: string }>;
-  onCreated: (guild: { guildId: string; name: string }) => void;
+  ) => Promise<{ guildId: string; name: string; avatarUrl?: string | null }>;
+  onCreated: (guild: { guildId: string; name: string; avatarUrl?: string | null }) => void;
 }
 
 export default function CreateGuildModal({ open, onClose, onCreate, onCreated }: CreateGuildModalProps) {
@@ -58,7 +58,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
         name: trimmed,
         iconUrl,
         bannerUrl,
-        description: description || undefined,
+        description: description.trim() || undefined,
       });
       setName("");
       setDescription("");
@@ -66,7 +66,11 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
       setIconPreview(null);
       setBannerFile(null);
       setBannerPreview(null);
-      onCreated(guild);
+      onCreated(
+        iconUrl || (guild as any).avatarUrl
+          ? { ...guild, avatarUrl: (guild as any).avatarUrl ?? iconUrl }
+          : guild,
+      );
       onClose();
     } catch {
       setError("Não foi possível criar a guilda. Tente de novo.");
@@ -105,9 +109,12 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
 
         <div className="space-y-5">
           <div className="space-y-2">
-            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
-              Ícone da guilda
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+                Ícone da guilda
+              </Label>
+              <span className="text-[11px] text-mut">Proporção 1:1</span>
+            </div>
             <ImageUploadWithEdit
               label=""
               value={iconPreview}
@@ -116,19 +123,30 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
                 setIconFile(file);
                 setIconPreview(URL.createObjectURL(file));
               }}
+              onRemove={() => {
+                setIconFile(null);
+                setIconPreview(null);
+              }}
               aspect={1}
-              previewHeight="h-32"
+              previewHeight="h-28"
               editTitle="Recortar ícone da guilda"
+              editable={!loading}
+              disabled={loading}
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
-              Nome da guilda
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+                Nome da guilda
+              </Label>
+              <span className="text-[11px] text-mut">{name.length}/100</span>
+            </div>
             <Input
               type="text"
               value={name}
+              maxLength={100}
+              disabled={loading}
               onChange={(e) => {
                 setName(e.target.value);
                 if (error) setError(null);
@@ -138,30 +156,38 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
               }}
               placeholder="Ex: Minha comunidade"
               autoFocus
-              className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc focus:ring-2 focus:ring-acc/40"
+              className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc focus:ring-2 focus:ring-acc/30 hover:border-bd-glass transition-all duration-150"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
-              Descrição
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+                Descrição
+              </Label>
+              <span className="text-[11px] text-mut">{description.length}/280</span>
+            </div>
             <Textarea
               value={description}
+              maxLength={280}
+              disabled={loading}
               onChange={(e) => {
                 setDescription(e.target.value);
                 if (error) setError(null);
               }}
               rows={3}
-              placeholder="Descreva sua guilda…"
-              className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none focus:ring-2 focus:ring-acc/40 resize-none transition-colors"
+              placeholder="Descreva o propósito da sua comunidade…"
+              className="w-full border border-bd rounded-lg p-3 text-sm text-txt focus:border-acc focus:outline-none focus:ring-2 focus:ring-acc/30 hover:border-bd-glass resize-none transition-all duration-150"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
-              Banner da guilda
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="block text-xs font-semibold uppercase tracking-wider text-mut">
+                Banner da guilda
+              </Label>
+              <span className="text-[11px] text-mut">Proporção 16:9</span>
+            </div>
             <ImageUploadWithEdit
               label=""
               value={bannerPreview}
@@ -170,29 +196,51 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
                 setBannerFile(file);
                 setBannerPreview(URL.createObjectURL(file));
               }}
+              onRemove={() => {
+                setBannerFile(null);
+                setBannerPreview(null);
+              }}
               aspect={16 / 9}
               previewHeight="h-24"
               editTitle="Recortar banner da guilda"
+              editable={!loading}
+              disabled={loading}
             />
           </div>
 
           {error && (
-            <p role="alert" className="mt-2 text-sm text-err">
+            <p role="alert" className="mt-2 text-sm text-err font-medium animate-in fade-in-50 duration-150">
               {error}
             </p>
           )}
 
           <div className="mt-8 flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1 border border-bd bg-bg text-txt hover:bg-surf2 hover:border-acc active:scale-95 disabled:opacity-50 disabled:pointer-events-none">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 border border-bd bg-bg text-txt hover:bg-surf2 hover:border-bd-glass active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none"
+            >
               Cancelar
             </Button>
             <Button
               type="button"
               onClick={() => void handleSubmit()}
               disabled={loading}
-              className="flex-1 bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              className="flex-1 bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
             >
-              {loading ? "Criando…" : "Criar guilda"}
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span>Criando…</span>
+                </>
+              ) : (
+                "Criar guilda"
+              )}
             </Button>
           </div>
         </div>

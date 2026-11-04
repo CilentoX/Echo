@@ -71,6 +71,7 @@ export interface ChannelSummary {
 /** Perfil completo de um usuário (busca única no servidor Matrix). */
 export interface UserProfile {
   displayName: string | null;
+  nickname?: string | null;
   avatarUrl: string | null;
   bannerUrl: string | null;
   bio: string | null;

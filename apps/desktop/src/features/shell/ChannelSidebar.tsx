@@ -24,8 +24,8 @@ export interface ChannelSidebarProps {
 export default function ChannelSidebar({
   variant = "static",
   onClose,
-  onOpenProfile,
-  onOpenSettings,
+  onOpenProfile: _onOpenProfile,
+  onOpenSettings: _onOpenSettings,
 }: ChannelSidebarProps) {
   const overlay = variant === "overlay";
 

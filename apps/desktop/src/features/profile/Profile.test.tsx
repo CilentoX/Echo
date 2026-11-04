@@ -230,7 +230,7 @@ describe("Profile", () => {
   it("renderiza sidebar com abas de navegação", () => {
     resetStore();
     renderProfile();
-    expect(screen.getByText("Perfil")).not.toBeNull();
+    expect(screen.getAllByText("Perfil").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Aparência")).not.toBeNull();
     expect(screen.getByText("Notificações")).not.toBeNull();
     expect(screen.getByText("Privacidade")).not.toBeNull();

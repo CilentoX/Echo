@@ -112,7 +112,7 @@ export interface CommunityRailProps {
 }
 
 /** Community rail: the leftmost 72px column. It never disappears. */
-export default function CommunityRail({ onOpenProfile, onOpenSettings }: CommunityRailProps) {
+export default function CommunityRail({ onOpenProfile: _onOpenProfile, onOpenSettings: _onOpenSettings }: CommunityRailProps) {
   const guilds = useSyncStore((state) => state.guilds);
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
@@ -120,9 +120,9 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
   const myUserId = useUiStore((state) => state.myUserId);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const handleCreated = (guild: { guildId: string; name: string }) => {
+  const handleCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null }) => {
     // Adiciona ao store (sem perder as existentes) e seleciona a nova guilda.
-    useSyncStore.getState().setGuilds([...guilds, { ...guild, avatarUrl: null, unreadCount: 0 }]);
+    useSyncStore.getState().setGuilds([...guilds, { ...guild, avatarUrl: guild.avatarUrl ?? null, unreadCount: 0 }]);
     setActiveGuild(guild.guildId);
   };
 

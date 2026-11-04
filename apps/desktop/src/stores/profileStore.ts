@@ -19,6 +19,7 @@ export interface ProfileState {
   role: string | null;        // cargo dentro da comunidade
   joinedAt: string | null;    // data de entrada na rede
   links: ProfileLink[];       // links sociais (GitHub, LinkedIn, etc.)
+  presence?: "online" | "offline" | "unavailable" | "idle" | "dnd";
 
   setDisplayName(name: string): void;
   setNickname(nickname: string | null): void;
@@ -28,6 +29,7 @@ export interface ProfileState {
   setBannerUrl(url: string | null): void;
   setAppwriteAvatarUrl(url: string | null): void;
   setAppwriteBannerUrl(url: string | null): void;
+  setPresence?(presence: "online" | "offline" | "unavailable" | "idle" | "dnd"): void;
   /** Carrega dados do perfil do próprio usuário do servidor Matrix. */
   loadProfile(): Promise<void>;
   setLinks(links: ProfileLink[]): void;
@@ -49,6 +51,7 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   role: null,
   joinedAt: null,
   links: [],
+  presence: "online",
 
   setDisplayName: (name) => set({ displayName: name }),
   setNickname: (nickname) => set({ nickname }),
@@ -56,6 +59,7 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   setRole: (role) => set({ role }),
   setAvatarUrl: (url) => set({ avatarUrl: url }),
   setBannerUrl: (url) => set({ bannerUrl: url }),
+  setPresence: (presence) => set({ presence }),
   setAppwriteAvatarUrl: (url) => {
     set({ appwriteAvatarUrl: url });
     if (url) localStorage.setItem("echo:appwriteAvatarUrl", url);

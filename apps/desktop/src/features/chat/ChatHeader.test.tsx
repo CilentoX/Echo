@@ -73,3 +73,4 @@ describe("ChatHeader", () => {
     expect(toggleSpy).toHaveBeenCalled();
   });
 });
+

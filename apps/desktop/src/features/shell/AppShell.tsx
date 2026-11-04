@@ -79,10 +79,10 @@ export default function AppShell({ children }: AppShellProps) {
     };
   };
 
-  const handleGuildCreated = (guild: { guildId: string; name: string }) => {
+  const handleGuildCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null }) => {
     setGuilds([
       ...guilds,
-      { guildId: guild.guildId, name: guild.name, avatarUrl: null, unreadCount: 0 },
+      { guildId: guild.guildId, name: guild.name, avatarUrl: guild.avatarUrl ?? null, unreadCount: 0 },
     ]);
     useUiStore.getState().setActiveGuild(guild.guildId);
     setCreateGuildOpen(false);

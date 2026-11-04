@@ -1,66 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { Bell } from "@phosphor-icons/react";
+import { Bell, SpeakerHigh } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-
-interface NotificationOptions {
-  messages: boolean;
-  mentions: boolean;
-  reactions: boolean;
-  threads: boolean;
-  guilds: boolean;
-}
-
-interface SoundOptions {
-  sound: boolean;
-  desktop: boolean;
-  preview: boolean;
-}
-
-interface DndOptions {
-  dnd: boolean;
-  schedule: boolean;
-}
-
-const notificationOptions = [
-  { id: "messages" as const, label: "Mensagens diretas", desc: "Notificar quando receber mensagens diretas", defaultChecked: true },
-  { id: "mentions" as const, label: "Menções", desc: "Notificar quando for mencionado", defaultChecked: true },
-  { id: "reactions" as const, label: "Reações", desc: "Notificar quando reagirem às suas mensagens", defaultChecked: false },
-  { id: "threads" as const, label: "Tópicos", desc: "Notificar sobre respostas em tópicos que você segue", defaultChecked: true },
-  { id: "guilds" as const, label: "Servidores", desc: "Notificar sobre atividades nos servidores", defaultChecked: false },
-] as const;
-
-const soundOptions = [
-  { id: "sound" as const, label: "Som de notificação", desc: "Reproduzir som ao receber notificações", defaultChecked: true },
-  { id: "desktop" as const, label: "Notificações do sistema", desc: "Mostrar notificações nativas do sistema operacional", defaultChecked: true },
-  { id: "preview" as const, label: "Pré-visualização", desc: "Mostrar prévia da mensagem na notificação", defaultChecked: true },
-] as const;
-
-const dndOptions = [
-  { id: "dnd" as const, label: "Não perturbar global", desc: "Silenciar todas as notificações", defaultChecked: false },
-  { id: "schedule" as const, label: "Agendar não perturbar", desc: "Ativar automaticamente em horários definidos", defaultChecked: false },
-] as const;
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export function NotificationsTab() {
-  const [notifications, setNotifications] = useState<NotificationOptions>({
-    messages: true,
-    mentions: true,
-    reactions: false,
-    threads: true,
-    guilds: false,
-  });
-  const [sounds, setSounds] = useState<SoundOptions>({
-    sound: true,
-    desktop: true,
-    preview: true,
-  });
-  const [dnd, setDnd] = useState<DndOptions>({
-    dnd: false,
-    schedule: false,
-  });
+  const {
+    nativeNotifications,
+    setNativeNotifications,
+    messageSound,
+    setMessageSound,
+    mentionOnly,
+    setMentionOnly,
+  } = useSettingsStore();
 
   return (
     <section className="space-y-6 max-w-2xl">
@@ -68,66 +22,53 @@ export function NotificationsTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell size={20} className="text-acc" />
-            Notificações
+            Preferências de Notificações
           </CardTitle>
-          <CardDescription>Configure como e quando você recebe notificações</CardDescription>
+          <CardDescription>Configure como o Echo alerta sobre novas mensagens e menções</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 pt-0">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-mut">Configurações de notificação</p>
-            <div className="space-y-3">
-              {notificationOptions.map((item) => (
-                <label key={item.id} className="flex items-center gap-3 p-3 rounded-xl border border-bd bg-bg hover:bg-surf2/50 transition-colors">
-                  <Switch
-                    checked={notifications[item.id]}
-                    onCheckedChange={(checked) => setNotifications((prev) => ({ ...prev, [item.id]: checked }))}
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium text-txt">{item.label}</p>
-                    <p className="text-xs text-mut">{item.desc}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
+        <CardContent className="space-y-5 pt-0">
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 p-3 rounded-xl border border-bd bg-surf hover:bg-surf2/50 transition-colors cursor-pointer">
+              <Switch
+                checked={nativeNotifications}
+                onCheckedChange={setNativeNotifications}
+              />
+              <div className="flex-1">
+                <p className="font-medium text-txt text-sm">Notificações nativas do sistema</p>
+                <p className="text-xs text-mut">Exibir banners na área de trabalho e focar ao clicar</p>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 rounded-xl border border-bd bg-surf hover:bg-surf2/50 transition-colors cursor-pointer">
+              <Switch
+                checked={mentionOnly}
+                onCheckedChange={setMentionOnly}
+              />
+              <div className="flex-1">
+                <p className="font-medium text-txt text-sm">Notificar apenas menções e mensagens diretas</p>
+                <p className="text-xs text-mut">Silencia o fluxo geral de canais da comunidade</p>
+              </div>
+            </label>
           </div>
 
           <Separator />
 
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-mut">Som e aparência</p>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-mut mb-3 flex items-center gap-1.5">
+              <SpeakerHigh size={14} className="text-acc" />
+              Sons e Feedback Auditivo
+            </p>
             <div className="space-y-3">
-              {soundOptions.map((item) => (
-                <label key={item.id} className="flex items-center gap-3 p-3 rounded-xl border border-bd bg-bg hover:bg-surf2/50 transition-colors">
-                  <Switch
-                    checked={sounds[item.id]}
-                    onCheckedChange={(checked) => setSounds((prev) => ({ ...prev, [item.id]: checked }))}
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium text-txt">{item.label}</p>
-                    <p className="text-xs text-mut">{item.desc}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-mut">Não perturbar</p>
-            <div className="space-y-3">
-              {dndOptions.map((item) => (
-                <label key={item.id} className="flex items-center gap-3 p-3 rounded-xl border border-bd bg-bg hover:bg-surf2/50 transition-colors">
-                  <Switch
-                    checked={dnd[item.id]}
-                    onCheckedChange={(checked) => setDnd((prev) => ({ ...prev, [item.id]: checked }))}
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium text-txt">{item.label}</p>
-                    <p className="text-xs text-mut">{item.desc}</p>
-                  </div>
-                </label>
-              ))}
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-bd bg-surf hover:bg-surf2/50 transition-colors cursor-pointer">
+                <Switch
+                  checked={messageSound}
+                  onCheckedChange={setMessageSound}
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-txt text-sm">Som de mensagem recebida</p>
+                  <p className="text-xs text-mut">Tocar o chime característico do Echo ao receber mensagens</p>
+                </div>
+              </label>
             </div>
           </div>
         </CardContent>

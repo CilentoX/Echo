@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useCallback, useMemo, useState } from "react";
-import { Pencil, X, Camera, User, At, Hash, Calendar } from "@phosphor-icons/react";
+import {
+  Pencil,
+  X,
+  Camera,
+  User,
+  At,
+  Hash,
+  Calendar,
+  Link as LinkIcon,
+  Trash,
+  Plus,
+  ArrowSquareOut,
+} from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +41,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     bannerUrl,
     appwriteAvatarUrl,
     appwriteBannerUrl,
+    links,
     setAppwriteAvatarUrl,
     setAppwriteBannerUrl,
   } = useProfileStore();
@@ -63,6 +76,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     editBio,
     editAvatarUrl,
     editBannerUrl,
+    editLinks,
     isSaving,
     error,
     startEditing,
@@ -72,9 +86,13 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     setEditBio,
     setEditAvatarUrl,
     setEditBannerUrl,
+    addEditLink,
+    removeEditLink,
     saveChanges,
   } = useProfileEditor();
 
+  const [newLabel, setNewLabel] = useState("");
+  const [newUrl, setNewUrl] = useState("");
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
 
@@ -322,6 +340,70 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
               <p className="text-xs text-mut text-right">{editBio.length}/500</p>
             </div>
 
+            {/* Social Links Editing */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-txt flex items-center gap-2">
+                <LinkIcon size={16} className="text-acc" />
+                Links e Redes Sociais
+              </Label>
+              {editLinks.length > 0 && (
+                <div className="space-y-2">
+                  {editLinks.map((link, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-surf p-2.5 rounded-lg border border-bd">
+                      <span className="text-xs font-semibold text-txt px-2 py-1 bg-surf2 rounded border border-bd">
+                        {link.label}
+                      </span>
+                      <span className="text-xs text-mut truncate flex-1 font-mono">{link.url}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeEditLink(idx)}
+                        disabled={isSaving}
+                        className="cursor-pointer p-1.5 text-mut hover:text-err hover:bg-surf2 rounded transition-colors"
+                        title="Remover link"
+                        aria-label={`Remover ${link.label}`}
+                      >
+                        <Trash size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Nome (ex: GitHub, Site)"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  disabled={isSaving}
+                  className="w-1/3 text-xs"
+                />
+                <Input
+                  type="url"
+                  placeholder="https://..."
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  disabled={isSaving}
+                  className="flex-1 text-xs font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSaving || !newLabel.trim() || !newUrl.trim()}
+                  onClick={() => {
+                    if (newLabel.trim() && newUrl.trim()) {
+                      addEditLink(newLabel.trim(), newUrl.trim());
+                      setNewLabel("");
+                      setNewUrl("");
+                    }
+                  }}
+                  className="cursor-pointer text-xs shrink-0"
+                >
+                  <Plus size={14} className="mr-1" /> Adicionar
+                </Button>
+              </div>
+            </div>
+
             <Separator />
 
             {/* Dica: avatar e banner são editados clicando nas imagens acima */}
@@ -398,6 +480,29 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
               />
             )}
           </div>
+
+          {links && links.length > 0 && (
+            <div className="pt-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mut mb-2.5 flex items-center gap-1.5">
+                <LinkIcon size={14} className="text-acc" />
+                Links e Redes
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {links.map((link, i) => (
+                  <a
+                    key={i}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-bd bg-surf hover:bg-surf2 text-xs font-medium text-txt transition-colors group cursor-pointer"
+                  >
+                    <span className="font-semibold text-acc">{link.label}</span>
+                    <ArrowSquareOut size={12} className="text-mut group-hover:text-txt transition-colors" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

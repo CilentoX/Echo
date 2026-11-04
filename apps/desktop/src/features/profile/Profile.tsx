@@ -150,6 +150,20 @@ export default function Profile({ open, onClose }: ProfileProps) {
           role="tabpanel"
           aria-labelledby={`tab-${activeTab}`}
         >
+          <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-bd bg-surf/30">
+            <h2 className="font-display text-lg font-semibold text-txt flex items-center gap-2.5">
+              <span className="text-acc">{TAB_CONFIG[activeTab].icon}</span>
+              {TAB_CONFIG[activeTab].label}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar"
+              className="p-1.5 rounded-lg text-mut hover:text-txt hover:bg-surf2 transition-colors cursor-pointer active:scale-95"
+            >
+              <X size={18} />
+            </button>
+          </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {renderTabContent(activeTab)}
           </div>

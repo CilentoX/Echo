@@ -700,6 +700,7 @@ export class EchoApi {
       | string
       | {
           displayName?: string | null;
+          nickname?: string | null;
           avatarUrl?: string | null;
           bannerUrl?: string | null;
           bio?: string | null;
@@ -707,6 +708,7 @@ export class EchoApi {
         },
     maybeData?: {
       displayName?: string | null;
+      nickname?: string | null;
       avatarUrl?: string | null;
       bannerUrl?: string | null;
       bio?: string | null;

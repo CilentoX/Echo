@@ -1,17 +1,50 @@
 "use client";
 
-import { useState } from "react";
-import { Palette, Monitor, CircleHalf, PaintBrush } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { Palette, PaintBrush, Monitor, CircleHalf, Check } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 
+const ACCENT_COLORS = [
+  { name: "Padrão", hex: "#0FB9A8", press: "#0D9E8A", glow: "rgba(15, 185, 168, 0.2)", color: "bg-[#0FB9A8]" },
+  { name: "Azul", hex: "#3B82F6", press: "#2563EB", glow: "rgba(59, 130, 246, 0.2)", color: "bg-blue-500" },
+  { name: "Roxo", hex: "#A855F7", press: "#9333EA", glow: "rgba(168, 85, 247, 0.2)", color: "bg-purple-500" },
+  { name: "Verde", hex: "#10B981", press: "#059669", glow: "rgba(16, 185, 129, 0.2)", color: "bg-emerald-500" },
+  { name: "Laranja", hex: "#F59E0B", press: "#D97706", glow: "rgba(245, 158, 11, 0.2)", color: "bg-orange-500" },
+];
+
 export function AppearanceTab() {
-  const [darkMode, setDarkMode] = useState(true);
-  const [syncSystem, setSyncSystem] = useState(true);
+  const [selectedAccent, setSelectedAccent] = useState("Padrão");
+  const [density, setDensity] = useState("Padrão");
   const [reduceMotion, setReduceMotion] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
-  const [largerText, setLargerText] = useState(false);
+
+  useEffect(() => {
+    const savedAccent = localStorage.getItem("echo:accentColor");
+    if (savedAccent) {
+      try {
+        const parsed = JSON.parse(savedAccent);
+        if (parsed?.name) setSelectedAccent(parsed.name);
+      } catch {}
+    }
+    const savedDensity = localStorage.getItem("echo:density");
+    if (savedDensity) setDensity(savedDensity);
+  }, []);
+
+  const handleSelectAccent = (accent: typeof ACCENT_COLORS[0]) => {
+    setSelectedAccent(accent.name);
+    document.documentElement.style.setProperty("--acc", accent.hex);
+    document.documentElement.style.setProperty("--acc-press", accent.press);
+    document.documentElement.style.setProperty("--acc-glow", accent.glow);
+    document.documentElement.style.setProperty("--acc-muted", `${accent.hex}20`);
+    localStorage.setItem("echo:accentColor", JSON.stringify(accent));
+  };
+
+  const handleSelectDensity = (d: string) => {
+    setDensity(d);
+    localStorage.setItem("echo:density", d);
+  };
 
   return (
     <section className="space-y-6 max-w-2xl">
@@ -19,24 +52,19 @@ export function AppearanceTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette size={20} className="text-acc" />
-            Tema
+            Tema Echo
           </CardTitle>
-          <CardDescription>Personalize a aparência do Echo</CardDescription>
+          <CardDescription>O Echo utiliza uma interface escura semântica desenhada para clareza e foco</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between p-3 rounded-xl border border-bd bg-surf">
             <div>
-              <p className="font-medium text-txt">Modo escuro</p>
-              <p className="text-sm text-mut">Usar tema escuro em todo o aplicativo</p>
+              <p className="font-medium text-txt text-sm">Tema Escuro Ativo</p>
+              <p className="text-xs text-mut">Paleta otimizada para menor fadiga visual e contraste elevado</p>
             </div>
-            <Switch checked={darkMode} onCheckedChange={setDarkMode} />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-txt">Sincronizar com sistema</p>
-              <p className="text-sm text-mut">Seguir a configuração do sistema operacional</p>
-            </div>
-            <Switch checked={syncSystem} onCheckedChange={setSyncSystem} />
+            <span className="text-xs text-acc font-semibold uppercase tracking-wider bg-acc/10 px-2.5 py-1 rounded-full border border-acc/20">
+              Padrão
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -45,28 +73,29 @@ export function AppearanceTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PaintBrush size={20} className="text-acc" />
-            Cores de destaque
+            Cores de Destaque
           </CardTitle>
-          <CardDescription>Escolha a cor principal da interface</CardDescription>
+          <CardDescription>Personalize a cor de botões, tags ativas e indicadores em tempo real</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-5 gap-3">
-            {[
-              { name: "Padrão", color: "bg-acc" },
-              { name: "Azul", color: "bg-blue-500" },
-              { name: "Roxo", color: "bg-purple-500" },
-              { name: "Verde", color: "bg-green-500" },
-              { name: "Laranja", color: "bg-orange-500" },
-            ].map((accent) => (
-              <button
-                key={accent.name}
-                type="button"
-                className={`relative h-12 rounded-lg border-2 transition-all ${accent.color}`}
-                title={accent.name}
-              >
-                <span className="sr-only">{accent.name}</span>
-              </button>
-            ))}
+            {ACCENT_COLORS.map((accent) => {
+              const isSelected = selectedAccent === accent.name;
+              return (
+                <button
+                  key={accent.name}
+                  type="button"
+                  onClick={() => handleSelectAccent(accent)}
+                  className={`group relative h-12 rounded-xl border-2 transition-all duration-150 flex items-center justify-center cursor-pointer active:scale-95 ${accent.color} ${
+                    isSelected ? "border-white ring-2 ring-white/30 scale-105 shadow-lg" : "border-transparent opacity-85 hover:opacity-100 hover:scale-105"
+                  }`}
+                  title={accent.name}
+                >
+                  {isSelected && <Check size={18} weight="bold" className="text-white drop-shadow" />}
+                  <span className="sr-only">{accent.name}</span>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -77,13 +106,23 @@ export function AppearanceTab() {
             <Monitor size={20} className="text-acc" />
             Densidade de exibição
           </CardTitle>
-          <CardDescription>Controle o espaçamento dos elementos</CardDescription>
+          <CardDescription>Controle o espaçamento entre mensagens e canais</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="flex gap-4">
-            {["Compacta", "Padrão", "Confortável"].map((density) => (
-              <Button key={density} type="button" variant="outline" className="flex-1">
-                {density}
+          <div className="flex gap-3">
+            {["Compacta", "Padrão", "Confortável"].map((d) => (
+              <Button
+                key={d}
+                type="button"
+                variant={density === d ? "default" : "outline"}
+                onClick={() => handleSelectDensity(d)}
+                className={`flex-1 transition-all duration-150 cursor-pointer ${
+                  density === d
+                    ? "bg-acc text-bg font-semibold shadow-md shadow-acc/20"
+                    : "border-bd hover:bg-surf2 text-txt"
+                }`}
+              >
+                {d}
               </Button>
             ))}
           </div>
@@ -96,30 +135,23 @@ export function AppearanceTab() {
             <CircleHalf size={20} className="text-acc" />
             Acessibilidade
           </CardTitle>
-          <CardDescription>Opções para melhorar a legibilidade</CardDescription>
+          <CardDescription>Ajustes visuais para conforto e foco</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          <div className="flex items-center justify-between">
+          <label className="flex items-center justify-between p-3 rounded-xl border border-bd bg-surf hover:bg-surf2/50 transition-colors cursor-pointer">
             <div>
-              <p className="font-medium text-txt">Reduzir movimento</p>
-              <p className="text-sm text-mut">Desativar animações e transições</p>
+              <p className="font-medium text-txt text-sm">Reduzir movimento</p>
+              <p className="text-xs text-mut">Diminui animações de transição de telas</p>
             </div>
             <Switch checked={reduceMotion} onCheckedChange={setReduceMotion} />
-          </div>
-          <div className="flex items-center justify-between">
+          </label>
+          <label className="flex items-center justify-between p-3 rounded-xl border border-bd bg-surf hover:bg-surf2/50 transition-colors cursor-pointer">
             <div>
-              <p className="font-medium text-txt">Alto contraste</p>
-              <p className="text-sm text-mut">Aumentar contraste para melhor legibilidade</p>
+              <p className="font-medium text-txt text-sm">Alto contraste</p>
+              <p className="text-xs text-mut">Aumenta o contraste visual entre painéis</p>
             </div>
             <Switch checked={highContrast} onCheckedChange={setHighContrast} />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-txt">Fonte maior</p>
-              <p className="text-sm text-mut">Aumentar tamanho do texto em todo o app</p>
-            </div>
-            <Switch checked={largerText} onCheckedChange={setLargerText} />
-          </div>
+          </label>
         </CardContent>
       </Card>
     </section>

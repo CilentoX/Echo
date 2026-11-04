@@ -2,6 +2,21 @@
 @import "./styles/tokens.css";
 
 @layer base {
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"],
+  a {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input:disabled {
+    cursor: not-allowed;
+  }
+
   :focus-visible {
     outline: 2px solid var(--acc);
     outline-offset: 2px;

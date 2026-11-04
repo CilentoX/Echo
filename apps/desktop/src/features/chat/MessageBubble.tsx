@@ -1,4 +1,4 @@
-import { ArrowBendUpLeft, Chats, Copy } from "@phosphor-icons/react";
+import { Chats, Copy } from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { senderLabel } from "./groupMessages";
 import ReplyChip from "./ReplyChip";

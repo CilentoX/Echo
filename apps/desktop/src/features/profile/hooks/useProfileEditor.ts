@@ -9,6 +9,7 @@ export interface ProfileEditorState {
   editBio: string;
   editAvatarUrl: string | null;
   editBannerUrl: string | null;
+  editLinks: Array<{ label: string; url: string }>;
   isSaving: boolean;
   error: string | null;
 }
@@ -21,6 +22,8 @@ export interface ProfileEditorActions {
   setEditBio: (bio: string) => void;
   setEditAvatarUrl: (url: string | null) => void;
   setEditBannerUrl: (url: string | null) => void;
+  addEditLink: (label: string, url: string) => void;
+  removeEditLink: (index: number) => void;
   saveChanges: () => Promise<void>;
 }
 
@@ -33,11 +36,13 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     bannerUrl,
     appwriteAvatarUrl,
     appwriteBannerUrl,
+    links,
     setDisplayName,
     setNickname,
     setBio,
     setAvatarUrl,
     setBannerUrl,
+    setLinks,
   } = useProfileStore();
 
   const [state, setState] = useState<ProfileEditorState>({
@@ -47,6 +52,7 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     editBio: bio ?? "",
     editAvatarUrl: appwriteAvatarUrl ?? avatarUrl,
     editBannerUrl: appwriteBannerUrl ?? bannerUrl,
+    editLinks: links ? [...links] : [],
     isSaving: false,
     error: null,
   });
@@ -60,9 +66,10 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
       editBio: bio ?? "",
       editAvatarUrl: appwriteAvatarUrl ?? avatarUrl,
       editBannerUrl: appwriteBannerUrl ?? bannerUrl,
+      editLinks: links ? [...links] : [],
       error: null,
     }));
-  }, [displayName, nickname, bio, avatarUrl, bannerUrl, appwriteAvatarUrl, appwriteBannerUrl]);
+  }, [displayName, nickname, bio, avatarUrl, bannerUrl, appwriteAvatarUrl, appwriteBannerUrl, links]);
 
   const cancelEditing = useCallback(() => {
     setState((prev) => ({
@@ -73,9 +80,10 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
       editBio: bio ?? "",
       editAvatarUrl: appwriteAvatarUrl ?? avatarUrl,
       editBannerUrl: appwriteBannerUrl ?? bannerUrl,
+      editLinks: links ? [...links] : [],
       error: null,
     }));
-  }, [displayName, nickname, bio, avatarUrl, bannerUrl, appwriteAvatarUrl, appwriteBannerUrl]);
+  }, [displayName, nickname, bio, avatarUrl, bannerUrl, appwriteAvatarUrl, appwriteBannerUrl, links]);
 
   const setEditDisplayName = useCallback((name: string) => {
     setState((prev) => ({ ...prev, editDisplayName: name }));
@@ -97,6 +105,20 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     setState((prev) => ({ ...prev, editBannerUrl: url }));
   }, []);
 
+  const addEditLink = useCallback((label: string, url: string) => {
+    setState((prev) => ({
+      ...prev,
+      editLinks: [...prev.editLinks, { label, url }],
+    }));
+  }, []);
+
+  const removeEditLink = useCallback((index: number) => {
+    setState((prev) => ({
+      ...prev,
+      editLinks: prev.editLinks.filter((_, i) => i !== index),
+    }));
+  }, []);
+
   const saveChanges = useCallback(async () => {
     setState((prev) => ({ ...prev, isSaving: true, error: null }));
 
@@ -111,40 +133,36 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     }
 
     try {
-      if (state.editDisplayName !== displayName) {
+      if (state.editDisplayName !== displayName && typeof matrixService.setDisplayName === "function") {
         await matrixService.setDisplayName(state.editDisplayName);
-        setDisplayName(state.editDisplayName);
       }
 
-      if (state.editNickname !== nickname) {
+      if (typeof matrixService.patchUserProfile === "function") {
+        await matrixService.patchUserProfile("", {
+          displayName: state.editDisplayName,
+          nickname: state.editNickname || null,
+          bio: state.editBio || null,
+          avatarUrl: state.editAvatarUrl,
+          bannerUrl: state.editBannerUrl,
+          links: state.editLinks,
+        });
+      } else if (typeof matrixService.patchGlobalProfile === "function") {
         await matrixService.patchGlobalProfile({
           nickname: state.editNickname || null,
-        });
-        setNickname(state.editNickname || null);
-      }
-
-      if (state.editBio !== bio) {
-        await matrixService.patchGlobalProfile({
           bio: state.editBio || null,
-        });
-        setBio(state.editBio || null);
-      }
-
-      // Avatar e banner já foram sincronizados via useImageUploadWithMatrix
-      // Aqui apenas atualizamos o store local e Profile API se necessário
-      if (state.editAvatarUrl !== avatarUrl) {
-        await matrixService.patchGlobalProfile({
           avatarUrl: state.editAvatarUrl,
-        });
-        setAvatarUrl(state.editAvatarUrl);
-      }
-
-      if (state.editBannerUrl !== bannerUrl) {
-        await matrixService.patchGlobalProfile({
           bannerUrl: state.editBannerUrl,
         });
-        setBannerUrl(state.editBannerUrl);
       }
+
+      setDisplayName(state.editDisplayName);
+      setNickname(state.editNickname || null);
+      setBio(state.editBio || null);
+      setAvatarUrl(state.editAvatarUrl);
+      setBannerUrl(state.editBannerUrl);
+      setLinks(state.editLinks);
+      useProfileStore.getState().setAppwriteAvatarUrl(state.editAvatarUrl);
+      useProfileStore.getState().setAppwriteBannerUrl(state.editBannerUrl);
 
       setState((prev) => ({ ...prev, isEditing: false, isSaving: false }));
     } catch (err) {
@@ -160,6 +178,7 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     state.editBio,
     state.editAvatarUrl,
     state.editBannerUrl,
+    state.editLinks,
     displayName,
     nickname,
     bio,
@@ -171,6 +190,7 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     setBio,
     setAvatarUrl,
     setBannerUrl,
+    setLinks,
   ]);
 
   return {
@@ -182,6 +202,8 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     setEditBio,
     setEditAvatarUrl,
     setEditBannerUrl,
+    addEditLink,
+    removeEditLink,
     saveChanges,
   };
 }
