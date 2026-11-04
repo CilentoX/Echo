@@ -12,6 +12,7 @@ import {
   Compass,
   UserPlus,
   ArrowsClockwise,
+  Sparkle,
 } from "@phosphor-icons/react";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -42,6 +43,7 @@ export default function FriendsDashboard() {
   } = useFriendsStore();
 
   const uiPresence = useUiStore((s) => s.presence);
+  const myUserId = useUiStore((s) => s.myUserId);
 
   const [addInput, setAddInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,10 +52,10 @@ export default function FriendsDashboard() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (activeTab === "discover" && discoveredUsers.length === 0) {
+    if (discoveredUsers.length === 0) {
       void loadDiscoveredUsers();
     }
-  }, [activeTab, discoveredUsers.length, loadDiscoveredUsers]);
+  }, [discoveredUsers.length, loadDiscoveredUsers]);
 
   // Filtra amigos online
   const onlineFriends = useMemo(() => {
@@ -211,8 +213,10 @@ export default function FriendsDashboard() {
         </div>
       </header>
 
-      {/* Conteúdo Principal */}
-      <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+      {/* Layout em Duas Colunas (Lista Principal + Painel Ativo Agora & Comunidade) */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Conteúdo Principal das Abas */}
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
         {/* ABA: ADICIONAR AMIGO */}
         {activeTab === "add" && (
           <div className="max-w-2xl space-y-6">
@@ -722,6 +726,193 @@ export default function FriendsDashboard() {
               </div>
             )}
           </div>
+        )}
+        </div>
+
+        {/* Coluna Lateral Direita: "Ativo Agora & Comunidade" (visível nas abas de amigos) */}
+        {activeTab !== "discover" && (
+          <aside
+            data-column="active-now"
+            aria-label="Ativo Agora e Comunidade"
+            className="hidden lg:flex w-[320px] shrink-0 flex-col border-l border-white/[0.04] bg-[#0c0f17]/50 p-5 space-y-6 overflow-y-auto scrollbar-thin select-none"
+          >
+            {/* Bloco 1: Ativo Agora */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-txt">
+                  Ativo Agora
+                </h3>
+                {onlineFriends.length > 0 && (
+                  <span className="text-[10px] text-acc font-semibold">
+                    {onlineFriends.length} online
+                  </span>
+                )}
+              </div>
+
+              {onlineFriends.length > 0 ? (
+                <div className="space-y-2">
+                  {onlineFriends.slice(0, 5).map((f) => (
+                    <div
+                      key={f.userId}
+                      onClick={() => openDirectMessage(f.userId)}
+                      className="cursor-pointer group flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.06] hover:border-acc/30 transition-all"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative shrink-0">
+                          {f.avatarUrl ? (
+                            <MxcImage
+                              mxcUrl={f.avatarUrl}
+                              alt={f.displayName}
+                              className="h-8 w-8 rounded-full object-cover"
+                              width={32}
+                              height={32}
+                            />
+                          ) : (
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/15 font-display text-xs font-bold text-acc">
+                              {f.displayName.slice(0, 1).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c0f17]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-txt truncate group-hover:text-acc transition-colors">
+                            {f.displayName}
+                          </p>
+                          <p className="text-[10px] text-emerald-400/80 truncate">
+                            Disponível no Echo
+                          </p>
+                        </div>
+                      </div>
+                      <ChatCircle size={15} className="text-mut group-hover:text-txt transition-colors shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/[0.04] bg-white/[0.02] p-4 text-center space-y-2">
+                  <div className="w-9 h-9 mx-auto rounded-full bg-white/[0.04] flex items-center justify-center text-mut/60">
+                    <Users size={18} />
+                  </div>
+                  <p className="text-xs font-semibold text-txt">Está meio quieto por aqui…</p>
+                  <p className="text-[11px] text-mut/60 leading-relaxed">
+                    Quando seus amigos estiverem online no Echo, a atividade deles aparecerá aqui.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bloco 2: Sugestões de Membros (Descobrir Rápido) */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-txt">
+                  Descobrir Pessoas
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("discover")}
+                  className="cursor-pointer text-[10px] font-semibold text-acc hover:underline"
+                >
+                  Explorar todos
+                </button>
+              </div>
+
+              {discoveredUsers.length > 0 ? (
+                <div className="space-y-2">
+                  {discoveredUsers.slice(0, 3).map((u) => {
+                    const isFriend = u.status === "friend";
+                    const isPending = u.status === "pending_outgoing";
+
+                    return (
+                      <div
+                        key={u.userId}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative shrink-0">
+                            {u.avatarUrl ? (
+                              <MxcImage
+                                mxcUrl={u.avatarUrl}
+                                alt={u.displayName}
+                                className="h-8 w-8 rounded-full object-cover"
+                                width={32}
+                                height={32}
+                              />
+                            ) : (
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/15 font-display text-xs font-bold text-acc">
+                                {u.displayName.slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-txt truncate">
+                              {u.displayName}
+                            </p>
+                            <p className="text-[10px] text-mut/70 truncate font-mono">
+                              @{u.nickname || u.userId.replace(/^@/, "").split(":")[0]}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isFriend ? (
+                          <button
+                            type="button"
+                            onClick={() => openDirectMessage(u.userId)}
+                            className="cursor-pointer p-1.5 rounded-lg bg-white/[0.06] text-txt hover:bg-acc hover:text-bg transition-colors"
+                            title="Conversar"
+                          >
+                            <ChatCircle size={14} weight="bold" />
+                          </button>
+                        ) : isPending ? (
+                          <span className="text-[10px] text-amber-400 font-medium px-2 py-1 rounded bg-amber-500/10">
+                            Enviado
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => sendFriendRequest(u.userId)}
+                            className="cursor-pointer p-1.5 rounded-lg bg-acc text-bg font-semibold hover:bg-acc-press active:scale-95 transition-all shadow shadow-acc/20"
+                            title="Adicionar Amigo"
+                          >
+                            <UserPlus size={14} weight="bold" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-3 text-center">
+                  <p className="text-[11px] text-mut/60">Novos membros aparecerão aqui.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Bloco 3: Rede Descentralizada Echo */}
+            <div className="mt-auto pt-3 border-t border-white/[0.04]">
+              <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-acc/10 via-white/[0.02] to-transparent p-3.5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-bold text-txt">Rede Segura & Descentralizada</span>
+                </div>
+                <p className="text-[11px] text-mut/80 leading-relaxed font-mono truncate">
+                  {myUserId || "matrix.litteris.online"}
+                </p>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-acc font-semibold flex items-center gap-1">
+                    <Sparkle size={12} /> Criptografia E2E
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (myUserId) navigator.clipboard.writeText(myUserId);
+                    }}
+                    className="cursor-pointer text-[10px] font-semibold text-mut hover:text-txt transition-colors"
+                  >
+                    Copiar ID
+                  </button>
+                </div>
+              </div>
+            </div>
+          </aside>
         )}
       </div>
     </div>

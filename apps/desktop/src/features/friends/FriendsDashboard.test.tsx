@@ -17,7 +17,7 @@ describe("FriendsDashboard", () => {
 
     expect(screen.getByText("Amigos")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Disponível/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Todos/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Todos/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Pendente/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Bloqueados/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Descobrir/i })).toBeTruthy();

@@ -5,6 +5,7 @@ export interface UiState {
   myUserId: string | null;
   activeGuildId: string | null;
   activeChannelId: string | null;
+  homeTab: "friends" | "discover";
   /** roomId → nomes de quem está digitando agora. */
   typingUsers: Record<string, string[]>;
   /** userId → estado de presença. */
@@ -12,6 +13,7 @@ export interface UiState {
   setMyUserId(userId: string | null): void;
   setActiveGuild(guildId: string | null): void;
   setActiveChannel(channelId: string | null): void;
+  setHomeTab(tab: "friends" | "discover"): void;
   /** Define/atualiza quem está digitando em um canal. */
   setTypingUsers(roomId: string, names: string[]): void;
   /** Define a presença de um usuário. */
@@ -23,12 +25,14 @@ export const useUiStore = create<UiState>()((set) => ({
   myUserId: null,
   activeGuildId: null,
   activeChannelId: null,
+  homeTab: "friends",
   typingUsers: {},
   presence: {},
 
   setMyUserId: (userId) => set({ myUserId: userId }),
   setActiveGuild: (guildId) => set({ activeGuildId: guildId }),
   setActiveChannel: (channelId) => set({ activeChannelId: channelId }),
+  setHomeTab: (tab) => set({ homeTab: tab }),
 
   setTypingUsers: (roomId, names) =>
     set((state) => ({

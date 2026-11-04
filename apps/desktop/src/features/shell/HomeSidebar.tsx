@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Users, Plus, X, MagnifyingGlass, ChatCircle } from "@phosphor-icons/react";
+import { Users, Plus, X, MagnifyingGlass, ChatCircle, Compass } from "@phosphor-icons/react";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
 import MxcImage from "@/components/media/MxcImage";
@@ -13,7 +13,9 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
   const overlay = variant === "overlay";
   const { friends, pendingIncoming, loadFriends, openDirectMessage } = useFriendsStore();
   const activeChannelId = useUiStore((s) => s.activeChannelId);
+  const homeTab = useUiStore((s) => s.homeTab);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
+  const setHomeTab = useUiStore((s) => s.setHomeTab);
   const uiPresence = useUiStore((s) => s.presence);
 
   const [search, setSearch] = useState("");
@@ -35,7 +37,17 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
 
   const handleSelectFriendsTab = () => {
     setActiveChannel(null);
+    setHomeTab("friends");
     useFriendsStore.getState().setSelectedFriendId(null);
+    onClose?.();
+  };
+
+  const handleSelectDiscoverTab = () => {
+    setActiveChannel(null);
+    setHomeTab("discover");
+    useFriendsStore.getState().setSelectedFriendId(null);
+    useFriendsStore.getState().setActiveTab("discover");
+    void useFriendsStore.getState().loadDiscoveredUsers();
     onClose?.();
   };
 
@@ -96,15 +108,15 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
           type="button"
           onClick={handleSelectFriendsTab}
           className={`cursor-pointer group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-            !activeChannelId
+            !activeChannelId && homeTab === "friends"
               ? "bg-white/[0.08] text-txt shadow-sm"
               : "text-mut hover:bg-white/[0.04] hover:text-txt"
           }`}
         >
           <Users
             size={18}
-            weight={!activeChannelId ? "fill" : "regular"}
-            className={!activeChannelId ? "text-acc" : "text-mut group-hover:text-txt"}
+            weight={!activeChannelId && homeTab === "friends" ? "fill" : "regular"}
+            className={!activeChannelId && homeTab === "friends" ? "text-acc" : "text-mut group-hover:text-txt"}
           />
           <span className="flex-1 text-left truncate">Amigos</span>
           {pendingIncoming.length > 0 && (
@@ -115,6 +127,24 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
               {pendingIncoming.length}
             </span>
           )}
+        </button>
+
+        {/* Botão Descobrir */}
+        <button
+          type="button"
+          onClick={handleSelectDiscoverTab}
+          className={`cursor-pointer group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+            !activeChannelId && homeTab === "discover"
+              ? "bg-white/[0.08] text-txt shadow-sm"
+              : "text-mut hover:bg-white/[0.04] hover:text-txt"
+          }`}
+        >
+          <Compass
+            size={18}
+            weight={!activeChannelId && homeTab === "discover" ? "fill" : "regular"}
+            className={!activeChannelId && homeTab === "discover" ? "text-acc" : "text-mut group-hover:text-txt"}
+          />
+          <span className="flex-1 text-left truncate">Descobrir</span>
         </button>
 
         {/* Separador e Cabeçalho DMs */}
