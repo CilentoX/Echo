@@ -63,13 +63,13 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
       {/* Linha divisória superior que começa a partir de 72px (onde o conteúdo começa, fundindo o rail e a dock em uma só peça) */}
       <div className="absolute top-0 left-[72px] right-0 h-[1px] bg-bd/60" aria-hidden="true" />
 
-      {/* Lado Esquerdo: Cápsula de Perfil integrada organicamente ao eixo do rail de 72px */}
-      <div className="flex items-center min-w-0 h-full">
+      {/* Lado Esquerdo: Cápsula de Perfil ocupando exatamente a largura do rail + sidebar (304px) com borda divisória */}
+      <div className="w-auto max-w-[calc(100vw-180px)] sm:w-[304px] shrink-0 h-full flex items-center min-w-0 border-r border-bd/60 relative">
         <button
           type="button"
           onClick={onOpenProfile}
           title="Abrir perfil"
-          className="cursor-pointer group flex h-full items-center text-left transition-colors hover:bg-surf2/40 active:scale-[0.99] rounded-lg my-1 mr-2"
+          className="cursor-pointer group flex h-full w-full items-center text-left transition-colors hover:bg-surf2/40 active:scale-[0.99] rounded-lg my-1 mr-1"
         >
           {/* Avatar perfeitamente centralizado no eixo vertical do rail de 72px */}
           <div className="w-[72px] shrink-0 flex items-center justify-center">
@@ -95,8 +95,8 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
             </div>
           </div>
 
-          {/* Nome e @tag expandindo naturalmente para a direita na dock */}
-          <div className="min-w-0 pr-3 leading-tight max-w-[160px] sm:max-w-[200px]">
+          {/* Nome e @tag preenchendo a coluna da sidebar (232px) com conforto e sem corte */}
+          <div className="flex-1 min-w-0 pr-3 leading-tight">
             <p className="truncate text-xs font-semibold text-txt group-hover:text-acc transition-colors">
               {effectiveName}
             </p>
