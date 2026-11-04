@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,14 +6,17 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { matrixService } from "@/lib/matrix/instance";
-import { Users, Compass, ArrowRight, WarningCircle, X, MagnifyingGlass } from "@phosphor-icons/react";
+import { Users, Compass, ArrowRight, WarningCircle, X, MagnifyingGlass, Check } from "@phosphor-icons/react";
 import MxcImage from "@/components/media/MxcImage";
+import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface JoinGuildModalProps {
   open: boolean;
   onClose: () => void;
   onJoined: (guild: { guildId: string; name: string }) => void;
   onOpenCreate?: () => void;
+  initialCode?: string | null;
 }
 
 export default function JoinGuildModal({
@@ -21,8 +24,9 @@ export default function JoinGuildModal({
   onClose,
   onJoined,
   onOpenCreate,
+  initialCode,
 }: JoinGuildModalProps) {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode || "");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +39,9 @@ export default function JoinGuildModal({
     bannerUrl: string | null;
     channelsCount: number;
   } | null>(null);
+
+  const guilds = useSyncStore((s) => s.guilds);
+  const isAlreadyMember = Boolean(preview && guilds.some((g) => g.guildId === preview.guildId));
 
   const handleLookup = async (inputCode?: string) => {
     const raw = (inputCode ?? code).trim();
@@ -52,7 +59,31 @@ export default function JoinGuildModal({
     }
   };
 
+  useEffect(() => {
+    if (open) {
+      if (initialCode) {
+        setCode(initialCode);
+        void handleLookup(initialCode);
+      }
+    } else {
+      setCode("");
+      setPreview(null);
+      setError(null);
+    }
+  }, [open, initialCode]);
+
+  const handleNavigateToGuild = () => {
+    if (preview) {
+      useUiStore.getState().setActiveGuild(preview.guildId);
+      handleClose();
+    }
+  };
+
   const handleJoin = async () => {
+    if (isAlreadyMember) {
+      handleNavigateToGuild();
+      return;
+    }
     const targetCode = preview?.code || code.trim();
     if (!targetCode) return;
     setError(null);
@@ -182,6 +213,12 @@ export default function JoinGuildModal({
                     {preview.channelsCount} {preview.channelsCount === 1 ? "canal" : "canais"}
                   </span>
                 </div>
+                {isAlreadyMember && (
+                  <div className="flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-acc/10 text-acc text-xs font-medium border border-acc/20 w-fit">
+                    <Check size={14} weight="bold" />
+                    <span>Você já faz parte desta guilda</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -205,10 +242,17 @@ export default function JoinGuildModal({
             {joining ? (
               "Entrando..."
             ) : preview ? (
-              <>
-                Entrar na guilda
-                <ArrowRight size={16} weight="bold" />
-              </>
+              isAlreadyMember ? (
+                <>
+                  Acessar guilda
+                  <ArrowRight size={16} weight="bold" />
+                </>
+              ) : (
+                <>
+                  Entrar na guilda
+                  <ArrowRight size={16} weight="bold" />
+                </>
+              )
             ) : (
               "Continuar"
             )}

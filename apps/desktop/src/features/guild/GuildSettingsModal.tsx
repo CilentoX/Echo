@@ -13,11 +13,16 @@ import {
   WarningCircle,
   Info,
   UserPlus,
+  CaretDown,
+  CaretUp,
+  UserCheck,
+  Clock,
 } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import ImageEditor from "@/components/media/ImageEditor";
+import MxcImage from "@/components/media/MxcImage";
 import { useEchoApi, GuildRole, GuildInviteItem, GuildMembersData } from "@/lib/api/echoApi";
 import {
   Dialog,
@@ -168,6 +173,11 @@ export default function GuildSettingsModal({
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [creatingInvite, setCreatingInvite] = useState(false);
+  const [expandedInvites, setExpandedInvites] = useState<Record<string, boolean>>({});
+
+  const toggleExpandedInvite = (id: string) => {
+    setExpandedInvites((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const iconInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -1173,7 +1183,7 @@ export default function GuildSettingsModal({
                   )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {loadingInvites ? (
                     <div className="text-xs text-mut py-6 text-center">Carregando convites...</div>
                   ) : invites.length === 0 ? (
@@ -1183,46 +1193,188 @@ export default function GuildSettingsModal({
                   ) : (
                     invites.map((inv) => {
                       const isCopied = copiedCode === inv.code;
+                      const isExpanded = Boolean(expandedInvites[inv.id]);
+                      const usagesCount = inv.usages ? inv.usages.length : inv.usesCount;
+
+                      const formatDate = (dateStr: string) => {
+                        try {
+                          return new Date(dateStr).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          });
+                        } catch {
+                          return dateStr;
+                        }
+                      };
+
+                      const formatDateTime = (dateStr: string) => {
+                        try {
+                          const d = new Date(dateStr);
+                          return `${d.toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                          })} às ${d.toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`;
+                        } catch {
+                          return dateStr;
+                        }
+                      };
+
                       return (
                         <div
                           key={inv.id}
-                          className="p-3.5 rounded-xl border border-bd-subtle dark:bg-white/[0.02] bg-card-bg flex items-center justify-between gap-4"
+                          className="rounded-xl border border-bd-subtle dark:bg-white/[0.02] bg-card-bg overflow-hidden transition-all shadow-sm"
                         >
-                          <div className="min-w-0 space-y-1">
-                            <div className="font-mono text-xs text-acc font-semibold flex items-center gap-2">
-                              <span>{inv.code}</span>
-                              <span className="text-[10px] font-normal px-1.5 py-0.2 rounded dark:bg-white/[0.06] bg-black/[0.06] text-mut">
-                                {inv.usesCount} {inv.usesCount === 1 ? "uso" : "usos"}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-mut/80 truncate">{inv.url}</div>
-                          </div>
+                          {/* Top Header do Convite */}
+                          <div className="p-3.5 flex items-start justify-between gap-4">
+                            <div className="min-w-0 space-y-2 flex-1">
+                              {/* Código e Limites */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-xs text-acc font-semibold px-2 py-0.5 rounded bg-acc/10 border border-acc/20 select-all">
+                                  {inv.code}
+                                </span>
+                                <span className="text-[10px] font-normal px-2 py-0.5 rounded dark:bg-white/[0.06] bg-black/[0.06] text-mut">
+                                  {usagesCount} {usagesCount === 1 ? "uso" : "usos"}
+                                  {inv.maxUses ? ` / máx ${inv.maxUses}` : ""}
+                                </span>
+                                {inv.expiresAt && (
+                                  <span className="text-[10px] text-mut/80 flex items-center gap-1">
+                                    <Clock size={11} /> Expira em {formatDate(inv.expiresAt)}
+                                  </span>
+                                )}
+                              </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyInvite(inv.url, inv.code)}
-                              className="cursor-pointer px-3 py-1.5 rounded-xl dark:bg-white/[0.06] bg-surf hover:bg-surf2 text-txt text-xs font-medium flex items-center gap-1.5 active:scale-95 transition-all border border-bd-subtle"
-                            >
-                              {isCopied ? (
-                                <>
-                                  <Check size={13} className="text-acc" /> Copiado
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={13} /> Copiar
-                                </>
-                              )}
-                            </button>
-                            {isOwner && (
+                              {/* URL do Convite */}
+                              <div className="text-[11px] text-mut/80 font-mono truncate select-all">
+                                {inv.url}
+                              </div>
+
+                              {/* Tracking: Criado por */}
+                              <div className="flex items-center gap-2 pt-1 text-xs text-mut flex-wrap">
+                                <span className="text-[11px] text-mut/70">Criado por:</span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {inv.creator?.avatarUrl ? (
+                                    <MxcImage
+                                      mxcUrl={inv.creator.avatarUrl}
+                                      alt={inv.creator.name || inv.creatorId || "Criador"}
+                                      className="w-5 h-5 rounded-full object-cover shrink-0 border border-bd-subtle"
+                                      width={20}
+                                      height={20}
+                                    />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full dark:bg-white/[0.08] bg-black/[0.06] text-[10px] font-bold text-acc flex items-center justify-center shrink-0">
+                                      {inv.creator?.name
+                                        ? inv.creator.name[0].toUpperCase()
+                                        : (inv.creatorId ? inv.creatorId.replace(/^@/, "")[0]?.toUpperCase() : "U")}
+                                    </div>
+                                  )}
+                                  <span className="font-medium text-txt truncate">
+                                    {inv.creator?.name || (inv.creatorId ? inv.creatorId.replace(/^@/, "").split(":")[0] : "Criador")}
+                                  </span>
+                                  <span className="text-[11px] text-mut/60 truncate">
+                                    ({inv.creator?.username ? `@${inv.creator.username}` : (inv.creatorId || "@desconhecido")})
+                                  </span>
+                                </div>
+                                <span className="text-[11px] text-mut/50">•</span>
+                                <span className="text-[11px] text-mut/70">{formatDate(inv.createdAt)}</span>
+                              </div>
+                            </div>
+
+                            {/* Ações: Copiar / Excluir */}
+                            <div className="flex items-center gap-2 shrink-0">
                               <button
                                 type="button"
-                                onClick={() => handleDeleteInvite(inv.id)}
-                                className="cursor-pointer p-1.5 rounded-xl text-mut hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
-                                title="Revogar convite"
+                                onClick={() => handleCopyInvite(inv.url, inv.code)}
+                                className="cursor-pointer px-3 py-1.5 rounded-xl dark:bg-white/[0.06] bg-surf hover:bg-surf2 text-txt text-xs font-medium flex items-center gap-1.5 active:scale-95 transition-all border border-bd-subtle"
                               >
-                                <Trash size={15} />
+                                {isCopied ? (
+                                  <>
+                                    <Check size={13} className="text-acc" /> Copiado
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={13} /> Copiar
+                                  </>
+                                )}
                               </button>
+                              {isOwner && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteInvite(inv.id)}
+                                  className="cursor-pointer p-1.5 rounded-xl text-mut hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+                                  title="Revogar convite"
+                                >
+                                  <Trash size={15} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Tracking: Membros que Aceitaram o Convite */}
+                          <div className="border-t border-bd-subtle dark:bg-white/[0.01] bg-surf/20">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandedInvite(inv.id)}
+                              className="cursor-pointer w-full px-3.5 py-2 flex items-center justify-between text-xs font-medium text-mut hover:text-txt dark:hover:bg-white/[0.03] hover:bg-surf/40 transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <UserCheck size={14} className="text-acc" />
+                                <span>Membros que aceitaram</span>
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-acc/10 text-acc">
+                                  {inv.usages?.length || 0}
+                                </span>
+                              </div>
+                              {isExpanded ? <CaretUp size={14} /> : <CaretDown size={14} />}
+                            </button>
+
+                            {isExpanded && (
+                              <div className="px-3.5 pb-3 pt-1 space-y-1.5 border-t border-bd-subtle/50">
+                                {inv.usages && inv.usages.length > 0 ? (
+                                  inv.usages.map((usage) => (
+                                    <div
+                                      key={usage.id}
+                                      className="flex items-center justify-between p-2 rounded-lg dark:bg-white/[0.02] bg-surf/30 text-xs"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        {usage.user?.avatarUrl ? (
+                                          <MxcImage
+                                            mxcUrl={usage.user.avatarUrl}
+                                            alt={usage.user.name || usage.userId || "Membro"}
+                                            className="w-6 h-6 rounded-full object-cover shrink-0 border border-bd-subtle"
+                                            width={24}
+                                            height={24}
+                                          />
+                                        ) : (
+                                          <div className="w-6 h-6 rounded-full dark:bg-white/[0.08] bg-black/[0.06] text-[10px] font-bold text-acc flex items-center justify-center shrink-0">
+                                            {usage.user?.name
+                                              ? usage.user.name[0].toUpperCase()
+                                              : (usage.userId ? usage.userId.replace(/^@/, "")[0]?.toUpperCase() : "U")}
+                                          </div>
+                                        )}
+                                        <div className="min-w-0">
+                                          <div className="font-medium text-txt truncate">
+                                            {usage.user?.name || (usage.userId ? usage.userId.replace(/^@/, "").split(":")[0] : "Membro")}
+                                          </div>
+                                          <div className="text-[10px] text-mut/70 truncate">
+                                            {usage.user?.username ? `@${usage.user.username}` : (usage.userId || "")}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="text-[11px] text-mut/80 shrink-0 flex items-center gap-1 font-mono">
+                                        <Clock size={11} className="text-mut/60" />
+                                        {formatDateTime(usage.usedAt)}
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-center py-3 text-xs text-mut/70 italic">
+                                    Nenhum membro utilizou este link até o momento.
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

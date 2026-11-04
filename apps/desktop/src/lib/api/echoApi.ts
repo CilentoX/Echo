@@ -117,16 +117,37 @@ export interface GuildMembersData {
   memberProfiles: GuildMemberProfile[];
 }
 
+export interface GuildInviteUsageItem {
+  id: string;
+  userId: string;
+  usedAt: string;
+  user?: {
+    userId: string;
+    name: string;
+    nickname: string | null;
+    username: string | null;
+    avatarUrl: string | null;
+  };
+}
+
 export interface GuildInviteItem {
   id: string;
   code: string;
   guildId: string;
   creatorId: string;
+  creator?: {
+    userId: string;
+    name: string;
+    nickname: string | null;
+    username: string | null;
+    avatarUrl: string | null;
+  };
   maxUses: number | null;
   usesCount: number;
   expiresAt: string | null;
   createdAt: string;
   url: string;
+  usages?: GuildInviteUsageItem[];
 }
 
 /**

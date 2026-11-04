@@ -23,7 +23,7 @@
   ; Registra o protocolo echo:// no Windows para deep linking (convites)
   WriteRegStr HKCU "Software\Classes\echo" "" "URL:Echo Protocol"
   WriteRegStr HKCU "Software\Classes\echo" "URL Protocol" ""
-  WriteRegStr HKCU "Software\Classes\echo\shell\open\command" "" '"$INSTDIR\desktop.exe" "%1"'
+  WriteRegStr HKCU "Software\Classes\echo\shell\open\command" "" '"$INSTDIR\Echo.exe" "%1"'
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL

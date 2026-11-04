@@ -3,6 +3,31 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { EmojiPicker } from "@/components/emoji/EmojiPicker";
 
+vi.mock("emoji-picker-react", () => ({
+  default: () => <div data-testid="emoji-picker-react-mock" />,
+  Theme: { DARK: "dark", LIGHT: "light" },
+  EmojiStyle: { NATIVE: "native" },
+  SkinTones: {
+    NEUTRAL: "neutral",
+    LIGHT: "1f3fb",
+    MEDIUM_LIGHT: "1f3fc",
+    MEDIUM: "1f3fd",
+    MEDIUM_DARK: "1f3fe",
+    DARK: "1f3ff",
+  },
+  Categories: {
+    SUGGESTED: "suggested",
+    SMILEYS_PEOPLE: "smileys_people",
+    ANIMALS_NATURE: "animals_nature",
+    FOOD_DRINK: "food_drink",
+    TRAVEL_PLACES: "travel_places",
+    ACTIVITIES: "activities",
+    OBJECTS: "objects",
+    SYMBOLS: "symbols",
+    FLAGS: "flags",
+  },
+}));
+
 describe("EmojiPicker", () => {
   it("renders when open and shows emojis header", () => {
     render(<EmojiPicker open={true} onOpenChange={vi.fn()} onSelect={vi.fn()} />);

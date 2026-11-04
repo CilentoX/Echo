@@ -5,6 +5,8 @@ import InviteModal from "@/features/guild/InviteModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import { matrixService } from "@/lib/matrix/instance";
 import { normalizeInviteCode } from "@/lib/api/echoApi";
+import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 
 vi.mock("@/lib/matrix/instance", () => ({
   matrixService: {
@@ -142,6 +144,40 @@ describe("Guild Invites System", () => {
       const switchBtn = screen.getByRole("button", { name: /Criar uma guilda/i });
       await userEvent.click(switchBtn);
       expect(onOpenCreate).toHaveBeenCalled();
+    });
+
+    it("indica se o usuário já faz parte da guilda e oferece acesso direto", async () => {
+      useSyncStore.getState().setGuilds([
+        { guildId: "!ja-membro:hs", name: "Guilda Existente", avatarUrl: null, unreadCount: 0 },
+      ]);
+
+      vi.mocked(matrixService.getInvitePreview).mockResolvedValueOnce({
+        code: "existente123",
+        guildId: "!ja-membro:hs",
+        name: "Guilda Existente",
+        description: null,
+        avatarUrl: null,
+        bannerUrl: null,
+        channelsCount: 5,
+        expiresAt: null,
+      });
+
+      render(
+        <JoinGuildModal
+          open={true}
+          initialCode="existente123"
+          onClose={vi.fn()}
+          onJoined={vi.fn()}
+        />
+      );
+
+      expect(await screen.findByText("Você já faz parte desta guilda")).toBeTruthy();
+      const acessarBtn = screen.getByRole("button", { name: /Acessar guilda/i });
+      expect(acessarBtn).toBeTruthy();
+
+      await userEvent.click(acessarBtn);
+      expect(useUiStore.getState().activeGuildId).toBe("!ja-membro:hs");
+      expect(matrixService.joinGuildViaInvite).not.toHaveBeenCalled();
     });
   });
 

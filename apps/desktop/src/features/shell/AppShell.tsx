@@ -16,6 +16,9 @@ import Settings from "@/features/settings/Settings";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { isTauri } from "@/lib/updater";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 export interface AppShellProps {
   /** Chat area content; placeholder messages are shown when omitted. */
@@ -37,9 +40,43 @@ export default function AppShell({ children }: AppShellProps) {
   const [membersOpen, setMembersOpen] = useState(false);
   const profileOpen = useUiStore((state) => state.isProfileOpen);
   const setProfileOpen = useUiStore((state) => state.setProfileOpen);
+  const isJoinGuildOpen = useUiStore((state) => state.isJoinGuildOpen);
+  const joinGuildInitialCode = useUiStore((state) => state.joinGuildInitialCode);
+  const setJoinGuildOpen = useUiStore((state) => state.setJoinGuildOpen);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createGuildOpen, setCreateGuildOpen] = useState(false);
-  const [joinGuildOpen, setJoinGuildOpen] = useState(false);
+
+  // Deep linking e verificação de instância única
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    // Checa se o app foi aberto com convite na linha de comando
+    invoke<string | null>("get_launch_invite_code")
+      .then((code) => {
+        if (code) {
+          setJoinGuildOpen(true, code);
+        }
+      })
+      .catch((err) => {
+        console.warn("[invite] Falha ao verificar código de inicialização:", err);
+      });
+
+    // Ouve evento emitido pela verificação de instância única
+    const unlistenPromise = listen<string[]>("single-instance", (event) => {
+      const args = Array.isArray(event.payload) ? event.payload : [];
+      for (const arg of args) {
+        const match = arg.match(/echo:\/\/invite\/([a-zA-Z0-9_-]+)/i);
+        if (match?.[1]) {
+          setJoinGuildOpen(true, match[1]);
+          break;
+        }
+      }
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten()).catch(() => {});
+    };
+  }, [setJoinGuildOpen]);
 
   // Crossing a breakpoint changes the layout mode; stale overlay
   // state must not make panels reappear open on the way back.
@@ -195,7 +232,8 @@ export default function AppShell({ children }: AppShellProps) {
       />
 
       <JoinGuildModal
-        open={joinGuildOpen}
+        open={isJoinGuildOpen}
+        initialCode={joinGuildInitialCode}
         onClose={() => setJoinGuildOpen(false)}
         onJoined={handleGuildJoined}
         onOpenCreate={() => {
