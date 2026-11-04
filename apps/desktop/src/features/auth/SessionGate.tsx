@@ -10,6 +10,7 @@ import type { Session } from "@/lib/matrix/types";
 import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
 import { isNewAccount, isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
 import { useUiStore } from "@/stores/uiStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { isTauri, restartApp, runStartupUpdateCheck, setMainWindowMode } from "@/lib/updater";
 import { useUpdateStore } from "@/stores/updateStore";
@@ -57,6 +58,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
       const userId = session.userId ?? "";
       ui.setMyUserId(userId);
       ui.setPresence(userId, "online");
+      void useProfileStore.getState().loadProfile();
       // Fire-and-forget: startSyncWiring is async but we don't need to wait for it
       void startSyncWiring(() => rejectSession());
       setView("shell");
@@ -71,6 +73,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
       matrixService.restoreSession(session);
     }
     useUiStore.getState().setMyUserId(session.userId ?? "");
+    void useProfileStore.getState().loadProfile();
   }, []);
 
   const handleSession = useCallback(

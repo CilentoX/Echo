@@ -41,6 +41,7 @@ export default function Profile({ open, onClose }: ProfileProps) {
     if (open) {
       setActiveTab("profile");
       setIsMounted(true);
+      void useProfileStore.getState().loadProfile();
     } else {
       setIsMounted(false);
     }

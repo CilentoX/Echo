@@ -80,4 +80,14 @@ describe("CommunityRail", () => {
       screen.getByRole("button", { name: "Echo Guild" }).getAttribute("aria-current"),
     ).toBeNull();
   });
+
+  it("renderiza o perfil do usuário e aciona onOpenProfile ao clicar", async () => {
+    const onOpenProfile = vi.fn();
+    render(<CommunityRail onOpenProfile={onOpenProfile} onOpenSettings={vi.fn()} />);
+
+    const profileBtn = screen.getByRole("button", { name: "Perfil" });
+    expect(profileBtn).toBeTruthy();
+    await userEvent.click(profileBtn);
+    expect(onOpenProfile).toHaveBeenCalledTimes(1);
+  });
 });

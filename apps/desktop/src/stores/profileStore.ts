@@ -75,8 +75,18 @@ export const useProfileStore = create<ProfileState>()((set) => ({
       const persistedAvatar = localStorage.getItem("echo:appwriteAvatarUrl");
       const persistedBanner = localStorage.getItem("echo:appwriteBannerUrl");
 
-      const avatar = userProfile?.avatarUrl ?? persistedAvatar ?? null;
-      const banner = userProfile?.bannerUrl ?? persistedBanner ?? null;
+      // Fonte da verdade: resposta da API Postgres quando disponível
+      const avatar = userProfile ? (userProfile.avatarUrl ?? null) : (persistedAvatar ?? null);
+      let banner = userProfile ? (userProfile.bannerUrl ?? null) : (persistedBanner ?? null);
+
+      // Proteção contra vazamento do avatar no banner: se o banner for idêntico ao avatar e o banco não tiver banner explícito, descarta
+      if (banner && (banner === avatar || banner === persistedAvatar)) {
+        if (!userProfile?.bannerUrl) {
+          banner = null;
+          localStorage.removeItem("echo:appwriteBannerUrl");
+        }
+      }
+
       const nickname = userProfile?.nickname ?? userProfile?.displayName ?? null;
       const displayName = userProfile?.displayName ?? userProfile?.nickname ?? (myUserId ? myUserId.replace(/^@/, "").split(":")[0] : "");
 

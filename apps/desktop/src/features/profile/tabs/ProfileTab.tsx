@@ -141,7 +141,9 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
 
   // URLs atuais para exibição (edit state tem prioridade)
   const currentAvatarUrl = editAvatarUrl ?? appwriteAvatarUrl ?? avatarUrl;
-  const currentBannerUrl = editBannerUrl ?? appwriteBannerUrl ?? bannerUrl;
+  const rawBannerUrl = editBannerUrl ?? appwriteBannerUrl ?? bannerUrl;
+  // Banner nunca deve herdar ou espelhar a foto de perfil por acidente
+  const currentBannerUrl = rawBannerUrl === currentAvatarUrl && !editBannerUrl ? null : rawBannerUrl;
 
   return (
     <div className="flex flex-col gap-6" onKeyDown={handleKeyDown}>

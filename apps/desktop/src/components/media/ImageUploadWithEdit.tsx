@@ -279,7 +279,16 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
             )}
             {(!initials || type !== "avatar") && (
               <>
-                {editable ? (
+                {type === "banner" ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-r from-acc/25 via-surf2 to-acc/10">
+                    {editable && (
+                      <div className="flex items-center gap-2 rounded-lg bg-black/40 px-3 py-1.5 text-xs font-medium text-txt backdrop-blur-sm group-hover:bg-black/60 transition-colors shadow-sm">
+                        <UploadIcon size={16} />
+                        <span>{placeholder || "Adicionar banner"}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : editable ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-mut">
                     <UploadIcon size={24} className="opacity-70" />
                     <span className="text-xs font-medium">{placeholder || "Adicionar imagem"}</span>
