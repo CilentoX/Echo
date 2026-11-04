@@ -105,126 +105,16 @@ async function handleStatus(status: string, error?: { errcode: string }): Promis
 }
 
 /**
- * Abre uma WebSocket conexão com o endpoint de sync do Echo API.
- * Mensagens recebidas têm o formato:
- *   { type: "event" | "status" | "typing" | "presence" | "members" | "reaction" | "receipt", ... }
+ * Conexão de WebSocket sync (desativada no cliente enquanto o backend
+ * não expõe streaming real do Synapse; o Echo opera via HTTP REST + polling).
  */
-function openSyncWebSocket(accessToken: string): void {
-  // Fechar conexão existente se houver
+function openSyncWebSocket(_accessToken: string): void {
   if (syncWs) {
-    syncWs.close();
+    try {
+      syncWs.close();
+    } catch {}
     syncWs = null;
   }
-
-  // Use Echo API URL for sync WebSocket (wss://apiecho.litteris.online/matrix/sync)
-  const wsBaseUrl = ECHO_API_CONFIG.baseUrl.replace(/^http/, "ws");
-  syncWs = new WebSocket(`${wsBaseUrl}/matrix/sync?access_token=${accessToken}`);
-
-  syncWs.onopen = () => {
-    reconnectAttempts = 0;
-    void handleStatus("syncing");
-  };
-
-  syncWs.onmessage = (event) => {
-    try {
-      const message = JSON.parse(event.data) as {
-        type:
-          | "event"
-          | "status"
-          | "typing"
-          | "presence"
-          | "members"
-          | "reaction"
-          | "receipt";
-        [key: string]: unknown;
-      };
-
-      switch (message.type) {
-        case "event": {
-          const normalized = normalizeSyncEvent(message.event);
-          if (normalized) {
-            useSyncStore.getState().applyEvent(normalized);
-          }
-          break;
-        }
-        case "status": {
-          handleStatus(message.status as string, message.error as { errcode: string } | undefined);
-          break;
-        }
-        case "typing": {
-          const roomId = message.roomId as string;
-          const userId = message.userId as string;
-          const isTyping = message.isTyping as boolean;
-          let set = typingByRoom.get(roomId);
-          if (!set) {
-            set = new Set();
-            typingByRoom.set(roomId, set);
-          }
-          if (isTyping) set.add(userId);
-          else set.delete(userId);
-          const ui = useUiStore.getState();
-          ui.setTypingUsers(roomId, Array.from(set));
-          break;
-        }
-        case "presence": {
-          const userId = message.userId as string;
-          const state = mapPresence(message.presence as string | undefined);
-          useUiStore.getState().setPresence(userId, state);
-          break;
-        }
-        case "members": {
-          const roomId = message.roomId as string;
-          const members = message.members as Array<{
-            userId: string;
-            displayName: string;
-            presence: string;
-          }>;
-          useSyncStore.getState().setMembers(roomId, members.map((m) => ({
-            userId: m.userId,
-            displayName: m.displayName,
-            presence: mapPresence(m.presence),
-            avatarUrl: undefined,
-          })));
-          break;
-        }
-        case "reaction": {
-          const normalized = normalizeSyncReaction(message.reaction);
-          if (normalized) {
-            useSyncStore.getState().applyReaction(normalized);
-          }
-          break;
-        }
-        case "receipt": {
-          const roomId = message.roomId as string;
-          const userId = message.userId as string;
-          const eventId = message.eventId as string;
-          useSyncStore.getState().markRead(roomId, userId, eventId);
-          break;
-        }
-      }
-    } catch (e) {
-      console.error("[wiring] Erro ao processar mensagem sync:", e);
-    }
-  };
-
-  syncWs.onerror = (error) => {
-    console.warn("[wiring] WebSocket sync indisponível, operando via HTTP REST:", error);
-    if (!initialDataLoaded) {
-      handleStatus("error", { errcode: "NETWORK_ERROR" });
-    }
-  };
-
-  syncWs.onclose = () => {
-    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-      reconnectAttempts++;
-      const delay = BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1);
-      setTimeout(() => {
-        if (started && accessToken) {
-          openSyncWebSocket(accessToken);
-        }
-      }, delay);
-    }
-  };
 }
 
 function startPollingLoop(): void {
@@ -360,14 +250,7 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
   }
 
   if (sessionToken) {
-    // Tenta abrir WebSocket em segundo plano (se o backend aceitar)
-    try {
-      openSyncWebSocket(sessionToken);
-    } catch (err) {
-      console.warn("[wiring] Falha ao conectar WebSocket sync:", err);
-    }
-
-    // Inicia polling leve como fallback resiliente
+    // Sincronização e polling em segundo plano via EchoApi HTTP REST
     startPollingLoop();
   } else {
     console.warn("[wiring] Nenhum token de sessão disponível para sync");
