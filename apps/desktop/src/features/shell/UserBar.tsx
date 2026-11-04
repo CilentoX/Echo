@@ -58,38 +58,45 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
   return (
     <footer
       data-testid="user-bar"
-      className="flex h-14 w-full shrink-0 items-center justify-between border-t border-bd bg-surf/95 px-3 backdrop-blur-xl shadow-[0_-4px_20px_rgba(0,0,0,0.35)] z-30 select-none"
+      className="flex h-14 w-full shrink-0 items-center justify-between bg-rail text-txt z-30 select-none relative"
     >
-      {/* Lado Esquerdo: Cápsula de Perfil do Usuário */}
-      <div className="flex items-center min-w-0">
+      {/* Linha divisória superior que começa a partir de 72px (onde o conteúdo começa, fundindo o rail e a dock em uma só peça) */}
+      <div className="absolute top-0 left-[72px] right-0 h-[1px] bg-bd/60" aria-hidden="true" />
+
+      {/* Lado Esquerdo: Cápsula de Perfil integrada organicamente ao eixo do rail de 72px */}
+      <div className="flex items-center min-w-0 h-full">
         <button
           type="button"
           onClick={onOpenProfile}
           title="Abrir perfil"
-          className="cursor-pointer group flex min-w-0 max-w-[280px] sm:w-[240px] items-center gap-3 rounded-xl p-1.5 text-left transition-all hover:bg-surf2/90 active:scale-[0.98]"
+          className="cursor-pointer group flex h-full items-center text-left transition-colors hover:bg-surf2/40 active:scale-[0.99] rounded-lg my-1 mr-2"
         >
-          <div className="relative shrink-0">
-            {effectiveAvatar ? (
-              <MxcImage
-                mxcUrl={effectiveAvatar}
-                alt={effectiveName}
-                className="h-9 w-9 rounded-full object-cover ring-1 ring-bd/60 group-hover:ring-acc/60 transition-all"
-                width={36}
-                height={36}
+          {/* Avatar perfeitamente centralizado no eixo vertical do rail de 72px */}
+          <div className="w-[72px] shrink-0 flex items-center justify-center">
+            <div className="relative">
+              {effectiveAvatar ? (
+                <MxcImage
+                  mxcUrl={effectiveAvatar}
+                  alt={effectiveName}
+                  className="h-9 w-9 rounded-full object-cover ring-2 ring-transparent group-hover:ring-acc/60 transition-all shadow-sm"
+                  width={36}
+                  height={36}
+                />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-acc font-display text-xs font-bold text-bg shadow-sm">
+                  {initial}
+                </div>
+              )}
+              {/* Anel de presença com corte */}
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-rail ${presenceColor}`}
+                aria-hidden="true"
               />
-            ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-acc font-display text-xs font-bold text-bg ring-1 ring-bd/60 shadow-sm">
-                {initial}
-              </div>
-            )}
-            {/* Anel de presença com corte */}
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-surf ${presenceColor}`}
-              aria-hidden="true"
-            />
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1 leading-tight">
+          {/* Nome e @tag expandindo naturalmente para a direita na dock */}
+          <div className="min-w-0 pr-3 leading-tight max-w-[160px] sm:max-w-[200px]">
             <p className="truncate text-xs font-semibold text-txt group-hover:text-acc transition-colors">
               {effectiveName}
             </p>
@@ -99,7 +106,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
       </div>
 
       {/* Centro: Indicador Contextual (Home vs Guilda/Canal) */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-surf2/40 border border-bd/30 text-xs text-mut max-w-sm truncate">
+      <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-surf2/30 border border-bd/30 text-xs text-mut max-w-sm truncate">
         {isHome ? (
           <div className="flex items-center gap-1.5 truncate">
             <ShieldCheck size={14} className="text-acc shrink-0" />
@@ -121,7 +128,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
       </div>
 
       {/* Lado Direito: Controles de Áudio, Conexão e Configurações */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 px-3 shrink-0">
         <button
           type="button"
           aria-label={microphoneEnabled ? "Silenciar microfone" : "Ativar microfone"}
