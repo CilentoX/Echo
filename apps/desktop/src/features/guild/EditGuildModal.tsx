@@ -218,7 +218,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                 {/* Área do Banner (16:9) */}
                 <div
                   onClick={() => bannerInputRef.current?.click()}
-                  className="relative h-32 w-full bg-gradient-to-br from-indigo-950/60 via-purple-950/40 to-slate-950 cursor-pointer overflow-hidden group/banner flex items-center justify-center transition-all"
+                  className="relative h-32 w-full dark:bg-gradient-to-br dark:from-indigo-950/60 dark:via-purple-950/40 dark:to-slate-950 bg-gradient-to-br from-slate-200 via-zinc-100 to-slate-100 cursor-pointer overflow-hidden group/banner flex items-center justify-center transition-all"
                 >
                   {bannerPreview ? (
                     <img

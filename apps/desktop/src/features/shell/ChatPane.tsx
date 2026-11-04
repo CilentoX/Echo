@@ -24,6 +24,7 @@ export default function ChatPane({
   const activeChannelId = useUiStore((s) => s.activeChannelId);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
+  const guilds = useSyncStore((s) => s.guilds);
 
   // Nome do canal ativo, ou null sem seleção.
   const channelName = useMemo(() => {
@@ -38,6 +39,11 @@ export default function ChatPane({
   // Se estiver na Home sem canal aberto e sem toggle de sidebar ativo, o FriendsDashboard tem seu próprio header completo.
   const isHomeDashboard = activeGuildId === "home" && !activeChannelId;
   const showHeader = !isHomeDashboard || showSidebarToggle;
+
+  const currentGuildName = useMemo(() => {
+    if (!activeGuildId || activeGuildId === "home") return null;
+    return guilds.find((g) => g.guildId === activeGuildId)?.name ?? null;
+  }, [guilds, activeGuildId]);
 
   return (
     <main
@@ -56,11 +62,15 @@ export default function ChatPane({
               <List size={18} />
             </button>
           )}
-          {channelName && (
+          {channelName ? (
             <h2 className="font-display text-sm font-semibold text-txt">
               #{channelName}
             </h2>
-          )}
+          ) : currentGuildName ? (
+            <h2 className="font-display text-sm font-semibold text-txt">
+              {currentGuildName}
+            </h2>
+          ) : null}
           <div className="flex-1" />
           {showMembersToggle && (
             <button

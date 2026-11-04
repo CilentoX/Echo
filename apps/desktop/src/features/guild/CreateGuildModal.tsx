@@ -200,7 +200,7 @@ export default function CreateGuildModal({
                 {/* Área do Banner (16:9) */}
                 <div
                   onClick={() => bannerInputRef.current?.click()}
-                  className="relative h-32 w-full bg-gradient-to-br from-indigo-950/60 via-purple-950/40 to-slate-950 cursor-pointer overflow-hidden group/banner flex items-center justify-center transition-all"
+                  className="relative h-32 w-full dark:bg-gradient-to-br dark:from-indigo-950/60 dark:via-purple-950/40 dark:to-slate-950 bg-gradient-to-br from-slate-200 via-zinc-100 to-slate-100 cursor-pointer overflow-hidden group/banner flex items-center justify-center transition-all"
                 >
                   {bannerPreview ? (
                     <img
@@ -210,7 +210,7 @@ export default function CreateGuildModal({
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-mut/60 gap-1.5 transition-colors group-hover/banner:text-txt">
-                      <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm group-hover/banner:bg-white/[0.08] group-hover/banner:border-acc/40 transition-all">
+                      <div className="p-2 rounded-xl dark:bg-white/[0.04] bg-black/[0.04] border border-bd-subtle backdrop-blur-sm dark:group-hover/banner:bg-white/[0.08] group-hover/banner:bg-black/[0.06] group-hover/banner:border-acc/40 transition-all">
                         <Camera size={18} className="group-hover/banner:text-acc transition-colors" />
                       </div>
                       <span className="text-[11px] font-medium">Adicionar banner (16:9)</span>
@@ -384,7 +384,7 @@ export default function CreateGuildModal({
             </div>
 
             {onOpenJoin && (
-              <div className="mt-4 pt-3.5 border-t border-white/[0.06] text-center">
+              <div className="mt-4 pt-3.5 border-t border-bd-subtle text-center">
                 <button
                   type="button"
                   onClick={() => {

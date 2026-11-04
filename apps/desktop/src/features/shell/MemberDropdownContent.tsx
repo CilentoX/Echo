@@ -227,7 +227,7 @@ export default function MemberDropdownContent({
       className="w-[320px] max-w-[340px] flex flex-col bg-card-bg border border-bd-glass rounded-2xl shadow-2xl shadow-black/80 overflow-hidden text-txt select-none animate-in fade-in-0 zoom-in-95 duration-150"
     >
       {/* Banner panorâmico */}
-      <div className="relative w-full h-28 shrink-0 overflow-hidden bg-gradient-to-br from-indigo-950/70 via-purple-950/40 to-card-bg">
+      <div className="relative w-full h-28 shrink-0 overflow-hidden dark:bg-gradient-to-br dark:from-indigo-950/70 dark:via-purple-950/40 dark:to-card-bg bg-gradient-to-br from-acc/20 via-surf2 to-card-bg">
         {effectiveBannerUrl ? (
           <MxcImage
             mxcUrl={effectiveBannerUrl}

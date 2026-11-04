@@ -122,12 +122,12 @@ export default function MemberList({
     <aside
       data-column="members"
       aria-label="Membros"
-      className={`flex w-[224px] shrink-0 flex-col border-l border-bd bg-rail ${overlay
+      className={`flex w-[224px] shrink-0 flex-col border-l border-bd-subtle bg-surf ${overlay
           ? "fixed inset-y-0 right-0 z-20 shadow-lg shadow-black/60"
           : "h-full"
         }`}
     >
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-bd px-4">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-bd-subtle px-4">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-sm font-semibold text-txt">
             Membros
@@ -149,7 +149,7 @@ export default function MemberList({
       </header>
 
       {/* Busca */}
-      <div className="px-3 py-2 border-b border-bd">
+      <div className="px-3 py-2 border-b border-bd-subtle">
         <div className="relative">
           <MagnifyingGlass size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mut" aria-hidden />
           <input

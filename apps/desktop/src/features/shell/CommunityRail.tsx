@@ -40,6 +40,10 @@ function GuildButton({
   const handleClick = () => {
     // Left-click: apenas seleciona a guilda, NÃO abre o dropdown
     onSelect(guild.guildId);
+    const existing = useSyncStore.getState().channelsByGuild[guild.guildId] ?? [];
+    if (existing.length > 0) {
+      useUiStore.getState().setActiveChannel(existing[0].channelId);
+    }
   };
 
   return (

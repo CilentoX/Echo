@@ -99,6 +99,37 @@ export default function ChannelSidebar({
 
   const activeGuild = guilds.find((g) => g.guildId === activeGuildId) ?? null;
 
+  // Busca canais da guilda e garante seleção automática do primeiro canal
+  useEffect(() => {
+    if (!activeGuildId || activeGuildId === "home") return;
+
+    let isMounted = true;
+    void matrixService
+      .listChannels(activeGuildId)
+      .then((channelList) => {
+        if (!isMounted) return;
+        useSyncStore.getState().setChannels(activeGuildId, channelList);
+
+        const curActive = useUiStore.getState().activeChannelId;
+        const exists = channelList.some((c) => c.channelId === curActive);
+        if ((!curActive || !exists) && channelList.length > 0) {
+          useUiStore.getState().setActiveChannel(channelList[0].channelId);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeGuildId]);
+
+  // Se canais já estiverem em cache e nenhum canal estiver ativo, seleciona o primeiro
+  useEffect(() => {
+    if (!activeChannelId && allChannels.length > 0) {
+      setActiveChannel(allChannels[0].channelId);
+    }
+  }, [activeChannelId, allChannels, setActiveChannel]);
+
   // Busca o banner e detalhes adicionais da guilda caso ainda não estejam em cache
   useEffect(() => {
     if (!activeGuildId || activeGuildId === "home") return;
@@ -331,16 +362,6 @@ export default function ChannelSidebar({
                         <span className={`truncate ${active ? "text-txt" : "text-mut"}`}>
                           {channel.name}
                         </span>
-                        {channel.category &&
-                          channel.category.trim().toLowerCase() !== "canais de texto" &&
-                          channel.category.trim().toLowerCase() !== "text channels" && (
-                            <span
-                              className="ml-1 text-[10px] text-mut/60"
-                              aria-label={`Categoria: ${channel.category}`}
-                            >
-                              • {channel.category}
-                            </span>
-                          )}
                         {channel.unreadCount > 0 && (
                           <span
                             aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}
