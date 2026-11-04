@@ -328,6 +328,69 @@ export class MatrixService {
     return this.echoApi.joinGuildViaInvite(code);
   }
 
+  /** Lista convites de uma guilda. */
+  async listGuildInvites(guildId: string) {
+    return this.echoApi.listGuildInvites(guildId);
+  }
+
+  /** Remove/revoga um convite de guilda. */
+  async deleteGuildInvite(guildId: string, inviteId: string) {
+    return this.echoApi.deleteGuildInvite(guildId, inviteId);
+  }
+
+  /** Lista cargos de uma guilda. */
+  async getGuildRoles(guildId: string) {
+    return this.echoApi.getGuildRoles(guildId);
+  }
+
+  /** Cria um cargo na guilda. */
+  async createGuildRole(
+    guildId: string,
+    data: {
+      name: string;
+      color?: string | null;
+      position?: number;
+      isHoisted?: boolean;
+      permissions?: string[];
+    },
+  ) {
+    return this.echoApi.createGuildRole(guildId, data);
+  }
+
+  /** Atualiza um cargo na guilda. */
+  async updateGuildRole(
+    guildId: string,
+    roleId: string,
+    data: Parameters<typeof this.echoApi.updateGuildRole>[2],
+  ) {
+    return this.echoApi.updateGuildRole(guildId, roleId, data);
+  }
+
+  /** Remove um cargo na guilda. */
+  async deleteGuildRole(guildId: string, roleId: string) {
+    return this.echoApi.deleteGuildRole(guildId, roleId);
+  }
+
+  /** Carrega dados de membros da guilda (cargos e apelidos do servidor). */
+  async getGuildMembersData(guildId: string) {
+    return this.echoApi.getGuildMembersData(guildId);
+  }
+
+  /** Define o apelido do usuário na guilda. */
+  async setGuildMemberNickname(guildId: string, nickname: string | null) {
+    return this.echoApi.setGuildMemberNickname(guildId, nickname);
+  }
+
+  /** Atribui um cargo a um membro. */
+  async assignGuildMemberRole(guildId: string, targetUserId: string, roleId: string) {
+    return this.echoApi.assignGuildMemberRole(guildId, targetUserId, roleId);
+  }
+
+  /** Remove um cargo de um membro. */
+  async removeGuildMemberRole(guildId: string, targetUserId: string, roleId: string) {
+    return this.echoApi.removeGuildMemberRole(guildId, targetUserId, roleId);
+  }
+
   /** Cria um canal dentro de uma guilda (Space). Aceita tipo, tópico e categoria. */
   async createChannel(
     guildId: string,

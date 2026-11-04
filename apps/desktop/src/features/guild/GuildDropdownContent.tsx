@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import ImageUploadButton from "@/components/ImageUploadButton"
 import MxcImage from "@/components/media/MxcImage"
 import InviteModal from "./InviteModal"
+import GuildSettingsModal from "./GuildSettingsModal"
 
 export interface GuildDropdownContentProps {
   guildId: string
@@ -28,6 +29,7 @@ export default function GuildDropdownContent({
   const activeGuildId = useUiStore((state) => state.activeGuildId)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const isActive = activeGuildId === guildId
 
@@ -37,14 +39,12 @@ export default function GuildDropdownContent({
   }, [])
 
   const handleEditGuild = useCallback(() => {
-    showToast("Edição de guilda em breve")
-    onClose()
-  }, [showToast, onClose])
+    setSettingsOpen(true)
+  }, [])
 
   const handleGuildSettings = useCallback(() => {
-    showToast("Configurações da guilda em breve")
-    onClose()
-  }, [showToast, onClose])
+    setSettingsOpen(true)
+  }, [])
 
   const handleInvite = useCallback(() => {
     setInviteOpen(true)
@@ -227,6 +227,19 @@ export default function GuildDropdownContent({
         guildName={guildName}
         onClose={() => {
           setInviteOpen(false)
+          onClose()
+        }}
+      />
+
+      <GuildSettingsModal
+        open={settingsOpen}
+        guild={{
+          guildId,
+          name: guildName,
+          avatarUrl,
+        }}
+        onClose={() => {
+          setSettingsOpen(false)
           onClose()
         }}
       />

@@ -30,6 +30,7 @@ import { ECHO_API_CONFIG } from "@/lib/api/config";
 
 export interface FriendProfile {
   userId: string;
+  username?: string | null;
   nickname: string | null;
   displayName: string;
   avatarUrl: string | null;
@@ -40,6 +41,7 @@ export interface FriendProfile {
 export interface FriendItem {
   friendshipId: string;
   userId: string;
+  username?: string | null;
   nickname: string | null;
   displayName: string;
   avatarUrl: string | null;
@@ -66,6 +68,7 @@ export interface FriendsResponse {
 
 export interface DiscoveredUserItem {
   userId: string;
+  username?: string | null;
   displayName: string;
   nickname: string | null;
   avatarUrl: string | null;
@@ -78,6 +81,52 @@ export interface DiscoveredUserItem {
 
 export interface DiscoveryResponse {
   users: DiscoveredUserItem[];
+}
+
+export interface GuildRole {
+  id: string;
+  guildId: string;
+  name: string;
+  color: string | null;
+  position: number;
+  isHoisted: boolean;
+  permissions: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GuildMemberRole {
+  id: string;
+  guildId: string;
+  userId: string;
+  roleId: string;
+  createdAt?: string;
+}
+
+export interface GuildMemberProfile {
+  id: string;
+  guildId: string;
+  userId: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+}
+
+export interface GuildMembersData {
+  roles: GuildRole[];
+  memberRoles: GuildMemberRole[];
+  memberProfiles: GuildMemberProfile[];
+}
+
+export interface GuildInviteItem {
+  id: string;
+  code: string;
+  guildId: string;
+  creatorId: string;
+  maxUses: number | null;
+  usesCount: number;
+  expiresAt: string | null;
+  createdAt: string;
+  url: string;
 }
 
 /**
@@ -270,6 +319,7 @@ export class EchoApi {
   /** Get the profile of a user (default: current user). */
   async getUserProfile(userId?: string): Promise<{
     userId?: string;
+    username?: string | null;
     displayName: string | null;
     nickname: string | null;
     avatarUrl: string | null;
@@ -280,6 +330,7 @@ export class EchoApi {
     if (!userId && !this.accessToken) {
       return {
         userId: this.userId ?? undefined,
+        username: null,
         displayName: null,
         nickname: null,
         avatarUrl: null,
@@ -295,6 +346,7 @@ export class EchoApi {
         const data = await res.json();
         return {
           userId: data.userId,
+          username: data.username ?? (data.userId ? data.userId.replace(/^@/, '').split(':')[0] : null),
           displayName: data.displayName ?? data.nickname ?? null,
           nickname: data.nickname ?? data.displayName ?? null,
           avatarUrl: data.avatarUrl ?? null,
@@ -308,6 +360,7 @@ export class EchoApi {
 
   /** Patch (partial update) the profile of a user (default: current user). */
   async patchUserProfile(userId: string, data: {
+    username?: string | null;
     displayName?: string | null;
     nickname?: string | null;
     avatarUrl?: string | null;
@@ -318,6 +371,7 @@ export class EchoApi {
     const targetPath = userId ? `/api/profiles/${encodeURIComponent(userId)}` : `/api/profiles/me`;
     const nickname = data.nickname ?? data.displayName;
     return this.patch(targetPath, {
+      username: data.username,
       nickname,
       displayName: nickname,
       avatarUrl: data.avatarUrl,
@@ -426,6 +480,91 @@ export class EchoApi {
       throw new Error(`Failed to join guild: ${res.status} ${errTxt}`);
     }
     return res.json();
+  }
+
+  /** List all invites for a guild. */
+  async listGuildInvites(guildId: string): Promise<GuildInviteItem[]> {
+    const res = await this.get(`/api/guilds/${guildId}/invites`);
+    if (!res.ok) throw new Error(`Failed to list guild invites: ${res.status}`);
+    return res.json();
+  }
+
+  /** Delete / revoke a guild invite. */
+  async deleteGuildInvite(guildId: string, inviteId: string): Promise<void> {
+    const res = await this.delete(`/api/guilds/${guildId}/invites/${inviteId}`);
+    if (!res.ok) throw new Error(`Failed to delete guild invite: ${res.status}`);
+  }
+
+  /** Get all roles defined in a guild. */
+  async getGuildRoles(guildId: string): Promise<GuildRole[]> {
+    const res = await this.get(`/api/guilds/${guildId}/roles`);
+    if (!res.ok) throw new Error(`Failed to get guild roles: ${res.status}`);
+    return res.json();
+  }
+
+  /** Create a new role in a guild. */
+  async createGuildRole(
+    guildId: string,
+    data: {
+      name: string;
+      color?: string | null;
+      position?: number;
+      isHoisted?: boolean;
+      permissions?: string[];
+    },
+  ): Promise<GuildRole> {
+    const res = await this.post(`/api/guilds/${guildId}/roles`, data);
+    if (!res.ok) throw new Error(`Failed to create guild role: ${res.status}`);
+    return res.json();
+  }
+
+  /** Update a role in a guild. */
+  async updateGuildRole(
+    guildId: string,
+    roleId: string,
+    data: Partial<{
+      name: string;
+      color: string | null;
+      position: number;
+      isHoisted: boolean;
+      permissions: string[];
+    }>,
+  ): Promise<GuildRole> {
+    const res = await this.patch(`/api/guilds/${guildId}/roles/${roleId}`, data);
+    if (!res.ok) throw new Error(`Failed to update guild role: ${res.status}`);
+    return res.json();
+  }
+
+  /** Delete a role from a guild. */
+  async deleteGuildRole(guildId: string, roleId: string): Promise<void> {
+    const res = await this.delete(`/api/guilds/${guildId}/roles/${roleId}`);
+    if (!res.ok) throw new Error(`Failed to delete guild role: ${res.status}`);
+  }
+
+  /** Get members data for a guild (custom nicknames and role assignments). */
+  async getGuildMembersData(guildId: string): Promise<GuildMembersData> {
+    const res = await this.get(`/api/guilds/${guildId}/members-data`);
+    if (!res.ok) throw new Error(`Failed to get guild members data: ${res.status}`);
+    return res.json();
+  }
+
+  /** Set the current user's nickname inside a guild. */
+  async setGuildMemberNickname(guildId: string, nickname: string | null): Promise<GuildMemberProfile> {
+    const res = await this.put(`/api/guilds/${guildId}/members/me/nickname`, { nickname });
+    if (!res.ok) throw new Error(`Failed to set server nickname: ${res.status}`);
+    return res.json();
+  }
+
+  /** Assign a role to a member in a guild. */
+  async assignGuildMemberRole(guildId: string, targetUserId: string, roleId: string): Promise<void> {
+    const res = await this.post(`/api/guilds/${guildId}/members/${encodeURIComponent(targetUserId)}/roles/${roleId}`);
+    if (!res.ok) throw new Error(`Failed to assign role: ${res.status}`);
+  }
+
+  /** Remove a role from a member in a guild. */
+  async removeGuildMemberRole(guildId: string, targetUserId: string, roleId: string): Promise<void> {
+    const res = await this.delete(`/api/guilds/${guildId}/members/${encodeURIComponent(targetUserId)}/roles/${roleId}`);
+    if (!res.ok) throw new Error(`Failed to remove role: ${res.status}`);
   }
 
   // ── Channels ────────────────────────────────────────────────────

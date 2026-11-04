@@ -179,12 +179,14 @@ export default function MemberList({
                       : effectivePresence === "unavailable"
                         ? "bg-dnd"
                         : "bg-offline";
-                  const initial = (member.displayName || member.userId.replace(/^@/, "")).charAt(0).toUpperCase();
+                  const initial = (member.displayName || member.userId.replace(/^@/, "").split(":")[0]).charAt(0).toUpperCase();
 
                   // Fallback chain: Matrix avatar → Appwrite avatar (my user) → local avatarUrl → initials
                   const effectiveAvatarUrl = isMe
                     ? (member.avatarUrl ?? myAppwriteAvatarUrl ?? myAvatarUrl ?? null)
                     : (member.avatarUrl ?? null);
+
+                  const cleanDisplayName = member.displayName || member.userId.replace(/^@/, "").split(":")[0];
 
                   return (
                     <li key={member.userId} className="relative">
@@ -192,7 +194,7 @@ export default function MemberList({
                         <PopoverTrigger asChild>
                           <button
                             type="button"
-                            aria-label={member.displayName || member.userId}
+                            aria-label={cleanDisplayName}
                             className={`cursor-pointer flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isMe
                                 ? "text-mut/70 hover:bg-surf2"
                                 : "text-mut hover:bg-surf2 hover:text-txt"
@@ -218,7 +220,7 @@ export default function MemberList({
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-txt truncate">
-                                {member.displayName || member.userId.replace(/^@/, "")}
+                                {cleanDisplayName}
                               </p>
                             </div>
                             {isMe && (

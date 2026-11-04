@@ -123,11 +123,14 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
       setIconPreview(null);
       setBannerFile(null);
       setBannerPreview(null);
-      onCreated({
-        ...guild,
-        avatarUrl: (guild as any).avatarUrl ?? iconUrl,
-        bannerUrl: (guild as any).bannerUrl ?? bannerUrl,
-      });
+      const createdPayload: any = { ...guild };
+      if ((guild as any).avatarUrl || iconUrl) {
+        createdPayload.avatarUrl = (guild as any).avatarUrl ?? iconUrl;
+      }
+      if ((guild as any).bannerUrl || bannerUrl) {
+        createdPayload.bannerUrl = (guild as any).bannerUrl ?? bannerUrl;
+      }
+      onCreated(createdPayload);
       onClose();
     } catch {
       setError("Não foi possível criar a guilda. Tente de novo.");

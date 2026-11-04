@@ -83,8 +83,8 @@ export default function MemberDropdownContent({
 
   const copyUserId = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(userId.replace(/^@/, ""))
-      showToast("ID copiado")
+      await navigator.clipboard.writeText(`@${cleanUserId(userId)}`)
+      showToast("Username copiado")
     } catch {
       // falha silenciosa
     }
@@ -240,7 +240,7 @@ export default function MemberDropdownContent({
           className={actionButton()}
         >
           <Copy size={14} className="shrink-0" />
-          <span>Copiar ID do usuário</span>
+          <span>Copiar username</span>
         </Button>
       </div>
 

@@ -1,4 +1,4 @@
-import { Hash, MagnifyingGlass, Pencil, Plus, SpeakerHigh, UserPlus, X } from "@phosphor-icons/react";
+import { Hash, MagnifyingGlass, Gear, Plus, SpeakerHigh, UserPlus, X } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
 import {
@@ -9,7 +9,7 @@ import {
 import { useUiStore } from "@/stores/uiStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
-import EditGuildModal from "@/features/guild/EditGuildModal";
+import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
 import InviteModal from "@/features/guild/InviteModal";
 import MxcImage from "@/components/media/MxcImage";
 
@@ -61,25 +61,27 @@ export default function ChannelSidebar({
   useEffect(() => {
     if (!activeGuildId || activeGuildId === "home") return;
     if (activeGuild && activeGuild.bannerUrl === undefined) {
-      void matrixService
-        .getGuildProfile(activeGuildId)
-        .then((profile) => {
-          if (profile?.bannerUrl) {
-            useSyncStore.getState().setGuilds(
-              useSyncStore.getState().guilds.map((g) =>
-                g.guildId === activeGuildId
-                  ? {
-                      ...g,
-                      bannerUrl: profile.bannerUrl,
-                      avatarUrl: profile.avatarUrl ?? g.avatarUrl,
-                      description: profile.description ?? g.description,
-                    }
-                  : g,
-              ),
-            );
-          }
-        })
-        .catch(() => {});
+      if (typeof matrixService.getGuildProfile === "function") {
+        void matrixService
+          .getGuildProfile(activeGuildId)
+          .then((profile) => {
+            if (profile?.bannerUrl) {
+              useSyncStore.getState().setGuilds(
+                useSyncStore.getState().guilds.map((g) =>
+                  g.guildId === activeGuildId
+                    ? {
+                        ...g,
+                        bannerUrl: profile.bannerUrl,
+                        avatarUrl: profile.avatarUrl ?? g.avatarUrl,
+                        description: profile.description ?? g.description,
+                      }
+                    : g,
+                ),
+              );
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [activeGuildId, activeGuild]);
 
@@ -174,12 +176,12 @@ export default function ChannelSidebar({
               </button>
               <button
                 type="button"
-                aria-label="Editar guilda"
-                title="Editar guilda"
+                aria-label="Configurações do servidor"
+                title="Configurações do servidor"
                 onClick={() => setEditGuildOpen(true)}
                 className="cursor-pointer flex items-center rounded-lg p-1 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md transition-all active:scale-95 border border-white/10"
               >
-                <Pencil size={13} aria-hidden />
+                <Gear size={13} aria-hidden />
               </button>
               {!overlay && (
                 <button
@@ -214,12 +216,12 @@ export default function ChannelSidebar({
                 </button>
                 <button
                   type="button"
-                  aria-label="Editar guilda"
-                  title="Editar guilda"
+                  aria-label="Configurações do servidor"
+                  title="Configurações do servidor"
                   onClick={() => setEditGuildOpen(true)}
                   className="cursor-pointer flex items-center rounded-lg p-1 text-mut/70 hover:bg-white/[0.06] hover:text-txt transition-colors active:scale-95"
                 >
-                  <Pencil size={14} aria-hidden />
+                  <Gear size={14} aria-hidden />
                 </button>
               </div>
             )}
@@ -340,7 +342,7 @@ export default function ChannelSidebar({
           ]);
         }}
       />
-      <EditGuildModal
+      <GuildSettingsModal
         open={editGuildOpen}
         onClose={() => setEditGuildOpen(false)}
         guild={{
@@ -349,6 +351,7 @@ export default function ChannelSidebar({
           avatarUrl: activeGuild?.avatarUrl ?? null,
           bannerUrl: activeGuild?.bannerUrl ?? null,
           description: activeGuild?.description ?? null,
+          createdBy: (activeGuild as any)?.createdBy ?? null,
         }}
         onSave={handleEditGuild}
       />
