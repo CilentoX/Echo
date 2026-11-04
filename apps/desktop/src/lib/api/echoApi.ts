@@ -666,7 +666,8 @@ export class EchoApi {
     body: string,
     options?: { msgtype?: string; mediaId?: string },
   ): Promise<string> {
-    const res = await this.post(`/api/rooms/${roomId}/messages`, {
+    const encodedId = encodeURIComponent(roomId);
+    const res = await this.post(`/api/rooms/${encodedId}/messages`, {
       roomId,
       body,
       ...(options?.msgtype ? { msgtype: options.msgtype } : {}),
@@ -701,12 +702,20 @@ export class EchoApi {
     redacted?: boolean;
     senderAvatarUrl?: string | null;
   }[]> {
-    const res = await this.get(`/api/rooms/${roomId}/messages/older?limit=${limit}`);
-    if (!res.ok) {
-      const errTxt = await res.text();
-      throw new Error(`Failed to load older: ${res.status} ${errTxt}`);
+    try {
+      const encodedId = encodeURIComponent(roomId);
+      const res = await this.get(`/api/rooms/${encodedId}/messages/older?limit=${limit}`);
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403 || res.status === 404 || res.status === 502) {
+          return [];
+        }
+        const errTxt = await res.text();
+        throw new Error(`Failed to load older: ${res.status} ${errTxt}`);
+      }
+      return res.json();
+    } catch {
+      return [];
     }
-    return res.json();
   }
 
   /** Send an m.reaction. */
@@ -715,7 +724,9 @@ export class EchoApi {
     targetEventId: string,
     emoji: string,
   ): Promise<string> {
-    const res = await this.post(`/api/rooms/${roomId}/messages/${targetEventId}/reactions`, {
+    const encodedRoom = encodeURIComponent(roomId);
+    const encodedEvent = encodeURIComponent(targetEventId);
+    const res = await this.post(`/api/rooms/${encodedRoom}/messages/${encodedEvent}/reactions`, {
       roomId,
       targetEventId,
       emoji,
@@ -732,7 +743,8 @@ export class EchoApi {
 
   /** Set typing status in a room. */
   async setTyping(roomId: string, isTyping: boolean): Promise<void> {
-    await this.put(`/api/rooms/${roomId}/typing`, { roomId, isTyping }).then(
+    const encodedRoom = encodeURIComponent(roomId);
+    await this.put(`/api/rooms/${encodedRoom}/typing`, { roomId, isTyping }).then(
       async (res) => {
         if (!res.ok) {
           const errTxt = await res.text();
