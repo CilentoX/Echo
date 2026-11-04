@@ -7,6 +7,7 @@ import { useUiStore } from "@/stores/uiStore";
 import type { NormalizedEvent } from "@/lib/matrix/types";
 import { EmojiPicker } from "@/components/emoji/EmojiPicker";
 import VoiceRecorder from "./VoiceRecorder";
+import { optimizeImageForUpload } from "@/lib/media/imageOptimizer";
 
 /** Contrato de envio de texto (P10/P12). */
 export type SendMessageFn = (roomId: string, body: string) => Promise<string>;
@@ -100,10 +101,15 @@ export default function Composer({
 
   const handleAttachmentChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const preview = URL.createObjectURL(file);
-      setAttachment({ file, preview });
+      const rawFile = e.target.files?.[0];
+      if (!rawFile) return;
+      const preview = URL.createObjectURL(rawFile);
+      setAttachment({ file: rawFile, preview });
+      void optimizeImageForUpload(rawFile).then((optimized) => {
+        if (optimized !== rawFile) {
+          setAttachment((curr) => (curr ? { ...curr, file: optimized } : null));
+        }
+      });
     },
     [],
   );
@@ -117,16 +123,21 @@ export default function Composer({
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const files = e.clipboardData?.files;
     if (files && files.length > 0) {
-      const file = files[0];
+      const rawFile = files[0];
       if (
-        file.type.startsWith("image/") ||
-        file.type.startsWith("audio/") ||
-        file.type.startsWith("application/") ||
-        file.type.startsWith("text/")
+        rawFile.type.startsWith("image/") ||
+        rawFile.type.startsWith("audio/") ||
+        rawFile.type.startsWith("application/") ||
+        rawFile.type.startsWith("text/")
       ) {
         e.preventDefault();
-        const preview = URL.createObjectURL(file);
-        setAttachment({ file, preview });
+        const preview = URL.createObjectURL(rawFile);
+        setAttachment({ file: rawFile, preview });
+        void optimizeImageForUpload(rawFile).then((optimized) => {
+          if (optimized !== rawFile) {
+            setAttachment((curr) => (curr ? { ...curr, file: optimized } : null));
+          }
+        });
       }
     }
   }, []);
@@ -150,9 +161,14 @@ export default function Composer({
     setIsDraggingOver(false);
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      const preview = URL.createObjectURL(file);
-      setAttachment({ file, preview });
+      const rawFile = files[0];
+      const preview = URL.createObjectURL(rawFile);
+      setAttachment({ file: rawFile, preview });
+      void optimizeImageForUpload(rawFile).then((optimized) => {
+        if (optimized !== rawFile) {
+          setAttachment((curr) => (curr ? { ...curr, file: optimized } : null));
+        }
+      });
     }
   }, []);
 
