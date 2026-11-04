@@ -8,7 +8,7 @@ import { Popover, PopoverContent } from "@/components/ui/popover";
 import { matrixService } from "@/lib/matrix/instance";
 import MxcImage from "@/components/media/MxcImage";
 
-/** Iniciais do nome da guilda (até 2 palavras) — guildas sem avatar (avatarUrl vem de mxc://, render na Fase 2). */
+/** Iniciais do nome da guilda (até 2 palavras) — guildas sem avatar. */
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return (
@@ -63,8 +63,8 @@ function GuildButton({
           onContextMenu={handleContextMenu}
           className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 overflow-hidden ${
             active
-              ? "rounded-2xl bg-acc text-bg shadow-md"
-              : "rounded-full bg-surf2 text-mut hover:rounded-2xl hover:bg-acc-press hover:text-txt"
+              ? "rounded-2xl bg-acc text-bg shadow-md shadow-acc/20"
+              : "rounded-full bg-white/[0.04] text-mut hover:rounded-2xl hover:bg-white/[0.08] hover:text-txt"
           }`}
         >
           {guild.avatarUrl ? (
@@ -76,14 +76,15 @@ function GuildButton({
               height={48}
             />
           ) : (
-            initials(guild.name)
+            <span>{initials(guild.name)}</span>
           )}
         </button>
+
         <PopoverContent
           side="right"
-          sideOffset={8}
           align="start"
-          className="w-auto p-0"
+          sideOffset={12}
+          className="w-64 p-2 bg-surf2 border border-bd text-txt shadow-2xl rounded-xl z-50 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
         >
           <GuildDropdownContent
             guildId={guild.guildId}
@@ -94,6 +95,7 @@ function GuildButton({
           />
         </PopoverContent>
       </Popover>
+
       {guild.unreadCount > 0 && (
         <span
           aria-label={`${guild.unreadCount} não lidas em ${guild.name}`}
@@ -107,21 +109,20 @@ function GuildButton({
 }
 
 export interface CommunityRailProps {
-  onOpenProfile: () => void;
-  onOpenSettings: () => void;
+  onOpenProfile?: () => void;
+  onOpenSettings?: () => void;
 }
 
-/** Community rail: the leftmost 72px column. It never disappears. */
-export default function CommunityRail({ onOpenProfile: _onOpenProfile, onOpenSettings: _onOpenSettings }: CommunityRailProps) {
-  const guilds = useSyncStore((state) => state.guilds);
-  const activeGuildId = useUiStore((state) => state.activeGuildId);
-  const setActiveGuild = useUiStore((state) => state.setActiveGuild);
-  const setActiveChannel = useUiStore((state) => state.setActiveChannel);
-  const myUserId = useUiStore((state) => state.myUserId);
+export default function CommunityRail({}: CommunityRailProps) {
+  const guilds = useSyncStore((s) => s.guilds);
+  const activeGuildId = useUiStore((s) => s.activeGuildId);
+  const setActiveGuild = useUiStore((s) => s.setActiveGuild);
+  const setActiveChannel = useUiStore((s) => s.setActiveChannel);
+  const myUserId = useUiStore((s) => s.myUserId);
+
   const [createOpen, setCreateOpen] = useState(false);
 
   const handleCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null }) => {
-    // Adiciona ao store (sem perder as existentes) e seleciona a nova guilda.
     useSyncStore.getState().setGuilds([...guilds, { ...guild, avatarUrl: guild.avatarUrl ?? null, unreadCount: 0 }]);
     setActiveGuild(guild.guildId);
   };
@@ -130,7 +131,7 @@ export default function CommunityRail({ onOpenProfile: _onOpenProfile, onOpenSet
     <nav
       data-column="rail"
       aria-label="Comunidades"
-      className="flex h-full w-[72px] shrink-0 flex-col items-center gap-3 border-r border-bd bg-rail py-4"
+      className="flex h-full w-[72px] shrink-0 flex-col items-center gap-3 border-r border-white/[0.04] bg-[#0b0e14] py-3.5"
     >
       {/* Botão Home — fixo no topo da rail com pill indicador */}
       <div className="relative group flex items-center justify-center w-full">
@@ -151,8 +152,8 @@ export default function CommunityRail({ onOpenProfile: _onOpenProfile, onOpenSet
           }}
           className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 ${
             activeGuildId === "home"
-              ? "rounded-2xl bg-acc text-bg shadow-md"
-              : "rounded-full bg-surf2 text-mut hover:rounded-2xl hover:bg-acc-press hover:text-txt"
+              ? "rounded-2xl bg-acc text-bg shadow-md shadow-acc/20"
+              : "rounded-full bg-white/[0.04] text-mut hover:rounded-2xl hover:bg-white/[0.08] hover:text-txt"
           }`}
         >
           <Compass size={20} aria-hidden />
@@ -160,7 +161,7 @@ export default function CommunityRail({ onOpenProfile: _onOpenProfile, onOpenSet
       </div>
 
       {/* Separador sutil */}
-      <div className="w-8 h-[2px] bg-bd/60 rounded-full shrink-0 my-0.5" />
+      <div className="w-8 h-[2px] bg-white/[0.06] rounded-full shrink-0 my-0.5" />
 
       {guilds.map((guild) => {
         const active = guild.guildId === activeGuildId;
@@ -180,7 +181,7 @@ export default function CommunityRail({ onOpenProfile: _onOpenProfile, onOpenSet
         aria-label="Criar guilda"
         title="Criar guilda"
         onClick={() => setCreateOpen(true)}
-        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-bd text-mut transition-colors hover:border-acc hover:text-acc active:scale-95"
+        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-white/[0.12] text-mut hover:border-acc hover:text-acc hover:bg-acc/5 transition-all active:scale-95"
       >
         <Plus size={20} aria-hidden />
       </button>

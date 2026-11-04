@@ -855,6 +855,14 @@ export class EchoApi {
 
   /** Lista amigos, solicitações recebidas, enviadas e bloqueados. */
   async getFriends(): Promise<FriendsResponse> {
+    if (!this.accessToken) {
+      return {
+        friends: [],
+        pendingIncoming: [],
+        pendingOutgoing: [],
+        blocked: [],
+      };
+    }
     const res = await this.get("/api/friends");
     if (!res.ok) {
       const errTxt = await res.text();

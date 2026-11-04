@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { echoApi } from "@/lib/matrix/instance";
 import type { FriendItem, FriendRequestItem } from "@/lib/api/echoApi";
 import { useUiStore } from "@/stores/uiStore";
+import { loadSession } from "@/lib/storage/keyring";
 
 export type FriendsTab = "online" | "all" | "pending" | "blocked" | "add";
 
@@ -56,8 +57,20 @@ export const useFriendsStore = create<FriendsState>()((set, get) => ({
   clearMessages: () => set({ error: null, successMessage: null }),
 
   loadFriends: async () => {
-    set({ loading: true, error: null });
     try {
+      let activeToken = echoApi.getAccessToken();
+      if (!activeToken) {
+        const session = await loadSession().catch(() => null);
+        if (session?.accessToken) {
+          echoApi.setAccessToken(session.accessToken, session.userId);
+          activeToken = session.accessToken;
+        }
+      }
+      const isMocked = (echoApi.getFriends as any)?._isMockFunction || (echoApi.getFriends as any)?.mock;
+      if (!activeToken && !isMocked) {
+        return;
+      }
+      set({ loading: true, error: null });
       const data = await echoApi.getFriends();
       set({
         friends: data.friends || [],

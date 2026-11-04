@@ -53,6 +53,7 @@ async function loadMembersFor(roomId: string): Promise<void> {
 }
 
 async function loadChannelsFor(guildId: string): Promise<void> {
+  if (!guildId || guildId === "home") return;
   if (loadedGuilds.has(guildId)) return;
   loadedGuilds.add(guildId); // marca antes do await: dedup de chamadas concorrentes
   try {
@@ -72,7 +73,7 @@ async function loadInitialData(): Promise<void> {
 
     const ui = useUiStore.getState();
     const guildId = ui.activeGuildId ?? guilds[0]?.guildId;
-    if (guildId) {
+    if (guildId && guildId !== "home") {
       if (!ui.activeGuildId) ui.setActiveGuild(guildId);
       await loadChannelsFor(guildId);
       const channels = useSyncStore.getState().channelsByGuild[guildId] ?? [];
@@ -244,7 +245,9 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
     if (state.activeGuildId && state.activeGuildId !== prev.activeGuildId) {
       // Fix B7-relacionado: não deixa mensagens vazar entre guildas.
       state.setActiveChannel(null);
-      void loadChannelsFor(state.activeGuildId);
+      if (state.activeGuildId !== "home") {
+        void loadChannelsFor(state.activeGuildId);
+      }
     }
   });
 }

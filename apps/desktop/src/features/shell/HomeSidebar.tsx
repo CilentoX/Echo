@@ -11,7 +11,7 @@ export interface HomeSidebarProps {
 
 export default function HomeSidebar({ variant = "static", onClose }: HomeSidebarProps) {
   const overlay = variant === "overlay";
-  const { friends, pendingIncoming, loadFriends, openDirectMessage, setActiveTab } = useFriendsStore();
+  const { friends, pendingIncoming, loadFriends, openDirectMessage } = useFriendsStore();
   const activeChannelId = useUiStore((s) => s.activeChannelId);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
   const uiPresence = useUiStore((s) => s.presence);
@@ -40,7 +40,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
   };
 
   const handleOpenDm = async (userId: string) => {
-    await openDirectMessage(userId);
+    await useFriendsStore.getState().openDirectMessage(userId);
     onClose?.();
   };
 
@@ -48,7 +48,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
     e.stopPropagation();
     setActiveChannel(null);
     useFriendsStore.getState().setSelectedFriendId(null);
-    setActiveTab("add");
+    useFriendsStore.getState().setActiveTab("add");
     onClose?.();
   };
 
@@ -56,18 +56,18 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
     <aside
       data-column="sidebar"
       aria-label="Mensagens Diretas e Amigos"
-      className={`flex w-[232px] shrink-0 flex-col border-r border-bd bg-rail select-none ${
+      className={`flex w-[232px] shrink-0 flex-col border-r border-white/[0.04] bg-[#10141d] select-none ${
         overlay
-          ? "fixed inset-y-0 left-[72px] z-20 shadow-lg shadow-black/60"
+          ? "fixed inset-y-0 left-[72px] z-20 shadow-2xl shadow-black/80"
           : "h-full"
       }`}
     >
       {/* Header com Busca Rápida */}
-      <header className="flex h-14 items-center justify-between border-b border-bd px-3">
+      <header className="flex h-14 items-center justify-between border-b border-white/[0.04] px-3">
         <div className="relative w-full">
           <MagnifyingGlass
             size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-mut pointer-events-none"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-mut/60 pointer-events-none"
             aria-hidden="true"
           />
           <input
@@ -75,13 +75,13 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Encontrar conversa..."
-            className="w-full rounded bg-bg/80 py-1.5 pl-8 pr-2 text-xs text-txt placeholder:text-mut focus:bg-bg focus:outline-none focus:ring-1 focus:ring-acc transition-all"
+            className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] py-1.5 pl-8 pr-2 text-xs text-txt placeholder:text-mut/50 focus:bg-white/[0.06] focus:border-acc/40 focus:outline-none transition-all"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-mut hover:text-txt"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-mut/60 hover:text-txt"
             >
               <X size={12} />
             </button>
@@ -95,18 +95,18 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
         <button
           type="button"
           onClick={handleSelectFriendsTab}
-          className={`group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+          className={`cursor-pointer group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
             !activeChannelId
-              ? "bg-surf2 text-txt"
-              : "text-mut hover:bg-surf2/50 hover:text-txt"
+              ? "bg-white/[0.08] text-txt shadow-sm"
+              : "text-mut hover:bg-white/[0.04] hover:text-txt"
           }`}
         >
           <Users
-            size={20}
+            size={18}
             weight={!activeChannelId ? "fill" : "regular"}
             className={!activeChannelId ? "text-acc" : "text-mut group-hover:text-txt"}
           />
-          <span className="flex-1 text-left truncate text-xs font-semibold">Amigos</span>
+          <span className="flex-1 text-left truncate">Amigos</span>
           {pendingIncoming.length > 0 && (
             <span
               className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm"
@@ -118,8 +118,8 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
         </button>
 
         {/* Separador e Cabeçalho DMs */}
-        <div className="pt-4 pb-1.5 px-2 flex items-center justify-between group">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-mut">
+        <div className="pt-4 pb-1.5 px-3 flex items-center justify-between group">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-mut/60">
             Mensagens Diretas
           </span>
           <button
@@ -127,16 +127,16 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
             onClick={handleAddFriendClick}
             title="Criar conversa / Adicionar Amigo"
             aria-label="Adicionar Amigo"
-            className="cursor-pointer text-mut hover:text-acc p-0.5 rounded transition-colors"
+            className="cursor-pointer text-mut/70 hover:text-acc hover:bg-white/[0.06] p-1 rounded-md transition-colors"
           >
-            <Plus size={14} weight="bold" />
+            <Plus size={13} weight="bold" />
           </button>
         </div>
 
         {/* Lista de Mensagens Diretas / Amigos */}
         {filteredFriends.length === 0 ? (
-          <div className="px-2 py-6 text-center text-mut space-y-2">
-            <ChatCircle size={28} className="mx-auto opacity-30" />
+          <div className="px-3 py-8 text-center text-mut/60 space-y-2">
+            <ChatCircle size={26} className="mx-auto opacity-30" />
             <p className="text-[11px] leading-relaxed">
               {search ? "Nenhum amigo encontrado." : "Nenhuma conversa direta ainda."}
             </p>
@@ -157,10 +157,10 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
                 key={friend.friendshipId}
                 type="button"
                 onClick={() => handleOpenDm(friend.userId)}
-                className={`group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors ${
+                className={`cursor-pointer group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all ${
                   isDmActive
-                    ? "bg-surf2 text-txt"
-                    : "text-mut hover:bg-surf2/50 hover:text-txt"
+                    ? "bg-white/[0.08] text-txt shadow-sm"
+                    : "text-mut hover:bg-white/[0.04] hover:text-txt"
                 }`}
               >
                 {/* Avatar com status */}
@@ -179,7 +179,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
                     </div>
                   )}
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-rail ${presenceColor}`}
+                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#10141d] ${presenceColor}`}
                     aria-hidden="true"
                   />
                 </div>
@@ -189,7 +189,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
                   <p className="truncate text-xs font-semibold text-txt group-hover:text-txt">
                     {friend.displayName}
                   </p>
-                  <p className="truncate text-[10px] text-mut font-mono">
+                  <p className="truncate text-[10px] text-mut/80 font-mono">
                     {friend.nickname ? `@${friend.nickname}` : friend.userId.split(":")[0]}
                   </p>
                 </div>

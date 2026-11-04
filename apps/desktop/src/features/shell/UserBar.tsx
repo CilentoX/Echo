@@ -13,8 +13,8 @@ export interface UserBarProps {
 
 /**
  * Dock Inferior Persistente ("___") do Echo:
- * Corre por toda a extensão horizontal inferior do app, complementando o trilho lateral ("|___").
- * Contém o perfil do usuário, indicador contextual e central de áudio/conectividade/configurações.
+ * Integrada com harmonia geométrica sob o trilho e a barra lateral.
+ * Superfície contínua com borda ultra-sutil e transições suaves.
  */
 export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps) {
   const myUserId = useUiStore((s) => s.myUserId);
@@ -59,23 +59,22 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
   return (
     <footer
       data-testid="user-bar"
-      className="flex h-14 w-full shrink-0 items-center justify-between bg-rail text-txt z-30 select-none relative"
+      className="flex h-14 w-full shrink-0 items-center justify-between bg-[#0e121a]/95 backdrop-blur-md text-txt z-30 select-none border-t border-white/[0.06]"
     >
-      {/* Linha divisória superior que começa a partir de 304px (fundindo o rail e a sidebar com a dock em uma só peça contínua sem linha) */}
-      <div className="absolute top-0 left-[304px] right-0 h-[1px] bg-bd/60" aria-hidden="true" />
+      {/* Lado Esquerdo: Alinhamento natural com o Rail (72px) e Sidebar (232px) */}
+      <div className="w-auto max-w-[calc(100vw-180px)] sm:w-[304px] shrink-0 h-full flex items-center min-w-0">
+        {/* Extensão sutil da coluna do Rail (72px) com divisor discreto */}
+        <div className="w-[72px] shrink-0 h-full flex items-center justify-center border-r border-white/[0.04]" aria-hidden="true">
+          <div className="h-1.5 w-1.5 rounded-full bg-acc/40" />
+        </div>
 
-      {/* Lado Esquerdo: Rail (72px) + Cápsula de Perfil sob a Sidebar de Canais (232px) = 304px com divisória vertical única contínua */}
-      <div className="w-auto max-w-[calc(100vw-180px)] sm:w-[304px] shrink-0 h-full flex items-center min-w-0 border-r border-bd relative">
-        {/* Espaçamento equivalente ao trilho de guildas (72px) deixando a coluna do rail livre à esquerda */}
-        <div className="w-[72px] shrink-0 h-full" aria-hidden="true" />
-
-        {/* Cápsula de Perfil posicionada sob a sidebar de canais (estilo Discord) */}
-        <div className="flex-1 min-w-0 h-full flex items-center pr-2">
+        {/* Cápsula de Perfil sob a sidebar */}
+        <div className="flex-1 min-w-0 h-full flex items-center px-2">
           <button
             type="button"
             onClick={onOpenProfile}
             title="Abrir perfil"
-            className="cursor-pointer group flex h-10 w-full items-center gap-2.5 px-2 text-left transition-colors hover:bg-surf2/50 active:scale-[0.98] rounded-lg"
+            className="cursor-pointer group flex h-10 w-full items-center gap-2.5 px-2 rounded-xl text-left transition-all hover:bg-white/[0.05] active:scale-[0.98]"
           >
             {/* Foto / Avatar do usuário com anel de presença */}
             <div className="relative shrink-0">
@@ -83,7 +82,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
                 <MxcImage
                   mxcUrl={effectiveAvatar}
                   alt={effectiveName}
-                  className="h-8 w-8 rounded-full object-cover ring-2 ring-transparent group-hover:ring-acc/60 transition-all shadow-sm"
+                  className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10 group-hover:ring-acc/60 transition-all shadow-sm"
                   width={32}
                   height={32}
                 />
@@ -94,37 +93,37 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
               )}
               {/* Anel de presença com corte */}
               <span
-                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-rail ${presenceColor}`}
+                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0e121a] ${presenceColor}`}
                 aria-hidden="true"
               />
             </div>
 
-            {/* Nome e @tag preenchendo a coluna da sidebar de canais */}
+            {/* Nome e @tag */}
             <div className="flex-1 min-w-0 leading-tight">
               <p className="truncate text-xs font-semibold text-txt group-hover:text-acc transition-colors">
                 {effectiveName}
               </p>
-              <p className="truncate text-[10px] text-mut font-mono">{userTag}</p>
+              <p className="truncate text-[10px] text-mut/80 font-mono">{userTag}</p>
             </div>
           </button>
         </div>
       </div>
 
-      {/* Centro: Indicador Contextual (Home vs Guilda/Canal) */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-surf2/30 border border-bd/30 text-xs text-mut max-w-sm truncate">
+      {/* Centro: Indicador Contextual refinado */}
+      <div className="hidden md:flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/[0.03] border border-white/[0.06] text-xs text-mut max-w-sm truncate shadow-inner">
         {isHome ? (
-          <div className="flex items-center gap-1.5 truncate">
+          <div className="flex items-center gap-2 truncate">
             <ShieldCheck size={14} className="text-acc shrink-0" />
             <span className="font-medium text-txt/90 truncate">Echo</span>
-            <span className="text-bd shrink-0">•</span>
-            <span className="text-mut text-[11px] truncate">Rede Segura & Descentralizada</span>
+            <span className="text-white/20 shrink-0">•</span>
+            <span className="text-mut/70 text-[11px] truncate">Rede Segura & Descentralizada</span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5 truncate">
             <span className="font-semibold text-txt truncate">{activeGuild?.name ?? "Guilda"}</span>
             {activeChannel && (
               <>
-                <span className="text-bd shrink-0">/</span>
+                <span className="text-white/20 shrink-0">/</span>
                 <span className="text-acc font-mono font-medium truncate">#{activeChannel.name}</span>
               </>
             )}
@@ -133,16 +132,16 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
       </div>
 
       {/* Lado Direito: Controles de Áudio, Conexão e Configurações */}
-      <div className="flex items-center gap-1 px-3 shrink-0">
+      <div className="flex items-center gap-1.5 px-3.5 shrink-0">
         <button
           type="button"
           aria-label={microphoneEnabled ? "Silenciar microfone" : "Ativar microfone"}
           title={microphoneEnabled ? "Silenciar microfone" : "Ativar microfone"}
           onClick={() => setMicrophoneEnabled(!microphoneEnabled)}
-          className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-lg transition-all ${
+          className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
             microphoneEnabled
-              ? "text-mut hover:bg-surf2 hover:text-txt"
-              : "text-err bg-err/15 hover:bg-err/25"
+              ? "text-mut hover:bg-white/[0.06] hover:text-txt"
+              : "text-err bg-err/10 hover:bg-err/20"
           }`}
         >
           {microphoneEnabled ? <Microphone size={18} /> : <MicrophoneSlash size={18} />}
@@ -153,18 +152,16 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
           aria-label={headphonesEnabled ? "Desativar áudio" : "Ativar áudio"}
           title={headphonesEnabled ? "Desativar áudio" : "Ativar áudio"}
           onClick={() => setHeadphonesEnabled(!headphonesEnabled)}
-          className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-lg transition-all ${
+          className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
             headphonesEnabled
-              ? "text-mut hover:bg-surf2 hover:text-txt"
-              : "text-err bg-err/15 hover:bg-err/25"
+              ? "text-mut hover:bg-white/[0.06] hover:text-txt"
+              : "text-err bg-err/10 hover:bg-err/20"
           }`}
         >
           <Headphones size={18} />
         </button>
 
-        <div className="h-4 w-[1px] bg-bd/60 mx-1" aria-hidden="true" />
-
-        {/* Indicador de Status Matrix integrado ao Dock (clicável para reconexão/retry) */}
+        {/* Indicador de Status Matrix integrado */}
         <button
           type="button"
           onClick={() => {
@@ -186,7 +183,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
                 ? "Status da rede: Conectando. Clique para tentar novamente"
                 : "Status da rede: Desconectado. Clique para reconectar"
           }
-          className="cursor-pointer hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surf2/40 hover:bg-surf2/70 text-[11px] text-mut border border-bd/30 select-none transition-all active:scale-95"
+          className="cursor-pointer hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] text-[11px] text-mut border border-white/[0.06] select-none transition-all active:scale-95 ml-1"
         >
           <span
             className={`h-2 w-2 rounded-full ${
@@ -197,19 +194,17 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
                   : "bg-err"
             }`}
           />
-          <span className="font-mono text-[10px] text-txt/70">
+          <span className="font-mono text-[10px] text-txt/80">
             {syncStatus === "syncing" ? "Matrix Sync" : syncStatus === "connecting" ? "Syncing…" : "Offline"}
           </span>
         </button>
-
-        <div className="h-4 w-[1px] bg-bd/60 mx-1" aria-hidden="true" />
 
         <button
           type="button"
           aria-label="Configurações"
           title="Configurações"
           onClick={onOpenSettings}
-          className="cursor-pointer group flex h-9 w-9 items-center justify-center rounded-lg text-mut hover:bg-surf2 hover:text-txt transition-all"
+          className="cursor-pointer group flex h-9 w-9 items-center justify-center rounded-xl text-mut hover:bg-white/[0.06] hover:text-txt transition-all ml-0.5"
         >
           <Gear size={18} className="transition-transform duration-300 group-hover:rotate-45" />
         </button>
@@ -217,4 +212,3 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
     </footer>
   );
 }
-

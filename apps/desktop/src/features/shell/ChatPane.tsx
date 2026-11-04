@@ -25,52 +25,57 @@ export default function ChatPane({
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
 
-  // Nome do canal ativo, ou "Home" quando na guilda home, ou null sem seleção.
+  // Nome do canal ativo, ou null sem seleção.
   const channelName = useMemo(() => {
-    if (activeGuildId === "home") return "Home";
     if (!activeChannelId) return null;
     for (const channels of Object.values(channelsByGuild)) {
       const found = channels.find((c) => c.channelId === activeChannelId);
       if (found) return found.name;
     }
     return null;
-  }, [channelsByGuild, activeChannelId, activeGuildId]);
+  }, [channelsByGuild, activeChannelId]);
+
+  // Se estiver na Home sem canal aberto e sem toggle de sidebar ativo, o FriendsDashboard tem seu próprio header completo.
+  const isHomeDashboard = activeGuildId === "home" && !activeChannelId;
+  const showHeader = !isHomeDashboard || showSidebarToggle;
 
   return (
     <main
       data-column="chat"
       className="flex min-w-0 flex-1 flex-col bg-bg"
     >
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-bd px-4">
-        {showSidebarToggle && (
-          <button
-            type="button"
-            aria-label="Abrir canais"
-            onClick={onToggleSidebar}
-            className="flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
-          >
-            <List size={20} />
-          </button>
-        )}
-        {channelName && (
-          <h2 className="font-display text-sm font-semibold text-txt">
-            {activeGuildId === "home" ? channelName : `#${channelName}`}
-          </h2>
-        )}
-        <div className="flex-1" />
-        {showMembersToggle && (
-          <button
-            type="button"
-            aria-label="Membros"
-            onClick={onToggleMembers}
-            className="flex items-center rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
-          >
-            <Users size={20} />
-          </button>
-        )}
-      </header>
+      {showHeader && (
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] px-4">
+          {showSidebarToggle && (
+            <button
+              type="button"
+              aria-label="Abrir canais"
+              onClick={onToggleSidebar}
+              className="flex items-center rounded-lg p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt transition-colors"
+            >
+              <List size={18} />
+            </button>
+          )}
+          {channelName && (
+            <h2 className="font-display text-sm font-semibold text-txt">
+              #{channelName}
+            </h2>
+          )}
+          <div className="flex-1" />
+          {showMembersToggle && (
+            <button
+              type="button"
+              aria-label="Membros"
+              onClick={onToggleMembers}
+              className="flex items-center rounded-lg p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt transition-colors"
+            >
+              <Users size={18} />
+            </button>
+          )}
+        </header>
+      )}
 
-      <div className={`flex min-h-0 flex-1 flex-col ${activeGuildId === "home" ? "p-0" : "px-4 py-4"}`}>
+      <div className={`flex min-h-0 flex-1 flex-col ${isHomeDashboard ? "p-0" : "px-4 py-4"}`}>
         {children}
       </div>
     </main>
