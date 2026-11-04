@@ -1,4 +1,4 @@
-import { Hash, MagnifyingGlass, Gear, Plus, SpeakerHigh, UserPlus, X } from "@phosphor-icons/react";
+import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
 import {
@@ -7,6 +7,7 @@ import {
   useSyncStore,
 } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useThemeStore } from "@/stores/themeStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
@@ -40,6 +41,37 @@ export default function ChannelSidebar({
   const [editGuildOpen, setEditGuildOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
+
+  const themeId = useThemeStore((state) => state.themeId);
+  const mode = useThemeStore((state) => state.mode);
+
+  const bannerFallbackGradient = useMemo(() => {
+    if (mode === "light") {
+      switch (themeId) {
+        case "sakura":
+          return "bg-gradient-to-br from-pink-200/70 via-rose-100/60 to-pink-50";
+        case "sunset":
+          return "bg-gradient-to-br from-amber-200/70 via-orange-100/60 to-amber-50";
+        case "ocean":
+          return "bg-gradient-to-br from-sky-200/70 via-blue-100/60 to-indigo-50";
+        case "echo":
+        default:
+          return "bg-gradient-to-br from-teal-200/70 via-emerald-100/60 to-teal-50";
+      }
+    }
+
+    switch (themeId) {
+      case "sakura":
+        return "bg-gradient-to-br from-[#2a1424] via-[#1c0f1c] to-[#120a16]";
+      case "sunset":
+        return "bg-gradient-to-br from-[#2b170e] via-[#1c110f] to-[#120d0d]";
+      case "ocean":
+        return "bg-gradient-to-br from-[#101e30] via-[#0d1522] to-[#080d16]";
+      case "echo":
+      default:
+        return "bg-gradient-to-br from-[#122226] via-[#0f171e] to-[#0c1017]";
+    }
+  }, [mode, themeId]);
 
   // Seletores devolvem snapshot vazio estável em miss (sem loop no useSyncExternalStore).
   const allChannels = useSyncStore(
@@ -115,106 +147,135 @@ export default function ChannelSidebar({
           : "h-full"
       }`}
     >
-      {/* Header com Banner da Guilda (Sempre visível na guilda com imagem ou gradiente fallback do Echo) */}
+      {/* Top Header Bar da Guilda (Ergonomia Discord, texto nítido em text-txt, botões táteis) */}
       {activeGuild ? (
-        <div className="relative h-32 w-full shrink-0 overflow-hidden border-b border-bd-subtle group/banner select-none">
-          {/* Imagem do Banner ou Gradiente Fallback Elegante */}
-          {activeGuild.bannerUrl ? (
-            <MxcImage
-              mxcUrl={activeGuild.bannerUrl}
-              alt={activeGuild.name}
-              className="h-full w-full object-cover group-hover/banner:scale-105 transition-transform duration-500"
-              width={232}
-              height={128}
-            />
-          ) : (
-            <div
-              data-testid="guild-banner-fallback"
-              className="h-full w-full bg-gradient-to-br from-[#182334] via-[#121824] to-[#0c1017] relative"
-            >
-              {/* Mesh gradiente e iluminação sutil com tom Teal Glow da marca Echo */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-acc/20 via-transparent to-transparent opacity-90" />
-              <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-acc/15 blur-2xl pointer-events-none" />
-              <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
-            </div>
-          )}
+        <header className="flex h-12 w-full shrink-0 items-center justify-between border-b border-bd-subtle bg-surf px-3 select-none z-10">
+          <div className="flex items-center gap-2 min-w-0 pr-1">
+            {activeGuild.avatarUrl ? (
+              <MxcImage
+                mxcUrl={activeGuild.avatarUrl}
+                alt={`Ícone de ${activeGuild.name}`}
+                className="h-7 w-7 rounded-lg object-cover ring-1 ring-bd-subtle shadow-sm shrink-0"
+                width={28}
+                height={28}
+              />
+            ) : (
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acc text-bg font-display font-bold text-xs shadow-sm shrink-0">
+                {activeGuild.name.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <h1 className="truncate font-display text-sm font-bold text-txt">
+              {activeGuild.name}
+            </h1>
+          </div>
 
-          {/* Gradientes de Fusão e Legibilidade dos Controles */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-surf via-surf/70 to-transparent pointer-events-none" />
-
-          {/* Botão Fechar em Modo Overlay */}
-          {overlay && (
+          <div className="flex items-center gap-0.5 shrink-0">
             <button
               type="button"
-              aria-label="Fechar canais"
-              onClick={onClose}
-              className="cursor-pointer absolute top-2 right-2 rounded-lg p-1.5 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md active:scale-95 transition-all z-10 border border-white/10"
+              aria-label="Convidar pessoas"
+              title="Convidar pessoas"
+              onClick={() => setInviteOpen(true)}
+              className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
             >
-              <X size={15} />
+              <UserPlus size={15} aria-hidden />
             </button>
-          )}
-
-          {/* Conteúdo Sobreposto na Base do Banner */}
-          <div className="absolute inset-x-0 bottom-0 p-3 flex items-center justify-between z-10">
-            <div className="flex items-center gap-2 min-w-0 pr-1">
-              {activeGuild.avatarUrl ? (
-                <MxcImage
-                  mxcUrl={activeGuild.avatarUrl}
-                  alt={activeGuild.name}
-                  className="h-7 w-7 rounded-lg object-cover ring-2 ring-surf shadow-md shrink-0"
-                  width={28}
-                  height={28}
-                />
-              ) : (
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acc text-bg font-display font-bold text-xs shadow-md shrink-0 ring-2 ring-surf">
-                  {activeGuild.name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <h1 className="truncate font-display text-sm font-bold text-white drop-shadow-md">
-                {activeGuild.name}
-              </h1>
-            </div>
-
-            <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              aria-label="Configurações do servidor"
+              title="Configurações do servidor"
+              onClick={() => setEditGuildOpen(true)}
+              className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
+            >
+              <Gear size={15} aria-hidden />
+            </button>
+            {!overlay && (
               <button
                 type="button"
-                aria-label="Convidar pessoas"
-                title="Convidar pessoas"
-                onClick={() => setInviteOpen(true)}
-                className="cursor-pointer flex items-center rounded-lg p-1 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md transition-all active:scale-95 border border-white/10"
+                aria-label="Criar canal"
+                title="Criar canal"
+                onClick={() => setCreateChannelOpen(true)}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
               >
-                <UserPlus size={13} aria-hidden />
+                <Plus size={15} aria-hidden />
               </button>
+            )}
+            {overlay && (
               <button
                 type="button"
-                aria-label="Configurações do servidor"
-                title="Configurações do servidor"
-                onClick={() => setEditGuildOpen(true)}
-                className="cursor-pointer flex items-center rounded-lg p-1 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md transition-all active:scale-95 border border-white/10"
+                aria-label="Fechar canais"
+                onClick={onClose}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
               >
-                <Gear size={13} aria-hidden />
+                <X size={15} />
               </button>
-              {!overlay && (
-                <button
-                  type="button"
-                  aria-label="Criar canal"
-                  title="Criar canal"
-                  onClick={() => setCreateChannelOpen(true)}
-                  className="cursor-pointer flex items-center rounded-lg p-1 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md transition-all active:scale-95 border border-white/10"
-                >
-                  <Plus size={13} aria-hidden />
-                </button>
-              )}
-            </div>
+            )}
           </div>
-        </div>
+        </header>
       ) : (
-        <header className="flex h-14 items-center justify-between border-b border-bd-subtle px-4 group">
+        <header className="flex h-12 items-center justify-between border-b border-bd-subtle px-4 group">
           <h1 className="truncate font-display text-sm font-semibold text-txt">
             Echo
           </h1>
         </header>
+      )}
+
+      {/* Banner Card da Guilda (Abaixo do Header, com imagem ou cover generativo adaptativo) */}
+      {activeGuild && (
+        <div className="px-2.5 pt-2.5 pb-1 shrink-0">
+          {activeGuild.bannerUrl ? (
+            <div className="relative h-28 w-full overflow-hidden rounded-2xl border border-bd-subtle shadow-sm group/banner select-none">
+              <MxcImage
+                mxcUrl={activeGuild.bannerUrl}
+                alt={activeGuild.name}
+                className="h-full w-full object-cover group-hover/banner:scale-105 transition-transform duration-500"
+                width={212}
+                height={112}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+              <button
+                type="button"
+                onClick={() => setEditGuildOpen(true)}
+                title="Alterar banner"
+                aria-label="Alterar banner"
+                className="cursor-pointer absolute top-2 right-2 rounded-lg p-1.5 text-white/90 bg-black/40 hover:bg-black/60 backdrop-blur-md opacity-0 group-hover/banner:opacity-100 transition-all border border-white/10"
+              >
+                <Camera size={13} />
+              </button>
+            </div>
+          ) : (
+            <div
+              data-testid="guild-banner-fallback"
+              className={`relative h-24 w-full overflow-hidden rounded-2xl border border-bd-subtle shadow-sm select-none group/banner transition-colors duration-300 ${bannerFallbackGradient}`}
+            >
+              {/* Glows sutis e dinâmicos */}
+              <div className="absolute -top-6 -right-6 h-20 w-20 rounded-full bg-acc/15 blur-xl pointer-events-none" />
+              <div className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-acc/10 blur-xl pointer-events-none" />
+
+              {/* Marca d'água sutil com a inicial da guilda */}
+              <div className="absolute right-3 -bottom-2 font-display text-6xl font-black text-txt/[0.05] select-none pointer-events-none tracking-tighter">
+                {activeGuild.name.slice(0, 1).toUpperCase()}
+              </div>
+
+              {/* Badge elegante de Comunidade */}
+              <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-surf/80 dark:bg-black/30 backdrop-blur-md border border-bd-subtle px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-mut shadow-xs">
+                <Sparkle size={10} className="text-acc" weight="fill" />
+                <span>Comunidade</span>
+              </div>
+
+              {/* Atalho rápido no hover para personalizar banner */}
+              <button
+                type="button"
+                onClick={() => setEditGuildOpen(true)}
+                title="Personalizar banner da guilda"
+                aria-label="Personalizar banner da guilda"
+                className="cursor-pointer absolute top-2 right-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-mut hover:text-txt bg-surf/80 dark:bg-black/40 hover:bg-surf backdrop-blur-md border border-bd-subtle opacity-0 group-hover/banner:opacity-100 transition-all"
+              >
+                <Camera size={12} />
+                <span>Banner</span>
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {guilds.length === 0 ? (
@@ -267,14 +328,16 @@ export default function ChannelSidebar({
                             <SpeakerHigh size={10} aria-hidden />
                           </span>
                         )}
-                        {channel.category && (
-                          <span
-                            className="ml-1 text-[10px] text-mut/60"
-                            aria-label={`Categoria: ${channel.category}`}
-                          >
-                            • {channel.category}
-                          </span>
-                        )}
+                        {channel.category &&
+                          channel.category.trim().toLowerCase() !== "canais de texto" &&
+                          channel.category.trim().toLowerCase() !== "text channels" && (
+                            <span
+                              className="ml-1 text-[10px] text-mut/60"
+                              aria-label={`Categoria: ${channel.category}`}
+                            >
+                              • {channel.category}
+                            </span>
+                          )}
                         {channel.unreadCount > 0 && (
                           <span
                             aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}

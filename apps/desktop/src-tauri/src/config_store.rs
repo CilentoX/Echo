@@ -214,3 +214,4 @@ pub fn get_app_storage_info(app: AppHandle) -> Result<StorageInfo, String> {
         cache_size_bytes: cache_size,
     })
 }
+
