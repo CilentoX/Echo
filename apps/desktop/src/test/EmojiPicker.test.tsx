@@ -8,3 +8,4 @@ describe("EmojiPicker", () => {
     expect(screen.getByRole("dialog", { hidden: true }) || screen.getByText(/emoji/i, { selector: "*" })).toBeTruthy();
   });
 });
+

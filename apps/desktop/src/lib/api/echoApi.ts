@@ -148,7 +148,7 @@ function request(
     headers.set("Authorization", `Bearer ${token}`);
   }
   if (apiKey) headers.set("X-API-Key", apiKey);
-  
+
   // Serialize body if it's a plain object
   let body: BodyInit | null | undefined = init.body;
   if (body !== undefined && body !== null && typeof body === "object" && !(body instanceof FormData) && !(body instanceof URLSearchParams) && !(body instanceof ReadableStream) && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
@@ -162,7 +162,7 @@ function request(
       return value;
     });
   }
-  
+
   return fetch(url, {
     ...init,
     headers,
@@ -174,6 +174,15 @@ function request(
 /** Save session to keyring after refresh. */
 async function saveRefreshedSession(session: Session): Promise<void> {
   await saveSession(session);
+}
+
+/** Normaliza qualquer formato de código ou URL de convite para o código puro. */
+export function normalizeInviteCode(code: string): string {
+  let cleaned = code.trim();
+  cleaned = cleaned.replace(/^echo:\/\/invites?\//i, "");
+  cleaned = cleaned.replace(/^https?:\/\/[^\/]+\/invites?\//i, "");
+  cleaned = cleaned.replace(/^.*\/invites?\//i, "");
+  return cleaned.split("?")[0].split("#")[0].replace(/\/$/, "");
 }
 
 /**
@@ -475,7 +484,7 @@ export class EchoApi {
     channelsCount: number;
     expiresAt: string | null;
   }> {
-    const cleanCode = code.trim().replace(/^.*\/invite\//, "");
+    const cleanCode = normalizeInviteCode(code);
     const res = await this.get(`/api/invites/${cleanCode}`);
     if (!res.ok) {
       const errTxt = await res.text();
@@ -490,7 +499,7 @@ export class EchoApi {
     guildId: string;
     name: string;
   }> {
-    const cleanCode = code.trim().replace(/^.*\/invite\//, "");
+    const cleanCode = normalizeInviteCode(code);
     const res = await this.post(`/api/invites/${cleanCode}/join`);
     if (!res.ok) {
       const errTxt = await res.text();

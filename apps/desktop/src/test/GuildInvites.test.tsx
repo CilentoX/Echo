@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import InviteModal from "@/features/guild/InviteModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import { matrixService } from "@/lib/matrix/instance";
+import { normalizeInviteCode } from "@/lib/api/echoApi";
 
 vi.mock("@/lib/matrix/instance", () => ({
   matrixService: {
@@ -125,6 +126,31 @@ describe("Guild Invites System", () => {
           name: "Comunidade Echo",
         });
       });
+    });
+
+    it("permite alternar para o modal de criar guilda", async () => {
+      const onOpenCreate = vi.fn();
+      render(
+        <JoinGuildModal
+          open={true}
+          onClose={vi.fn()}
+          onJoined={vi.fn()}
+          onOpenCreate={onOpenCreate}
+        />
+      );
+
+      const switchBtn = screen.getByRole("button", { name: /Criar uma guilda/i });
+      await userEvent.click(switchBtn);
+      expect(onOpenCreate).toHaveBeenCalled();
+    });
+  });
+
+  describe("normalizeInviteCode", () => {
+    it("extrai código de links puros, links com echo:// e URLs web", () => {
+      expect(normalizeInviteCode("juo6jgemo2")).toBe("juo6jgemo2");
+      expect(normalizeInviteCode("echo://invite/juo6jgemo2")).toBe("juo6jgemo2");
+      expect(normalizeInviteCode("https://echo.litteris.online/invite/juo6jgemo2")).toBe("juo6jgemo2");
+      expect(normalizeInviteCode("https://echo-api.litteris.online/invites/juo6jgemo2?ref=share")).toBe("juo6jgemo2");
     });
   });
 });

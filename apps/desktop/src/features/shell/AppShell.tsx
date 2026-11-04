@@ -109,6 +109,8 @@ export default function AppShell({ children }: AppShellProps) {
         <CommunityRail
           onOpenProfile={() => setProfileOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenCreate={() => setCreateGuildOpen(true)}
+          onOpenJoin={() => setJoinGuildOpen(true)}
         />
 
         {isHome ? (
@@ -186,12 +188,20 @@ export default function AppShell({ children }: AppShellProps) {
         onClose={() => setCreateGuildOpen(false)}
         onCreate={handleCreateGuild}
         onCreated={handleGuildCreated}
+        onOpenJoin={() => {
+          setCreateGuildOpen(false);
+          setJoinGuildOpen(true);
+        }}
       />
 
       <JoinGuildModal
         open={joinGuildOpen}
         onClose={() => setJoinGuildOpen(false)}
         onJoined={handleGuildJoined}
+        onOpenCreate={() => {
+          setJoinGuildOpen(false);
+          setCreateGuildOpen(true);
+        }}
       />
     </div>
   );

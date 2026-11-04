@@ -20,6 +20,7 @@ export interface CreateGuildModalProps {
     data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
   ) => Promise<{ guildId: string; name: string; avatarUrl?: string | null; bannerUrl?: string | null }>;
   onCreated: (guild: { guildId: string; name: string; avatarUrl?: string | null; bannerUrl?: string | null }) => void;
+  onOpenJoin?: () => void;
 }
 
 function getInitials(name: string): string {
@@ -30,7 +31,13 @@ function getInitials(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-export default function CreateGuildModal({ open, onClose, onCreate, onCreated }: CreateGuildModalProps) {
+export default function CreateGuildModal({
+  open,
+  onClose,
+  onCreate,
+  onCreated,
+  onOpenJoin,
+}: CreateGuildModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [iconFile, setIconFile] = useState<File | null>(null);
@@ -375,6 +382,21 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
                 )}
               </Button>
             </div>
+
+            {onOpenJoin && (
+              <div className="mt-4 pt-3.5 border-t border-white/[0.06] text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenJoin();
+                  }}
+                  className="cursor-pointer text-xs text-mut hover:text-acc font-medium transition-colors"
+                >
+                  Já tem um convite? <span className="underline font-semibold text-acc">Entrar em uma guilda</span>
+                </button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

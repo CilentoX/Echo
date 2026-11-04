@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
-import { Compass, Plus } from "@phosphor-icons/react";
+import { Compass, Plus, SignIn } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
+import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import GuildDropdownContent from "@/features/guild/GuildDropdownContent";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { matrixService } from "@/lib/matrix/instance";
@@ -111,9 +112,16 @@ function GuildButton({
 export interface CommunityRailProps {
   onOpenProfile?: () => void;
   onOpenSettings?: () => void;
+  onOpenCreate?: () => void;
+  onOpenJoin?: () => void;
 }
 
-export default function CommunityRail({}: CommunityRailProps) {
+export default function CommunityRail({
+  onOpenProfile: _onOpenProfile,
+  onOpenSettings: _onOpenSettings,
+  onOpenCreate,
+  onOpenJoin,
+}: CommunityRailProps) {
   const guilds = useSyncStore((s) => s.guilds);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const setActiveGuild = useUiStore((s) => s.setActiveGuild);
@@ -121,6 +129,7 @@ export default function CommunityRail({}: CommunityRailProps) {
   const myUserId = useUiStore((s) => s.myUserId);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
 
   const handleCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null; bannerUrl?: string | null }) => {
     useSyncStore.getState().setGuilds([
@@ -133,6 +142,17 @@ export default function CommunityRail({}: CommunityRailProps) {
       },
     ]);
     setActiveGuild(guild.guildId);
+  };
+
+  const handleJoined = (guild: { guildId: string; name: string }) => {
+    if (!guilds.some((g) => g.guildId === guild.guildId)) {
+      useSyncStore.getState().setGuilds([
+        ...guilds,
+        { guildId: guild.guildId, name: guild.name, avatarUrl: null, unreadCount: 0 },
+      ]);
+    }
+    setActiveGuild(guild.guildId);
+    setActiveChannel(null);
   };
 
   return (
@@ -188,23 +208,53 @@ export default function CommunityRail({}: CommunityRailProps) {
         type="button"
         aria-label="Criar guilda"
         title="Criar guilda"
-        onClick={() => setCreateOpen(true)}
+        onClick={() => (onOpenCreate ? onOpenCreate() : setCreateOpen(true))}
         className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-white/[0.12] text-mut hover:border-acc hover:text-acc hover:bg-acc/5 transition-all active:scale-95"
       >
         <Plus size={20} aria-hidden />
       </button>
 
+      {/* Botão entrar em guilda existente com convite */}
+      <button
+        type="button"
+        aria-label="Entrar em uma guilda"
+        title="Entrar em uma guilda (link ou código)"
+        onClick={() => (onOpenJoin ? onOpenJoin() : setJoinOpen(true))}
+        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-white/[0.12] text-mut hover:border-acc hover:text-acc hover:bg-acc/5 transition-all active:scale-95"
+      >
+        <SignIn size={20} aria-hidden />
+      </button>
+
       {/* Espaço empurra os itens de fundo para baixo */}
       <div className="flex-1" />
 
-      <CreateGuildModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreate={(data) =>
-          matrixService.createGuild(data, myUserId || matrixService.getUserId() || "")
-        }
-        onCreated={handleCreated}
-      />
+      {/* Fallback de modais internos quando não controlados por parent */}
+      {!onOpenCreate && (
+        <CreateGuildModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreate={(data) =>
+            matrixService.createGuild(data, myUserId || matrixService.getUserId() || "")
+          }
+          onCreated={handleCreated}
+          onOpenJoin={() => {
+            setCreateOpen(false);
+            setJoinOpen(true);
+          }}
+        />
+      )}
+
+      {!onOpenJoin && (
+        <JoinGuildModal
+          open={joinOpen}
+          onClose={() => setJoinOpen(false)}
+          onJoined={handleJoined}
+          onOpenCreate={() => {
+            setJoinOpen(false);
+            setCreateOpen(true);
+          }}
+        />
+      )}
     </nav>
   );
 }

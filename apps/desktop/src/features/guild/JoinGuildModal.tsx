@@ -13,12 +13,14 @@ export interface JoinGuildModalProps {
   open: boolean;
   onClose: () => void;
   onJoined: (guild: { guildId: string; name: string }) => void;
+  onOpenCreate?: () => void;
 }
 
 export default function JoinGuildModal({
   open,
   onClose,
   onJoined,
+  onOpenCreate,
 }: JoinGuildModalProps) {
   const [code, setCode] = useState("");
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -212,6 +214,21 @@ export default function JoinGuildModal({
             )}
           </button>
         </div>
+
+        {onOpenCreate && (
+          <div className="p-4 pt-0 pb-5 text-center border-t border-white/[0.04]">
+            <button
+              type="button"
+              onClick={() => {
+                handleClose();
+                onOpenCreate();
+              }}
+              className="cursor-pointer text-xs text-mut hover:text-acc font-medium transition-colors"
+            >
+              Quer criar seu próprio servidor? <span className="underline font-semibold text-acc">Criar uma guilda</span>
+            </button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
