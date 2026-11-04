@@ -12,12 +12,17 @@ export interface AppThemeConfig {
 }
 
 export interface AppAudioConfig {
-  inputDeviceId?: string;
-  outputDeviceId?: string;
+  inputDeviceId?: string | null;
+  outputDeviceId?: string | null;
   inputVolume?: number;
   outputVolume?: number;
   muted?: boolean;
   deafened?: boolean;
+  noiseSuppression?: boolean;
+  echoCancellation?: boolean;
+  autoGainControl?: boolean;
+  inputMode?: "voice_activity" | "push_to_talk";
+  pushToTalkKey?: string;
 }
 
 export interface AppNavigationConfig {
@@ -75,10 +80,17 @@ export const DEFAULT_CONFIG: AppConfig = {
     density: "comfortable",
   },
   audio: {
+    inputDeviceId: null,
+    outputDeviceId: null,
     inputVolume: 100,
     outputVolume: 100,
     muted: false,
     deafened: false,
+    noiseSuppression: true,
+    echoCancellation: true,
+    autoGainControl: true,
+    inputMode: "voice_activity",
+    pushToTalkKey: "ControlLeft",
   },
   navigation: {
     lastActiveGuildId: "home",

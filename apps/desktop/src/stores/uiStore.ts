@@ -7,6 +7,7 @@ export interface UiState {
   activeChannelId: string | null;
   homeTab: "friends" | "discover";
   isProfileOpen: boolean;
+  profileInitialTab: string | null;
   isJoinGuildOpen: boolean;
   joinGuildInitialCode: string | null;
   /** roomId → nomes de quem está digitando agora. */
@@ -17,7 +18,7 @@ export interface UiState {
   setActiveGuild(guildId: string | null): void;
   setActiveChannel(channelId: string | null): void;
   setHomeTab(tab: "friends" | "discover"): void;
-  setProfileOpen(open: boolean): void;
+  setProfileOpen(open: boolean, tab?: string | null): void;
   setJoinGuildOpen(open: boolean, initialCode?: string | null): void;
   /** Define/atualiza quem está digitando em um canal. */
   setTypingUsers(roomId: string, names: string[]): void;
@@ -32,6 +33,7 @@ export const useUiStore = create<UiState>()((set) => ({
   activeChannelId: null,
   homeTab: "friends",
   isProfileOpen: false,
+  profileInitialTab: null,
   isJoinGuildOpen: false,
   joinGuildInitialCode: null,
   typingUsers: {},
@@ -41,7 +43,7 @@ export const useUiStore = create<UiState>()((set) => ({
   setActiveGuild: (guildId) => set({ activeGuildId: guildId }),
   setActiveChannel: (channelId) => set({ activeChannelId: channelId }),
   setHomeTab(tab) { set({ homeTab: tab }); },
-  setProfileOpen: (open) => set({ isProfileOpen: open }),
+  setProfileOpen: (open, tab = null) => set({ isProfileOpen: open, profileInitialTab: tab }),
   setJoinGuildOpen: (open, initialCode = null) =>
     set({ isJoinGuildOpen: open, joinGuildInitialCode: initialCode }),
 

@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { startSyncWiring } from "@/lib/matrix/wiring";
 import MxcImage from "@/components/media/MxcImage";
-import { Gear, Headphones, Microphone, MicrophoneSlash, ShieldCheck } from "@phosphor-icons/react";
+import { CaretUp, Gear, Headphones, Microphone, MicrophoneSlash, ShieldCheck } from "@phosphor-icons/react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import AudioDeviceQuickMenu from "./AudioDeviceQuickMenu";
 
 export interface UserBarProps {
   onOpenProfile?: () => void;
   onOpenSettings?: () => void;
+  onOpenVoiceSettings?: () => void;
 }
 
 /**
@@ -16,7 +20,7 @@ export interface UserBarProps {
  * Integrada com harmonia geométrica sob o trilho e a barra lateral.
  * Superfície contínua com borda ultra-sutil e transições suaves.
  */
-export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps) {
+export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSettings }: UserBarProps) {
   const myUserId = useUiStore((s) => s.myUserId);
   const username = useProfileStore((s) => s.username);
   const nickname = useProfileStore((s) => s.nickname);
@@ -29,6 +33,8 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
   const setMicrophoneEnabled = useSettingsStore((s) => s.setMicrophoneEnabled);
   const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
   const setHeadphonesEnabled = useSettingsStore((s) => s.setHeadphonesEnabled);
+
+  const [audioQuickOpen, setAudioQuickOpen] = useState(false);
 
   const syncStatus = useSyncStore((s) => s.status);
   const guilds = useSyncStore((s) => s.guilds);
@@ -135,33 +141,75 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
 
       {/* Lado Direito: Controles de Áudio, Conexão e Configurações */}
       <div className="flex items-center gap-1.5 px-3.5 shrink-0">
-        <button
-          type="button"
-          aria-label={microphoneEnabled ? "Silenciar microfone" : "Ativar microfone"}
-          title={microphoneEnabled ? "Silenciar microfone" : "Ativar microfone"}
-          onClick={() => setMicrophoneEnabled(!microphoneEnabled)}
-          className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-            microphoneEnabled
-              ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
-              : "text-err bg-err/10 hover:bg-err/20"
-          }`}
-        >
-          {microphoneEnabled ? <Microphone size={18} /> : <MicrophoneSlash size={18} />}
-        </button>
+        <Popover open={audioQuickOpen} onOpenChange={setAudioQuickOpen}>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              aria-label={microphoneEnabled ? "Silenciar microfone" : "Ativar microfone"}
+              title={microphoneEnabled ? "Silenciar microfone (Botão direito para opções)" : "Ativar microfone (Botão direito para opções)"}
+              onClick={() => setMicrophoneEnabled(!microphoneEnabled)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setAudioQuickOpen(true);
+              }}
+              className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
+                microphoneEnabled
+                  ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
+                  : "text-err bg-err/10 hover:bg-err/20"
+              }`}
+            >
+              {microphoneEnabled ? <Microphone size={18} /> : <MicrophoneSlash size={18} />}
+            </button>
 
-        <button
-          type="button"
-          aria-label={headphonesEnabled ? "Desativar áudio" : "Ativar áudio"}
-          title={headphonesEnabled ? "Desativar áudio" : "Ativar áudio"}
-          onClick={() => setHeadphonesEnabled(!headphonesEnabled)}
-          className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
-            headphonesEnabled
-              ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
-              : "text-err bg-err/10 hover:bg-err/20"
-          }`}
-        >
-          <Headphones size={18} />
-        </button>
+            <button
+              type="button"
+              aria-label={headphonesEnabled ? "Desativar áudio" : "Ativar áudio"}
+              title={headphonesEnabled ? "Desativar áudio (Botão direito para opções)" : "Ativar áudio (Botão direito para opções)"}
+              onClick={() => setHeadphonesEnabled(!headphonesEnabled)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setAudioQuickOpen(true);
+              }}
+              className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
+                headphonesEnabled
+                  ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
+                  : "text-err bg-err/10 hover:bg-err/20"
+              }`}
+            >
+              <Headphones size={18} />
+            </button>
+
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Opções rápidas de áudio"
+                title="Opções de dispositivos de áudio"
+                className="cursor-pointer flex h-9 w-4 items-center justify-center rounded-lg text-mut/60 hover:text-txt dark:hover:bg-white/[0.06] hover:bg-black/[0.06] transition-all -ml-0.5"
+              >
+                <CaretUp size={11} weight="bold" />
+              </button>
+            </PopoverTrigger>
+          </div>
+
+          <PopoverContent
+            side="top"
+            align="end"
+            sideOffset={10}
+            className="p-0 border-0 bg-transparent shadow-none w-auto"
+          >
+            <AudioDeviceQuickMenu
+              onClose={() => setAudioQuickOpen(false)}
+              onOpenVoiceSettings={() => {
+                setAudioQuickOpen(false);
+                if (onOpenVoiceSettings) {
+                  onOpenVoiceSettings();
+                } else if (onOpenSettings) {
+                  onOpenSettings();
+                }
+              }}
+            />
+          </PopoverContent>
+        </Popover>
 
         {/* Indicador de Status Matrix integrado */}
         <button

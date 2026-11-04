@@ -39,6 +39,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const profileOpen = useUiStore((state) => state.isProfileOpen);
+  const profileInitialTab = useUiStore((state) => state.profileInitialTab);
   const setProfileOpen = useUiStore((state) => state.setProfileOpen);
   const isJoinGuildOpen = useUiStore((state) => state.isJoinGuildOpen);
   const joinGuildInitialCode = useUiStore((state) => state.joinGuildInitialCode);
@@ -211,13 +212,18 @@ export default function AppShell({ children }: AppShellProps) {
 
       {/* Dock Inferior Persistente ("___") que ancora toda a extensão da aplicação */}
       <UserBar
-        onOpenProfile={() => setProfileOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenProfile={() => setProfileOpen(true, "profile")}
+        onOpenSettings={() => setProfileOpen(true, "appearance")}
+        onOpenVoiceSettings={() => setProfileOpen(true, "voice")}
       />
 
       <SyncStatusIndicator />
 
-      <Profile open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <Profile
+        open={profileOpen}
+        initialTab={(profileInitialTab as any) || "profile"}
+        onClose={() => setProfileOpen(false)}
+      />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <CreateGuildModal

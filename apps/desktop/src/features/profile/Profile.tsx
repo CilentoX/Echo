@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
-import { X, User, Palette, Bell, Lock, Link, ShieldCheck } from "@phosphor-icons/react";
+import { X, User, Palette, Bell, Lock, Link, ShieldCheck, Microphone } from "@phosphor-icons/react";
 import { cn } from "cn";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
+import { VoiceTab } from "./tabs/VoiceTab";
 import { NotificationsTab } from "./components/NotificationsTab";
 import { PrivacyTab } from "./tabs/PrivacyTab";
 import { ConnectionsTab } from "./components/ConnectionsTab";
@@ -14,11 +15,13 @@ import { useProfileStore } from "@/stores/profileStore";
 export interface ProfileProps {
   open: boolean;
   onClose: () => void;
+  initialTab?: TabKey;
 }
 
-type TabKey =
+export type TabKey =
   | "profile"
   | "appearance"
+  | "voice"
   | "notifications"
   | "privacy"
   | "connections"
@@ -27,25 +30,26 @@ type TabKey =
 const TAB_CONFIG: Record<TabKey, { label: string; icon: React.ReactNode }> = {
   profile: { label: "Perfil", icon: <User size={18} /> },
   appearance: { label: "Aparência", icon: <Palette size={18} /> },
+  voice: { label: "Voz e Vídeo", icon: <Microphone size={18} /> },
   notifications: { label: "Notificações", icon: <Bell size={18} /> },
   privacy: { label: "Privacidade", icon: <Lock size={18} /> },
   connections: { label: "Conexões", icon: <Link size={18} /> },
   security: { label: "Segurança", icon: <ShieldCheck size={18} /> },
 };
 
-export default function Profile({ open, onClose }: ProfileProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("profile");
+export default function Profile({ open, onClose, initialTab }: ProfileProps) {
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "profile");
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setActiveTab("profile");
+      setActiveTab(initialTab || "profile");
       setIsMounted(true);
       void useProfileStore.getState().loadProfile();
     } else {
       setIsMounted(false);
     }
-  }, [open]);
+  }, [open, initialTab]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -73,6 +77,8 @@ export default function Profile({ open, onClose }: ProfileProps) {
         return <ProfileTab onClose={onClose} />;
       case "appearance":
         return <AppearanceTab />;
+      case "voice":
+        return <VoiceTab />;
       case "notifications":
         return <NotificationsTab />;
       case "privacy":
