@@ -50,6 +50,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   const enterShell = useCallback(
     (session: Session, clientActive = false) => {
+      echoApi.setAccessToken?.(session.accessToken ?? "", session.userId ?? undefined);
       if (!clientActive) {
         initEchoApiFromSession();
         matrixService.restoreSession(session);
@@ -68,6 +69,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   /** Prepara client + uiStore para telas pré-shell (onboarding), sem ligar o sync. */
   const prepareSession = useCallback((session: Session, clientActive = false) => {
+    echoApi.setAccessToken?.(session.accessToken ?? "", session.userId ?? undefined);
     if (!clientActive) {
       initEchoApiFromSession();
       matrixService.restoreSession(session);
@@ -79,6 +81,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
   const handleSession = useCallback(
     async (session: Session): Promise<void> => {
       try {
+        echoApi.setAccessToken?.(session.accessToken ?? "", session.userId ?? undefined);
         await saveSession(session);
         const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
         if (!alreadyCompleted) {

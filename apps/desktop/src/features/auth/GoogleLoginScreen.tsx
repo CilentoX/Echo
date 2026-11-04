@@ -1,8 +1,8 @@
 import { CircleNotch, GoogleLogo } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { EchoApi } from "@/lib/api/echoApi";
-import { ECHO_API_CONFIG } from "@/lib/api/config";
 import { runSsoLogin, SsoLoginError } from "@/lib/matrix/sso";
+import { echoApi } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
 
 type Status = "idle" | "loading" | "error";
@@ -16,10 +16,7 @@ interface GoogleLoginScreenProps {
 
 export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScreenProps) {
   const activeService = useMemo(
-    () => service ?? new EchoApi({
-      baseUrl: ECHO_API_CONFIG.baseUrl,
-      accessToken: "",
-    }),
+    () => service ?? echoApi,
     [service],
   );
 
@@ -32,6 +29,7 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
     try {
       // Fluxo SSO real via Rust loopback listener + Echo API
       const session = await runSsoLogin(activeService);
+      echoApi.setAccessToken(session.accessToken ?? "", session.userId ?? undefined);
       await onSession?.(session);
       setStatus("idle");
     } catch (err) {

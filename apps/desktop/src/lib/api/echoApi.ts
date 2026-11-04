@@ -261,6 +261,17 @@ export class EchoApi {
     bio: string | null;
     role: string | null;
   }> {
+    if (!userId && !this.accessToken) {
+      return {
+        userId: this.userId ?? undefined,
+        displayName: null,
+        nickname: null,
+        avatarUrl: null,
+        bannerUrl: null,
+        bio: null,
+        role: null,
+      };
+    }
     const targetPath = userId ? `/api/profiles/${encodeURIComponent(userId)}` : `/api/profiles/me`;
     return this.get(targetPath).then(
       async (res) => {
@@ -646,8 +657,8 @@ export class EchoApi {
     }
     const data = await res.json();
     // Echo API returns { accessToken, refreshToken, deviceId, userId }
-    // We need to convert to our Session type
-    this.userId = data.userId ?? null;
+    // Armazena imediatamente o token e userId no cliente ativo
+    this.setAccessToken(data.accessToken, data.userId);
     return {
       baseUrl: this.baseUrl,
       apiBaseUrl: this.baseUrl,

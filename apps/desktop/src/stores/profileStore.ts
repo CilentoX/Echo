@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { matrixService } from "@/lib/matrix/instance";
+import { loadSession } from "@/lib/storage/keyring";
 
 export interface ProfileLink {
   label: string;
@@ -72,6 +73,20 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   },
   loadProfile: async () => {
     try {
+      // Garante que há token de acesso antes de disparar consulta à API
+      let activeToken = matrixService.getAccessToken?.() ?? (matrixService as any).accessToken;
+      if (!activeToken) {
+        const session = await loadSession().catch(() => null);
+        if (session?.accessToken) {
+          matrixService.setAccessToken?.(session.accessToken, session.userId);
+          activeToken = session.accessToken;
+        }
+      }
+      if (!activeToken) {
+        // Usuário ainda não autenticado; pula consulta remota sem gerar 401
+        return;
+      }
+
       const userProfile = await matrixService.getUserProfile().catch(() => null);
       const myUserId = matrixService.getUserId() ?? userProfile?.userId ?? "";
 

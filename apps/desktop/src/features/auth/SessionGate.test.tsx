@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockMatrixService } = vi.hoisted(() => {
   const service = {
+    setAccessToken: vi.fn(),
     restoreSession: vi.fn(),
     startSyncHandlers: vi.fn(),
     stopSync: vi.fn(),
