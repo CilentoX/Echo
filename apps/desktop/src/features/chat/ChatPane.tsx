@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Hash } from "@phosphor-icons/react";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import { useShallow } from "zustand/shallow";
 import Composer, { type SendMessageFn } from "./Composer";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
+import ChatHeader from "./ChatHeader";
+import MxcImage from "@/components/media/MxcImage";
 import { groupMessages } from "./groupMessages";
 import { loadOlder } from "@/lib/matrix/wiring";
 import { matrixService } from "@/lib/matrix/instance";
@@ -20,8 +23,12 @@ export interface ChatPaneProps {
   botSenders?: string[];
   /** Contagem de respostas em thread por eventId. */
   threadReplies?: Record<string, number>;
-  /** Conteúdo renderizado dentro do chat (ex.: EmptyState). */
+  /** Conteúdo renderizado dentro do chat (ex.: FriendsDashboard, EmptyState). */
   children?: React.ReactNode;
+  showSidebarToggle?: boolean;
+  showMembersToggle?: boolean;
+  onToggleSidebar?: () => void;
+  onToggleMembers?: () => void;
 }
 
 /**
@@ -33,10 +40,18 @@ export default function ChatPane({
   sendMessage = () => Promise.reject(new Error("sendMessage não conectado (wiring Task 11)")),
   botSenders = DEFAULT_BOT_SENDERS,
   threadReplies,
+  children,
+  showSidebarToggle = false,
+  showMembersToggle = false,
+  onToggleSidebar,
+  onToggleMembers,
 }: ChatPaneProps) {
   const activeChannelId = useUiStore((s) => s.activeChannelId);
   const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
   const myUserId = useUiStore((s) => s.myUserId);
+
+  const friends = useFriendsStore((s) => s.friends);
+  const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
 
   const timeline = useSyncStore(
     useMemo(() => selectTimeline(activeChannelId ?? ""), [activeChannelId]),
@@ -53,18 +68,13 @@ export default function ChatPane({
   const sendReaction = async (eventId: string, emoji: string) => {
     if (!activeChannelId || !myUserId) return;
     try {
-      // Se o usuário já reagiu com este emoji, remove (toggle off).
       const already = (reactionsByEvent[eventId] ?? []).some(
         (r) => r.emoji === emoji && r.sender === myUserId,
       );
       if (already) {
-        // removeReaction recebe (roomId, reactionEventId) — precisamos do eventId da reação própria.
-        // Como não armazenamos o eventId da reação própria localmente, enviamos uma nova reação
-        // e deixamos o server dedupe; a remoção explícita vem na Fase 2 com m.reaction completo.
         return;
       }
       await matrixService.sendReaction(activeChannelId, eventId, emoji);
-      // O sync loop (wiring onReaction) aplica no store via applyReaction.
     } catch {
       // Falha silenciosa: reação não é crítica.
     }
@@ -72,14 +82,24 @@ export default function ChatPane({
 
   const groups = useMemo(() => groupMessages(timeline), [timeline]);
 
-  const channelName = useMemo(() => {
+  // Identifica se a sala é DM com um amigo
+  const activeFriend = useMemo(() => {
+    return friends.find(
+      (f) => f.directRoomId === activeChannelId || (selectedFriendId && f.userId === selectedFriendId),
+    );
+  }, [friends, activeChannelId, selectedFriendId]);
+
+  const activeChannelData = useMemo(() => {
     if (!activeChannelId) return null;
     for (const channels of Object.values(channelsByGuild)) {
       const channel = channels.find((c) => c.channelId === activeChannelId);
-      if (channel) return channel.name;
+      if (channel) return channel;
     }
     return null;
   }, [channelsByGuild, activeChannelId]);
+
+  const channelName = activeFriend ? activeFriend.displayName : (activeChannelData?.name ?? null);
+  const channelTopic = activeChannelData?.topic ?? null;
 
   // P8/P9: carrega histórico antigo ao abrir canal e ao rolar para cima.
   const loadHistory = useCallback(
@@ -96,32 +116,47 @@ export default function ChatPane({
     }
   }, [activeChannelId, loadHistory]);
 
-  // Acompanha o fim da timeline apenas quando o usuário está no fim;
-  // rolando para cima (lendo histórico), novas mensagens não roubam a posição.
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const atBottomRef = useRef(true);
   const lastChannelRef = useRef<string | null>(activeChannelId);
   if (lastChannelRef.current !== activeChannelId) {
     lastChannelRef.current = activeChannelId;
-    atBottomRef.current = true; // troca de canal volta a acompanhar o fim
+    atBottomRef.current = true;
   }
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
-  }, [timeline.length, activeChannelId]);
+    if (!el) return;
+    if (atBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [timeline]);
 
-  const handleScroll = useCallback(() => {
+  const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-    // P9: próximo da borda superior → carrega mais histórico.
-    if (el.scrollTop <= 40 && activeChannelId) {
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    atBottomRef.current = distanceToBottom < 80;
+
+    if (el.scrollTop === 0 && activeChannelId && timeline.length >= 30) {
       void loadHistory(activeChannelId, 30);
     }
-  }, [activeChannelId, loadHistory]);
+  };
 
   const reactionsFor = (eventId: string) => reactionsByEvent[eventId] ?? [];
+
+  // Se um conteúdo customizado foi passado (ex: FriendsDashboard ou EmptyState), renderiza-o diretamente
+  if (children) {
+    return (
+      <section
+        data-column="chat"
+        aria-label="Conteúdo Principal"
+        className="flex min-w-0 flex-1 flex-col bg-bg font-ui overflow-hidden"
+      >
+        {children}
+      </section>
+    );
+  }
 
   if (!activeChannelId) {
     return (
@@ -143,23 +178,64 @@ export default function ChatPane({
       aria-label="Mensagens"
       className="flex min-w-0 flex-1 flex-col bg-bg font-ui"
     >
+      {/* Cabeçalho Superior Fixo */}
+      <ChatHeader
+        roomId={activeChannelId}
+        channelName={channelName}
+        topic={channelTopic}
+        showSidebarToggle={showSidebarToggle}
+        showMembersToggle={showMembersToggle}
+        onToggleSidebar={onToggleSidebar}
+        onToggleMembers={onToggleMembers}
+      />
+
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-4">
-        {/* Channel Hero Banner */}
-        <div className="px-4 pt-4 pb-3 mb-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surf2 border border-bd text-acc mb-2 shadow-sm">
-            <Hash size={24} weight="bold" />
+        {/* Hero Banner: Amigo (DM) vs Canal de Guilda */}
+        {activeFriend ? (
+          <div className="px-6 pt-6 pb-4 mb-3">
+            <div className="relative mb-3 inline-block">
+              {activeFriend.avatarUrl ? (
+                <MxcImage
+                  mxcUrl={activeFriend.avatarUrl}
+                  alt={activeFriend.displayName}
+                  className="h-16 w-16 rounded-full object-cover shadow-md"
+                  width={64}
+                  height={64}
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc/20 font-display text-2xl font-bold text-acc shadow-md">
+                  {activeFriend.displayName.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <h2 className="font-display text-2xl font-bold text-txt">
+              {activeFriend.displayName}
+            </h2>
+            <p className="font-mono text-xs text-mut mt-0.5">
+              {activeFriend.nickname ? `@${activeFriend.nickname}` : activeFriend.userId}
+            </p>
+            <p className="mt-2 text-xs text-mut max-w-lg leading-relaxed">
+              Este é o início da sua conversa direta com <strong className="text-txt">{activeFriend.displayName}</strong>. As mensagens trocadas aqui são criptografadas de ponta a ponta e privadas.
+            </p>
+            <div className="w-full h-[1px] bg-bd/40 mt-5" />
           </div>
-          <h2 className="font-display text-xl font-bold text-txt">
-            Bem-vindo a #{channelName ?? "geral"}!
-          </h2>
-          <p className="mt-0.5 text-xs text-mut max-w-lg">
-            Este é o início do canal #{channelName ?? "geral"}. Diga olá e comece a conversa!
-          </p>
-          <div className="w-full h-[1px] bg-bd/40 mt-3" />
-        </div>
+        ) : (
+          <div className="px-4 pt-4 pb-3 mb-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surf2 border border-bd text-acc mb-2 shadow-sm">
+              <Hash size={24} weight="bold" />
+            </div>
+            <h2 className="font-display text-xl font-bold text-txt">
+              Bem-vindo a #{channelName ?? "geral"}!
+            </h2>
+            <p className="mt-0.5 text-xs text-mut max-w-lg">
+              Este é o início do canal #{channelName ?? "geral"}. Diga olá e comece a conversa!
+            </p>
+            <div className="w-full h-[1px] bg-bd/40 mt-3" />
+          </div>
+        )}
 
         {timeline.length === 0 && (
-          <p className="px-4 text-sm text-mut">Nenhuma mensagem ainda. Diga olá!</p>
+          <p className="px-6 text-sm text-mut">Nenhuma mensagem ainda. Diga olá!</p>
         )}
         {groups.map((group) =>
           group.events.map((event, index) => (

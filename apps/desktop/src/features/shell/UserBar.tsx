@@ -61,11 +61,11 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
       data-testid="user-bar"
       className="flex h-14 w-full shrink-0 items-center justify-between bg-rail text-txt z-30 select-none relative"
     >
-      {/* Linha divisória superior que começa a partir de 72px (onde o conteúdo começa, fundindo o rail e a dock em uma só peça) */}
-      <div className="absolute top-0 left-[72px] right-0 h-[1px] bg-bd/60" aria-hidden="true" />
+      {/* Linha divisória superior que começa a partir de 304px (fundindo o rail e a sidebar com a dock em uma só peça contínua sem linha) */}
+      <div className="absolute top-0 left-[304px] right-0 h-[1px] bg-bd/60" aria-hidden="true" />
 
-      {/* Lado Esquerdo: Rail (72px) + Cápsula de Perfil sob a Sidebar de Canais (232px) = 304px com divisória */}
-      <div className="w-auto max-w-[calc(100vw-180px)] sm:w-[304px] shrink-0 h-full flex items-center min-w-0 border-r border-bd/60 relative">
+      {/* Lado Esquerdo: Rail (72px) + Cápsula de Perfil sob a Sidebar de Canais (232px) = 304px com divisória vertical única contínua */}
+      <div className="w-auto max-w-[calc(100vw-180px)] sm:w-[304px] shrink-0 h-full flex items-center min-w-0 border-r border-bd relative">
         {/* Espaçamento equivalente ao trilho de guildas (72px) deixando a coluna do rail livre à esquerda */}
         <div className="w-[72px] shrink-0 h-full" aria-hidden="true" />
 

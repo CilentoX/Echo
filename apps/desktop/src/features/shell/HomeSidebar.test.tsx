@@ -75,3 +75,4 @@ describe("HomeSidebar", () => {
     expect(useUiStore.getState().activeChannelId).toBeNull();
   });
 });
+

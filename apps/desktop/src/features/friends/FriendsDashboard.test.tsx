@@ -112,3 +112,4 @@ describe("FriendsDashboard", () => {
     expect(screen.queryByText("Marcos Lima")).toBeNull();
   });
 });
+
