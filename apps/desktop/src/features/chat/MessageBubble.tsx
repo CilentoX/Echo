@@ -1,4 +1,7 @@
-import { Chats, Copy } from "@phosphor-icons/react";
+"use client";
+
+import { useState } from "react";
+import { ArrowsOutSimple, Chats, Copy } from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { useProfileStore } from "@/stores/profileStore";
 import { senderLabel } from "./groupMessages";
@@ -7,6 +10,9 @@ import EditedBadge from "./EditedBadge";
 import ReactionStack from "./ReactionStack";
 import MessageBody from "./MessageBody";
 import MxcImage from "@/components/media/MxcImage";
+import AudioPlayer from "@/components/media/AudioPlayer";
+import MediaLightbox from "@/components/media/MediaLightbox";
+import { mxcToHttp } from "@/lib/media/mxc";
 
 export interface MessageBubbleProps {
   event: NormalizedEvent;
@@ -28,8 +34,8 @@ export interface MessageBubbleProps {
 /**
  * Uma mensagem da timeline: bolha diferenciada para remetente (sender,
  * à direita) vs destinatário (receiver, à esquerda), avatar inicial,
- * nome, hora, reply-to chip, edição/exclusão, corpo em markdown e
- * reações empilhadas. Mensagens de grupo sem cabeçalho repetido.
+ * nome, hora, reply-to chip, edição/exclusão, corpo em markdown, visualizador
+ * de imagens com lightbox e player de áudio com waveform dinâmico.
  */
 export default function MessageBubble({
   event,
@@ -41,6 +47,8 @@ export default function MessageBubble({
   threadReplies,
   onToggleReaction,
 }: MessageBubbleProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   const isSender = event.sender === myUserId;
   const myDisplayName = useProfileStore((s) => s.displayName);
   const name = isSender && myDisplayName ? myDisplayName : senderLabel(event.sender);
@@ -49,12 +57,43 @@ export default function MessageBubble({
     minute: "2-digit",
   });
 
+  const mediaUrl = event.url
+    ? event.url.startsWith("mxc://")
+      ? mxcToHttp(event.url)
+      : event.url
+    : null;
+
+  const isAudio =
+    event.msgtype === "m.audio" ||
+    Boolean(event.info?.mimetype && event.info.mimetype.startsWith("audio/")) ||
+    event.body.startsWith("[Mensagem de voz]") ||
+    (typeof mediaUrl === "string" &&
+      (mediaUrl.endsWith(".webm") ||
+        mediaUrl.endsWith(".ogg") ||
+        mediaUrl.endsWith(".mp3") ||
+        mediaUrl.endsWith(".m4a") ||
+        mediaUrl.endsWith(".wav")));
+
+  const isImage =
+    event.msgtype === "m.image" ||
+    Boolean(event.info?.mimetype && event.info.mimetype.startsWith("image/")) ||
+    event.body.startsWith("[Imagem]") ||
+    (typeof mediaUrl === "string" &&
+      (mediaUrl.endsWith(".jpg") ||
+        mediaUrl.endsWith(".jpeg") ||
+        mediaUrl.endsWith(".png") ||
+        mediaUrl.endsWith(".webp") ||
+        mediaUrl.endsWith(".gif") ||
+        mediaUrl.endsWith(".svg")));
+
   return (
     <article
       data-event-id={event.eventId}
       data-pending={pending || undefined}
       data-is-sender={isSender || undefined}
-      className={`group relative flex gap-3 px-4 py-1 transition-colors ${isSender ? "justify-end" : "justify-start"} hover:bg-surf/40`}
+      className={`group relative flex gap-3 px-4 py-1 transition-colors ${
+        isSender ? "justify-end" : "justify-start"
+      } hover:bg-surf/40`}
     >
       {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
       {!pending && (
@@ -125,7 +164,11 @@ export default function MessageBubble({
 
       {/* Bolha da mensagem */}
       <div
-        className={`max-w-[75%] rounded-lg p-2 border border-bd-subtle shadow-xs ${isSender ? "ml-auto text-txt bg-bubble-sender" : "text-txt bg-bubble-receiver"}`}
+        className={`max-w-[75%] rounded-lg p-2 border border-bd-subtle shadow-xs ${
+          isSender
+            ? "ml-auto text-txt bg-bubble-sender"
+            : "text-txt bg-bubble-receiver"
+        }`}
       >
         {/* Chip de reply-to (citação) */}
         {event.replyTo && <ReplyChip replyTo={event.replyTo} />}
@@ -146,8 +189,50 @@ export default function MessageBubble({
           </div>
         )}
 
-        {/* Corpo da mensagem (markdown) */}
-        <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+        {/* Áudio / Mensagem de Voz */}
+        {isAudio && mediaUrl ? (
+          <div className="my-1">
+            <AudioPlayer
+              src={mediaUrl}
+              duration={event.info?.duration}
+              waveform={event.info?.waveform}
+              isSender={isSender}
+            />
+          </div>
+        ) : isImage && mediaUrl ? (
+          /* Imagem com prévia ampliada e Lightbox */
+          <div className="my-1 space-y-1">
+            <div
+              className="relative group/img cursor-pointer overflow-hidden rounded-xl border border-bd-subtle max-w-sm inline-block shadow-sm"
+              onClick={() => setLightboxOpen(true)}
+            >
+              <img
+                src={mediaUrl}
+                alt={event.body || "Imagem"}
+                className="max-h-64 max-w-full rounded-xl object-cover hover:scale-[1.02] transition-transform duration-200"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-xs font-semibold">
+                  <ArrowsOutSimple size={14} />
+                  <span>Ampliar</span>
+                </span>
+              </div>
+            </div>
+            {event.body && !event.body.startsWith("[Imagem]") && (
+              <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+            )}
+            <MediaLightbox
+              src={mediaUrl}
+              alt={event.body || "Imagem"}
+              open={lightboxOpen}
+              onClose={() => setLightboxOpen(false)}
+            />
+          </div>
+        ) : (
+          /* Corpo da mensagem (markdown) */
+          <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+        )}
 
         {pending && (
           <p className="mt-0.5 text-[10px] text-mut" aria-label="Enviando">

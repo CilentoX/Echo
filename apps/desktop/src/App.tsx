@@ -11,6 +11,10 @@ import { useEffect } from "react";
 const sendMessage = (roomId: string, body: string): Promise<string> =>
   matrixService.sendMessage(roomId, body);
 
+/** Envio de anexo/mídia real via MatrixService. */
+const sendFile = (roomId: string, file: File, body?: string): Promise<string> =>
+  matrixService.sendFile(roomId, file, body);
+
 /** BOT_SENDERS: sender IDs tratados como bot (selo BOT teal). */
 const BOT_SENDERS = ["@eco:eco"];
 
@@ -24,7 +28,7 @@ function Shell() {
 
   return (
     <AppShell>
-      <ChatPane sendMessage={sendMessage} botSenders={BOT_SENDERS} />
+      <ChatPane sendMessage={sendMessage} sendFile={sendFile} botSenders={BOT_SENDERS} />
     </AppShell>
   );
 }

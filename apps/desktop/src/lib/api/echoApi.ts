@@ -660,15 +660,33 @@ export class EchoApi {
 
   // ── Messages ────────────────────────────────────────────────────
 
-  /** Send an m.text message. */
-  async sendMessage(roomId: string, body: string): Promise<string> {
-    const res = await this.post(`/api/rooms/${roomId}/messages`, { roomId, body });
+  /** Send an m.text or multimedia message. */
+  async sendMessage(
+    roomId: string,
+    body: string,
+    options?: { msgtype?: string; mediaId?: string },
+  ): Promise<string> {
+    const res = await this.post(`/api/rooms/${roomId}/messages`, {
+      roomId,
+      body,
+      ...(options?.msgtype ? { msgtype: options.msgtype } : {}),
+      ...(options?.mediaId ? { mediaId: options.mediaId } : {}),
+    });
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Failed to send message: ${res.status} ${errTxt}`);
     }
     const data = await res.json();
     return data.eventId || data.event_id || data.id || "";
+  }
+
+  /** Sends an m.file, m.image, or m.audio message: uploads the file, then sends the message. */
+  async sendFile(roomId: string, file: File, body?: string): Promise<string> {
+    const mediaUri = await this.uploadChatMedia(file);
+    const isImage = file.type.startsWith("image/");
+    const isAudio = file.type.startsWith("audio/");
+    const msgtype = isImage ? "m.image" : isAudio ? "m.audio" : "m.file";
+    return this.sendMessage(roomId, body || mediaUri, { msgtype });
   }
 
   /** Load older history for a channel. */

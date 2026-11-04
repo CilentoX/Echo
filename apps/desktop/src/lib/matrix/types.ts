@@ -28,6 +28,19 @@ export interface NormalizedEvent {
   redacted?: boolean;
   /** Avatar mxc:// do remetente (null = sem avatar). */
   senderAvatarUrl?: string | null;
+  /** Tipo de mensagem Matrix (m.text, m.image, m.audio, m.file). */
+  msgtype?: string;
+  /** URL do anexo/mídia (MXC ou HTTP). */
+  url?: string | null;
+  /** Metadados da mídia anexada (dimensões, duração, waveform, etc.). */
+  info?: {
+    mimetype?: string;
+    size?: number;
+    duration?: number;
+    w?: number;
+    h?: number;
+    waveform?: number[];
+  };
 }
 
 /** Reação m.reaction (m.annotation) normalizada. */

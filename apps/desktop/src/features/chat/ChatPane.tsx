@@ -4,7 +4,7 @@ import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useShallow } from "zustand/shallow";
-import Composer, { type SendMessageFn } from "./Composer";
+import Composer, { type SendMessageFn, type SendFileFn } from "./Composer";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import ChatHeader from "./ChatHeader";
@@ -19,6 +19,8 @@ const DEFAULT_BOT_SENDERS = ["@eco:eco"];
 export interface ChatPaneProps {
   /** R2: `(roomId, body) => matrixService.sendMessage(...)` — wiring Task 11. */
   sendMessage?: SendMessageFn;
+  /** Envio de anexos/mídia via MatrixService. */
+  sendFile?: SendFileFn;
   /** Sender IDs tratados como bot (selo BOT teal). */
   botSenders?: string[];
   /** Contagem de respostas em thread por eventId. */
@@ -38,6 +40,7 @@ export interface ChatPaneProps {
  */
 export default function ChatPane({
   sendMessage = () => Promise.reject(new Error("sendMessage não conectado (wiring Task 11)")),
+  sendFile,
   botSenders = DEFAULT_BOT_SENDERS,
   threadReplies,
   children,
@@ -259,6 +262,7 @@ export default function ChatPane({
       <Composer
         roomId={activeChannelId}
         sendMessage={sendMessage}
+        sendFile={sendFile}
         channelName={channelName ?? undefined}
       />
     </section>

@@ -142,7 +142,8 @@ function stopPollingLoop(): void {
 function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | null {
   if (event.getType && event.getType() !== "m.room.message") return null;
   if (event.isRedacted && event.isRedacted()) return null;
-  const body = event.body;
+  const content = event.getContent ? event.getContent() : (event.content || {});
+  const body = event.body || content.body;
   const eventId = event.eventId;
   const roomId = event.roomId;
   const sender = event.sender;
@@ -153,6 +154,9 @@ function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | nul
     sender,
     body,
     originServerTs: event.originServerTs ?? Date.now(),
+    msgtype: event.msgtype || content.msgtype || "m.text",
+    url: event.url || content.url || null,
+    info: event.info || content.info || undefined,
     ...(event.replyTo && { replyTo: { eventId: event.replyTo.eventId, sender: event.replyTo.sender, body: event.replyTo.body } }),
     ...(event.editedAt && { editedAt: event.editedAt }),
     ...(event.redacted && { redacted: event.redacted }),
