@@ -29,3 +29,4 @@ describe("StorageTab Component", () => {
     expect(clearSpy).toHaveBeenCalled();
   });
 });
+

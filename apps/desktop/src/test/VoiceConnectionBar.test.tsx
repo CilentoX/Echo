@@ -48,3 +48,4 @@ describe("VoiceConnectionBar Component", () => {
     expect(useVoiceStore.getState().activeVoiceChannelId).toBeNull();
   });
 });
+

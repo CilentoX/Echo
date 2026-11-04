@@ -105,3 +105,4 @@ export async function optimizeImageForUpload(
     img.src = objectUrl;
   });
 }
+

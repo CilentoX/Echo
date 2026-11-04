@@ -189,7 +189,7 @@ export default function ChatPane({
           </div>
           <h2 className="font-display text-base font-semibold text-txt">Nenhum canal selecionado</h2>
           <p className="mt-1 text-xs text-mut leading-relaxed">
-            Selecione um canal de texto ou voz na barra lateral esquerda para começar a conversar.
+            Escolha um canal para começar a conversar.
           </p>
         </div>
       </section>

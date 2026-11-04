@@ -20,3 +20,4 @@ describe("imageOptimizer", () => {
     expect(result).toBe(smallWebp);
   });
 });
+
