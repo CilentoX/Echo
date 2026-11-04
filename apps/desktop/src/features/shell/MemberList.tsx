@@ -82,6 +82,7 @@ export default function MemberList({
     : guildMembers;
 
   const [search, setSearch] = useState("");
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
 
   // Agrupa membros por status de presença em tempo real.
   const grouped = useMemo(() => {
@@ -155,7 +156,7 @@ export default function MemberList({
             aria-label="Buscar membros"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 rounded bg-transparent text-sm text-txt border border-bd outline-none placeholder:text-mut focus:border-acc focus:ring-1 focus:ring-acc"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.03] text-xs text-txt border border-white/[0.06] outline-none placeholder:text-mut/60 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 transition-all"
           />
         </div>
       </div>
@@ -193,27 +194,33 @@ export default function MemberList({
 
                   return (
                     <li key={member.userId} className="relative">
-                      <Popover>
+                      <Popover
+                        open={openMemberId === member.userId}
+                        onOpenChange={(open) => setOpenMemberId(open ? member.userId : null)}
+                      >
                         <PopoverTrigger asChild>
                           <button
                             type="button"
                             aria-label={cleanDisplayName}
-                            className={`cursor-pointer flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isMe
-                                ? "text-mut/70 hover:bg-surf2"
-                                : "text-mut hover:bg-surf2 hover:text-txt"
-                              }`}
+                            className={`cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-sm transition-all active:scale-[0.99] group ${
+                              openMemberId === member.userId
+                                ? "bg-white/[0.08] text-txt"
+                                : isMe
+                                ? "text-mut/70 hover:bg-white/[0.05] hover:text-txt"
+                                : "text-mut hover:bg-white/[0.05] hover:text-txt"
+                            }`}
                           >
                             <div className="relative w-8 h-8 shrink-0">
                               {effectiveAvatarUrl ? (
                                 <MxcImage
                                   mxcUrl={effectiveAvatarUrl}
                                   alt="Avatar"
-                                  className="w-8 h-8 rounded-full object-cover border border-bd/60 bg-surf2"
+                                  className="w-8 h-8 rounded-full object-cover border border-white/[0.08] bg-[#141923] ring-1 ring-white/[0.04] group-hover:ring-acc/40 transition-all"
                                   width={32}
                                   height={32}
                                 />
                               ) : (
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm ring-1 ring-white/[0.04] group-hover:ring-acc/40 transition-all">
                                   {initial}
                                 </div>
                               )}
@@ -227,15 +234,22 @@ export default function MemberList({
                               </p>
                             </div>
                             {isMe && (
-                              <span className="ml-auto text-xs text-mut">
+                              <span className="ml-auto text-[11px] text-acc/70 font-medium">
                                 (você)
                               </span>
                             )}
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent sideOffset={8} align="start" className="w-auto p-0">
+                        <PopoverContent
+                          side="left"
+                          align="start"
+                          sideOffset={12}
+                          collisionPadding={16}
+                          className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none"
+                        >
                           <MemberDropdownContent
                             userId={member.userId}
+                            onClose={() => setOpenMemberId(null)}
                           />
                         </PopoverContent>
                       </Popover>

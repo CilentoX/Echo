@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { useProfileStore } from "@/stores/profileStore";
 import { useUiStore } from "@/stores/uiStore";
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
-import { echoApi } from "@/lib/matrix/instance";
 
 const { mockEchoApi } = vi.hoisted(() => ({
   mockEchoApi: {

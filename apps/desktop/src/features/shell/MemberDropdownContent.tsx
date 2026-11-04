@@ -1,25 +1,28 @@
 import { useCallback, useEffect, useState } from "react"
 import { useUiStore } from "@/stores/uiStore"
 import { useProfileStore } from "@/stores/profileStore"
+import { useFriendsStore } from "@/stores/friendsStore"
 import { matrixService } from "@/lib/matrix/instance"
 import { useEchoApi } from "@/lib/api/echoApi"
-import type { UserProfile } from "@/lib/matrix/types"
-import { Chats, User, Copy, Pencil } from "@phosphor-icons/react"
+import type { UserProfile, PresenceState } from "@/lib/matrix/types"
+import type { GuildRole } from "@/lib/api/echoApi"
+import { Chats, User, Copy, Pencil, Check, Crown, UserPlus } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import MxcImage from "@/components/media/MxcImage"
 
 export interface MemberDropdownContentProps {
-  userId: string;
+  userId: string
+  onClose?: () => void
 }
 
 export default function MemberDropdownContent({
   userId,
+  onClose,
 }: MemberDropdownContentProps) {
   const myUserId = useUiStore((state) => state.myUserId ?? "")
   const activeGuildId = useUiStore((state) => state.activeGuildId)
   const isMyUser = userId === myUserId
-  const presence = useUiStore((state) => state.presence[userId] ?? "offline")
+  const livePresence = useUiStore((state) => state.presence[userId])
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -27,14 +30,18 @@ export default function MemberDropdownContent({
   const [editingGuildNick, setEditingGuildNick] = useState(false)
   const [guildNickInput, setGuildNickInput] = useState("")
   const [savingGuildNick, setSavingGuildNick] = useState(false)
+  const [guildNickname, setGuildNickname] = useState<string | null>(null)
+  const [guildRoles, setGuildRoles] = useState<GuildRole[]>([])
+  const [isGuildOwner, setIsGuildOwner] = useState(false)
 
   const echoApi = useEchoApi()
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl)
   const myAppwriteBannerUrl = useProfileStore((state) => state.appwriteBannerUrl)
+  const isFriend = useFriendsStore((state) => state.friends.some((f) => f.userId === userId))
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message)
-    setTimeout(() => setToastMessage(null), 3000)
+    setTimeout(() => setToastMessage(null), 2500)
   }, [])
 
   useEffect(() => {
@@ -43,34 +50,56 @@ export default function MemberDropdownContent({
 
     const load = async () => {
       try {
-        // Timeout de 5s para evitar loading infinito se o SDK travar
-        const [fetched, global] = await Promise.all([
-          Promise.race([
+        let fetched: UserProfile | null = null
+        try {
+          fetched = await Promise.race([
             matrixService.getUserProfile(userId),
             new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("Timeout perfil")), 5000)
             ),
-          ]),
-          Promise.race([
-            // getGlobalProfile is for current user only; for other users, use getUserProfile
-            matrixService.getUserProfile(userId),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Timeout global profile")), 5000)
-            ),
-          ]).catch(() => null), // global profile is optional
-        ])
+          ])
+        } catch {
+          if (typeof echoApi?.getUserProfile === "function") {
+            fetched = await echoApi.getUserProfile(userId).catch(() => null)
+          }
+        }
+
+        let guildData: { memberProfiles?: any[]; memberRoles?: any[]; roles?: any[] } | null = null
+        if (activeGuildId && typeof echoApi?.getGuildMembersData === "function") {
+          try {
+            guildData = await echoApi.getGuildMembersData(activeGuildId).catch(() => null)
+          } catch {
+            guildData = null
+          }
+        }
 
         if (!cancelled) {
-          // Merge global profile data (banner, bio, links) into the profile
-          const merged = global
-            ? {
-                ...fetched,
-                bannerUrl: global.bannerUrl ?? fetched.bannerUrl,
-                bio: global.bio ?? fetched.bio,
-                // links não estão no UserProfile type, mas podemos adicionar se necessário
-              }
-            : fetched
-          setProfile(merged)
+          setProfile(fetched)
+
+          if (guildData) {
+            // Verifica apelido do membro nesta guilda
+            const memberProfile = guildData.memberProfiles?.find((mp) => mp.userId === userId)
+            if (memberProfile?.nickname) {
+              setGuildNickname(memberProfile.nickname)
+            } else {
+              setGuildNickname(null)
+            }
+
+            // Verifica cargos do membro nesta guilda
+            const userRoleIds = new Set(
+              guildData.memberRoles
+                ?.filter((mr) => mr.userId === userId)
+                .map((mr) => mr.roleId) ?? []
+            )
+            const userRoles = (guildData.roles ?? []).filter((r) => userRoleIds.has(r.id))
+            setGuildRoles(userRoles)
+          } else {
+            setGuildNickname(null)
+            setGuildRoles([])
+          }
+
+          // Checa se o usuário é o dono da guilda ativa (se houver)
+          setIsGuildOwner(false)
           setLoading(false)
         }
       } catch {
@@ -85,166 +114,271 @@ export default function MemberDropdownContent({
     return () => {
       cancelled = true
     }
-  }, [userId])
+  }, [userId, activeGuildId, echoApi])
+
+  const effectiveHandle = profile?.username || cleanUserId(userId)
+  const globalDisplayName = profile?.displayName || effectiveHandle
+  const primaryName = guildNickname || globalDisplayName
+  const hasCustomGuildNick = Boolean(guildNickname && guildNickname !== globalDisplayName)
 
   const copyUserId = useCallback(async () => {
     try {
-      const targetUsername = profile?.username || cleanUserId(userId)
-      await navigator.clipboard.writeText(`@${targetUsername}`)
+      await navigator.clipboard.writeText(`@${effectiveHandle}`)
       showToast("Username copiado")
     } catch {
-      // falha silenciosa
+      showToast("Falha ao copiar")
     }
-  }, [userId, profile?.username, showToast])
+  }, [effectiveHandle, showToast])
 
-  const openDirectMessage = useCallback(() => {
-    showToast("Iniciando mensagem direta")
-  }, [showToast])
+  const handleOpenDirectMessage = useCallback(async () => {
+    try {
+      showToast("Abrindo conversa direta...")
+      await useFriendsStore.getState().openDirectMessage(userId)
+      onClose?.()
+    } catch {
+      showToast("Iniciando mensagem direta")
+    }
+  }, [userId, onClose, showToast])
 
-  const openViewProfile = useCallback(() => {
-    showToast("Abrindo perfil completo")
-  }, [showToast])
+  const handleAddFriend = useCallback(async () => {
+    try {
+      await useFriendsStore.getState().sendFriendRequest(effectiveHandle)
+      showToast("Solicitação enviada!")
+    } catch {
+      showToast("Erro ao adicionar amigo")
+    }
+  }, [effectiveHandle, showToast])
+
+  const handleSaveNickname = useCallback(async () => {
+    if (!activeGuildId) return
+    try {
+      setSavingGuildNick(true)
+      const trimmed = guildNickInput.trim()
+      const saved = await echoApi.setGuildMemberNickname(activeGuildId, trimmed || null)
+      showToast("Apelido atualizado!")
+      setGuildNickname(saved.nickname || null)
+      setEditingGuildNick(false)
+    } catch {
+      showToast("Falha ao atualizar apelido")
+    } finally {
+      setSavingGuildNick(false)
+    }
+  }, [activeGuildId, guildNickInput, echoApi, showToast])
+
+  const handleResetNickname = useCallback(async () => {
+    if (!activeGuildId) return
+    try {
+      setSavingGuildNick(true)
+      await echoApi.setGuildMemberNickname(activeGuildId, null)
+      showToast("Apelido resetado para o global")
+      setGuildNickname(null)
+      setEditingGuildNick(false)
+    } catch {
+      showToast("Falha ao redefinir apelido")
+    } finally {
+      setSavingGuildNick(false)
+    }
+  }, [activeGuildId, echoApi, showToast])
+
+  // Presença do usuário
+  const effectivePresence: PresenceState = (
+    isMyUser
+      ? "online"
+      : livePresence || "offline"
+  ) as PresenceState
 
   if (loading) {
     return (
-      <div className="w-[300px] flex flex-col p-5 bg-surf border border-bd rounded-2xl shadow-2xl shadow-black/50 animate-pulse">
-        <div className="w-full h-20 rounded-xl bg-surf2 mb-4" />
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-16 h-16 rounded-full bg-surf2 shrink-0" />
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="h-6 w-3/4 bg-surf2 rounded" />
-            <div className="h-4 w-1/3 bg-surf2 rounded" />
-            <div className="h-3 w-28 bg-surf2 rounded" />
-          </div>
+      <div
+        role="menu"
+        className="w-[320px] flex flex-col bg-[#12161f] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-pulse select-none"
+      >
+        <div className="w-full h-28 bg-white/[0.04]" />
+        <div className="px-4 -mt-10 flex items-end justify-between">
+          <div className="w-20 h-20 rounded-full border-4 border-[#12161f] bg-white/[0.06]" />
+          <div className="h-8 w-24 rounded-xl bg-white/[0.04] mb-1" />
         </div>
-        <div className="w-full flex items-center gap-2 px-4 py-2">
-          <div className="h-3 w-3 rounded-full bg-surf2" />
-          <div className="h-4 w-20 bg-surf2 rounded" />
+        <div className="p-4 space-y-2">
+          <div className="h-5 w-40 bg-white/[0.06] rounded-lg" />
+          <div className="h-3 w-24 bg-white/[0.04] rounded" />
+          <div className="h-6 w-20 bg-white/[0.04] rounded-full mt-2" />
         </div>
-        <Separator className="my-4" />
-        <div className="flex flex-col gap-1 px-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-10 w-full rounded-xl bg-surf2" />
-          ))}
+        <div className="px-4 pb-4 space-y-1.5">
+          <div className="h-9 w-full bg-white/[0.04] rounded-xl" />
+          <div className="h-9 w-full bg-white/[0.04] rounded-xl" />
         </div>
       </div>
     )
   }
 
-  const initial = (profile?.displayName ?? cleanUserId(userId)).charAt(0).toUpperCase()
+  const initial = (primaryName || "U").charAt(0).toUpperCase()
 
-  // Fallback chain para avatar (unificado para ambos):
-  // 1. profile.avatarUrl (Matrix mxc:// do getUserProfile) - PRIORIDADE
-  // 2. Próprio usuário: myAppwriteAvatarUrl (localStorage) - FALLBACK
-  // 3. Iniciais - ÚLTIMO RECURSO
-  const effectiveAvatarUrl = profile?.avatarUrl
-    ?? (isMyUser ? myAppwriteAvatarUrl : null)
-    ?? null
+  // Fallback chain para avatar
+  const effectiveAvatarUrl =
+    profile?.avatarUrl ?? (isMyUser ? myAppwriteAvatarUrl : null) ?? null
 
-  // Banner: global profile (Appwrite Database) → own user Appwrite localStorage → gradient fallback
-  const effectiveBannerUrl = profile?.bannerUrl ?? (isMyUser ? myAppwriteBannerUrl : null)
+  // Banner
+  const effectiveBannerUrl =
+    profile?.bannerUrl ?? (isMyUser ? myAppwriteBannerUrl : null) ?? null
 
   return (
     <div
       role="menu"
-      className="w-[300px] flex flex-col p-5 bg-surf border border-bd rounded-2xl shadow-2xl shadow-black/50"
+      className="w-[320px] max-w-[340px] flex flex-col bg-[#12161f] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/80 overflow-hidden text-txt select-none animate-in fade-in-0 zoom-in-95 duration-150"
     >
-      {/* Banner do membro com fallback gradiente */}
-      <div className="relative w-full h-20 rounded-xl overflow-hidden mb-4">
+      {/* Banner panorâmico */}
+      <div className="relative w-full h-28 shrink-0 overflow-hidden bg-gradient-to-br from-indigo-950/70 via-purple-950/40 to-[#12161f]">
         {effectiveBannerUrl ? (
           <MxcImage
             mxcUrl={effectiveBannerUrl}
             alt="Banner"
             className="w-full h-full object-cover object-center"
-            width={960}
-            height={540}
+            width={640}
+            height={224}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-acc/20 via-surf to-surf2 border border-bd/40" />
+          <div className="w-full h-full relative">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-acc/20 via-transparent to-transparent opacity-60" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#12161f] via-[#12161f]/40 to-transparent" />
+          </div>
         )}
+        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#12161f] to-transparent pointer-events-none" />
       </div>
 
-      {/* Cabeçalho: avatar + nome + status */}
-      <div className="flex items-center gap-3 px-2">
+      {/* Avatar sobreposto & Ação de topo */}
+      <div className="relative px-4 -mt-11 flex items-end justify-between z-10">
         <div className="relative shrink-0">
-          {effectiveAvatarUrl ? (
-            <MxcImage
-              mxcUrl={effectiveAvatarUrl}
-              alt="Avatar"
-              className="w-16 h-16 rounded-full object-cover border-2 border-bd bg-surf2"
-              width={64}
-              height={64}
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full flex items-center justify-center font-display font-bold text-sm text-txt shadow-lg border-4 border-surf bg-acc">
-              {initial}
-            </div>
-          )}
+          <div className="w-20 h-20 rounded-full border-4 border-[#12161f] bg-[#141923] shadow-xl overflow-hidden ring-1 ring-white/[0.08]">
+            {effectiveAvatarUrl ? (
+              <MxcImage
+                mxcUrl={effectiveAvatarUrl}
+                alt={primaryName}
+                className="w-full h-full object-cover object-center"
+                width={80}
+                height={80}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-display font-bold text-2xl text-bg bg-acc shadow-inner">
+                {initial}
+              </div>
+            )}
+          </div>
+          {/* Badge de status integrada */}
           <span
-            className={`absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full border-2 border-bg shrink-0 z-10 ${statusColor[presence] ?? "bg-mut"}`}
-            aria-label={statusLabel[presence]}
+            className={`absolute bottom-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-[#12161f] shrink-0 z-10 ${statusColor[effectivePresence] ?? "bg-mut"}`}
+            title={statusLabel[effectivePresence]}
+            aria-label={statusLabel[effectivePresence]}
           />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-display font-bold text-lg text-txt truncate leading-tight" title={profile?.displayName ?? cleanUserId(userId)}>
-            {profile?.displayName ?? cleanUserId(userId)}
-          </p>
-          <p className="text-xs text-mut truncate">
-            @{profile?.username || cleanUserId(userId)} {isMyUser && " (você)"}
-          </p>
+
+        {/* Botão de ação rápido ao lado do avatar */}
+        <div className="pb-1">
+          {isMyUser ? (
+            <button
+              type="button"
+              onClick={() => {
+                useUiStore.getState().setProfileOpen(true)
+                onClose?.()
+              }}
+              title="Editar perfil completo"
+              className="cursor-pointer h-8 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-txt text-xs font-medium flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
+            >
+              <Pencil size={13} className="text-acc" />
+              <span>Editar</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleOpenDirectMessage}
+              title="Enviar mensagem direta"
+              className="cursor-pointer h-8 px-3.5 rounded-xl bg-acc text-bg font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all"
+            >
+              <Chats size={14} weight="bold" />
+              <span>Mensagem</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Linha de status */}
-      <div className="w-full flex items-center gap-2 px-4 py-2">
-        <span
-          className={`flex shrink-0 h-3 w-3 rounded-full ${statusColor[presence] ?? "bg-mut"}`}
-          aria-label={statusLabel[presence]}
-        />
-        <span className="text-mut text-sm">{statusLabel[presence]}</span>
+      {/* Identidade do Usuário */}
+      <div className="px-4 pt-2.5 pb-1 space-y-0.5">
+        <div className="flex items-center gap-2">
+          <h2
+            className="font-display font-bold text-base text-txt truncate leading-snug"
+            title={primaryName}
+          >
+            {primaryName}
+          </h2>
+          {isMyUser && (
+            <span className="shrink-0 text-[10px] font-semibold text-acc bg-acc/10 px-1.5 py-0.5 rounded-md border border-acc/20">
+              você
+            </span>
+          )}
+        </div>
+
+        {/* Handle e Apelido secundário (se houver apelido de servidor) */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-mut">
+          {hasCustomGuildNick && (
+            <span className="text-txt/70 font-medium truncate max-w-[140px]" title={globalDisplayName}>
+              {globalDisplayName} ·
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={copyUserId}
+            className="inline-flex items-center gap-1 font-mono text-[11px] text-mut hover:text-acc transition-colors cursor-pointer group"
+            title="Copiar username"
+          >
+            <span>@{effectiveHandle}</span>
+            <Copy size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-acc" />
+          </button>
+        </div>
       </div>
 
-      {/* Toast feedback */}
+      {/* Badge de Presença */}
+      <div className="px-4 py-1.5">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium bg-white/[0.03] border border-white/[0.06] text-txt/90 shadow-sm">
+          <span
+            className={`h-2 w-2 rounded-full ${statusColor[effectivePresence] ?? "bg-mut"}`}
+          />
+          <span className="text-[11px] font-medium">{statusLabel[effectivePresence]}</span>
+        </div>
+      </div>
+
+      {/* Feedback Toast */}
       {toastMessage && (
-        <div className="mx-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-surf border border-bd bg-acc/10 text-acc text-xs font-medium animate-in fade-in slide-in-from-top-2 duration-200">
-          <Copy size={12} />
+        <div className="mx-4 my-1 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-acc/15 border border-acc/30 text-acc text-xs font-medium animate-in fade-in zoom-in-95 duration-150">
+          <Check size={12} weight="bold" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Editor rápido de apelido no servidor (se for o próprio usuário em guilda) */}
+      {/* Editor rápido de apelido no servidor */}
       {editingGuildNick && activeGuildId && (
-        <div className="mt-3 p-3 bg-surf2/80 rounded-xl border border-bd space-y-2 animate-in fade-in">
-          <label className="text-[11px] font-semibold text-mut uppercase tracking-wider block">
-            Apelido nesta guilda
-          </label>
+        <div className="mx-4 my-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2.5 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold text-mut uppercase tracking-wider">
+              Apelido nesta guilda
+            </label>
+            <span className="font-mono text-[10px] text-mut/60">
+              {guildNickInput.length}/32
+            </span>
+          </div>
           <input
             type="text"
             value={guildNickInput}
             onChange={(e) => setGuildNickInput(e.target.value)}
             placeholder="Seu apelido nesta comunidade"
             maxLength={32}
-            className="w-full px-2.5 py-1.5 text-xs bg-bg border border-bd rounded-lg text-txt focus:border-acc focus:outline-none"
+            className="w-full px-3 py-1.5 text-xs bg-white/[0.03] border border-white/[0.08] rounded-xl text-txt placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 outline-none transition-all"
             autoFocus
           />
           <div className="flex items-center justify-between pt-1">
             <button
               type="button"
               disabled={savingGuildNick}
-              onClick={async () => {
-                try {
-                  setSavingGuildNick(true)
-                  await echoApi.setGuildMemberNickname(activeGuildId, null)
-                  showToast("Apelido resetado para o global")
-                  setProfile((prev) => (prev ? { ...prev, displayName: null } : null))
-                  setEditingGuildNick(false)
-                } catch {
-                  showToast("Falha ao redefinir apelido")
-                } finally {
-                  setSavingGuildNick(false)
-                }
-              }}
-              className="text-[11px] text-mut hover:text-txt cursor-pointer underline"
+              onClick={handleResetNickname}
+              className="text-[11px] text-mut hover:text-txt cursor-pointer underline transition-colors"
             >
               Resetar
             </button>
@@ -253,27 +387,15 @@ export default function MemberDropdownContent({
                 type="button"
                 disabled={savingGuildNick}
                 onClick={() => setEditingGuildNick(false)}
-                className="px-2.5 py-1 text-xs text-mut hover:text-txt rounded cursor-pointer"
+                className="px-2.5 py-1 text-xs text-mut hover:text-txt rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 disabled={savingGuildNick}
-                onClick={async () => {
-                  try {
-                    setSavingGuildNick(true)
-                    const saved = await echoApi.setGuildMemberNickname(activeGuildId, guildNickInput.trim() || null)
-                    showToast("Apelido atualizado!")
-                    setProfile((prev) => (prev ? { ...prev, displayName: saved.nickname || prev.displayName } : null))
-                    setEditingGuildNick(false)
-                  } catch {
-                    showToast("Falha ao atualizar apelido")
-                  } finally {
-                    setSavingGuildNick(false)
-                  }
-                }}
-                className="px-3 py-1 text-xs font-semibold bg-acc text-bg rounded-lg hover:bg-acc-press active:scale-95 transition-all cursor-pointer"
+                onClick={handleSaveNickname}
+                className="px-3 py-1 text-xs font-semibold bg-acc text-bg rounded-lg hover:bg-acc-press active:scale-95 transition-all shadow-md shadow-acc/20 cursor-pointer"
               >
                 {savingGuildNick ? "Salvando..." : "Salvar"}
               </button>
@@ -282,10 +404,52 @@ export default function MemberDropdownContent({
         </div>
       )}
 
-      <Separator className="my-4" />
+      {/* Seção Sobre Mim */}
+      {profile?.bio && (
+        <div className="px-4 py-1.5 space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-mut/70">
+            Sobre mim
+          </p>
+          <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-xs text-txt/80 leading-relaxed break-words whitespace-pre-wrap max-h-28 overflow-y-auto scrollbar-thin">
+            {profile.bio}
+          </div>
+        </div>
+      )}
 
-      {/* Ações */}
-      <div role="none" className="flex flex-col gap-0.5 px-1">
+      {/* Seção Cargos da Guilda */}
+      {activeGuildId && (isGuildOwner || guildRoles.length > 0) && (
+        <div className="px-4 py-1.5 space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-mut/70">
+            Cargos
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {isGuildOwner && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                <Crown size={12} weight="fill" className="text-amber-400" />
+                Dono
+              </span>
+            )}
+            {guildRoles.map((role) => (
+              <span
+                key={role.id}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white/[0.04] border border-white/[0.08] text-txt/90"
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-acc"
+                  style={role.color ? { backgroundColor: role.color } : undefined}
+                />
+                {role.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Divisor de Seção */}
+      <div className="mx-4 my-2 h-px bg-white/[0.06]" />
+
+      {/* Menu de Ações */}
+      <div role="none" className="px-2 pb-2.5 flex flex-col gap-0.5">
         {isMyUser ? (
           <>
             {activeGuildId && !editingGuildNick && (
@@ -295,7 +459,7 @@ export default function MemberDropdownContent({
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setGuildNickInput(profile?.displayName || "")
+                  setGuildNickInput(guildNickname || profile?.displayName || "")
                   setEditingGuildNick(true)
                 }}
                 className={actionButton()}
@@ -311,6 +475,7 @@ export default function MemberDropdownContent({
               size="sm"
               onClick={() => {
                 useUiStore.getState().setProfileOpen(true)
+                onClose?.()
               }}
               className={actionButton()}
             >
@@ -336,23 +501,25 @@ export default function MemberDropdownContent({
               role="menuitem"
               variant="ghost"
               size="sm"
-              onClick={openDirectMessage}
+              onClick={handleOpenDirectMessage}
               className={actionButton()}
             >
-              <Chats size={14} className="shrink-0" />
+              <Chats size={14} className="shrink-0 text-acc" />
               <span>Enviar mensagem direta</span>
             </Button>
-            <Button
-              type="button"
-              role="menuitem"
-              variant="ghost"
-              size="sm"
-              onClick={openViewProfile}
-              className={actionButton()}
-            >
-              <User size={14} className="shrink-0" />
-              <span>Ver perfil completo</span>
-            </Button>
+            {!isFriend && (
+              <Button
+                type="button"
+                role="menuitem"
+                variant="ghost"
+                size="sm"
+                onClick={handleAddFriend}
+                className={actionButton()}
+              >
+                <UserPlus size={14} className="shrink-0" />
+                <span>Adicionar como amigo</span>
+              </Button>
+            )}
             <Button
               type="button"
               role="menuitem"
@@ -367,12 +534,6 @@ export default function MemberDropdownContent({
           </>
         )}
       </div>
-
-      {profile?.bio && (
-        <div className="mt-4 px-2 py-2.5 rounded-xl bg-surf2 border border-bd/50">
-          <p className="text-xs text-mut leading-relaxed">{profile.bio}</p>
-        </div>
-      )}
     </div>
   )
 }
@@ -387,12 +548,12 @@ const statusLabel: Record<string, string> = {
 }
 
 const statusColor: Record<string, string> = {
-  online: "bg-online",
-  offline: "bg-offline",
-  unavailable: "bg-dnd",
-  idle: "bg-idle",
+  online: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]",
+  offline: "bg-slate-500",
+  unavailable: "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]",
+  idle: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
 }
 
 const actionButton = (className?: string) =>
-  "w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-txt transition-all duration-200 hover:bg-surf2 hover:text-txt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg disabled:opacity-50 disabled:pointer-events-none " +
+  "w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-txt/80 hover:text-txt hover:bg-white/[0.06] active:scale-[0.98] transition-all duration-150 cursor-pointer justify-start h-auto border-0 focus-visible:ring-1 focus-visible:ring-acc/40 " +
   (className ?? "")

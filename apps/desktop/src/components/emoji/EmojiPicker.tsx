@@ -6,7 +6,11 @@ import EmojiPickerReact, {
   Categories,
   type EmojiClickData,
 } from "emoji-picker-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Smile } from "lucide-react";
 
 export type EmojiPickerProps = {
