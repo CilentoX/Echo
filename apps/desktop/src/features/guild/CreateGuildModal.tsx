@@ -147,6 +147,12 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
         <DialogContent
           showCloseButton={false}
           className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+          onPointerDownOutside={(e) => {
+            if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
+          }}
         >
           {/* Header Superior Limpo */}
           <div className="relative p-6 pb-4 border-b border-white/[0.04] flex items-start justify-between">

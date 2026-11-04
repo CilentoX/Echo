@@ -1,6 +1,7 @@
 "use client"
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { X, ArrowsOutCardinal } from "@phosphor-icons/react"
 import { mxcToHttp } from "@/lib/media/mxc"
 
@@ -450,12 +451,14 @@ const ImageEditor = memo(function ImageEditor({
 
   if (!open || !imageSrc) return null
 
-  return (
+  const modalNode = (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/80 backdrop-blur-sm select-none"
+      className="fixed inset-0 z-[100] grid place-items-center bg-black/80 backdrop-blur-sm select-none"
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -751,6 +754,12 @@ const ImageEditor = memo(function ImageEditor({
       </div>
     </div>
   )
+
+  if (typeof document !== "undefined") {
+    return createPortal(modalNode, document.body)
+  }
+
+  return modalNode
 })
 
 export default ImageEditor

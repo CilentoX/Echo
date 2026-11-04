@@ -471,6 +471,12 @@ export default function GuildSettingsModal({
         <DialogContent
           showCloseButton={false}
           className="w-full sm:max-w-[780px] max-h-[88vh] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col gap-0 text-txt"
+          onPointerDownOutside={(e) => {
+            if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
+          }}
         >
           {/* Header Superior Padrão Guild Modal */}
           <div className="relative p-5 pb-4 border-b border-white/[0.04] flex items-center justify-between shrink-0 bg-[#10141d]/50">
