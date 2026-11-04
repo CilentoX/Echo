@@ -1,13 +1,10 @@
 import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
-import {
-  selectChannels,
-  selectGuilds,
-  useSyncStore,
-} from "@/stores/syncStore";
+import { useSyncStore, selectChannels, selectGuilds } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
@@ -73,6 +70,10 @@ export default function ChannelSidebar({
     }
   }, [mode, themeId]);
 
+  const activeVoiceChannelId = useVoiceStore((state) => state.activeVoiceChannelId);
+  const voiceParticipants = useVoiceStore((state) => state.participants);
+  const connectVoice = useVoiceStore((state) => state.connectVoice);
+
   // Seletores devolvem snapshot vazio estável em miss (sem loop no useSyncExternalStore).
   const allChannels = useSyncStore(
     useMemo(() => selectChannels(activeGuildId ?? ""), [activeGuildId]),
@@ -86,6 +87,15 @@ export default function ChannelSidebar({
       (c) => c.name.toLowerCase().includes(q) || (c.topic ?? "").toLowerCase().includes(q),
     );
   }, [allChannels, channelSearch]);
+
+  const textChannels = useMemo(
+    () => channels.filter((c) => c.type !== "voice"),
+    [channels],
+  );
+  const voiceChannels = useMemo(
+    () => channels.filter((c) => c.type === "voice"),
+    [channels],
+  );
 
   const activeGuild = guilds.find((g) => g.guildId === activeGuildId) ?? null;
 
@@ -296,13 +306,14 @@ export default function ChannelSidebar({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-2 py-3">
+          <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+            {/* Canais de Texto */}
             <section>
               <h2 className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mut/60">
                 Canais de texto
               </h2>
               <ul className="space-y-0.5 mt-1">
-                {channels.map((channel) => {
+                {textChannels.map((channel) => {
                   const active = channel.channelId === activeChannelId;
                   return (
                     <li key={channel.channelId}>
@@ -320,14 +331,6 @@ export default function ChannelSidebar({
                         <span className={`truncate ${active ? "text-txt" : "text-mut"}`}>
                           {channel.name}
                         </span>
-                        {channel.type === "voice" && (
-                          <span
-                            className="ml-1 text-[10px] font-medium text-acc bg-acc/10 px-1.5 py-0.5 rounded border border-acc/20"
-                            aria-label="Canal de voz"
-                          >
-                            <SpeakerHigh size={10} aria-hidden />
-                          </span>
-                        )}
                         {channel.category &&
                           channel.category.trim().toLowerCase() !== "canais de texto" &&
                           channel.category.trim().toLowerCase() !== "text channels" && (
@@ -352,6 +355,81 @@ export default function ChannelSidebar({
                 })}
               </ul>
             </section>
+
+            {/* Canais de Voz */}
+            {voiceChannels.length > 0 && (
+              <section>
+                <h2 className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mut/60">
+                  Canais de voz
+                </h2>
+                <ul className="space-y-0.5 mt-1">
+                  {voiceChannels.map((channel) => {
+                    const active = channel.channelId === activeChannelId;
+                    const connected = channel.channelId === activeVoiceChannelId;
+
+                    return (
+                      <li key={channel.channelId}>
+                        <button
+                          type="button"
+                          aria-current={connected ? "true" : undefined}
+                          onClick={() => {
+                            connectVoice(
+                              activeGuild?.guildId ?? "",
+                              activeGuild?.name ?? "",
+                              channel.channelId,
+                              channel.name,
+                            );
+                            setActiveChannel(channel.channelId);
+                          }}
+                          className={`cursor-pointer flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                            connected
+                              ? "bg-online/10 text-online font-semibold border border-online/20 shadow-xs"
+                              : active
+                                ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
+                                : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+                          }`}
+                        >
+                          <SpeakerHigh
+                            size={15}
+                            className={`shrink-0 ${connected ? "text-online animate-pulse" : active ? "text-acc" : "text-mut/60"}`}
+                            aria-hidden
+                          />
+                          <span className={`truncate ${connected ? "text-online" : active ? "text-txt" : "text-mut"}`}>
+                            {channel.name}
+                          </span>
+                          {connected && (
+                            <span className="ml-auto flex h-2 w-2 rounded-full bg-online animate-ping" />
+                          )}
+                        </button>
+
+                        {/* Participantes conectados na chamada */}
+                        {connected && voiceParticipants.length > 0 && (
+                          <div className="ml-5 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
+                            {voiceParticipants.map((p) => (
+                              <div
+                                key={p.userId}
+                                className="flex items-center gap-2 py-1 px-2 rounded-lg bg-black/5 dark:bg-white/[0.03] text-xs"
+                              >
+                                <div
+                                  className={`relative h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shrink-0 ${
+                                    p.isSpeaking ? "ring-2 ring-online animate-pulse" : ""
+                                  }`}
+                                >
+                                  {p.username.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-[11px] text-txt truncate flex-1">
+                                  {p.username}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
           </div>
         </>
       )}

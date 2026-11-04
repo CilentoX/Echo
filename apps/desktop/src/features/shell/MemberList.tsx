@@ -3,6 +3,7 @@ import { useSyncStore, selectMembers } from "@/stores/syncStore";
 import type { MemberSummary } from "@/lib/matrix/types";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import MemberDropdownContent from "./MemberDropdownContent";
@@ -33,6 +34,7 @@ export default function MemberList({
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
   const myAvatarUrl = useProfileStore((state) => state.avatarUrl);
   const myDisplayName = useProfileStore((state) => state.displayName);
+  const speakingMembers = useVoiceStore((state) => state.speakingMembers);
 
   const getMemberPresence = (m: MemberSummary): "online" | "offline" | "unavailable" => {
     if (m.userId === myUserId) return "online";
@@ -192,6 +194,8 @@ export default function MemberList({
                     ? (myDisplayName || member.displayName || member.userId.replace(/^@/, "").split(":")[0])
                     : (member.displayName || member.userId.replace(/^@/, "").split(":")[0]);
 
+                  const isSpeaking = speakingMembers.includes(member.userId) || (isMe && speakingMembers.includes("me"));
+
                   return (
                     <li key={member.userId} className="relative">
                       <Popover
@@ -215,12 +219,22 @@ export default function MemberList({
                                 <MxcImage
                                   mxcUrl={effectiveAvatarUrl}
                                   alt="Avatar"
-                                  className="w-8 h-8 rounded-full object-cover border border-bd-subtle bg-surf2 ring-1 ring-bd-subtle group-hover:ring-acc/40 transition-all"
+                                  className={`w-8 h-8 rounded-full object-cover border border-bd-subtle bg-surf2 ring-1 transition-all ${
+                                    isSpeaking
+                                      ? "ring-2 ring-online shadow-sm shadow-online/30 animate-pulse"
+                                      : "ring-bd-subtle group-hover:ring-acc/40"
+                                  }`}
                                   width={32}
                                   height={32}
                                 />
                               ) : (
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm ring-1 ring-bd-subtle group-hover:ring-acc/40 transition-all">
+                                <div
+                                  className={`w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm ring-1 transition-all ${
+                                    isSpeaking
+                                      ? "ring-2 ring-online shadow-sm shadow-online/30 animate-pulse"
+                                      : "ring-bd-subtle group-hover:ring-acc/40"
+                                  }`}
+                                >
                                   {initial}
                                 </div>
                               )}

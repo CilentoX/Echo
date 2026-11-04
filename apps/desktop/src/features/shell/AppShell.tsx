@@ -5,6 +5,7 @@ import ChannelSidebar from "./ChannelSidebar";
 import ChatPane from "./ChatPane";
 import MemberList from "./MemberList";
 import UserBar from "./UserBar";
+import VoiceConnectionBar from "./VoiceConnectionBar";
 import SyncStatusIndicator from "./SyncStatusIndicator";
 import EmptyState from "./EmptyState";
 import HomeSidebar from "./HomeSidebar";
@@ -211,11 +212,14 @@ export default function AppShell({ children }: AppShellProps) {
       </div>
 
       {/* Dock Inferior Persistente ("___") que ancora toda a extensão da aplicação */}
-      <UserBar
-        onOpenProfile={() => setProfileOpen(true, "profile")}
-        onOpenSettings={() => setProfileOpen(true, "appearance")}
-        onOpenVoiceSettings={() => setProfileOpen(true, "voice")}
-      />
+      <div className="flex flex-col shrink-0">
+        <VoiceConnectionBar onOpenVoiceSettings={() => setProfileOpen(true, "voice")} />
+        <UserBar
+          onOpenProfile={() => setProfileOpen(true, "profile")}
+          onOpenSettings={() => setProfileOpen(true, "appearance")}
+          onOpenVoiceSettings={() => setProfileOpen(true, "voice")}
+        />
+      </div>
 
       <SyncStatusIndicator />
 
