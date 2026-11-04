@@ -64,46 +64,50 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
       {/* Linha divisória superior que começa a partir de 72px (onde o conteúdo começa, fundindo o rail e a dock em uma só peça) */}
       <div className="absolute top-0 left-[72px] right-0 h-[1px] bg-bd/60" aria-hidden="true" />
 
-      {/* Lado Esquerdo: Cápsula de Perfil ocupando exatamente a largura do rail + sidebar (304px) com borda divisória */}
+      {/* Lado Esquerdo: Rail (72px) + Cápsula de Perfil sob a Sidebar de Canais (232px) = 304px com divisória */}
       <div className="w-auto max-w-[calc(100vw-180px)] sm:w-[304px] shrink-0 h-full flex items-center min-w-0 border-r border-bd/60 relative">
-        <button
-          type="button"
-          onClick={onOpenProfile}
-          title="Abrir perfil"
-          className="cursor-pointer group flex h-full w-full items-center text-left transition-colors hover:bg-surf2/40 active:scale-[0.99] rounded-lg my-1 mr-1"
-        >
-          {/* Avatar perfeitamente centralizado no eixo vertical do rail de 72px */}
-          <div className="w-[72px] shrink-0 flex items-center justify-center">
-            <div className="relative">
+        {/* Espaçamento equivalente ao trilho de guildas (72px) deixando a coluna do rail livre à esquerda */}
+        <div className="w-[72px] shrink-0 h-full" aria-hidden="true" />
+
+        {/* Cápsula de Perfil posicionada sob a sidebar de canais (estilo Discord) */}
+        <div className="flex-1 min-w-0 h-full flex items-center pr-2">
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            title="Abrir perfil"
+            className="cursor-pointer group flex h-10 w-full items-center gap-2.5 px-2 text-left transition-colors hover:bg-surf2/50 active:scale-[0.98] rounded-lg"
+          >
+            {/* Foto / Avatar do usuário com anel de presença */}
+            <div className="relative shrink-0">
               {effectiveAvatar ? (
                 <MxcImage
                   mxcUrl={effectiveAvatar}
                   alt={effectiveName}
-                  className="h-9 w-9 rounded-full object-cover ring-2 ring-transparent group-hover:ring-acc/60 transition-all shadow-sm"
-                  width={36}
-                  height={36}
+                  className="h-8 w-8 rounded-full object-cover ring-2 ring-transparent group-hover:ring-acc/60 transition-all shadow-sm"
+                  width={32}
+                  height={32}
                 />
               ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-acc font-display text-xs font-bold text-bg shadow-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc font-display text-xs font-bold text-bg shadow-sm">
                   {initial}
                 </div>
               )}
               {/* Anel de presença com corte */}
               <span
-                className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-rail ${presenceColor}`}
+                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-rail ${presenceColor}`}
                 aria-hidden="true"
               />
             </div>
-          </div>
 
-          {/* Nome e @tag preenchendo a coluna da sidebar (232px) com conforto e sem corte */}
-          <div className="flex-1 min-w-0 pr-3 leading-tight">
-            <p className="truncate text-xs font-semibold text-txt group-hover:text-acc transition-colors">
-              {effectiveName}
-            </p>
-            <p className="truncate text-[10px] text-mut font-mono">{userTag}</p>
-          </div>
-        </button>
+            {/* Nome e @tag preenchendo a coluna da sidebar de canais */}
+            <div className="flex-1 min-w-0 leading-tight">
+              <p className="truncate text-xs font-semibold text-txt group-hover:text-acc transition-colors">
+                {effectiveName}
+              </p>
+              <p className="truncate text-[10px] text-mut font-mono">{userTag}</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Centro: Indicador Contextual (Home vs Guilda/Canal) */}
