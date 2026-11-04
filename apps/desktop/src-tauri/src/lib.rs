@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod config_store;
 mod keyring_cmds;
 mod sso;
 
@@ -149,7 +150,15 @@ pub fn run() {
             clear_token,
             set_splash_mode,
             set_main_mode,
-            get_launch_invite_code
+            get_launch_invite_code,
+            config_store::read_app_config,
+            config_store::write_app_config,
+            config_store::update_app_config_key,
+            config_store::read_app_cache,
+            config_store::write_app_cache,
+            config_store::update_app_cache_key,
+            config_store::clear_app_cache,
+            config_store::get_app_storage_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

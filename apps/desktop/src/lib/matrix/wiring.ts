@@ -2,6 +2,7 @@ import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { loadSession, useKeyring } from "@/lib/storage/keyring";
 import { matrixService } from "./instance";
+import { desktopCache, desktopConfig } from "@/lib/storage/desktopConfig";
 
 /**
  * Wiring EchoApi ↔ stores (tudo via Echo API / WebSocket sync).
@@ -59,6 +60,9 @@ async function loadChannelsFor(guildId: string): Promise<void> {
   try {
     const channels = await matrixService.listChannels(guildId);
     useSyncStore.getState().setChannels(guildId, channels);
+    try {
+      desktopCache.cacheChannels(guildId, channels);
+    } catch {}
     // Carrega membros de cada canal para popular membersByRoom
     await Promise.all(channels.map((ch) => loadMembersFor(ch.channelId)));
   } catch {
@@ -70,6 +74,9 @@ async function loadInitialData(): Promise<void> {
   try {
     const guilds = await matrixService.listGuilds();
     useSyncStore.getState().setGuilds(guilds);
+    try {
+      desktopCache.cacheGuilds(guilds);
+    } catch {}
 
     const ui = useUiStore.getState();
     const guildId = ui.activeGuildId ?? guilds[0]?.guildId;
@@ -240,8 +247,17 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
     console.warn("[wiring] Nenhum token de sessão disponível para sync");
   }
 
-  // Subscribe to UI store changes for guild switching
+  // Subscribe to UI store changes for guild switching and navigation persistence
   unsubscribeUi = useUiStore.subscribe((state, prev) => {
+    if (state.activeGuildId !== prev.activeGuildId || state.activeChannelId !== prev.activeChannelId) {
+      try {
+        desktopConfig.set("navigation", {
+          lastActiveGuildId: state.activeGuildId,
+          lastActiveChannelId: state.activeChannelId,
+        });
+      } catch {}
+    }
+
     if (state.activeGuildId && state.activeGuildId !== prev.activeGuildId) {
       // Fix B7-relacionado: não deixa mensagens vazar entre guildas.
       state.setActiveChannel(null);
@@ -269,6 +285,10 @@ export function stopSyncWiring(): void {
   matrixService.stopSync();
   loadedGuilds.clear();
   typingByRoom.clear();
+
+  try {
+    void desktopCache.clear();
+  } catch {}
 
   useSyncStore.getState().reset();
   const ui = useUiStore.getState();

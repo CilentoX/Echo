@@ -11,6 +11,9 @@ import {
   Sparkle,
   Hash,
   House,
+  Database,
+  FolderSimple,
+  TrashSimple,
 } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -19,21 +22,42 @@ import {
   THEME_PRESETS,
   type ThemeTokens,
 } from "@/stores/themeStore";
+import { desktopConfig, desktopCache, getStorageInfo, type StorageInfo } from "@/lib/storage/desktopStore";
 
 export function AppearanceTab() {
   const { themeId, mode, setTheme, setMode } = useThemeStore();
   const [density, setDensity] = useState("Padrão");
   const [reduceMotion, setReduceMotion] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
+  const [clearingCache, setClearingCache] = useState(false);
+  const [cacheClearedMsg, setCacheClearedMsg] = useState(false);
 
   useEffect(() => {
-    const savedDensity = localStorage.getItem("echo:density");
-    if (savedDensity) setDensity(savedDensity);
+    void getStorageInfo().then(setStorageInfo);
+    const fromConfig = desktopConfig.get("theme")?.density;
+    if (fromConfig) {
+      setDensity(fromConfig === "compact" ? "Compacta" : "Padrão");
+    } else {
+      const savedDensity = localStorage.getItem("echo:density");
+      if (savedDensity) setDensity(savedDensity);
+    }
   }, []);
 
   const handleSelectDensity = (d: string) => {
     setDensity(d);
+    desktopConfig.setTheme({ density: d === "Compacta" ? "compact" : "comfortable" });
     localStorage.setItem("echo:density", d);
+  };
+
+  const handleClearCache = async () => {
+    setClearingCache(true);
+    await desktopCache.clear();
+    const updated = await getStorageInfo();
+    setStorageInfo(updated);
+    setClearingCache(false);
+    setCacheClearedMsg(true);
+    setTimeout(() => setCacheClearedMsg(false), 3000);
   };
 
   return (
@@ -254,6 +278,67 @@ export function AppearanceTab() {
             </div>
             <Switch checked={highContrast} onCheckedChange={setHighContrast} />
           </label>
+        </CardContent>
+      </Card>
+
+      {/* 5. Armazenamento Local & Cache Nativo (Estilo Discord) */}
+      <Card className="border-bd-glass bg-surf/40 shadow-xl overflow-hidden backdrop-blur-md">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-display font-bold text-txt">
+            <Database size={18} className="text-acc" weight="bold" />
+            Configuração & Cache em Disco (Arquitetura Discord)
+          </CardTitle>
+          <CardDescription className="text-xs text-mut">
+            O Echo armazena configurações e dados offline diretamente no seu sistema operacional, eliminando a dependência exclusiva de localstorage e permitindo abertura instantânea sem esperar requisições de rede.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-0">
+          <div className="p-3.5 rounded-xl border border-bd-subtle bg-bg/40 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-mut flex items-center gap-1.5 font-medium">
+                <FolderSimple size={15} className="text-acc" />
+                Diretório de Configuração:
+              </span>
+              <span className="font-mono text-txt text-[11px] px-2 py-0.5 rounded bg-black/20 dark:bg-white/5 border border-bd-subtle max-w-[280px] truncate" title={storageInfo?.dirPath || "%APPDATA%\\Echo"}>
+                {storageInfo?.dirPath || "%APPDATA%\\Echo"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-mut flex items-center gap-1.5 font-medium">
+                Arquivo de Configurações:
+              </span>
+              <span className="font-mono text-txt text-[11px]">
+                config.json {storageInfo?.configSizeBytes ? `(${(storageInfo.configSizeBytes / 1024).toFixed(1)} KB)` : ""}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-mut flex items-center gap-1.5 font-medium">
+                Cache Offline de Dados:
+              </span>
+              <span className="font-mono text-txt text-[11px]">
+                cache.json {storageInfo?.cacheSizeBytes ? `(${(storageInfo.cacheSizeBytes / 1024).toFixed(1)} KB)` : ""}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-[11px] text-mut/80">
+              {cacheClearedMsg
+                ? "Cache offline limpo com sucesso! Os dados serão renovados no próximo sync."
+                : "Se notar dados desatualizados, você pode limpar o cache offline local."}
+            </p>
+            <button
+              type="button"
+              disabled={clearingCache}
+              onClick={handleClearCache}
+              className="cursor-pointer px-3 py-1.5 rounded-xl border border-bd-subtle bg-surf hover:bg-surf2 text-xs font-semibold text-txt active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <TrashSimple size={14} className="text-red-400" />
+              {clearingCache ? "Limpando..." : "Limpar Cache"}
+            </button>
+          </div>
         </CardContent>
       </Card>
     </section>

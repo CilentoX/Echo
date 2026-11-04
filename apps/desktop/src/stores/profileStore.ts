@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { matrixService } from "@/lib/matrix/instance";
 import { loadSession } from "@/lib/storage/keyring";
+import { desktopCache } from "@/lib/storage/desktopConfig";
 
 export interface ProfileLink {
   label: string;
@@ -127,6 +128,19 @@ export const useProfileStore = create<ProfileState>()((set) => ({
         appwriteAvatarUrl: avatar,
         appwriteBannerUrl: banner,
       });
+
+      // Persiste no cache offline local (cache.json)
+      try {
+        desktopCache.cacheUserProfile({
+          userId: myUserId,
+          username: resolvedUsername,
+          nickname,
+          displayName,
+          avatarUrl: avatar,
+          bannerUrl: banner,
+          bio: userProfile?.bio ?? null,
+        });
+      } catch {}
     } catch {
       // falha silenciosa: perfil será preenchido à medida que for usado
     }
@@ -139,6 +153,9 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   reset: () => {
     localStorage.removeItem("echo:appwriteAvatarUrl");
     localStorage.removeItem("echo:appwriteBannerUrl");
+    try {
+      desktopCache.cacheUserProfile(null);
+    } catch {}
     set({
       displayName: "",
       username: "",

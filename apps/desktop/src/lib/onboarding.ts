@@ -1,3 +1,5 @@
+import { desktopConfig } from "@/lib/storage/desktopConfig";
+
 const ONBOARDING_KEY = "echo:onboarding:completed";
 
 /**
@@ -6,6 +8,9 @@ const ONBOARDING_KEY = "echo:onboarding:completed";
  * na mesma máquina.
  */
 export function isOnboardingCompleted(userId?: string): boolean {
+  if (userId && desktopConfig.isOnboardingCompleted(userId)) {
+    return true;
+  }
   if (typeof window === "undefined") return false;
   try {
     if (userId && localStorage.getItem(`${ONBOARDING_KEY}:${userId}`) === "1") {
@@ -21,6 +26,9 @@ export function isOnboardingCompleted(userId?: string): boolean {
  * Marca o onboarding como concluído para esta conta.
  */
 export function markOnboardingCompleted(userId?: string): void {
+  if (userId) {
+    desktopConfig.setOnboardingCompleted(userId, true);
+  }
   if (typeof window === "undefined") return;
   try {
     if (userId) {
@@ -36,6 +44,9 @@ export function markOnboardingCompleted(userId?: string): void {
  * Limpa a flag de onboarding (útil para testes / reset de conta).
  */
 export function resetOnboarding(userId?: string): void {
+  if (userId) {
+    desktopConfig.setOnboardingCompleted(userId, false);
+  }
   if (typeof window === "undefined") return;
   try {
     if (userId) {

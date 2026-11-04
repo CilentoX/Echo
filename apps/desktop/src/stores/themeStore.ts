@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { desktopConfig } from "@/lib/storage/desktopConfig";
 
 export type ThemeId = "echo" | "sakura" | "sunset" | "ocean";
 export type ThemeMode = "dark" | "light";
@@ -278,6 +279,8 @@ export interface ThemeState {
 }
 
 const getInitialTheme = (): ThemeId => {
+  const fromConfig = desktopConfig.get("theme")?.themeId;
+  if (fromConfig && THEME_PRESETS[fromConfig]) return fromConfig;
   if (typeof window === "undefined") return "echo";
   const saved = localStorage.getItem("echo:themeId") as ThemeId;
   if (saved && THEME_PRESETS[saved]) return saved;
@@ -285,6 +288,8 @@ const getInitialTheme = (): ThemeId => {
 };
 
 const getInitialMode = (): ThemeMode => {
+  const fromConfig = desktopConfig.get("theme")?.mode;
+  if (fromConfig === "light" || fromConfig === "dark") return fromConfig;
   if (typeof window === "undefined") return "dark";
   const saved = localStorage.getItem("echo:themeMode") as ThemeMode;
   if (saved === "light" || saved === "dark") return saved;
@@ -308,6 +313,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
       const tokens = THEME_PRESETS[id].modes[mode];
       applyThemeTokens(tokens, mode, id);
       try {
+        desktopConfig.setTheme({ themeId: id });
         localStorage.setItem("echo:themeId", id);
       } catch {}
       set({ themeId: id });
@@ -318,6 +324,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
       const tokens = THEME_PRESETS[id].modes[mode];
       applyThemeTokens(tokens, mode, id);
       try {
+        desktopConfig.setTheme({ mode });
         localStorage.setItem("echo:themeMode", mode);
       } catch {}
       set({ mode });

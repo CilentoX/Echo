@@ -14,6 +14,7 @@ import { useProfileStore } from "@/stores/profileStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { isTauri, restartApp, runStartupUpdateCheck, setMainWindowMode } from "@/lib/updater";
 import { useUpdateStore } from "@/stores/updateStore";
+import { desktopStorage } from "@/lib/storage/desktopStore";
 import { Button } from "@/components/ui/button";
 
 type GateView = "booting" | "update-required" | "login" | "onboarding" | "shell";
@@ -105,6 +106,16 @@ export default function SessionGate({ shell }: SessionGateProps) {
       console.log("[SessionGate] Boot iniciado. Exibindo splash do updater...");
       const startTime = Date.now();
       const isDesktopApp = isTauri();
+
+      // Inicializa a configuração (config.json) e o cache (cache.json) do disco
+      // e hidrata instantaneamente os stores (zero delay, dados offline disponíveis de imediato)
+      try {
+        await desktopStorage.init();
+        desktopStorage.hydrateStoresFromLocal();
+      } catch (err) {
+        console.warn("[SessionGate] Falha ao inicializar desktopStorage:", err);
+      }
+
       // No app desktop (dev ou exe), garante um tempo agradável de exibição (1.1s).
       // Em testes automatizados (onde isTauri() é false), o tempo é 0 para máxima velocidade.
       const minSplashDuration = isDesktopApp ? 1100 : 0;
