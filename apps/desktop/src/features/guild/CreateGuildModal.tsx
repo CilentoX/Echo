@@ -18,8 +18,8 @@ export interface CreateGuildModalProps {
   onClose: () => void;
   onCreate: (
     data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
-  ) => Promise<{ guildId: string; name: string; avatarUrl?: string | null }>;
-  onCreated: (guild: { guildId: string; name: string; avatarUrl?: string | null }) => void;
+  ) => Promise<{ guildId: string; name: string; avatarUrl?: string | null; bannerUrl?: string | null }>;
+  onCreated: (guild: { guildId: string; name: string; avatarUrl?: string | null; bannerUrl?: string | null }) => void;
 }
 
 function getInitials(name: string): string {
@@ -123,11 +123,11 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
       setIconPreview(null);
       setBannerFile(null);
       setBannerPreview(null);
-      onCreated(
-        iconUrl || (guild as any).avatarUrl
-          ? { ...guild, avatarUrl: (guild as any).avatarUrl ?? iconUrl }
-          : guild,
-      );
+      onCreated({
+        ...guild,
+        avatarUrl: (guild as any).avatarUrl ?? iconUrl,
+        bannerUrl: (guild as any).bannerUrl ?? bannerUrl,
+      });
       onClose();
     } catch {
       setError("Não foi possível criar a guilda. Tente de novo.");

@@ -122,8 +122,16 @@ export default function CommunityRail({}: CommunityRailProps) {
 
   const [createOpen, setCreateOpen] = useState(false);
 
-  const handleCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null }) => {
-    useSyncStore.getState().setGuilds([...guilds, { ...guild, avatarUrl: guild.avatarUrl ?? null, unreadCount: 0 }]);
+  const handleCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null; bannerUrl?: string | null }) => {
+    useSyncStore.getState().setGuilds([
+      ...guilds,
+      {
+        ...guild,
+        avatarUrl: guild.avatarUrl ?? null,
+        bannerUrl: guild.bannerUrl ?? null,
+        unreadCount: 0,
+      },
+    ]);
     setActiveGuild(guild.guildId);
   };
 

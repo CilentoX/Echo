@@ -339,6 +339,8 @@ export class EchoApi {
     guildId: string;
     name: string;
     avatarUrl: string | null;
+    bannerUrl?: string | null;
+    description?: string | null;
     unreadCount: number;
   }[]> {
     return this.get("/guilds").then(async (res) => {

@@ -85,9 +85,24 @@ describe("ChannelSidebar", () => {
     expect(screen.getByRole("button", { name: "geral" }).getAttribute("aria-current")).toBeNull();
   });
 
-  it("store sem guildas → estado vazio 'Nenhuma guilda ainda' (Review Focus 2)", () => {
+  it("store sem guildas mostra estado vazio", () => {
     render(<ChannelSidebar />);
 
     expect(screen.getByText("Nenhuma guilda ainda.")).toBeTruthy();
+  });
+
+  it("renderiza o banner da guilda quando bannerUrl estiver definido", () => {
+    const guildWithBanner: GuildSummary = {
+      ...GUILD,
+      bannerUrl: "https://echo.litteris.online/banner.png",
+    };
+    useSyncStore.getState().setGuilds([guildWithBanner]);
+    useSyncStore.getState().setChannels(guildWithBanner.guildId, [makeChannel()]);
+    useUiStore.getState().setActiveGuild(guildWithBanner.guildId);
+    render(<ChannelSidebar />);
+
+    const bannerImg = screen.getByAltText("Echo Guild");
+    expect(bannerImg).toBeTruthy();
+    expect(screen.getByText("Echo Guild")).toBeTruthy();
   });
 });

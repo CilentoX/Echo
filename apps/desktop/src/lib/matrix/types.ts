@@ -56,6 +56,8 @@ export interface GuildSummary {
   guildId: string;
   name: string;
   avatarUrl: string | null;
+  bannerUrl?: string | null;
+  description?: string | null;
   unreadCount: number;
 }
 
