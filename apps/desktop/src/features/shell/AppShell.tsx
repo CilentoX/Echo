@@ -4,6 +4,7 @@ import CommunityRail from "./CommunityRail";
 import ChannelSidebar from "./ChannelSidebar";
 import ChatPane from "./ChatPane";
 import MemberList from "./MemberList";
+import UserBar from "./UserBar";
 import SyncStatusIndicator from "./SyncStatusIndicator";
 import EmptyState from "./EmptyState";
 import HomePage from "./HomePage";
@@ -99,60 +100,69 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-bg font-ui text-txt">
-      <CommunityRail
-        onOpenProfile={() => setProfileOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-bg font-ui text-txt">
+      {/* Área Principal de Navegação e Conteúdo ("|") */}
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+        <CommunityRail
+          onOpenProfile={() => setProfileOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
 
-      {!isHome && (
-        <>
-          {sidebarOverlay ? (
-            sidebarOpen && (
+        {!isHome && (
+          <>
+            {sidebarOverlay ? (
+              sidebarOpen && (
+                <ChannelSidebar
+                  variant="overlay"
+                  onClose={() => setSidebarOpen(false)}
+                  onOpenProfile={() => setProfileOpen(true)}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                />
+              )
+            ) : (
               <ChannelSidebar
-                variant="overlay"
-                onClose={() => setSidebarOpen(false)}
                 onOpenProfile={() => setProfileOpen(true)}
                 onOpenSettings={() => setSettingsOpen(true)}
               />
-            )
-          ) : (
-            <ChannelSidebar
-              onOpenProfile={() => setProfileOpen(true)}
-              onOpenSettings={() => setSettingsOpen(true)}
-            />
-          )}
-        </>
-      )}
-
-      <ChatPane
-        showSidebarToggle={sidebarOverlay}
-        showMembersToggle={!isHome && !membersVisible}
-        onToggleSidebar={() => setSidebarOpen((open) => !open)}
-        onToggleMembers={() => setMembersOpen((open) => !open)}
-      >
-        {isHome ? (
-          <HomePage
-            onCreateGuild={handleOpenCreateGuild}
-            onJoinGuild={() => setJoinGuildOpen(true)}
-            onOpenProfile={() => setProfileOpen(true)}
-          />
-        ) : showEmptyState ? (
-          <EmptyState onCreateGuild={handleOpenCreateGuild} />
-        ) : (
-          children
+            )}
+          </>
         )}
-      </ChatPane>
 
-      {!isHome && (
-        membersVisible ? (
-          <MemberList />
-        ) : (
-          membersOpen && (
-            <MemberList variant="overlay" onClose={() => setMembersOpen(false)} />
+        <ChatPane
+          showSidebarToggle={sidebarOverlay}
+          showMembersToggle={!isHome && !membersVisible}
+          onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          onToggleMembers={() => setMembersOpen((open) => !open)}
+        >
+          {isHome ? (
+            <HomePage
+              onCreateGuild={handleOpenCreateGuild}
+              onJoinGuild={() => setJoinGuildOpen(true)}
+              onOpenProfile={() => setProfileOpen(true)}
+            />
+          ) : showEmptyState ? (
+            <EmptyState onCreateGuild={handleOpenCreateGuild} />
+          ) : (
+            children
+          )}
+        </ChatPane>
+
+        {!isHome && (
+          membersVisible ? (
+            <MemberList />
+          ) : (
+            membersOpen && (
+              <MemberList variant="overlay" onClose={() => setMembersOpen(false)} />
+            )
           )
-        )
-      )}
+        )}
+      </div>
+
+      {/* Dock Inferior Persistente ("___") que ancora toda a extensão da aplicação */}
+      <UserBar
+        onOpenProfile={() => setProfileOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <SyncStatusIndicator />
 

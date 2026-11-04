@@ -11,7 +11,6 @@ import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import EditGuildModal from "@/features/guild/EditGuildModal";
 import InviteModal from "@/features/guild/InviteModal";
-import UserBar from "./UserBar";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
@@ -208,11 +207,6 @@ export default function ChannelSidebar({
               </ul>
             </section>
           </div>
-
-          <UserBar
-            onOpenProfile={onOpenProfile}
-            onOpenSettings={onOpenSettings}
-          />
         </>
       )}
 

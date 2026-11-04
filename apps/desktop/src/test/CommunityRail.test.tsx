@@ -81,13 +81,9 @@ describe("CommunityRail", () => {
     ).toBeNull();
   });
 
-  it("renderiza o perfil do usuário e aciona onOpenProfile ao clicar", async () => {
-    const onOpenProfile = vi.fn();
-    render(<CommunityRail onOpenProfile={onOpenProfile} onOpenSettings={vi.fn()} />);
+  it("renderiza o botão de criar guilda", () => {
+    render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
-    const profileBtn = screen.getByRole("button", { name: "Perfil" });
-    expect(profileBtn).toBeTruthy();
-    await userEvent.click(profileBtn);
-    expect(onOpenProfile).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Criar guilda" })).toBeTruthy();
   });
 });

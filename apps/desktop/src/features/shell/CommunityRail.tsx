@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useProfileStore } from "@/stores/profileStore";
-import { Compass, Gear, Plus, User } from "@phosphor-icons/react";
+import { Compass, Plus } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import GuildDropdownContent from "@/features/guild/GuildDropdownContent";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -119,27 +118,6 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
   const setActiveChannel = useUiStore((state) => state.setActiveChannel);
   const myUserId = useUiStore((state) => state.myUserId);
-  const nickname = useProfileStore((s) => s.nickname);
-  const displayName = useProfileStore((s) => s.displayName);
-  const avatarUrl = useProfileStore((s) => s.avatarUrl);
-  const appwriteAvatarUrl = useProfileStore((s) => s.appwriteAvatarUrl);
-  const presence = useProfileStore((s) => s.presence);
-
-  const effectiveAvatar = appwriteAvatarUrl ?? avatarUrl;
-  const effectiveName =
-    nickname || displayName || (myUserId ? myUserId.replace(/^@/, "").split(":")[0] : "") || "Perfil";
-  const userTag = myUserId ? `@${myUserId.replace(/^@/, "").split(":")[0]}` : "";
-  const initial = (effectiveName || "U").charAt(0).toUpperCase();
-
-  const presenceColor =
-    presence === "dnd"
-      ? "bg-dnd"
-      : presence === "idle"
-        ? "bg-idle"
-        : presence === "offline"
-          ? "bg-offline"
-          : "bg-online";
-
   const [createOpen, setCreateOpen] = useState(false);
 
   const handleCreated = (guild: { guildId: string; name: string }) => {
@@ -209,61 +187,6 @@ export default function CommunityRail({ onOpenProfile, onOpenSettings }: Communi
 
       {/* Espaço empurra os itens de fundo para baixo */}
       <div className="flex-1" />
-
-      <div className="flex flex-col items-center gap-2 px-2 pb-4">
-        {/* Trigger de Perfil estilo Discord com foto, presença e nome */}
-        <div className="group/profile relative flex flex-col items-center">
-          <button
-            type="button"
-            aria-label="Perfil"
-            title={`${effectiveName} (${userTag})`}
-            onClick={onOpenProfile}
-            className="group relative cursor-pointer flex h-11 w-11 items-center justify-center rounded-full bg-surf2 transition-all duration-200 hover:ring-2 hover:ring-acc/80 hover:shadow-lg hover:shadow-acc/20 active:scale-95 overflow-visible"
-          >
-            {effectiveAvatar ? (
-              <MxcImage
-                mxcUrl={effectiveAvatar}
-                alt={effectiveName}
-                className="h-11 w-11 rounded-full object-cover"
-                width={44}
-                height={44}
-              />
-            ) : (
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-acc font-display text-sm font-bold text-bg shadow-sm">
-                {initial}
-              </div>
-            )}
-
-            {/* Indicador de presença estilo Discord */}
-            <span
-              className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-rail ${presenceColor} shadow-sm`}
-              aria-hidden="true"
-            />
-          </button>
-
-          {/* Nome de exibição sob o avatar */}
-          <span className="mt-1 truncate max-w-[62px] text-[10px] font-medium text-txt/70 group-hover/profile:text-acc transition-colors text-center select-none leading-none">
-            {effectiveName}
-          </span>
-
-          {/* Tooltip flutuante lateral estilo Discord */}
-          <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 z-50 hidden rounded-md bg-surf px-2.5 py-1.5 shadow-xl border border-bd group-hover/profile:flex flex-col whitespace-nowrap">
-            <span className="text-xs font-semibold text-txt">{effectiveName}</span>
-            <span className="text-[10px] text-mut">{userTag} • Clique para ver perfil</span>
-          </div>
-        </div>
-
-        {/* Botão de Configurações */}
-        <button
-          type="button"
-          aria-label="Configurações"
-          title="Configurações"
-          onClick={onOpenSettings}
-          className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full bg-surf2 text-mut hover:bg-surf3 hover:text-txt transition-colors active:scale-95"
-        >
-          <Gear size={18} aria-hidden />
-        </button>
-      </div>
 
       <CreateGuildModal
         open={createOpen}
