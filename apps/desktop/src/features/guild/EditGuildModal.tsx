@@ -171,7 +171,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+          className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
           onPointerDownOutside={(e) => {
             if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
           }}
@@ -180,7 +180,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
           }}
         >
           {/* Header Superior Padrão Guild Modal */}
-          <div className="relative p-6 pb-4 border-b border-white/[0.04] flex items-start justify-between">
+          <div className="relative p-6 pb-4 border-b border-bd-subtle flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
                 <Gear size={20} weight="bold" />
@@ -198,7 +198,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
               type="button"
               aria-label="Fechar"
               onClick={onClose}
-              className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
+              className="cursor-pointer rounded-xl p-1.5 text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
             >
               <X size={18} weight="bold" />
             </button>
@@ -214,7 +214,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                 </span>
               </div>
 
-              <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-[#0d1017] shadow-inner group/hero">
+              <div className="relative rounded-2xl overflow-hidden border border-bd-subtle dark:bg-[#0d1017] bg-surf2/40 shadow-inner group/hero">
                 {/* Área do Banner (16:9) */}
                 <div
                   onClick={() => bannerInputRef.current?.click()}
@@ -228,7 +228,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-mut/60 gap-1.5 transition-colors group-hover/banner:text-txt">
-                      <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm group-hover/banner:bg-white/[0.08] group-hover/banner:border-acc/40 transition-all">
+                      <div className="p-2 rounded-xl dark:bg-white/[0.04] bg-card-bg/80 border border-bd-subtle backdrop-blur-sm dark:group-hover/banner:bg-white/[0.08] group-hover/banner:bg-card-bg group-hover/banner:border-acc/40 transition-all">
                         <Camera size={18} className="group-hover/banner:text-acc transition-colors" />
                       </div>
                       <span className="text-[11px] font-medium">Adicionar banner (16:9)</span>
@@ -261,7 +261,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                 <div className="px-5 pb-3.5 -mt-9 flex items-end justify-between relative z-10">
                   <div
                     onClick={() => iconInputRef.current?.click()}
-                    className="relative h-20 w-20 rounded-2xl border-4 border-[#12161f] bg-[#161c28] cursor-pointer shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0"
+                    className="relative h-20 w-20 rounded-2xl border-4 border-card-bg bg-surf2 cursor-pointer shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0"
                   >
                     {iconPreview ? (
                       <img
@@ -335,7 +335,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                   if (error) setError(null);
                 }}
                 placeholder="Ex: Minha comunidade"
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+                className="w-full rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
               />
             </div>
 
@@ -358,7 +358,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
                   if (error) setError(null);
                 }}
                 placeholder="Descreva o propósito da sua comunidade..."
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] resize-none transition-all"
+                className="w-full rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd resize-none transition-all"
               />
             </div>
 
@@ -384,11 +384,11 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
           </div>
 
           {/* Rodapé Padrão */}
-          <div className="p-6 pt-2 border-t border-white/[0.04] flex items-center gap-3">
+          <div className="p-6 pt-2 border-t border-bd-subtle flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-txt hover:bg-white/[0.08] active:scale-95 transition-all"
+              className="cursor-pointer flex-1 rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-surf/50 py-2.5 text-sm font-medium text-txt hover:bg-surf hover:border-bd active:scale-95 transition-all"
             >
               Cancelar
             </button>
@@ -409,7 +409,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
         <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
           <DialogContent
             showCloseButton={false}
-            className="w-full sm:max-w-[400px] rounded-2xl border border-white/[0.08] bg-[#12161f] p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-4 text-center"
+            className="w-full sm:max-w-[400px] rounded-2xl border border-bd-glass bg-card-bg p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-4 text-center"
           >
             <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center mx-auto shadow-md">
               <Trash size={24} weight="bold" />
@@ -426,7 +426,7 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
               <button
                 type="button"
                 onClick={() => setConfirmDeleteOpen(false)}
-                className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-txt hover:bg-white/[0.08] active:scale-95 transition-all"
+                className="cursor-pointer flex-1 rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-surf/50 py-2.5 text-sm font-medium text-txt hover:bg-surf hover:border-bd active:scale-95 transition-all"
               >
                 Cancelar
               </button>

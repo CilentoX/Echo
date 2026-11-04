@@ -75,10 +75,10 @@ export default function InviteModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+        className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
       >
         {/* Header Superior Padrão Guild Modal */}
-        <div className="relative p-6 pb-4 border-b border-white/[0.04] flex items-start justify-between">
+        <div className="relative p-6 pb-4 border-b border-bd-subtle flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
               <LinkIcon size={20} weight="bold" />
@@ -96,7 +96,7 @@ export default function InviteModal({
             type="button"
             aria-label="Fechar"
             onClick={onClose}
-            className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
+            className="cursor-pointer rounded-xl p-1.5 text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
           >
             <X size={18} weight="bold" />
           </button>
@@ -108,7 +108,7 @@ export default function InviteModal({
             <label className="text-xs font-semibold uppercase tracking-wider text-mut">
               Link de Convite
             </label>
-            <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-1.5 pl-3 transition-all focus-within:border-acc/50 focus-within:ring-1 focus-within:ring-acc/30 hover:border-white/[0.15]">
+            <div className="flex items-center gap-2 rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg p-1.5 pl-3 transition-all focus-within:border-acc/50 focus-within:ring-1 focus-within:ring-acc/30 hover:border-bd">
               <input
                 type="text"
                 readOnly
@@ -148,7 +148,7 @@ export default function InviteModal({
           </div>
 
           {/* Opções de Expiração e Usos */}
-          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/[0.04]">
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-bd-subtle">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-mut flex items-center gap-1.5">
                 <Clock size={14} weight="bold" className="text-acc" />
@@ -161,12 +161,12 @@ export default function InviteModal({
                     e.target.value === "never" ? undefined : Number(e.target.value)
                   )
                 }
-                className="w-full cursor-pointer rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-txt outline-none hover:border-white/[0.15] focus:border-acc/50 focus:ring-1 focus:ring-acc/30 transition-all"
+                className="w-full cursor-pointer rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg px-3 py-2 text-xs text-txt outline-none hover:border-bd focus:border-acc/50 focus:ring-1 focus:ring-acc/30 transition-all"
               >
-                <option value={24} className="bg-[#12161f] text-txt">24 horas</option>
-                <option value={168} className="bg-[#12161f] text-txt">7 dias</option>
-                <option value={720} className="bg-[#12161f] text-txt">30 dias</option>
-                <option value="never" className="bg-[#12161f] text-txt">Nunca expira</option>
+                <option value={24} className="bg-card-bg text-txt">24 horas</option>
+                <option value={168} className="bg-card-bg text-txt">7 dias</option>
+                <option value={720} className="bg-card-bg text-txt">30 dias</option>
+                <option value="never" className="bg-card-bg text-txt">Nunca expira</option>
               </select>
             </div>
 
@@ -182,21 +182,21 @@ export default function InviteModal({
                     e.target.value === "none" ? undefined : Number(e.target.value)
                   )
                 }
-                className="w-full cursor-pointer rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-txt outline-none hover:border-white/[0.15] focus:border-acc/50 focus:ring-1 focus:ring-acc/30 transition-all"
+                className="w-full cursor-pointer rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg px-3 py-2 text-xs text-txt outline-none hover:border-bd focus:border-acc/50 focus:ring-1 focus:ring-acc/30 transition-all"
               >
-                <option value="none" className="bg-[#12161f] text-txt">Ilimitado</option>
-                <option value={1} className="bg-[#12161f] text-txt">1 uso</option>
-                <option value={5} className="bg-[#12161f] text-txt">5 usos</option>
-                <option value={10} className="bg-[#12161f] text-txt">10 usos</option>
-                <option value={25} className="bg-[#12161f] text-txt">25 usos</option>
-                <option value={50} className="bg-[#12161f] text-txt">50 usos</option>
+                <option value="none" className="bg-card-bg text-txt">Ilimitado</option>
+                <option value={1} className="bg-card-bg text-txt">1 uso</option>
+                <option value={5} className="bg-card-bg text-txt">5 usos</option>
+                <option value={10} className="bg-card-bg text-txt">10 usos</option>
+                <option value={25} className="bg-card-bg text-txt">25 usos</option>
+                <option value={50} className="bg-card-bg text-txt">50 usos</option>
               </select>
             </div>
           </div>
         </div>
 
         {/* Rodapé Padrão */}
-        <div className="p-6 pt-2 border-t border-white/[0.04] flex items-center justify-end">
+        <div className="p-6 pt-2 border-t border-bd-subtle flex items-center justify-end">
           <button
             type="button"
             onClick={onClose}

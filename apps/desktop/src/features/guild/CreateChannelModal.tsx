@@ -87,10 +87,10 @@ export default function CreateChannelModal({
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+        className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
       >
         {/* Header Superior Padrão Guild Modal */}
-        <div className="relative p-6 pb-4 border-b border-white/[0.04] flex items-start justify-between">
+        <div className="relative p-6 pb-4 border-b border-bd-subtle flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
               <Hash size={20} weight="bold" />
@@ -108,7 +108,7 @@ export default function CreateChannelModal({
             type="button"
             aria-label="Fechar"
             onClick={handleClose}
-            className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
+            className="cursor-pointer rounded-xl p-1.5 text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
           >
             <X size={18} weight="bold" />
           </button>
@@ -134,7 +134,7 @@ export default function CreateChannelModal({
                     className={`cursor-pointer rounded-xl border p-3 text-left transition-all active:scale-[0.98] flex flex-col justify-between gap-2 ${
                       isSelected
                         ? "border-acc/60 bg-acc/10 text-txt shadow-sm shadow-acc/10"
-                        : "border-white/[0.08] bg-white/[0.02] text-mut hover:border-white/[0.15] hover:bg-white/[0.04] hover:text-txt"
+                        : "border-bd-subtle dark:bg-white/[0.02] bg-surf/40 text-mut hover:border-bd hover:bg-surf hover:text-txt"
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
@@ -144,7 +144,7 @@ export default function CreateChannelModal({
                       </div>
                       <div
                         className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                          isSelected ? "border-acc bg-acc" : "border-white/[0.2]"
+                          isSelected ? "border-acc bg-acc" : "border-bd dark:border-white/[0.2] border-black/[0.2]"
                         }`}
                       >
                         {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-bg" />}
@@ -186,7 +186,7 @@ export default function CreateChannelModal({
                 }}
                 placeholder="novo-canal"
                 autoFocus
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] pl-8 pr-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+                className="w-full rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg pl-8 pr-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
               />
             </div>
             {error && (
@@ -210,7 +210,7 @@ export default function CreateChannelModal({
                 if (error) setError(null);
               }}
               placeholder="Ex: Geral, Voz, Projetos"
-              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+              className="w-full rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
             />
           </div>
 
@@ -227,17 +227,17 @@ export default function CreateChannelModal({
                 if (error) setError(null);
               }}
               placeholder="O que se discute neste canal"
-              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+              className="w-full rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
             />
           </div>
         </div>
 
         {/* Rodapé Padrão */}
-        <div className="p-6 pt-2 border-t border-white/[0.04] flex items-center gap-3">
+        <div className="p-6 pt-2 border-t border-bd-subtle flex items-center gap-3">
           <button
             type="button"
             onClick={handleClose}
-            className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-txt hover:bg-white/[0.08] active:scale-95 transition-all"
+            className="cursor-pointer flex-1 rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-surf/50 py-2.5 text-sm font-medium text-txt hover:bg-surf hover:border-bd active:scale-95 transition-all"
           >
             Cancelar
           </button>

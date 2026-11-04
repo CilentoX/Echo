@@ -46,7 +46,7 @@ function GuildButton({
     <div className="relative group flex items-center justify-center w-full">
       {/* Pill indicador ativo/hover */}
       <span
-        className={`absolute left-0 w-1 rounded-r-full bg-white transition-all duration-200 ${
+        className={`absolute left-0 w-1 rounded-r-full bg-txt transition-all duration-200 ${
           active
             ? "h-10 opacity-100"
             : "h-0 opacity-0 group-hover:h-5 group-hover:opacity-100"
@@ -65,7 +65,7 @@ function GuildButton({
           className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 overflow-hidden ${
             active
               ? "rounded-2xl bg-acc text-bg shadow-md shadow-acc/20"
-              : "rounded-full bg-white/[0.04] text-mut hover:rounded-2xl hover:bg-white/[0.08] hover:text-txt"
+              : "rounded-full dark:bg-white/[0.04] bg-black/[0.05] text-mut hover:rounded-2xl dark:hover:bg-white/[0.08] hover:bg-black/[0.08] hover:text-txt"
           }`}
         >
           {guild.avatarUrl ? (
@@ -159,12 +159,12 @@ export default function CommunityRail({
     <nav
       data-column="rail"
       aria-label="Comunidades"
-      className="flex h-full w-[72px] shrink-0 flex-col items-center gap-3 border-r border-white/[0.04] bg-[#0b0e14] py-3.5"
+      className="flex h-full w-[72px] shrink-0 flex-col items-center gap-3 border-r border-bd-subtle bg-rail py-3.5"
     >
       {/* Botão Home — fixo no topo da rail com pill indicador */}
       <div className="relative group flex items-center justify-center w-full">
         <span
-          className={`absolute left-0 w-1 rounded-r-full bg-white transition-all duration-200 ${
+          className={`absolute left-0 w-1 rounded-r-full bg-txt transition-all duration-200 ${
             activeGuildId === "home"
               ? "h-10 opacity-100"
               : "h-0 opacity-0 group-hover:h-5 group-hover:opacity-100"
@@ -181,7 +181,7 @@ export default function CommunityRail({
           className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 ${
             activeGuildId === "home"
               ? "rounded-2xl bg-acc text-bg shadow-md shadow-acc/20"
-              : "rounded-full bg-white/[0.04] text-mut hover:rounded-2xl hover:bg-white/[0.08] hover:text-txt"
+              : "rounded-full dark:bg-white/[0.04] bg-black/[0.05] text-mut hover:rounded-2xl dark:hover:bg-white/[0.08] hover:bg-black/[0.08] hover:text-txt"
           }`}
         >
           <Compass size={20} aria-hidden />
@@ -189,7 +189,7 @@ export default function CommunityRail({
       </div>
 
       {/* Separador sutil */}
-      <div className="w-8 h-[2px] bg-white/[0.06] rounded-full shrink-0 my-0.5" />
+      <div className="w-8 h-[2px] bg-bd-subtle rounded-full shrink-0 my-0.5" />
 
       {guilds.map((guild) => {
         const active = guild.guildId === activeGuildId;
@@ -209,7 +209,7 @@ export default function CommunityRail({
         aria-label="Criar guilda"
         title="Criar guilda"
         onClick={() => (onOpenCreate ? onOpenCreate() : setCreateOpen(true))}
-        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-white/[0.12] text-mut hover:border-acc hover:text-acc hover:bg-acc/5 transition-all active:scale-95"
+        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-bd-subtle dark:border-white/[0.15] border-black/[0.15] text-mut hover:border-acc hover:text-acc hover:bg-acc/5 transition-all active:scale-95"
       >
         <Plus size={20} aria-hidden />
       </button>
@@ -220,7 +220,7 @@ export default function CommunityRail({
         aria-label="Entrar em uma guilda"
         title="Entrar em uma guilda (link ou código)"
         onClick={() => (onOpenJoin ? onOpenJoin() : setJoinOpen(true))}
-        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-white/[0.12] text-mut hover:border-acc hover:text-acc hover:bg-acc/5 transition-all active:scale-95"
+        className="cursor-pointer flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-bd-subtle dark:border-white/[0.15] border-black/[0.15] text-mut hover:border-acc hover:text-acc hover:bg-acc/5 transition-all active:scale-95"
       >
         <SignIn size={20} aria-hidden />
       </button>

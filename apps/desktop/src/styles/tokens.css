@@ -13,6 +13,8 @@
   --rail: #12151C;
   --surf: #171B24;
   --surf2: #1D222D;
+  --card-bg: #121622;
+  --userbar-bg: #0e121a;
   --bd: #2A3546;
   --bd-subtle: rgba(255, 255, 255, 0.06);
   --bd-glass: rgba(255, 255, 255, 0.1);
@@ -36,6 +38,8 @@
   --color-rail: var(--rail);
   --color-surf: var(--surf);
   --color-surf2: var(--surf2);
+  --color-card-bg: var(--card-bg);
+  --color-userbar-bg: var(--userbar-bg);
   --color-bd: var(--bd);
   --color-bd-subtle: var(--bd-subtle);
   --color-bd-glass: var(--bd-glass);

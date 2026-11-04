@@ -153,7 +153,7 @@ export default function CreateGuildModal({
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+          className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
           onPointerDownOutside={(e) => {
             if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
           }}
@@ -162,7 +162,7 @@ export default function CreateGuildModal({
           }}
         >
           {/* Header Superior Limpo */}
-          <div className="relative p-6 pb-4 border-b border-white/[0.04] flex items-start justify-between">
+          <div className="relative p-6 pb-4 border-b border-bd-subtle flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
                 <Plus size={20} weight="bold" />
@@ -180,7 +180,7 @@ export default function CreateGuildModal({
               type="button"
               aria-label="Fechar"
               onClick={onClose}
-              className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
+              className="cursor-pointer rounded-xl p-1.5 text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
             >
               <X size={18} weight="bold" />
             </button>
@@ -196,7 +196,7 @@ export default function CreateGuildModal({
                 </span>
               </div>
 
-              <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-[#0d1017] shadow-inner group/hero">
+              <div className="relative rounded-2xl overflow-hidden border border-bd-subtle bg-bg shadow-inner group/hero">
                 {/* Área do Banner (16:9) */}
                 <div
                   onClick={() => bannerInputRef.current?.click()}
@@ -243,7 +243,7 @@ export default function CreateGuildModal({
                 <div className="px-5 pb-3.5 -mt-9 flex items-end justify-between relative z-10">
                   <div
                     onClick={() => iconInputRef.current?.click()}
-                    className="relative h-20 w-20 rounded-2xl border-4 border-[#12161f] bg-[#161c28] cursor-pointer shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0"
+                    className="relative h-20 w-20 rounded-2xl border-4 border-card-bg bg-surf2 cursor-pointer shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0"
                   >
                     {iconPreview ? (
                       <img
@@ -319,7 +319,7 @@ export default function CreateGuildModal({
                 }}
                 placeholder="Ex: Minha comunidade"
                 autoFocus
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+                className="w-full rounded-xl border border-bd-subtle dark:border-white/[0.08] dark:bg-white/[0.03] bg-surf/40 px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-surf focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
               />
             </div>
 
@@ -342,7 +342,7 @@ export default function CreateGuildModal({
                 }}
                 rows={3}
                 placeholder="Descreva o propósito da sua comunidade…"
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] resize-none transition-all"
+                className="w-full rounded-xl border border-bd-subtle dark:border-white/[0.08] dark:bg-white/[0.03] bg-surf/40 p-3 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-surf focus:ring-1 focus:ring-acc/30 hover:border-bd resize-none transition-all"
               />
             </div>
 
@@ -359,7 +359,7 @@ export default function CreateGuildModal({
                 variant="outline"
                 onClick={onClose}
                 disabled={loading}
-                className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] text-txt hover:bg-white/[0.08] hover:border-white/[0.15] active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none"
+                className="cursor-pointer flex-1 rounded-xl border border-bd-subtle dark:border-white/[0.08] dark:bg-white/[0.03] bg-surf/50 text-txt hover:bg-surf hover:border-bd active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none"
               >
                 Cancelar
               </Button>

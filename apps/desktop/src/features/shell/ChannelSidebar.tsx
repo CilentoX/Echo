@@ -109,7 +109,7 @@ export default function ChannelSidebar({
     <aside
       data-column="sidebar"
       aria-label="Canais"
-      className={`flex w-[232px] shrink-0 flex-col border-r border-white/[0.04] bg-[#10141d] ${
+      className={`flex w-[232px] shrink-0 flex-col border-r border-bd-subtle bg-surf ${
         overlay
           ? "fixed inset-y-0 left-[72px] z-20 shadow-2xl shadow-black/80"
           : "h-full"
@@ -117,7 +117,7 @@ export default function ChannelSidebar({
     >
       {/* Header com Banner da Guilda (Sempre visível na guilda com imagem ou gradiente fallback do Echo) */}
       {activeGuild ? (
-        <div className="relative h-32 w-full shrink-0 overflow-hidden border-b border-white/[0.06] group/banner select-none">
+        <div className="relative h-32 w-full shrink-0 overflow-hidden border-b border-bd-subtle group/banner select-none">
           {/* Imagem do Banner ou Gradiente Fallback Elegante */}
           {activeGuild.bannerUrl ? (
             <MxcImage
@@ -141,7 +141,7 @@ export default function ChannelSidebar({
 
           {/* Gradientes de Fusão e Legibilidade dos Controles */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#10141d] via-[#10141d]/70 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-surf via-surf/70 to-transparent pointer-events-none" />
 
           {/* Botão Fechar em Modo Overlay */}
           {overlay && (
@@ -162,12 +162,12 @@ export default function ChannelSidebar({
                 <MxcImage
                   mxcUrl={activeGuild.avatarUrl}
                   alt={activeGuild.name}
-                  className="h-7 w-7 rounded-lg object-cover ring-2 ring-[#10141d] shadow-md shrink-0"
+                  className="h-7 w-7 rounded-lg object-cover ring-2 ring-surf shadow-md shrink-0"
                   width={28}
                   height={28}
                 />
               ) : (
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acc text-bg font-display font-bold text-xs shadow-md shrink-0 ring-2 ring-[#10141d]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acc text-bg font-display font-bold text-xs shadow-md shrink-0 ring-2 ring-surf">
                   {activeGuild.name.slice(0, 1).toUpperCase()}
                 </div>
               )}
@@ -210,7 +210,7 @@ export default function ChannelSidebar({
           </div>
         </div>
       ) : (
-        <header className="flex h-14 items-center justify-between border-b border-white/[0.04] px-4 group">
+        <header className="flex h-14 items-center justify-between border-b border-bd-subtle px-4 group">
           <h1 className="truncate font-display text-sm font-semibold text-txt">
             Echo
           </h1>
@@ -221,8 +221,8 @@ export default function ChannelSidebar({
         <EmptyState />
       ) : (
         <>
-          <div className="border-b border-white/[0.04] px-3 py-2">
-            <div className="flex items-center gap-2 rounded-xl bg-white/[0.03] border border-white/[0.06] px-2.5 py-1.5 text-mut/70 group focus-within:bg-white/[0.06] focus-within:border-acc/40 transition-all">
+          <div className="border-b border-bd-subtle px-3 py-2">
+            <div className="flex items-center gap-2 rounded-xl dark:bg-white/[0.03] bg-card-bg/70 border border-bd-subtle px-2.5 py-1.5 text-mut/70 group focus-within:bg-card-bg focus-within:border-acc/40 transition-all">
               <MagnifyingGlass size={13} aria-hidden />
               <input
                 type="search"
@@ -251,8 +251,8 @@ export default function ChannelSidebar({
                         onClick={() => setActiveChannel(channel.channelId)}
                         className={`cursor-pointer flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
                           active
-                            ? "bg-white/[0.08] text-txt font-semibold shadow-sm"
-                            : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                            ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
+                            : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
                         }`}
                       >
                         <Hash size={15} className={`shrink-0 ${active ? "text-acc" : "text-mut/60"}`} aria-hidden />

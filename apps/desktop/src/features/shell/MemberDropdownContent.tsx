@@ -191,11 +191,11 @@ export default function MemberDropdownContent({
     return (
       <div
         role="menu"
-        className="w-[320px] flex flex-col bg-[#12161f] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-pulse select-none"
+        className="w-[320px] flex flex-col bg-card-bg border border-bd-glass rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-pulse select-none"
       >
         <div className="w-full h-28 bg-white/[0.04]" />
         <div className="px-4 -mt-10 flex items-end justify-between">
-          <div className="w-20 h-20 rounded-full border-4 border-[#12161f] bg-white/[0.06]" />
+          <div className="w-20 h-20 rounded-full border-4 border-card-bg bg-white/[0.06]" />
           <div className="h-8 w-24 rounded-xl bg-white/[0.04] mb-1" />
         </div>
         <div className="p-4 space-y-2">
@@ -224,10 +224,10 @@ export default function MemberDropdownContent({
   return (
     <div
       role="menu"
-      className="w-[320px] max-w-[340px] flex flex-col bg-[#12161f] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/80 overflow-hidden text-txt select-none animate-in fade-in-0 zoom-in-95 duration-150"
+      className="w-[320px] max-w-[340px] flex flex-col bg-card-bg border border-bd-glass rounded-2xl shadow-2xl shadow-black/80 overflow-hidden text-txt select-none animate-in fade-in-0 zoom-in-95 duration-150"
     >
       {/* Banner panorâmico */}
-      <div className="relative w-full h-28 shrink-0 overflow-hidden bg-gradient-to-br from-indigo-950/70 via-purple-950/40 to-[#12161f]">
+      <div className="relative w-full h-28 shrink-0 overflow-hidden bg-gradient-to-br from-indigo-950/70 via-purple-950/40 to-card-bg">
         {effectiveBannerUrl ? (
           <MxcImage
             mxcUrl={effectiveBannerUrl}
@@ -239,16 +239,16 @@ export default function MemberDropdownContent({
         ) : (
           <div className="w-full h-full relative">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-acc/20 via-transparent to-transparent opacity-60" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#12161f] via-[#12161f]/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card-bg via-card-bg/40 to-transparent" />
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#12161f] to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card-bg to-transparent pointer-events-none" />
       </div>
 
       {/* Avatar sobreposto & Ação de topo */}
       <div className="relative px-4 -mt-11 flex items-end justify-between z-10">
         <div className="relative shrink-0">
-          <div className="w-20 h-20 rounded-full border-4 border-[#12161f] bg-[#141923] shadow-xl overflow-hidden ring-1 ring-white/[0.08]">
+          <div className="w-20 h-20 rounded-full border-4 border-card-bg bg-surf2 shadow-xl overflow-hidden ring-1 ring-bd-subtle">
             {effectiveAvatarUrl ? (
               <MxcImage
                 mxcUrl={effectiveAvatarUrl}
@@ -265,7 +265,7 @@ export default function MemberDropdownContent({
           </div>
           {/* Badge de status integrada */}
           <span
-            className={`absolute bottom-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-[#12161f] shrink-0 z-10 ${statusColor[effectivePresence] ?? "bg-mut"}`}
+            className={`absolute bottom-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-card-bg shrink-0 z-10 ${statusColor[effectivePresence] ?? "bg-mut"}`}
             title={statusLabel[effectivePresence]}
             aria-label={statusLabel[effectivePresence]}
           />
@@ -281,7 +281,7 @@ export default function MemberDropdownContent({
                 onClose?.()
               }}
               title="Editar perfil completo"
-              className="cursor-pointer h-8 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-txt text-xs font-medium flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
+              className="cursor-pointer h-8 px-3 rounded-xl dark:bg-white/[0.06] bg-black/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] border border-bd-glass text-txt text-xs font-medium flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
             >
               <Pencil size={13} className="text-acc" />
               <span>Editar</span>
@@ -337,7 +337,7 @@ export default function MemberDropdownContent({
 
       {/* Badge de Presença */}
       <div className="px-4 py-1.5">
-        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium bg-white/[0.03] border border-white/[0.06] text-txt/90 shadow-sm">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium dark:bg-white/[0.03] bg-black/[0.04] border border-bd-subtle text-txt/90 shadow-sm">
           <span
             className={`h-2 w-2 rounded-full ${statusColor[effectivePresence] ?? "bg-mut"}`}
           />
@@ -355,7 +355,7 @@ export default function MemberDropdownContent({
 
       {/* Editor rápido de apelido no servidor */}
       {editingGuildNick && activeGuildId && (
-        <div className="mx-4 my-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2.5 animate-in fade-in duration-150">
+        <div className="mx-4 my-2 p-3 rounded-xl dark:bg-white/[0.03] bg-card-bg border border-bd-glass space-y-2.5 animate-in fade-in duration-150">
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-bold text-mut uppercase tracking-wider">
               Apelido nesta guilda
@@ -370,7 +370,7 @@ export default function MemberDropdownContent({
             onChange={(e) => setGuildNickInput(e.target.value)}
             placeholder="Seu apelido nesta comunidade"
             maxLength={32}
-            className="w-full px-3 py-1.5 text-xs bg-white/[0.03] border border-white/[0.08] rounded-xl text-txt placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 outline-none transition-all"
+            className="w-full px-3 py-1.5 text-xs dark:bg-white/[0.03] bg-surf/40 border border-bd-glass rounded-xl text-txt placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 outline-none transition-all"
             autoFocus
           />
           <div className="flex items-center justify-between pt-1">
@@ -410,7 +410,7 @@ export default function MemberDropdownContent({
           <p className="text-[10px] font-bold uppercase tracking-wider text-mut/70">
             Sobre mim
           </p>
-          <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-xs text-txt/80 leading-relaxed break-words whitespace-pre-wrap max-h-28 overflow-y-auto scrollbar-thin">
+          <div className="p-2.5 rounded-xl dark:bg-white/[0.02] bg-surf/40 border border-bd-subtle text-xs text-txt/80 leading-relaxed break-words whitespace-pre-wrap max-h-28 overflow-y-auto scrollbar-thin">
             {profile.bio}
           </div>
         </div>
@@ -432,7 +432,7 @@ export default function MemberDropdownContent({
             {guildRoles.map((role) => (
               <span
                 key={role.id}
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white/[0.04] border border-white/[0.08] text-txt/90"
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium dark:bg-white/[0.04] bg-surf2 border border-bd-subtle text-txt/90"
               >
                 <span
                   className="h-1.5 w-1.5 rounded-full bg-acc"
@@ -446,7 +446,7 @@ export default function MemberDropdownContent({
       )}
 
       {/* Divisor de Seção */}
-      <div className="mx-4 my-2 h-px bg-white/[0.06]" />
+      <div className="mx-4 my-2 h-px bg-bd-subtle" />
 
       {/* Menu de Ações */}
       <div role="none" className="px-2 pb-2.5 flex flex-col gap-0.5">
@@ -555,5 +555,5 @@ const statusColor: Record<string, string> = {
 }
 
 const actionButton = (className?: string) =>
-  "w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-txt/80 hover:text-txt hover:bg-white/[0.06] active:scale-[0.98] transition-all duration-150 cursor-pointer justify-start h-auto border-0 focus-visible:ring-1 focus-visible:ring-acc/40 " +
+  "w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-txt/80 hover:text-txt dark:hover:bg-white/[0.06] hover:bg-black/[0.05] active:scale-[0.98] transition-all duration-150 cursor-pointer justify-start h-auto border-0 focus-visible:ring-1 focus-visible:ring-acc/40 " +
   (className ?? "")

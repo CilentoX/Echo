@@ -61,12 +61,12 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
   return (
     <footer
       data-testid="user-bar"
-      className="flex h-14 w-full shrink-0 items-center justify-between bg-[#0e121a]/95 backdrop-blur-md text-txt z-30 select-none border-t border-white/[0.06]"
+      className="flex h-14 w-full shrink-0 items-center justify-between bg-userbar-bg/95 backdrop-blur-md text-txt z-30 select-none border-t border-bd-glass"
     >
       {/* Lado Esquerdo: Alinhamento natural com o Rail (72px) e Sidebar (232px) */}
       <div className="w-auto max-w-[calc(100vw-180px)] sm:w-[304px] shrink-0 h-full flex items-center min-w-0">
         {/* Extensão sutil da coluna do Rail (72px) com divisor discreto */}
-        <div className="w-[72px] shrink-0 h-full flex items-center justify-center border-r border-white/[0.04]" aria-hidden="true">
+        <div className="w-[72px] shrink-0 h-full flex items-center justify-center border-r border-bd-subtle" aria-hidden="true">
           <div className="h-1.5 w-1.5 rounded-full bg-acc/40" />
         </div>
 
@@ -76,7 +76,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
             type="button"
             onClick={onOpenProfile}
             title="Abrir perfil"
-            className="cursor-pointer group flex h-10 w-full items-center gap-2.5 px-2 rounded-xl text-left transition-all hover:bg-white/[0.05] active:scale-[0.98]"
+            className="cursor-pointer group flex h-10 w-full items-center gap-2.5 px-2 rounded-xl text-left transition-all dark:hover:bg-white/[0.05] hover:bg-black/[0.05] active:scale-[0.98]"
           >
             {/* Foto / Avatar do usuário com anel de presença */}
             <div className="relative shrink-0">
@@ -84,7 +84,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
                 <MxcImage
                   mxcUrl={effectiveAvatar}
                   alt={effectiveName}
-                  className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10 group-hover:ring-acc/60 transition-all shadow-sm"
+                  className="h-8 w-8 rounded-full object-cover ring-1 ring-bd-subtle group-hover:ring-acc/60 transition-all shadow-sm"
                   width={32}
                   height={32}
                 />
@@ -95,7 +95,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
               )}
               {/* Anel de presença com corte */}
               <span
-                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0e121a] ${presenceColor}`}
+                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-userbar-bg ${presenceColor}`}
                 aria-hidden="true"
               />
             </div>
@@ -112,12 +112,12 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
       </div>
 
       {/* Centro: Indicador Contextual refinado */}
-      <div className="hidden md:flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/[0.03] border border-white/[0.06] text-xs text-mut max-w-sm truncate shadow-inner">
+      <div className="hidden md:flex items-center gap-2 px-3.5 py-1 rounded-full dark:bg-white/[0.03] bg-card-bg/60 border border-bd-subtle text-xs text-mut max-w-sm truncate shadow-inner">
         {isHome ? (
           <div className="flex items-center gap-2 truncate">
             <ShieldCheck size={14} className="text-acc shrink-0" />
             <span className="font-medium text-txt/90 truncate">Echo</span>
-            <span className="text-white/20 shrink-0">•</span>
+            <span className="text-mut/40 shrink-0">•</span>
             <span className="text-mut/70 text-[11px] truncate">Rede Segura & Descentralizada</span>
           </div>
         ) : (
@@ -125,7 +125,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
             <span className="font-semibold text-txt truncate">{activeGuild?.name ?? "Guilda"}</span>
             {activeChannel && (
               <>
-                <span className="text-white/20 shrink-0">/</span>
+                <span className="text-mut/40 shrink-0">/</span>
                 <span className="text-acc font-mono font-medium truncate">#{activeChannel.name}</span>
               </>
             )}
@@ -142,7 +142,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
           onClick={() => setMicrophoneEnabled(!microphoneEnabled)}
           className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
             microphoneEnabled
-              ? "text-mut hover:bg-white/[0.06] hover:text-txt"
+              ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
               : "text-err bg-err/10 hover:bg-err/20"
           }`}
         >
@@ -156,7 +156,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
           onClick={() => setHeadphonesEnabled(!headphonesEnabled)}
           className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
             headphonesEnabled
-              ? "text-mut hover:bg-white/[0.06] hover:text-txt"
+              ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
               : "text-err bg-err/10 hover:bg-err/20"
           }`}
         >
@@ -185,7 +185,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
                 ? "Status da rede: Conectando. Clique para tentar novamente"
                 : "Status da rede: Desconectado. Clique para reconectar"
           }
-          className="cursor-pointer hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] text-[11px] text-mut border border-white/[0.06] select-none transition-all active:scale-95 ml-1"
+          className="cursor-pointer hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg dark:bg-white/[0.03] bg-card-bg/60 dark:hover:bg-white/[0.06] hover:bg-card-bg text-[11px] text-mut border border-bd-subtle select-none transition-all active:scale-95 ml-1"
         >
           <span
             className={`h-2 w-2 rounded-full ${
@@ -206,7 +206,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
           aria-label="Configurações"
           title="Configurações"
           onClick={onOpenSettings}
-          className="cursor-pointer group flex h-9 w-9 items-center justify-center rounded-xl text-mut hover:bg-white/[0.06] hover:text-txt transition-all ml-0.5"
+          className="cursor-pointer group flex h-9 w-9 items-center justify-center rounded-xl text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt transition-all ml-0.5"
         >
           <Gear size={18} className="transition-transform duration-300 group-hover:rotate-45" />
         </button>

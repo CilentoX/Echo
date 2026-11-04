@@ -117,9 +117,9 @@ export default function FriendsDashboard() {
   return (
     <div className="flex h-full w-full flex-col bg-bg text-txt select-none">
       {/* Barra de Navegação Superior (Tabs) — Integrada com harmonia */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.04] px-6">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-bd-subtle px-6">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5 pr-4 border-r border-white/[0.08] text-txt font-semibold">
+          <div className="flex items-center gap-2.5 pr-4 border-r border-bd-subtle text-txt font-semibold">
             <Users size={20} className="text-acc" weight="bold" />
             <span className="font-display text-sm tracking-wide">Amigos</span>
           </div>
@@ -130,8 +130,8 @@ export default function FriendsDashboard() {
               onClick={() => setActiveTab("online")}
               className={`cursor-pointer px-3 py-1.5 rounded-xl font-medium transition-all ${
                 activeTab === "online"
-                  ? "bg-white/[0.08] text-txt shadow-sm"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm border border-bd-subtle"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               Disponível ({onlineFriends.length})
@@ -142,8 +142,8 @@ export default function FriendsDashboard() {
               onClick={() => setActiveTab("all")}
               className={`cursor-pointer px-3 py-1.5 rounded-xl font-medium transition-all ${
                 activeTab === "all"
-                  ? "bg-white/[0.08] text-txt shadow-sm"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm border border-bd-subtle"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               Todos ({friends.length})
@@ -154,8 +154,8 @@ export default function FriendsDashboard() {
               onClick={() => setActiveTab("pending")}
               className={`cursor-pointer relative px-3 py-1.5 rounded-xl font-medium transition-all ${
                 activeTab === "pending"
-                  ? "bg-white/[0.08] text-txt shadow-sm"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm border border-bd-subtle"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               Pendente
@@ -171,8 +171,8 @@ export default function FriendsDashboard() {
               onClick={() => setActiveTab("blocked")}
               className={`cursor-pointer px-3 py-1.5 rounded-xl font-medium transition-all ${
                 activeTab === "blocked"
-                  ? "bg-white/[0.08] text-txt shadow-sm"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm border border-bd-subtle"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               Bloqueados ({blocked.length})
@@ -186,8 +186,8 @@ export default function FriendsDashboard() {
               }}
               className={`cursor-pointer px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
                 activeTab === "discover"
-                  ? "bg-white/[0.08] text-txt shadow-sm"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm border border-bd-subtle"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               <Compass
@@ -239,7 +239,7 @@ export default function FriendsDashboard() {
                     setAddInput(e.target.value);
                   }}
                   placeholder="Ex: @amigo:litteris.online ou minhocabr"
-                  className="w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-4 py-3 text-sm text-txt placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:outline-none focus:ring-1 focus:ring-acc/30 shadow-inner transition-all pr-44"
+                  className="w-full rounded-xl dark:bg-white/[0.03] bg-card-bg border border-bd-glass px-4 py-3 text-sm text-txt placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:outline-none focus:ring-1 focus:ring-acc/30 shadow-inner transition-all pr-44"
                 />
                 <button
                   type="submit"
@@ -281,7 +281,7 @@ export default function FriendsDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar amigos..."
-                className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] py-2 pl-9 pr-3 text-xs text-txt placeholder:text-mut/50 focus:border-acc/40 focus:bg-white/[0.05] focus:outline-none transition-all"
+                className="w-full rounded-xl dark:bg-white/[0.03] bg-card-bg border border-bd-glass py-2 pl-9 pr-3 text-xs text-txt placeholder:text-mut/50 focus:border-acc/40 focus:bg-card-bg focus:outline-none transition-all"
               />
             </div>
 
@@ -310,7 +310,7 @@ export default function FriendsDashboard() {
                 )}
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.04] border-t border-white/[0.04]">
+              <div className="divide-y divide-bd-subtle border-t border-bd-subtle">
                 {displayedFriends.map((friend) => {
                   const presence = uiPresence[friend.userId] || friend.presence || "offline";
                   const presenceColor =
@@ -331,7 +331,7 @@ export default function FriendsDashboard() {
                   return (
                     <div
                       key={friend.friendshipId}
-                      className="group flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-white/[0.04] transition-all"
+                      className="group flex items-center justify-between py-2.5 px-3 rounded-xl dark:hover:bg-white/[0.04] hover:bg-black/[0.04] transition-all"
                     >
                       {/* Dados do Amigo */}
                       <div className="flex items-center gap-3 min-w-0">
@@ -350,7 +350,7 @@ export default function FriendsDashboard() {
                             </div>
                           )}
                           <span
-                            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[#0d1017] ${presenceColor}`}
+                            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-bg ${presenceColor}`}
                             aria-hidden="true"
                           />
                         </div>
@@ -372,7 +372,7 @@ export default function FriendsDashboard() {
                           onClick={() => openDirectMessage(friend.userId)}
                           title="Iniciar conversa"
                           aria-label="Iniciar conversa"
-                          className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.04] text-txt hover:bg-acc hover:text-bg transition-colors"
+                          className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full dark:bg-white/[0.04] bg-black/[0.05] text-txt hover:bg-acc hover:text-bg transition-colors"
                         >
                           <ChatCircle size={16} weight="bold" />
                         </button>
@@ -382,18 +382,18 @@ export default function FriendsDashboard() {
                           onClick={() => setOpenMenuId(isMenuOpen ? null : friend.friendshipId)}
                           title="Mais opções"
                           aria-label="Mais opções"
-                          className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.04] text-mut hover:text-txt hover:bg-white/[0.08] transition-colors"
+                          className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full dark:bg-white/[0.04] bg-black/[0.05] text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.08] transition-colors"
                         >
                           <DotsThreeVertical size={16} weight="bold" />
                         </button>
 
                         {/* Menu dropdown */}
                         {isMenuOpen && (
-                          <div className="absolute right-0 top-10 z-30 w-44 rounded-xl border border-white/[0.08] bg-surf1 p-1 shadow-2xl">
+                          <div className="absolute right-0 top-10 z-30 w-44 rounded-xl border border-bd-glass bg-card-bg p-1 shadow-2xl">
                             <button
                               type="button"
                               onClick={() => handleAction(() => blockUser(friend.userId))}
-                              className="cursor-pointer flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.06] hover:text-red-400 transition-colors"
+                              className="cursor-pointer flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.05] hover:text-red-400 transition-colors"
                             >
                               <Prohibit size={14} />
                               Bloquear
@@ -401,7 +401,7 @@ export default function FriendsDashboard() {
                             <button
                               type="button"
                               onClick={() => handleAction(() => removeFriend(friend.friendshipId))}
-                              className="cursor-pointer flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.06] hover:text-red-400 transition-colors"
+                              className="cursor-pointer flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.05] hover:text-red-400 transition-colors"
                             >
                               <UserMinus size={14} />
                               Desfazer amizade
@@ -429,11 +429,11 @@ export default function FriendsDashboard() {
               {pendingIncoming.length === 0 ? (
                 <p className="text-xs text-mut/60 py-3">Nenhuma solicitação de amizade pendente.</p>
               ) : (
-                <div className="divide-y divide-white/[0.04] border-t border-white/[0.04]">
+                <div className="divide-y divide-bd-subtle border-t border-bd-subtle">
                   {pendingIncoming.map((req) => (
                     <div
                       key={req.friendshipId}
-                      className="flex items-center justify-between py-3 px-2 rounded-xl hover:bg-white/[0.04] transition-all"
+                      className="flex items-center justify-between py-3 px-2 rounded-xl dark:hover:bg-white/[0.04] hover:bg-black/[0.04] transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acc/20 font-display text-xs font-bold text-acc">
@@ -482,14 +482,14 @@ export default function FriendsDashboard() {
               {pendingOutgoing.length === 0 ? (
                 <p className="text-xs text-mut/60 py-3">Nenhuma solicitação enviada pendente.</p>
               ) : (
-                <div className="divide-y divide-white/[0.04] border-t border-white/[0.04]">
+                <div className="divide-y divide-bd-subtle border-t border-bd-subtle">
                   {pendingOutgoing.map((req) => (
                     <div
                       key={req.friendshipId}
-                      className="flex items-center justify-between py-3 px-2 rounded-xl hover:bg-white/[0.04] transition-all"
+                      className="flex items-center justify-between py-3 px-2 rounded-xl dark:hover:bg-white/[0.04] hover:bg-black/[0.04] transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] font-display text-xs font-bold text-mut">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full dark:bg-white/[0.06] bg-black/[0.05] font-display text-xs font-bold text-mut">
                           {req.user.displayName.slice(0, 1).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -505,7 +505,7 @@ export default function FriendsDashboard() {
                         onClick={() => cancelFriendRequest(req.friendshipId)}
                         title="Cancelar pedido"
                         aria-label="Cancelar pedido"
-                        className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.04] text-mut hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-full dark:bg-white/[0.04] bg-black/[0.05] text-mut hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       >
                         <X size={16} weight="bold" />
                       </button>
@@ -527,11 +527,11 @@ export default function FriendsDashboard() {
             {blocked.length === 0 ? (
               <p className="text-xs text-mut/60 py-6 text-center">Nenhum usuário bloqueado.</p>
             ) : (
-              <div className="divide-y divide-white/[0.04] border-t border-white/[0.04]">
+              <div className="divide-y divide-bd-subtle border-t border-bd-subtle">
                 {blocked.map((item) => (
                   <div
                     key={item.friendshipId}
-                    className="flex items-center justify-between py-3 px-2 rounded-xl hover:bg-white/[0.04] transition-all"
+                    className="flex items-center justify-between py-3 px-2 rounded-xl dark:hover:bg-white/[0.04] hover:bg-black/[0.04] transition-all"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/20 font-display text-xs font-bold text-red-400">
@@ -546,7 +546,7 @@ export default function FriendsDashboard() {
                     <button
                       type="button"
                       onClick={() => unblockUser(item.friendshipId)}
-                      className="cursor-pointer rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-1.5 text-xs font-medium text-txt hover:bg-white/[0.08] transition-colors"
+                      className="cursor-pointer rounded-xl dark:bg-white/[0.04] bg-card-bg border border-bd-glass px-3 py-1.5 text-xs font-medium text-txt dark:hover:bg-white/[0.08] hover:bg-surf2 transition-colors"
                     >
                       Desbloquear
                     </button>
@@ -586,7 +586,7 @@ export default function FriendsDashboard() {
                     value={discoverQuery}
                     onChange={(e) => setDiscoverQuery(e.target.value)}
                     placeholder="Buscar por nome ou @..."
-                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] py-2 pl-9 pr-3 text-xs text-txt placeholder:text-mut/50 focus:border-acc/40 focus:bg-white/[0.05] focus:outline-none transition-all"
+                    className="w-full rounded-xl dark:bg-white/[0.03] bg-card-bg border border-bd-glass py-2 pl-9 pr-3 text-xs text-txt placeholder:text-mut/50 focus:border-acc/40 focus:bg-card-bg focus:outline-none transition-all"
                   />
                 </div>
                 <button
@@ -594,7 +594,7 @@ export default function FriendsDashboard() {
                   onClick={() => void loadDiscoveredUsers(discoverQuery)}
                   disabled={discovering}
                   title="Atualizar lista"
-                  className="cursor-pointer flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.06] text-mut hover:text-txt hover:bg-white/[0.08] active:scale-95 transition-all disabled:opacity-40"
+                  className="cursor-pointer flex h-9 w-9 shrink-0 items-center justify-center rounded-xl dark:bg-white/[0.04] bg-card-bg border border-bd-glass text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-surf2 active:scale-95 transition-all disabled:opacity-40"
                 >
                   <ArrowsClockwise size={16} className={discovering ? "animate-spin text-acc" : ""} />
                 </button>
@@ -606,7 +606,7 @@ export default function FriendsDashboard() {
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
-                    className="h-36 rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4 animate-pulse"
+                    className="h-36 rounded-2xl dark:bg-white/[0.02] bg-surf/40 border border-bd-subtle p-4 animate-pulse"
                   />
                 ))}
               </div>
@@ -631,7 +631,7 @@ export default function FriendsDashboard() {
                   return (
                     <div
                       key={user.userId}
-                      className="group relative flex flex-col justify-between rounded-2xl bg-[#141923] border border-white/[0.05] p-4 hover:border-acc/30 hover:bg-[#181f2c] transition-all duration-200 shadow-sm"
+                      className="group relative flex flex-col justify-between rounded-2xl dark:bg-[#141923] bg-card-bg border border-bd-subtle p-4 hover:border-acc/30 dark:hover:bg-[#181f2c] hover:bg-surf2/40 transition-all duration-200 shadow-sm"
                     >
                       <div>
                         <div className="flex items-start justify-between gap-3 mb-3">
@@ -640,7 +640,7 @@ export default function FriendsDashboard() {
                               <MxcImage
                                 mxcUrl={user.avatarUrl}
                                 alt={user.displayName}
-                                className="h-12 w-12 rounded-full object-cover ring-2 ring-white/[0.08]"
+                                className="h-12 w-12 rounded-full object-cover ring-2 ring-bd-subtle"
                                 width={48}
                                 height={48}
                               />
@@ -684,12 +684,12 @@ export default function FriendsDashboard() {
                         )}
                       </div>
 
-                      <div className="pt-4 mt-2 border-t border-white/[0.04]">
+                      <div className="pt-4 mt-2 border-t border-bd-subtle">
                         {isFriend ? (
                           <button
                             type="button"
                             onClick={() => openDirectMessage(user.userId)}
-                            className="cursor-pointer w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white/[0.06] text-txt font-semibold text-xs hover:bg-acc hover:text-bg active:scale-[0.98] transition-all"
+                            className="cursor-pointer w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl dark:bg-white/[0.06] bg-black/[0.05] text-txt font-semibold text-xs hover:bg-acc hover:text-bg active:scale-[0.98] transition-all"
                           >
                             <ChatCircle size={15} weight="bold" />
                             Conversar
@@ -704,7 +704,7 @@ export default function FriendsDashboard() {
                             Aceitar Pedido
                           </button>
                         ) : isPending ? (
-                          <div className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white/[0.03] text-mut text-xs font-medium border border-white/[0.06]">
+                          <div className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl dark:bg-white/[0.03] bg-black/[0.03] text-mut text-xs font-medium border border-bd-subtle">
                             <Check size={13} weight="bold" className="text-amber-400" />
                             Solicitação enviada
                           </div>
@@ -734,7 +734,7 @@ export default function FriendsDashboard() {
           <aside
             data-column="active-now"
             aria-label="Ativo Agora e Comunidade"
-            className="hidden lg:flex w-[320px] shrink-0 flex-col border-l border-white/[0.04] bg-[#0c0f17]/50 p-5 space-y-6 overflow-y-auto scrollbar-thin select-none"
+            className="hidden lg:flex w-[320px] shrink-0 flex-col border-l border-bd-subtle bg-surf/40 p-5 space-y-6 overflow-y-auto scrollbar-thin select-none"
           >
             {/* Bloco 1: Ativo Agora */}
             <div>
@@ -755,7 +755,7 @@ export default function FriendsDashboard() {
                     <div
                       key={f.userId}
                       onClick={() => openDirectMessage(f.userId)}
-                      className="cursor-pointer group flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.06] hover:border-acc/30 transition-all"
+                      className="cursor-pointer group flex items-center justify-between p-2.5 rounded-xl bg-card-bg/60 border border-bd-glass dark:bg-white/[0.02] dark:border-white/[0.04] hover:bg-card-bg hover:border-acc/30 transition-all"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="relative shrink-0">
@@ -772,7 +772,7 @@ export default function FriendsDashboard() {
                               {f.displayName.slice(0, 1).toUpperCase()}
                             </div>
                           )}
-                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c0f17]" />
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card-bg" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-txt truncate group-hover:text-acc transition-colors">
@@ -788,8 +788,8 @@ export default function FriendsDashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/[0.04] bg-white/[0.02] p-4 text-center space-y-2">
-                  <div className="w-9 h-9 mx-auto rounded-full bg-white/[0.04] flex items-center justify-center text-mut/60">
+                <div className="rounded-2xl border border-bd-glass bg-card-bg/50 p-4 text-center space-y-2">
+                  <div className="w-9 h-9 mx-auto rounded-full dark:bg-white/[0.04] bg-black/[0.05] flex items-center justify-center text-mut/60">
                     <Users size={18} />
                   </div>
                   <p className="text-xs font-semibold text-txt">Está meio quieto por aqui…</p>
@@ -824,7 +824,7 @@ export default function FriendsDashboard() {
                     return (
                       <div
                         key={u.userId}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] transition-all"
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-card-bg/60 border border-bd-glass dark:bg-white/[0.02] dark:border-white/[0.04] hover:bg-card-bg transition-all"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="relative shrink-0">
@@ -856,7 +856,7 @@ export default function FriendsDashboard() {
                           <button
                             type="button"
                             onClick={() => openDirectMessage(u.userId)}
-                            className="cursor-pointer p-1.5 rounded-lg bg-white/[0.06] text-txt hover:bg-acc hover:text-bg transition-colors"
+                            className="cursor-pointer p-1.5 rounded-lg dark:bg-white/[0.06] bg-black/[0.05] text-txt hover:bg-acc hover:text-bg transition-colors"
                             title="Conversar"
                           >
                             <ChatCircle size={14} weight="bold" />
@@ -880,15 +880,15 @@ export default function FriendsDashboard() {
                   })}
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-3 text-center">
+                <div className="rounded-xl border border-bd-subtle dark:bg-white/[0.02] bg-surf/40 p-3 text-center">
                   <p className="text-[11px] text-mut/60">Novos membros aparecerão aqui.</p>
                 </div>
               )}
             </div>
 
             {/* Bloco 3: Rede Descentralizada Echo */}
-            <div className="mt-auto pt-3 border-t border-white/[0.04]">
-              <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-acc/10 via-white/[0.02] to-transparent p-3.5 space-y-2">
+            <div className="mt-auto pt-3 border-t border-bd-subtle">
+              <div className="rounded-2xl border border-bd-subtle bg-gradient-to-br from-acc/10 via-surf/30 to-transparent p-3.5 space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-xs font-bold text-txt">Rede Segura & Descentralizada</span>

@@ -68,14 +68,14 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
     <aside
       data-column="sidebar"
       aria-label="Mensagens Diretas e Amigos"
-      className={`flex w-[232px] shrink-0 flex-col border-r border-white/[0.04] bg-[#10141d] select-none ${
+      className={`flex w-[232px] shrink-0 flex-col border-r border-bd-subtle bg-surf select-none ${
         overlay
           ? "fixed inset-y-0 left-[72px] z-20 shadow-2xl shadow-black/80"
           : "h-full"
       }`}
     >
       {/* Header com Busca Rápida */}
-      <header className="flex h-14 items-center justify-between border-b border-white/[0.04] px-3">
+      <header className="flex h-14 items-center justify-between border-b border-bd-subtle px-3">
         <div className="relative w-full">
           <MagnifyingGlass
             size={14}
@@ -87,7 +87,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Encontrar conversa..."
-            className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] py-1.5 pl-8 pr-2 text-xs text-txt placeholder:text-mut/50 focus:bg-white/[0.06] focus:border-acc/40 focus:outline-none transition-all"
+            className="w-full rounded-xl dark:bg-white/[0.03] bg-card-bg/70 border border-bd-subtle py-1.5 pl-8 pr-2 text-xs text-txt placeholder:text-mut/50 focus:bg-card-bg focus:border-acc/40 focus:outline-none transition-all"
           />
           {search && (
             <button
@@ -109,8 +109,8 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
           onClick={handleSelectFriendsTab}
           className={`cursor-pointer group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
             !activeChannelId && homeTab === "friends"
-              ? "bg-white/[0.08] text-txt shadow-sm"
-              : "text-mut hover:bg-white/[0.04] hover:text-txt"
+              ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm"
+              : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
           }`}
         >
           <Users
@@ -135,8 +135,8 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
           onClick={handleSelectDiscoverTab}
           className={`cursor-pointer group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
             !activeChannelId && homeTab === "discover"
-              ? "bg-white/[0.08] text-txt shadow-sm"
-              : "text-mut hover:bg-white/[0.04] hover:text-txt"
+              ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm"
+              : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
           }`}
         >
           <Compass
@@ -157,7 +157,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
             onClick={handleAddFriendClick}
             title="Criar conversa / Adicionar Amigo"
             aria-label="Adicionar Amigo"
-            className="cursor-pointer text-mut/70 hover:text-acc hover:bg-white/[0.06] p-1 rounded-md transition-colors"
+            className="cursor-pointer text-mut/70 hover:text-acc dark:hover:bg-white/[0.06] hover:bg-black/[0.06] p-1 rounded-md transition-colors"
           >
             <Plus size={13} weight="bold" />
           </button>
@@ -189,8 +189,8 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
                 onClick={() => handleOpenDm(friend.userId)}
                 className={`cursor-pointer group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all ${
                   isDmActive
-                    ? "bg-white/[0.08] text-txt shadow-sm"
-                    : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                    ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm"
+                    : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
                 }`}
               >
                 {/* Avatar com status */}
@@ -209,7 +209,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
                     </div>
                   )}
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#10141d] ${presenceColor}`}
+                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surf ${presenceColor}`}
                     aria-hidden="true"
                   />
                 </div>

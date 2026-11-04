@@ -59,7 +59,11 @@ export default function ReactionStack({
             data-testid="reaction-chip"
             aria-pressed={data.active ? "true" : "false"}
             aria-label={`Reagir com ${emoji} (${data.count})`}
-            className="cursor-pointer flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors"
+            className={`cursor-pointer flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+              data.active
+                ? "border-acc/40 bg-acc/10 text-acc font-semibold shadow-xs"
+                : "border-bd-subtle bg-surf2/80 hover:bg-surf2 text-txt"
+            }`}
             onClick={() => onToggleReaction?.(eventId, emoji)}
           >
             <span

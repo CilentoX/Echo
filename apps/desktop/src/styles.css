@@ -22,7 +22,7 @@
     outline-offset: 2px;
   }
 
-  /* Scrollbar global refinada e translúcida — tema escuro Echo */
+  /* Scrollbar global refinada e translúcida — adaptativa Escuro & Claro */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -33,12 +33,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.14);
     border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.24);
+    background: rgba(255, 255, 255, 0.28);
   }
 
   ::-webkit-scrollbar-corner {
@@ -50,40 +50,56 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
   }
+
+  /* Scrollbars para Modo Claro com contraste perfeito */
+  html.light ::-webkit-scrollbar-thumb,
+  [data-mode="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  html.light ::-webkit-scrollbar-thumb:hover,
+  [data-mode="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  html.light *,
+  [data-mode="light"] * {
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
 }
 
-/* Echo Custom Dark Glassmorphism for emoji-picker-react */
+/* Echo Custom Themed Glassmorphism for emoji-picker-react */
 .EmojiPickerReact.epr-main {
-  background-color: #12161f !important;
+  background-color: var(--card-bg, #12161f) !important;
   border: none !important;
   font-family: inherit !important;
-  --epr-bg-color: #12161f !important;
-  --epr-dark-bg-color: #12161f !important;
-  --epr-category-label-bg-color: #12161f !important;
-  --epr-dark-category-label-bg-color: #12161f !important;
-  --epr-preview-border-color: rgba(255, 255, 255, 0.06) !important;
+  --epr-bg-color: var(--card-bg, #12161f) !important;
+  --epr-dark-bg-color: var(--card-bg, #12161f) !important;
+  --epr-category-label-bg-color: var(--card-bg, #12161f) !important;
+  --epr-dark-category-label-bg-color: var(--card-bg, #12161f) !important;
+  --epr-preview-border-color: var(--bd-subtle, rgba(255, 255, 255, 0.06)) !important;
   --epr-picker-border-color: transparent !important;
   --epr-dark-picker-border-color: transparent !important;
-  --epr-hover-bg-color: rgba(255, 255, 255, 0.08) !important;
-  --epr-dark-hover-bg-color: rgba(255, 255, 255, 0.08) !important;
-  --epr-focus-bg-color: rgba(15, 185, 168, 0.15) !important;
-  --epr-dark-focus-bg-color: rgba(15, 185, 168, 0.15) !important;
-  --epr-highlight-color: #0FB9A8 !important;
-  --epr-dark-highlight-color: #0FB9A8 !important;
-  --epr-category-icon-active-color: #0FB9A8 !important;
-  --epr-dark-category-icon-active-color: #0FB9A8 !important;
-  --epr-category-icon-inactive-color: #64748b !important;
-  --epr-dark-category-icon-inactive-color: #64748b !important;
-  --epr-text-color: #e1e7ec !important;
-  --epr-dark-text-color: #e1e7ec !important;
-  --epr-search-input-bg-color: rgba(255, 255, 255, 0.04) !important;
-  --epr-dark-search-input-bg-color: rgba(255, 255, 255, 0.04) !important;
-  --epr-search-input-bg-color-active: rgba(255, 255, 255, 0.07) !important;
-  --epr-dark-search-input-bg-color-active: rgba(255, 255, 255, 0.07) !important;
-  --epr-search-input-text-color: #e1e7ec !important;
-  --epr-dark-search-input-text-color: #e1e7ec !important;
-  --epr-search-input-placeholder-color: #64748b !important;
-  --epr-dark-search-input-placeholder-color: #64748b !important;
+  --epr-hover-bg-color: var(--bd-subtle, rgba(255, 255, 255, 0.08)) !important;
+  --epr-dark-hover-bg-color: var(--bd-subtle, rgba(255, 255, 255, 0.08)) !important;
+  --epr-focus-bg-color: var(--acc-muted, rgba(15, 185, 168, 0.15)) !important;
+  --epr-dark-focus-bg-color: var(--acc-muted, rgba(15, 185, 168, 0.15)) !important;
+  --epr-highlight-color: var(--acc, #0FB9A8) !important;
+  --epr-dark-highlight-color: var(--acc, #0FB9A8) !important;
+  --epr-category-icon-active-color: var(--acc, #0FB9A8) !important;
+  --epr-dark-category-icon-active-color: var(--acc, #0FB9A8) !important;
+  --epr-category-icon-inactive-color: var(--mut, #64748b) !important;
+  --epr-dark-category-icon-inactive-color: var(--mut, #64748b) !important;
+  --epr-text-color: var(--txt, #e1e7ec) !important;
+  --epr-dark-text-color: var(--txt, #e1e7ec) !important;
+  --epr-search-input-bg-color: var(--bd-subtle, rgba(255, 255, 255, 0.04)) !important;
+  --epr-dark-search-input-bg-color: var(--bd-subtle, rgba(255, 255, 255, 0.04)) !important;
+  --epr-search-input-bg-color-active: var(--bd-glass, rgba(255, 255, 255, 0.07)) !important;
+  --epr-dark-search-input-bg-color-active: var(--bd-glass, rgba(255, 255, 255, 0.07)) !important;
+  --epr-search-input-text-color: var(--txt, #e1e7ec) !important;
+  --epr-dark-search-input-text-color: var(--txt, #e1e7ec) !important;
+  --epr-search-input-placeholder-color: var(--mut, #64748b) !important;
+  --epr-dark-search-input-placeholder-color: var(--mut, #64748b) !important;
 }
 
 .EmojiPickerReact .epr-search-container {
@@ -91,21 +107,23 @@
 }
 
 .EmojiPickerReact .epr-search-container input.epr-search-input {
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid var(--bd-glass, rgba(255, 255, 255, 0.08)) !important;
   border-radius: 12px !important;
   padding: 8px 12px !important;
   font-size: 13px !important;
   transition: all 0.15s ease !important;
+  background-color: var(--userbar-bg, #0e121a) !important;
+  color: var(--txt, #e1e7ec) !important;
 }
 
 .EmojiPickerReact .epr-search-container input.epr-search-input:focus {
-  border-color: rgba(15, 185, 168, 0.5) !important;
-  box-shadow: 0 0 0 1px rgba(15, 185, 168, 0.3) !important;
-  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: var(--acc, #0FB9A8) !important;
+  box-shadow: 0 0 0 1px var(--acc-glow, rgba(15, 185, 168, 0.3)) !important;
+  background-color: var(--card-bg, #12161f) !important;
 }
 
 .EmojiPickerReact .epr-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-bottom: 1px solid var(--bd-subtle, rgba(255, 255, 255, 0.06)) !important;
   padding-bottom: 4px !important;
 }
 
@@ -119,7 +137,7 @@
 }
 
 .EmojiPickerReact .epr-category-nav button.epr-cat-btn:hover {
-  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-color: var(--bd-subtle, rgba(255, 255, 255, 0.06)) !important;
 }
 
 .EmojiPickerReact .epr-emoji-category-label {
@@ -127,26 +145,26 @@
   font-weight: 700 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
-  color: #64748b !important;
+  color: var(--mut, #64748b) !important;
   padding: 8px 14px 4px !important;
-  background-color: #12161f !important;
+  background-color: var(--card-bg, #12161f) !important;
 }
 
 .EmojiPickerReact .epr-preview {
-  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-  background-color: #0e121a !important;
+  border-top: 1px solid var(--bd-subtle, rgba(255, 255, 255, 0.06)) !important;
+  background-color: var(--userbar-bg, #0e121a) !important;
   padding: 6px 14px !important;
   height: 48px !important;
 }
 
 .EmojiPickerReact .epr-preview-emoji-label {
-  color: #e1e7ec !important;
+  color: var(--txt, #e1e7ec) !important;
   font-weight: 600 !important;
   font-size: 13px !important;
 }
 
 .EmojiPickerReact .epr-preview-desc {
-  color: #64748b !important;
+  color: var(--mut, #64748b) !important;
   font-size: 11px !important;
 }
 

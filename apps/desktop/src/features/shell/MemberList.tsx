@@ -156,7 +156,7 @@ export default function MemberList({
             aria-label="Buscar membros"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.03] text-xs text-txt border border-white/[0.06] outline-none placeholder:text-mut/60 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 transition-all"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl dark:bg-white/[0.03] bg-card-bg/70 text-xs text-txt border border-bd-subtle outline-none placeholder:text-mut/60 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 transition-all"
           />
         </div>
       </div>
@@ -204,10 +204,10 @@ export default function MemberList({
                             aria-label={cleanDisplayName}
                             className={`cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-sm transition-all active:scale-[0.99] group ${
                               openMemberId === member.userId
-                                ? "bg-white/[0.08] text-txt"
+                                ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
                                 : isMe
-                                ? "text-mut/70 hover:bg-white/[0.05] hover:text-txt"
-                                : "text-mut hover:bg-white/[0.05] hover:text-txt"
+                                ? "text-mut/70 dark:hover:bg-white/[0.05] hover:bg-black/[0.05] hover:text-txt"
+                                : "text-mut dark:hover:bg-white/[0.05] hover:bg-black/[0.05] hover:text-txt"
                             }`}
                           >
                             <div className="relative w-8 h-8 shrink-0">
@@ -215,12 +215,12 @@ export default function MemberList({
                                 <MxcImage
                                   mxcUrl={effectiveAvatarUrl}
                                   alt="Avatar"
-                                  className="w-8 h-8 rounded-full object-cover border border-white/[0.08] bg-[#141923] ring-1 ring-white/[0.04] group-hover:ring-acc/40 transition-all"
+                                  className="w-8 h-8 rounded-full object-cover border border-bd-subtle bg-surf2 ring-1 ring-bd-subtle group-hover:ring-acc/40 transition-all"
                                   width={32}
                                   height={32}
                                 />
                               ) : (
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm ring-1 ring-white/[0.04] group-hover:ring-acc/40 transition-all">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm ring-1 ring-bd-subtle group-hover:ring-acc/40 transition-all">
                                   {initial}
                                 </div>
                               )}

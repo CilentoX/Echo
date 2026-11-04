@@ -12,6 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Smile } from "lucide-react";
+import { useThemeStore } from "@/stores/themeStore";
 
 export type EmojiPickerProps = {
   children?: React.ReactNode;
@@ -51,6 +52,7 @@ export function EmojiPicker({
   open,
   onOpenChange,
 }: EmojiPickerProps) {
+  const mode = useThemeStore((s) => s.mode);
   const [skinTone, setSkinTone] = useState<SkinTones>(SkinTones.NEUTRAL);
   const [isHoveringSkinTones, setIsHoveringSkinTones] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,7 +85,7 @@ export function EmojiPicker({
         {children ?? (
           <button
             type="button"
-            className="cursor-pointer p-1.5 hover:bg-white/[0.06] rounded-xl transition-colors text-mut"
+            className="cursor-pointer p-1.5 dark:hover:bg-white/[0.06] hover:bg-black/[0.06] rounded-xl transition-colors text-mut hover:text-txt"
             aria-label="Escolher emoji"
           >
             <Smile size={18} />
@@ -95,10 +97,10 @@ export function EmojiPicker({
         align="start"
         side="top"
         sideOffset={10}
-        className="w-[360px] p-0 border border-white/[0.08] bg-[#12161f] rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+        className="w-[360px] p-0 border border-bd-glass bg-card-bg rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
       >
         {/* Barra Superior Echo com Seletor de Tom de Pele Interativo no Hover */}
-        <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/[0.06] bg-[#0e121a] select-none">
+        <div className="flex items-center justify-between px-3.5 py-2 border-b border-bd-subtle bg-userbar-bg select-none">
           <div className="flex items-center gap-1.5">
             <Smile size={14} className="text-acc" />
             <span className="text-[11px] font-bold uppercase tracking-wider text-txt/90">
@@ -115,8 +117,8 @@ export function EmojiPicker({
             <div
               className={`flex items-center gap-1.5 px-2 py-1 rounded-xl transition-all duration-200 border ${
                 isHoveringSkinTones
-                  ? "bg-white/[0.08] border-white/[0.12] shadow-lg shadow-black/50"
-                  : "bg-white/[0.03] border-white/[0.05] hover:bg-white/[0.06]"
+                  ? "dark:bg-white/[0.08] bg-black/[0.05] dark:border-white/[0.12] border-black/[0.1] shadow-lg shadow-black/20"
+                  : "dark:bg-white/[0.03] bg-black/[0.03] dark:border-white/[0.05] border-black/[0.06] dark:hover:bg-white/[0.06] hover:bg-black/[0.05]"
               }`}
             >
               <span className="text-[11px] text-mut font-medium mr-0.5">
@@ -144,7 +146,7 @@ export function EmojiPicker({
                         className={`cursor-pointer flex h-6 w-6 items-center justify-center rounded-lg transition-all duration-150 ${
                           active
                             ? "bg-acc/20 ring-1 ring-acc scale-110 shadow-sm shadow-acc/30"
-                            : "hover:bg-white/[0.1] hover:scale-105"
+                            : "dark:hover:bg-white/[0.1] hover:bg-black/[0.08] hover:scale-105"
                         }`}
                       >
                         <span
@@ -162,7 +164,7 @@ export function EmojiPicker({
                   className="cursor-pointer flex items-center gap-1 px-1 py-0.5 rounded-lg transition-colors"
                 >
                   <span
-                    className="w-3.5 h-3.5 rounded-full shadow-sm ring-1 ring-white/30"
+                    className="w-3.5 h-3.5 rounded-full shadow-sm ring-1 ring-black/10 dark:ring-white/30"
                     style={{ backgroundColor: currentToneObj.color }}
                   />
                 </button>
@@ -171,10 +173,10 @@ export function EmojiPicker({
           </div>
         </div>
 
-        {/* EmojiPickerReact com Tema Dark e Categorias em Português */}
+        {/* EmojiPickerReact com Tema Adaptativo (Light/Dark) e Categorias em Português */}
         <EmojiPickerReact
           onEmojiClick={handleEmojiClick}
-          theme={Theme.DARK}
+          theme={mode === "light" ? Theme.LIGHT : Theme.DARK}
           emojiStyle={EmojiStyle.NATIVE}
           searchPlaceHolder="Buscar emoji..."
           width="100%"

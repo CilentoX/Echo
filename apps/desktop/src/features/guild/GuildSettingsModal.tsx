@@ -495,7 +495,7 @@ export default function GuildSettingsModal({
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="w-full sm:max-w-[780px] max-h-[88vh] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col gap-0 text-txt"
+          className="w-full sm:max-w-[780px] max-h-[88vh] overflow-hidden rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col gap-0 text-txt"
           onPointerDownOutside={(e) => {
             if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
           }}
@@ -504,7 +504,7 @@ export default function GuildSettingsModal({
           }}
         >
           {/* Header Superior Padrão Guild Modal */}
-          <div className="relative p-5 pb-4 border-b border-white/[0.04] flex items-center justify-between shrink-0 bg-[#10141d]/50">
+          <div className="relative p-5 pb-4 border-b border-bd-subtle flex items-center justify-between shrink-0 bg-surf/50">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
                 <Gear size={20} weight="bold" />
@@ -512,7 +512,7 @@ export default function GuildSettingsModal({
               <div>
                 <DialogTitle className="font-display text-base font-semibold text-txt flex items-center gap-2">
                   Configurações do Servidor
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-white/[0.06] text-mut font-normal">
+                  <span className="text-xs px-2 py-0.5 rounded-md dark:bg-white/[0.06] bg-black/[0.06] text-mut font-normal">
                     {guild.name}
                   </span>
                 </DialogTitle>
@@ -525,7 +525,7 @@ export default function GuildSettingsModal({
               type="button"
               aria-label="Fechar"
               onClick={onClose}
-              className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all"
+              className="cursor-pointer rounded-xl p-1.5 text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt active:scale-95 transition-all"
             >
               <X size={18} weight="bold" />
             </button>
@@ -542,14 +542,14 @@ export default function GuildSettingsModal({
           )}
 
           {/* Navegação por Abas no Topo */}
-          <div className="flex items-center gap-2 px-5 py-2.5 border-b border-white/[0.04] bg-[#0e1117] shrink-0 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-2 px-5 py-2.5 border-b border-bd-subtle bg-userbar-bg shrink-0 overflow-x-auto scrollbar-none">
             <button
               type="button"
               onClick={() => setActiveTab("overview")}
               className={`cursor-pointer px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
                 activeTab === "overview"
                   ? "bg-acc text-bg shadow-sm shadow-acc/20"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               <Info size={15} weight="bold" />
@@ -561,7 +561,7 @@ export default function GuildSettingsModal({
               className={`cursor-pointer px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
                 activeTab === "roles"
                   ? "bg-acc text-bg shadow-sm shadow-acc/20"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               <ShieldCheck size={15} weight="bold" />
@@ -569,7 +569,7 @@ export default function GuildSettingsModal({
               {roles.length > 0 && (
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    activeTab === "roles" ? "bg-bg/20 text-bg" : "bg-white/[0.08] text-mut"
+                    activeTab === "roles" ? "bg-bg/20 text-bg" : "dark:bg-white/[0.08] bg-black/[0.06] text-mut"
                   }`}
                 >
                   {roles.length}
@@ -582,7 +582,7 @@ export default function GuildSettingsModal({
               className={`cursor-pointer px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
                 activeTab === "members"
                   ? "bg-acc text-bg shadow-sm shadow-acc/20"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               <Users size={15} weight="bold" />
@@ -594,7 +594,7 @@ export default function GuildSettingsModal({
               className={`cursor-pointer px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
                 activeTab === "invites"
                   ? "bg-acc text-bg shadow-sm shadow-acc/20"
-                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
               }`}
             >
               <LinkIcon size={15} weight="bold" />
@@ -602,7 +602,7 @@ export default function GuildSettingsModal({
               {invites.length > 0 && (
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    activeTab === "invites" ? "bg-bg/20 text-bg" : "bg-white/[0.08] text-mut"
+                    activeTab === "invites" ? "bg-bg/20 text-bg" : "dark:bg-white/[0.08] bg-black/[0.06] text-mut"
                   }`}
                 >
                   {invites.length}
@@ -639,7 +639,7 @@ export default function GuildSettingsModal({
                     </span>
                   </div>
 
-                  <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-[#0d1017] shadow-inner group/hero">
+                  <div className="relative rounded-2xl overflow-hidden border border-bd-subtle dark:bg-[#0d1017] bg-surf2/40 shadow-inner group/hero">
                     {/* Área do Banner */}
                     <div
                       onClick={() => isOwner && bannerInputRef.current?.click()}
@@ -655,7 +655,7 @@ export default function GuildSettingsModal({
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-mut/60 gap-1.5 transition-colors group-hover/banner:text-txt">
-                          <div className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm group-hover/banner:bg-white/[0.08] group-hover/banner:border-acc/40 transition-all">
+                          <div className="p-2 rounded-xl dark:bg-white/[0.04] bg-card-bg/80 border border-bd-subtle backdrop-blur-sm dark:group-hover/banner:bg-white/[0.08] group-hover/banner:bg-card-bg group-hover/banner:border-acc/40 transition-all">
                             <Camera size={18} className="group-hover/banner:text-acc transition-colors" />
                           </div>
                           <span className="text-[11px] font-medium">Adicionar banner (16:9)</span>
@@ -688,7 +688,7 @@ export default function GuildSettingsModal({
                     <div className="px-5 pb-3.5 -mt-9 flex items-end justify-between relative z-10">
                       <div
                         onClick={() => isOwner && iconInputRef.current?.click()}
-                        className={`relative h-20 w-20 rounded-2xl border-4 border-[#12161f] bg-[#161c28] shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0 ${
+                        className={`relative h-20 w-20 rounded-2xl border-4 border-card-bg bg-surf2 shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0 ${
                           isOwner ? "cursor-pointer" : "cursor-default"
                         }`}
                       >
@@ -744,7 +744,7 @@ export default function GuildSettingsModal({
                       disabled={!isOwner}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Ex: Minha Comunidade"
-                      className="bg-white/[0.03] border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-txt focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+                      className="dark:bg-white/[0.03] bg-card-bg border border-bd-subtle rounded-xl px-3.5 py-2.5 text-sm text-txt focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
                     />
                   </div>
 
@@ -763,7 +763,7 @@ export default function GuildSettingsModal({
                       disabled={!isOwner}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Descreva o propósito da comunidade..."
-                      className="bg-white/[0.03] border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-txt focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all resize-none"
+                      className="dark:bg-white/[0.03] bg-card-bg border border-bd-subtle rounded-xl px-3.5 py-2.5 text-sm text-txt focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all resize-none"
                     />
                   </div>
                 </div>
@@ -784,7 +784,7 @@ export default function GuildSettingsModal({
 
                 {/* Zona de Perigo (Exclusão da Guilda) */}
                 {isOwner && (
-                  <div className="mt-8 pt-6 border-t border-white/[0.08] space-y-3">
+                  <div className="mt-8 pt-6 border-t border-bd-subtle space-y-3">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-red-400">
                       Zona de Perigo
                     </h3>
@@ -813,7 +813,7 @@ export default function GuildSettingsModal({
             {activeTab === "roles" && (
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[380px]">
                 {/* Coluna da Esquerda: Lista de Cargos */}
-                <div className="md:col-span-4 border-r border-white/[0.06] pr-4 space-y-3">
+                <div className="md:col-span-4 border-r border-bd-subtle pr-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-wider text-mut">
                       Cargos ({roles.length})
@@ -833,7 +833,7 @@ export default function GuildSettingsModal({
                     {loadingRoles ? (
                       <div className="text-xs text-mut py-4 text-center">Carregando cargos...</div>
                     ) : roles.length === 0 ? (
-                      <div className="text-xs text-mut py-6 text-center border border-dashed border-white/[0.06] rounded-xl">
+                      <div className="text-xs text-mut py-6 text-center border border-dashed border-bd-subtle rounded-xl">
                         Nenhum cargo criado ainda.
                       </div>
                     ) : (
@@ -845,8 +845,8 @@ export default function GuildSettingsModal({
                             onClick={() => selectRole(r)}
                             className={`group cursor-pointer flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
                               isSelected
-                                ? "bg-white/[0.08] text-txt font-semibold border border-white/[0.12]"
-                                : "text-mut hover:bg-white/[0.03] hover:text-txt"
+                                ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold border border-bd-subtle"
+                                : "text-mut dark:hover:bg-white/[0.03] hover:bg-black/[0.04] hover:text-txt"
                             }`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
@@ -890,7 +890,7 @@ export default function GuildSettingsModal({
                             value={roleName}
                             disabled={!isOwner}
                             onChange={(e) => setRoleName(e.target.value)}
-                            className="bg-white/[0.03] border-white/[0.08] rounded-xl px-3.5 py-2 text-sm text-txt focus:border-acc/50"
+                            className="dark:bg-white/[0.03] bg-card-bg border border-bd-subtle rounded-xl px-3.5 py-2 text-sm text-txt focus:border-acc/50 focus:bg-card-bg hover:border-bd transition-all"
                           />
                         </div>
 
@@ -928,7 +928,7 @@ export default function GuildSettingsModal({
                         </div>
 
                         {/* Hoist Toggle */}
-                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
+                        <div className="p-3 rounded-xl dark:bg-white/[0.02] bg-surf/40 border border-bd-subtle flex items-center justify-between">
                           <div>
                             <div className="text-xs font-semibold text-txt">Exibir cargo separadamente</div>
                             <div className="text-[11px] text-mut/70">
@@ -961,7 +961,7 @@ export default function GuildSettingsModal({
                                   } ${
                                     checked
                                       ? "bg-acc/5 border-acc/30 text-txt"
-                                      : "bg-white/[0.01] border-white/[0.05] text-mut hover:border-white/[0.1]"
+                                      : "dark:bg-white/[0.01] bg-card-bg/60 border border-bd-subtle text-mut hover:border-bd"
                                   }`}
                                 >
                                   <div>
@@ -984,7 +984,7 @@ export default function GuildSettingsModal({
 
                       {/* Ações do Cargo */}
                       {isOwner && (
-                        <div className="flex items-center justify-between pt-3 border-t border-white/[0.06]">
+                        <div className="flex items-center justify-between pt-3 border-t border-bd-subtle">
                           <Button
                             type="button"
                             variant="destructive"
@@ -1018,7 +1018,7 @@ export default function GuildSettingsModal({
             {activeTab === "members" && (
               <div className="space-y-5">
                 {/* Card de Configuração do Próprio Apelido no Servidor */}
-                <div className="p-4 rounded-xl border border-white/[0.08] bg-white/[0.02] space-y-3">
+                <div className="p-4 rounded-xl border border-bd-subtle dark:bg-white/[0.02] bg-surf/40 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-xs font-semibold uppercase tracking-wider text-acc">
@@ -1041,7 +1041,7 @@ export default function GuildSettingsModal({
                       maxLength={32}
                       onChange={(e) => setMyGuildNickname(e.target.value)}
                       placeholder="Apelido exclusivo para esta guilda"
-                      className="bg-white/[0.03] border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-txt focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all flex-1"
+                      className="dark:bg-white/[0.03] bg-card-bg border border-bd-subtle rounded-xl px-3.5 py-2 text-xs text-txt focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all flex-1"
                     />
                     <Button
                       type="button"
@@ -1063,7 +1063,7 @@ export default function GuildSettingsModal({
                           loadMembers();
                           setTimeout(() => setNicknameMessage(null), 3000);
                         }}
-                        className="cursor-pointer shrink-0 rounded-xl border border-white/[0.08] text-xs text-mut hover:text-txt hover:bg-white/[0.04] px-3 py-2"
+                        className="cursor-pointer shrink-0 rounded-xl border border-bd-subtle text-xs text-mut hover:text-txt dark:hover:bg-white/[0.04] hover:bg-surf px-3 py-2"
                         title="Redefinir para o padrão global"
                       >
                         Redefinir
@@ -1094,10 +1094,10 @@ export default function GuildSettingsModal({
                         return (
                           <div
                             key={mp.userId}
-                            className="p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-between gap-4"
+                            className="p-3 rounded-xl border border-bd-subtle dark:bg-white/[0.02] bg-card-bg flex items-center justify-between gap-4"
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-9 h-9 rounded-xl bg-[#161c28] border border-white/[0.08] flex items-center justify-center font-bold text-xs text-acc shrink-0">
+                              <div className="w-9 h-9 rounded-xl dark:bg-[#161c28] bg-surf2 border border-bd-subtle flex items-center justify-center font-bold text-xs text-acc shrink-0">
                                 {mp.nickname ? mp.nickname[0].toUpperCase() : mp.userId[1]?.toUpperCase() || "U"}
                               </div>
                               <div className="min-w-0">
@@ -1139,7 +1139,7 @@ export default function GuildSettingsModal({
                         );
                       })
                     ) : (
-                      <div className="p-6 text-center text-xs text-mut border border-dashed border-white/[0.06] rounded-xl">
+                      <div className="p-6 text-center text-xs text-mut border border-dashed border-bd-subtle rounded-xl">
                         Nenhum perfil específico registrado para esta guilda. Novos membros sincronizarão automaticamente.
                       </div>
                     )}
@@ -1177,7 +1177,7 @@ export default function GuildSettingsModal({
                   {loadingInvites ? (
                     <div className="text-xs text-mut py-6 text-center">Carregando convites...</div>
                   ) : invites.length === 0 ? (
-                    <div className="text-xs text-mut py-8 text-center border border-dashed border-white/[0.06] rounded-xl">
+                    <div className="text-xs text-mut py-8 text-center border border-dashed border-bd-subtle rounded-xl">
                       Nenhum link de convite ativo encontrado. Clique acima para gerar um!
                     </div>
                   ) : (
@@ -1186,12 +1186,12 @@ export default function GuildSettingsModal({
                       return (
                         <div
                           key={inv.id}
-                          className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-between gap-4"
+                          className="p-3.5 rounded-xl border border-bd-subtle dark:bg-white/[0.02] bg-card-bg flex items-center justify-between gap-4"
                         >
                           <div className="min-w-0 space-y-1">
                             <div className="font-mono text-xs text-acc font-semibold flex items-center gap-2">
                               <span>{inv.code}</span>
-                              <span className="text-[10px] font-normal px-1.5 py-0.2 rounded bg-white/[0.06] text-mut">
+                              <span className="text-[10px] font-normal px-1.5 py-0.2 rounded dark:bg-white/[0.06] bg-black/[0.06] text-mut">
                                 {inv.usesCount} {inv.usesCount === 1 ? "uso" : "usos"}
                               </span>
                             </div>
@@ -1202,7 +1202,7 @@ export default function GuildSettingsModal({
                             <button
                               type="button"
                               onClick={() => handleCopyInvite(inv.url, inv.code)}
-                              className="cursor-pointer px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-txt text-xs font-medium flex items-center gap-1.5 active:scale-95 transition-all"
+                              className="cursor-pointer px-3 py-1.5 rounded-xl dark:bg-white/[0.06] bg-surf hover:bg-surf2 text-txt text-xs font-medium flex items-center gap-1.5 active:scale-95 transition-all border border-bd-subtle"
                             >
                               {isCopied ? (
                                 <>
@@ -1282,7 +1282,7 @@ export default function GuildSettingsModal({
       <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <DialogContent
           showCloseButton={false}
-          className="w-full sm:max-w-[400px] rounded-2xl border border-red-500/30 bg-[#12161f] p-6 shadow-2xl text-txt gap-4"
+          className="w-full sm:max-w-[400px] rounded-2xl border border-red-500/30 bg-card-bg p-6 shadow-2xl text-txt gap-4"
         >
           <div className="flex items-center gap-3 text-red-400">
             <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
@@ -1305,7 +1305,7 @@ export default function GuildSettingsModal({
               variant="outline"
               disabled={deletingGuild}
               onClick={() => setConfirmDeleteOpen(false)}
-              className="cursor-pointer flex-1 rounded-xl border-white/[0.08] bg-white/[0.03] text-txt hover:bg-white/[0.08]"
+              className="cursor-pointer flex-1 rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-surf/50 text-txt hover:bg-surf hover:border-bd active:scale-95 transition-all"
             >
               Cancelar
             </Button>

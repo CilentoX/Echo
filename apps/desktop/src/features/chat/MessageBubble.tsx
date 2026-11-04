@@ -60,7 +60,7 @@ export default function MessageBubble({
       {!pending && (
         <div
           data-testid="message-hover-bar"
-          className="absolute right-4 -top-3.5 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-surf/95 px-1 py-0.5 shadow-lg shadow-black/40 backdrop-blur z-10 transition-all"
+          className="absolute right-4 -top-3.5 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-card-bg/95 px-1 py-0.5 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur z-10 transition-all"
         >
           <button
             type="button"
@@ -125,7 +125,7 @@ export default function MessageBubble({
 
       {/* Bolha da mensagem */}
       <div
-        className={`max-w-[75%] rounded-lg p-2 ${isSender ? "ml-auto text-txt bg-bubble-sender" : "text-txt bg-bubble-receiver"}`}
+        className={`max-w-[75%] rounded-lg p-2 border border-bd-subtle shadow-xs ${isSender ? "ml-auto text-txt bg-bubble-sender" : "text-txt bg-bubble-receiver"}`}
       >
         {/* Chip de reply-to (citação) */}
         {event.replyTo && <ReplyChip replyTo={event.replyTo} />}

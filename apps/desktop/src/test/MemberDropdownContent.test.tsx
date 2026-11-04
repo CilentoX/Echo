@@ -2,7 +2,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useUiStore } from "@/stores/uiStore";
-import { useProfileStore } from "@/stores/profileStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
 

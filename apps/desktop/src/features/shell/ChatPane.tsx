@@ -45,13 +45,13 @@ export default function ChatPane({
       className="flex min-w-0 flex-1 flex-col bg-bg"
     >
       {showHeader && (
-        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] px-4">
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-bd-subtle px-4">
           {showSidebarToggle && (
             <button
               type="button"
               aria-label="Abrir canais"
               onClick={onToggleSidebar}
-              className="flex items-center rounded-lg p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt transition-colors"
+              className="flex items-center rounded-lg p-1.5 text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt transition-colors"
             >
               <List size={18} />
             </button>
@@ -67,7 +67,7 @@ export default function ChatPane({
               type="button"
               aria-label="Membros"
               onClick={onToggleMembers}
-              className="flex items-center rounded-lg p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt transition-colors"
+              className="flex items-center rounded-lg p-1.5 text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt transition-colors"
             >
               <Users size={18} />
             </button>

@@ -126,7 +126,7 @@ export function SecurityTab() {
       </Card>
 
       {/* Zona de Perigo: Apagar Conta & Reiniciar Onboarding */}
-      <Card className="border-err/40 bg-[#160D12]">
+      <Card className="border-err/40 dark:bg-[#160D12] bg-red-500/[0.04]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-400">
             <Trash size={20} />
@@ -144,15 +144,15 @@ export function SecurityTab() {
                 Apagar dados da conta e reiniciar
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-[#131722] border border-[#242B3D] text-[#E9EDF2]">
+            <AlertDialogContent className="bg-card-bg border border-bd-glass text-txt">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-red-400 font-bold">Apagar conta e reiniciar?</AlertDialogTitle>
-                <AlertDialogDescription className="text-[#94A3B8]">
+                <AlertDialogDescription className="text-mut">
                   Esta ação excluirá seu perfil do banco de dados, limpará todas as sessões salvas neste dispositivo e resetará o processo de onboarding. Você voltará para a tela inicial de login com Google.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-[#1A202E] border-[#242B3D] text-[#E9EDF2] hover:bg-[#242B3D]">
+                <AlertDialogCancel className="bg-surf border-bd text-txt hover:bg-surf2">
                   Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction

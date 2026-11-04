@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client"
 import "@fontsource/inter"
 import "@fontsource/space-grotesk"
 import "./styles.css"
+import "@/stores/themeStore"
 import App from "./App"
 import { pingEchoApi } from "@/lib/api/config"
 
