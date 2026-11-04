@@ -40,3 +40,33 @@ A Home é o hub de comunicação pessoal do usuário e deve manter divisões tra
 * **Tipagem Estrita:** TypeScript com verificação estrita (`tsc --noEmit` sempre com 0 erros).
 * **Testes Automatizados:** 100% dos testes devem passar (Vitest). Qualquer alteração de componente deve acompanhar testes unitários atualizados.
 * **Resiliência de Rede:** Verificações defensivas de sessão e compatibilidade total com o protocolo descentralizado Matrix.
+
+---
+
+## 4. Novo Padrão de Design para Modais, Formulários e Diálogos (Padrão Guild Modal)
+
+Todo modal, sheet ou diálogo de configuração/criação deve seguir a arquitetura visual consagrada no `CreateGuildModal`:
+
+### A. Estrutura do Container
+* **Fundo e Borda:** `bg-[#12161f]` profundo, borda fina `border-white/[0.08]`, cantos `rounded-2xl` e sombra profunda `shadow-2xl`.
+* **Animação de Entrada:** `animate-in fade-in-0 zoom-in-95 duration-150`.
+* **Rolagem Defensiva:** `max-h-[90vh] overflow-y-auto scrollbar-thin p-0 gap-0`.
+
+### B. Cabeçalho Superior Fixo
+* **Ícone em Destaque:** Quadrado arredondado `w-10 h-10 rounded-2xl bg-acc text-bg shadow-md shadow-acc/20` com ícone temático em negrito.
+* **Tipografia:** Título `font-display text-lg font-semibold text-txt` e descrição `text-xs text-mut/80`.
+* **Botão de Fechar (`X`):** Posicionado no canto superior direito (`cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95`).
+
+### C. Hero Preview Interativo (Quando houver Mídia/Identidade)
+* **Banner Panorâmico (16:9):** Fundo gradiente moderno (`from-indigo-950/60 via-purple-950/40 to-slate-950`), hover com botão translúcido com `backdrop-blur-md` e botão discreto de exclusão.
+* **Avatar Sobreposto (-mt-9):** `h-20 w-20 rounded-2xl border-4 border-[#12161f] shadow-xl` com **iniciais dinâmicas em tempo real** refletindo imediatamente o texto digitado pelo usuário.
+
+### D. Campos de Formulário
+* **Labels:** Textos em maiúsculas sutis (`text-xs font-semibold uppercase tracking-wider text-mut`) com contador de caracteres monospaçado à direita (`font-mono text-[11px]`).
+* **Inputs & Textareas:** Fundo translúcido `bg-white/[0.03] border-white/[0.08] rounded-xl px-3.5 py-2.5 text-sm text-txt focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all`.
+
+### E. Rodapé de Ações
+* **Cancelar:** `cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] text-txt hover:bg-white/[0.08] active:scale-95 transition-all`.
+* **Ação Primária:** `cursor-pointer flex-1 rounded-xl bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all flex items-center justify-center gap-2`.
+
+

@@ -1,5 +1,11 @@
-import { useEffect, useState } from "react";
-import { Hash, X } from "@phosphor-icons/react";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Hash, SpeakerHigh, X, WarningCircle } from "@phosphor-icons/react";
 
 export interface CreateChannelModalProps {
   open: boolean;
@@ -11,15 +17,25 @@ export interface CreateChannelModalProps {
   onCreated: (channel: { channelId: string; name: string }) => void;
 }
 
-const CHANNEL_TYPES: Array<{ value: string; label: string }> = [
-  { value: "text", label: "Canal de texto" },
-  { value: "voice", label: "Canal de voz" },
+const CHANNEL_TYPES = [
+  {
+    value: "text",
+    label: "Texto",
+    description: "Poste mensagens, imagens, arquivos e links.",
+    icon: Hash,
+  },
+  {
+    value: "voice",
+    label: "Voz & Vídeo",
+    description: "Converse em tempo real por voz, vídeo e compartilhamento.",
+    icon: SpeakerHigh,
+  },
 ];
 
 export default function CreateChannelModal({
   open,
   onClose,
-  guildId,
+  guildId: _guildId,
   onCreate,
   onCreated,
 }: CreateChannelModalProps) {
@@ -29,14 +45,6 @@ export default function CreateChannelModal({
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (open) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -67,131 +75,182 @@ export default function CreateChannelModal({
     }
   };
 
+  const handleClose = () => {
+    setName("");
+    setTopic("");
+    setCategory("");
+    setError(null);
+    onClose();
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-[60] grid place-items-center bg-black/60 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Criar canal"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-[420px] rounded-xl border border-bd bg-surf p-6 shadow-xl">
-        <header className="mb-4 flex items-center justify-between gap-2">
-          <span className="flex items-center rounded bg-acc/10 px-2 py-1 text-xs text-acc">
-            <Hash size={14} aria-hidden /> #{guildId.slice(0, 8)}
-          </span>
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+      >
+        {/* Header Superior Padrão Guild Modal */}
+        <div className="relative p-6 pb-4 border-b border-white/[0.04] flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
+              <Hash size={20} weight="bold" />
+            </div>
+            <div>
+              <DialogTitle className="font-display text-lg font-semibold text-txt">
+                Criar canal
+              </DialogTitle>
+              <DialogDescription className="text-xs text-mut/80 mt-0.5">
+                Crie um novo espaço de comunicação na sua guilda.
+              </DialogDescription>
+            </div>
+          </div>
           <button
             type="button"
             aria-label="Fechar"
-            onClick={onClose}
-            className="rounded p-1 text-mut hover:bg-surf2 hover:text-txt"
+            onClick={handleClose}
+            className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
           >
-            <X size={18} />
+            <X size={18} weight="bold" />
           </button>
-        </header>
-
-        <h3 className="font-display text-lg font-semibold text-txt mb-1">
-          Criar canal
-        </h3>
-        <p className="text-xs text-mut mb-4">
-          O canal será visível para todos os membros desta guilda.
-        </p>
-
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Nome do canal
-        </label>
-        <div className="relative mb-4">
-          <span className="absolute left-3 top-3 text-mut">#</span>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (error) setError(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !loading) void handleSubmit();
-            }}
-            placeholder="geral"
-            autoFocus
-            className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
-          />
         </div>
 
-        {error && (
-          <p role="alert" className="mt-2 text-sm text-err">
-            {error}
-          </p>
-        )}
+        <div className="p-6 space-y-5">
+          {/* Tipo de Canal */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-mut">
+              Tipo de canal
+            </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {CHANNEL_TYPES.map((t) => {
+                const Icon = t.icon;
+                const isSelected = type === t.value;
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setType(t.value)}
+                    className={`cursor-pointer rounded-xl border p-3 text-left transition-all active:scale-[0.98] flex flex-col justify-between gap-2 ${
+                      isSelected
+                        ? "border-acc/60 bg-acc/10 text-txt shadow-sm shadow-acc/10"
+                        : "border-white/[0.08] bg-white/[0.02] text-mut hover:border-white/[0.15] hover:bg-white/[0.04] hover:text-txt"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2 font-display font-semibold text-sm">
+                        <Icon size={18} weight="bold" className={isSelected ? "text-acc" : "text-mut"} />
+                        <span className={isSelected ? "text-txt" : "text-mut"}>{t.label}</span>
+                      </div>
+                      <div
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                          isSelected ? "border-acc bg-acc" : "border-white/[0.2]"
+                        }`}
+                      >
+                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-bg" />}
+                      </div>
+                    </div>
+                    <p className="text-[11px] leading-relaxed opacity-80">
+                      {t.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Tipo
-        </label>
-        <div className="flex gap-2 mb-4">
-          {CHANNEL_TYPES.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              role="radio"
-              aria-checked={type === t.value}
-              onClick={() => setType(t.value)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                type === t.value
-                  ? "border-acc bg-acc/10 text-acc"
-                  : "border-bd text-mut hover:border-acc hover:text-txt"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {/* Nome do Canal */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wider text-mut">
+                Nome do canal
+              </label>
+              <span className="font-mono text-[11px] text-mut">
+                {name.length}/100
+              </span>
+            </div>
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 text-mut font-semibold select-none">
+                #
+              </span>
+              <input
+                type="text"
+                value={name}
+                maxLength={100}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (error) setError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) void handleSubmit();
+                }}
+                placeholder="novo-canal"
+                autoFocus
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] pl-8 pr-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+              />
+            </div>
+            {error && (
+              <p role="alert" className="text-xs text-err flex items-center gap-1.5 mt-2">
+                <WarningCircle size={14} weight="bold" />
+                {error}
+              </p>
+            )}
+          </div>
+
+          {/* Categoria Opcional */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-mut">
+              Categoria <span className="normal-case font-normal text-mut/60">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="Ex: Geral, Voz, Projetos"
+              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+            />
+          </div>
+
+          {/* Tópico Opcional */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-mut">
+              Tópico / Descrição <span className="normal-case font-normal text-mut/60">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => {
+                setTopic(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="O que se discute neste canal"
+              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
+            />
+          </div>
         </div>
 
-        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Tópico / descrição
-        </label>
-        <input
-          type="text"
-          value={topic}
-          onChange={(e) => {
-            setTopic(e.target.value);
-            if (error) setError(null);
-          }}
-          placeholder="O que se discute neste canal"
-          className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
-        />
-
-        <label className="mt-4 mb-2 block text-xs font-semibold uppercase tracking-wide text-mut">
-          Categoria
-        </label>
-        <input
-          type="text"
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            if (error) setError(null);
-          }}
-          placeholder="Ex: Geral, Voz, Projetos"
-          className="w-full rounded-lg border border-bd bg-bg px-3 py-2.5 text-sm text-txt outline-none placeholder:text-mut focus:border-acc"
-        />
-
-        <div className="mt-6 flex gap-2">
+        {/* Rodapé Padrão */}
+        <div className="p-6 pt-2 border-t border-white/[0.04] flex items-center gap-3">
           <button
             type="button"
-            onClick={onClose}
-            className="flex-1 rounded-lg bg-transparent border border-bd py-2.5 font-display font-semibold text-mut hover:bg-surf2 transition-colors active:scale-95"
+            onClick={handleClose}
+            className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-txt hover:bg-white/[0.08] active:scale-95 transition-all"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={() => void handleSubmit()}
-            disabled={loading}
-            className="flex-1 rounded-lg bg-acc py-2.5 font-display font-semibold text-bg transition-colors hover:bg-acc-press disabled:cursor-not-allowed disabled:opacity-60 active:scale-95"
+            disabled={loading || !name.trim()}
+            className="cursor-pointer flex-1 rounded-xl bg-acc py-2.5 text-sm font-semibold text-bg shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? "Criando…" : "Criar canal"}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

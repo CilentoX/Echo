@@ -48,23 +48,23 @@ export default function Settings({ open, onClose }: SettingsProps) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="w-full max-w-[640px] sm:max-w-[640px] p-0 flex flex-col h-[90vh]"
+        className="w-full max-w-[640px] sm:max-w-[640px] p-0 flex flex-col h-[90vh] rounded-2xl border border-white/[0.08] bg-[#12161f] shadow-2xl overflow-hidden"
         showCloseButton={false}
       >
         {/* Header */}
-        <DialogHeader className="p-6 border-b border-bd bg-surf/50 backdrop-blur flex flex-col gap-3 text-left">
+        <DialogHeader className="p-6 border-b border-white/[0.04] bg-[#12161f] flex flex-col gap-2 text-left">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold text-txt">Configurações</h2>
             <button
               type="button"
               aria-label="Fechar configurações"
               onClick={onClose}
-              className="cursor-pointer rounded p-1.5 text-mut hover:bg-surf2 hover:text-txt transition-colors active:scale-95"
+              className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
             >
-              <X size={18} />
+              <X size={18} weight="bold" />
             </button>
           </div>
-          <DialogDescription className="text-xs text-mut">
+          <DialogDescription className="text-xs text-mut/80">
             Gerencie suas preferências de conta e aplicativo.
           </DialogDescription>
         </DialogHeader>

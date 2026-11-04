@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { matrixService } from "@/lib/matrix/instance";
-import { Users, Compass, ArrowRight, WarningCircle } from "@phosphor-icons/react";
+import { Users, Compass, ArrowRight, WarningCircle, X, MagnifyingGlass } from "@phosphor-icons/react";
 import MxcImage from "@/components/media/MxcImage";
 
 export interface JoinGuildModalProps {
@@ -72,22 +76,42 @@ export default function JoinGuildModal({
     onClose();
   };
 
+  if (!open) return null;
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-md bg-surf border border-bd text-txt p-6 rounded-2xl shadow-2xl">
-        <DialogHeader className="space-y-1.5 text-left">
-          <DialogTitle className="text-lg font-display font-bold text-txt flex items-center gap-2">
-            <Users size={20} className="text-acc" />
-            Entrar em uma guilda
-          </DialogTitle>
-          <DialogDescription className="text-xs text-mut">
-            Insira um código de convite ou link para fazer parte de uma comunidade.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        showCloseButton={false}
+        className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+      >
+        {/* Header Superior Padrão Guild Modal */}
+        <div className="relative p-6 pb-4 border-b border-white/[0.04] flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
+              <Users size={20} weight="bold" />
+            </div>
+            <div>
+              <DialogTitle className="font-display text-lg font-semibold text-txt">
+                Entrar em uma guilda
+              </DialogTitle>
+              <DialogDescription className="text-xs text-mut/80 mt-0.5">
+                Insira um link ou código de convite para participar.
+              </DialogDescription>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label="Fechar"
+            onClick={handleClose}
+            className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all -mr-1 -mt-1"
+          >
+            <X size={18} weight="bold" />
+          </button>
+        </div>
 
-        <div className="mt-4 space-y-4">
+        <div className="p-6 space-y-5">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-mut uppercase tracking-wider">
+            <label className="text-xs font-semibold uppercase tracking-wider text-mut">
               Código ou Link de Convite
             </label>
             <div className="flex items-center gap-2">
@@ -102,21 +126,22 @@ export default function JoinGuildModal({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleLookup();
                 }}
-                className="w-full bg-surf2 border border-bd rounded-xl px-3 py-2 text-sm text-txt outline-none focus:border-acc focus:ring-1 focus:ring-acc"
+                autoFocus
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all"
               />
-              <Button
+              <button
                 type="button"
-                variant="secondary"
                 onClick={() => handleLookup()}
                 disabled={loadingPreview || !code.trim()}
-                className="shrink-0"
+                className="cursor-pointer shrink-0 rounded-xl border border-white/[0.08] bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-txt hover:bg-white/[0.1] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
+                <MagnifyingGlass size={16} />
                 {loadingPreview ? "Buscando..." : "Buscar"}
-              </Button>
+              </button>
             </div>
             {error && (
-              <p className="text-xs text-err flex items-center gap-1 mt-1">
-                <WarningCircle size={14} />
+              <p className="text-xs text-err flex items-center gap-1.5 mt-2">
+                <WarningCircle size={14} weight="bold" />
                 {error}
               </p>
             )}
@@ -124,19 +149,19 @@ export default function JoinGuildModal({
 
           {/* Preview Card */}
           {preview && (
-            <div className="p-4 rounded-xl border border-bd bg-surf2/60 flex items-center gap-4 transition-all">
+            <div className="p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center gap-4 transition-all shadow-inner">
               <div className="relative shrink-0">
                 {preview.avatarUrl ? (
                   <MxcImage
                     mxcUrl={preview.avatarUrl}
                     alt={preview.name}
-                    className="w-14 h-14 rounded-2xl object-cover border border-bd shadow-md"
+                    className="w-14 h-14 rounded-2xl object-cover border border-white/[0.08] shadow-md"
                     width={56}
                     height={56}
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-display font-bold text-base bg-acc text-bg shadow-md">
-                    <Compass size={24} />
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-display font-bold text-base bg-acc text-bg shadow-md shadow-acc/20">
+                    <Compass size={24} weight="bold" />
                   </div>
                 )}
               </div>
@@ -149,9 +174,9 @@ export default function JoinGuildModal({
                     {preview.description}
                   </p>
                 )}
-                <div className="flex items-center gap-2 mt-1 text-[11px] text-mut">
+                <div className="flex items-center gap-2 mt-1.5 text-[11px] text-mut">
                   <span className="flex items-center gap-1">
-                    <Users size={12} className="text-acc" />
+                    <Users size={12} weight="bold" className="text-acc" />
                     {preview.channelsCount} {preview.channelsCount === 1 ? "canal" : "canais"}
                   </span>
                 </div>
@@ -160,30 +185,34 @@ export default function JoinGuildModal({
           )}
         </div>
 
-        <DialogFooter className="mt-6 flex items-center justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={handleClose}>
+        {/* Rodapé Padrão */}
+        <div className="p-6 pt-2 border-t border-white/[0.04] flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-txt hover:bg-white/[0.08] active:scale-95 transition-all"
+          >
             Cancelar
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
             onClick={preview ? handleJoin : () => handleLookup()}
             disabled={joining || loadingPreview || !code.trim()}
-            className="bg-acc hover:bg-acc-press text-bg"
+            className="cursor-pointer flex-1 rounded-xl bg-acc py-2.5 text-sm font-semibold text-bg shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {joining ? (
               "Entrando..."
             ) : preview ? (
               <>
                 Entrar na guilda
-                <ArrowRight size={16} className="ml-1" />
+                <ArrowRight size={16} weight="bold" />
               </>
             ) : (
               "Continuar"
             )}
-          </Button>
-        </DialogFooter>
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
-
