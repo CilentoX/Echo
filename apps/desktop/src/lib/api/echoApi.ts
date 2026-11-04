@@ -769,7 +769,12 @@ export class EchoApi {
   startSyncHandlers(handlers: {
     onStatus?: (status: string, error?: any) => void;
     onEvent?: (event: any) => void;
-    onPresence?: (presence: any) => void;
+    onTyping?: (roomId: string, userIds: string[]) => void;
+    onPresence?: (userId: string, presence: any) => void;
+    onMembers?: (roomId: string, members: any[]) => void;
+    onReaction?: (reaction: any) => void;
+    onReadReceipt?: (roomId: string, userId: string, eventId: string) => void;
+    [key: string]: any;
   }): void {
     this.syncHandlers = handlers;
     if (this.syncTimer) {

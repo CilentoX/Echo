@@ -1,7 +1,6 @@
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { loadSession, useKeyring } from "@/lib/storage/keyring";
-import { ECHO_API_CONFIG } from "@/lib/api/config";
 import { matrixService } from "./instance";
 
 /**
@@ -36,11 +35,8 @@ const loadedGuilds = new Set<string>();
 /** roomId → conjunto de usuários digitando agora (agregação do RoomMember.typing). */
 const typingByRoom = new Map<string, Set<string>>();
 
-/** WebSocket de sync ativo; gerenciado pelo Echo API connectSync. */
+/** WebSocket de sync ativo (gerenciado quando backend fornecer streaming). */
 let syncWs: WebSocket | null = null;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 10;
-const BASE_RECONNECT_DELAY = 1000; // ms
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
 function isAuthError(error: { errcode: string } | undefined): boolean {
@@ -101,19 +97,6 @@ async function handleStatus(status: string, error?: { errcode: string }): Promis
 
   if (status === "error" && isAuthError(error)) {
     authFailureCallback?.();
-  }
-}
-
-/**
- * Conexão de WebSocket sync (desativada no cliente enquanto o backend
- * não expõe streaming real do Synapse; o Echo opera via HTTP REST + polling).
- */
-function openSyncWebSocket(_accessToken: string): void {
-  if (syncWs) {
-    try {
-      syncWs.close();
-    } catch {}
-    syncWs = null;
   }
 }
 
