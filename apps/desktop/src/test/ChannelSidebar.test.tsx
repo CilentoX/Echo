@@ -105,4 +105,14 @@ describe("ChannelSidebar", () => {
     expect(bannerImg).toBeTruthy();
     expect(screen.getByText("Echo Guild")).toBeTruthy();
   });
+
+  it("renderiza o banner fallback estilizado mesmo quando bannerUrl não estiver definido", () => {
+    useSyncStore.getState().setGuilds([GUILD]);
+    useSyncStore.getState().setChannels(GUILD.guildId, [makeChannel()]);
+    useUiStore.getState().setActiveGuild(GUILD.guildId);
+    render(<ChannelSidebar />);
+
+    expect(screen.getByTestId("guild-banner-fallback")).toBeTruthy();
+    expect(screen.getByText("Echo Guild")).toBeTruthy();
+  });
 });

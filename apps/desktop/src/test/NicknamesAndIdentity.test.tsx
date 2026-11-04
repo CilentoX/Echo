@@ -4,7 +4,30 @@ import userEvent from "@testing-library/user-event";
 import { useProfileStore } from "@/stores/profileStore";
 import { useUiStore } from "@/stores/uiStore";
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
-import { echoApi } from "@/lib/api/echoApi";
+import { echoApi } from "@/lib/matrix/instance";
+
+const { mockEchoApi } = vi.hoisted(() => ({
+  mockEchoApi: {
+    checkUsername: vi.fn().mockResolvedValue({ available: true }),
+    setGuildMemberNickname: vi.fn().mockResolvedValue({
+      id: "gmp_1",
+      guildId: "guild_1",
+      userId: "@lucas:litteris.online",
+      nickname: "Capitão Lucas",
+    }),
+    getUserProfile: vi.fn().mockResolvedValue({
+      userId: "@amigo:litteris.online",
+      username: "amigao",
+      displayName: "Amigo Maneiro",
+    }),
+    patchUserProfile: vi.fn().mockResolvedValue({
+      userId: "@lucas:litteris.online",
+      username: "lucas_novo",
+      displayName: "Lucas Master",
+    }),
+    uploadChatMedia: vi.fn(),
+  },
+}));
 
 vi.mock("@/lib/matrix/instance", () => ({
   matrixService: {
@@ -21,33 +44,12 @@ vi.mock("@/lib/matrix/instance", () => ({
     setDisplayName: vi.fn().mockResolvedValue(undefined),
     patchUserProfile: vi.fn().mockResolvedValue(undefined),
   },
+  echoApi: mockEchoApi,
 }));
 
 vi.mock("@/lib/api/echoApi", () => {
-  const actual = vi.importActual("@/lib/api/echoApi");
   return {
-    ...actual,
-    echoApi: {
-      checkUsername: vi.fn().mockResolvedValue({ available: true }),
-      setGuildMemberNickname: vi.fn().mockResolvedValue({
-        id: "gmp_1",
-        guildId: "guild_1",
-        userId: "@lucas:litteris.online",
-        nickname: "Capitão Lucas",
-      }),
-      getUserProfile: vi.fn().mockResolvedValue({
-        userId: "@amigo:litteris.online",
-        username: "amigao",
-        displayName: "Amigo Maneiro",
-      }),
-      patchUserProfile: vi.fn().mockResolvedValue({
-        userId: "@lucas:litteris.online",
-        username: "lucas_novo",
-        displayName: "Lucas Master",
-      }),
-      uploadChatMedia: vi.fn(),
-    },
-    useEchoApi: () => echoApi,
+    useEchoApi: () => mockEchoApi,
   };
 });
 
@@ -102,7 +104,7 @@ describe("Sistema de Nicks, Identidade e Apelidos de Servidor", () => {
     const saveBtn = screen.getByRole("button", { name: "Salvar" });
     await userEvent.click(saveBtn);
 
-    expect(echoApi.setGuildMemberNickname).toHaveBeenCalledWith("guild_1", "Capitão Lucas");
+    expect(mockEchoApi.setGuildMemberNickname).toHaveBeenCalledWith("guild_1", "Capitão Lucas");
   });
 
   it("profileStore guarda o username limpo e matrixUserId separadamente", () => {
@@ -111,3 +113,4 @@ describe("Sistema de Nicks, Identidade e Apelidos de Servidor", () => {
     expect(useProfileStore.getState().matrixUserId).toBe("@lucas:litteris.online");
   });
 });
+

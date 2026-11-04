@@ -115,21 +115,33 @@ export default function ChannelSidebar({
           : "h-full"
       }`}
     >
-      {/* Header com Banner da Guilda quando houver bannerUrl */}
-      {activeGuild?.bannerUrl ? (
-        <div className="relative h-32 w-full shrink-0 overflow-hidden border-b border-white/[0.04] group/banner">
-          {/* Imagem do Banner com Zoom Suave no Hover */}
-          <MxcImage
-            mxcUrl={activeGuild.bannerUrl}
-            alt={activeGuild.name}
-            className="h-full w-full object-cover group-hover/banner:scale-105 transition-transform duration-500"
-            width={232}
-            height={128}
-          />
+      {/* Header com Banner da Guilda (Sempre visível na guilda com imagem ou gradiente fallback do Echo) */}
+      {activeGuild ? (
+        <div className="relative h-32 w-full shrink-0 overflow-hidden border-b border-white/[0.06] group/banner select-none">
+          {/* Imagem do Banner ou Gradiente Fallback Elegante */}
+          {activeGuild.bannerUrl ? (
+            <MxcImage
+              mxcUrl={activeGuild.bannerUrl}
+              alt={activeGuild.name}
+              className="h-full w-full object-cover group-hover/banner:scale-105 transition-transform duration-500"
+              width={232}
+              height={128}
+            />
+          ) : (
+            <div
+              data-testid="guild-banner-fallback"
+              className="h-full w-full bg-gradient-to-br from-[#182334] via-[#121824] to-[#0c1017] relative"
+            >
+              {/* Mesh gradiente e iluminação sutil com tom Teal Glow da marca Echo */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-acc/20 via-transparent to-transparent opacity-90" />
+              <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-acc/15 blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
+            </div>
+          )}
 
-          {/* Gradientes de Fusão e Legibilidade */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#10141d] via-[#10141d]/50 to-transparent pointer-events-none" />
+          {/* Gradientes de Fusão e Legibilidade dos Controles */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#10141d] via-[#10141d]/70 to-transparent pointer-events-none" />
 
           {/* Botão Fechar em Modo Overlay */}
           {overlay && (
@@ -137,9 +149,9 @@ export default function ChannelSidebar({
               type="button"
               aria-label="Fechar canais"
               onClick={onClose}
-              className="cursor-pointer absolute top-2 right-2 rounded-lg p-1 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md active:scale-95 transition-all z-10"
+              className="cursor-pointer absolute top-2 right-2 rounded-lg p-1.5 text-white/80 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md active:scale-95 transition-all z-10 border border-white/10"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           )}
 
@@ -199,54 +211,9 @@ export default function ChannelSidebar({
         </div>
       ) : (
         <header className="flex h-14 items-center justify-between border-b border-white/[0.04] px-4 group">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate font-display text-sm font-semibold text-txt">
-              {activeGuild ? activeGuild.name : "Echo"}
-            </h1>
-            {activeGuild && (
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  aria-label="Convidar pessoas"
-                  title="Convidar pessoas"
-                  onClick={() => setInviteOpen(true)}
-                  className="cursor-pointer flex items-center rounded-lg p-1 text-mut/70 hover:bg-white/[0.06] hover:text-txt transition-colors active:scale-95"
-                >
-                  <UserPlus size={14} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Configurações do servidor"
-                  title="Configurações do servidor"
-                  onClick={() => setEditGuildOpen(true)}
-                  className="cursor-pointer flex items-center rounded-lg p-1 text-mut/70 hover:bg-white/[0.06] hover:text-txt transition-colors active:scale-95"
-                >
-                  <Gear size={14} aria-hidden />
-                </button>
-              </div>
-            )}
-          </div>
-          {overlay && (
-            <button
-              type="button"
-              aria-label="Fechar canais"
-              onClick={onClose}
-              className="cursor-pointer flex items-center rounded-lg p-1 text-mut hover:bg-white/[0.06] hover:text-txt transition-colors active:scale-95"
-            >
-              <X size={18} />
-            </button>
-          )}
-          {!overlay && activeGuild && (
-            <button
-              type="button"
-              aria-label="Criar canal"
-              title="Criar canal"
-              onClick={() => setCreateChannelOpen(true)}
-              className="cursor-pointer flex items-center rounded-lg p-1.5 text-mut/70 hover:bg-white/[0.06] hover:text-txt transition-colors active:scale-95"
-            >
-              <Plus size={15} aria-hidden />
-            </button>
-          )}
+          <h1 className="truncate font-display text-sm font-semibold text-txt">
+            Echo
+          </h1>
         </header>
       )}
 
