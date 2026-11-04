@@ -53,6 +53,18 @@ export default function ChatPane({
   const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
   const myUserId = useUiStore((s) => s.myUserId);
 
+  const activeGuildId = useUiStore((s) => s.activeGuildId);
+  const setActiveChannel = useUiStore((s) => s.setActiveChannel);
+
+  // Auto-seleciona o primeiro canal da guilda se nenhum estiver selecionado
+  useEffect(() => {
+    if (!activeChannelId && activeGuildId && activeGuildId !== "home") {
+      const guildChannels = channelsByGuild[activeGuildId] ?? [];
+      if (guildChannels.length > 0) {
+        setActiveChannel(guildChannels[0].channelId);
+      }
+    }
+  }, [activeChannelId, activeGuildId, channelsByGuild, setActiveChannel]);
   const friends = useFriendsStore((s) => s.friends);
   const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
 
@@ -168,8 +180,17 @@ export default function ChatPane({
         aria-label="Mensagens"
         className="flex min-w-0 flex-1 flex-col bg-bg font-ui"
       >
-        <div className="flex flex-1 items-center justify-center p-6 text-center">
-          <p className="text-sm text-mut">Escolha um canal para começar a conversar.</p>
+        <div className="flex h-12 w-full shrink-0 items-center border-b border-bd-subtle px-4">
+          <span className="font-display text-sm font-semibold text-txt">Comunidade</span>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center max-w-md mx-auto">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-acc/10 text-acc mb-3 shadow-md shadow-acc/10">
+            <Hash size={28} weight="bold" />
+          </div>
+          <h2 className="font-display text-base font-semibold text-txt">Nenhum canal selecionado</h2>
+          <p className="mt-1 text-xs text-mut leading-relaxed">
+            Selecione um canal de texto ou voz na barra lateral esquerda para começar a conversar.
+          </p>
         </div>
       </section>
     );

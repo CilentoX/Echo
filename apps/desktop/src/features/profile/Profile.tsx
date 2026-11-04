@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
-import { X, User, Palette, Bell, Lock, Link, ShieldCheck, Microphone } from "@phosphor-icons/react";
+import { X, User, Palette, Bell, Lock, Link, ShieldCheck, Microphone, HardDrives } from "@phosphor-icons/react";
 import { cn } from "cn";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
@@ -10,6 +10,7 @@ import { NotificationsTab } from "./components/NotificationsTab";
 import { PrivacyTab } from "./tabs/PrivacyTab";
 import { ConnectionsTab } from "./components/ConnectionsTab";
 import { SecurityTab } from "./tabs/SecurityTab";
+import { StorageTab } from "./tabs/StorageTab";
 import { useProfileStore } from "@/stores/profileStore";
 
 export interface ProfileProps {
@@ -25,7 +26,8 @@ export type TabKey =
   | "notifications"
   | "privacy"
   | "connections"
-  | "security";
+  | "security"
+  | "storage";
 
 const TAB_CONFIG: Record<TabKey, { label: string; icon: React.ReactNode }> = {
   profile: { label: "Perfil", icon: <User size={18} /> },
@@ -35,6 +37,7 @@ const TAB_CONFIG: Record<TabKey, { label: string; icon: React.ReactNode }> = {
   privacy: { label: "Privacidade", icon: <Lock size={18} /> },
   connections: { label: "Conexões", icon: <Link size={18} /> },
   security: { label: "Segurança", icon: <ShieldCheck size={18} /> },
+  storage: { label: "Armazenamento", icon: <HardDrives size={18} /> },
 };
 
 export default function Profile({ open, onClose, initialTab }: ProfileProps) {
@@ -87,6 +90,8 @@ export default function Profile({ open, onClose, initialTab }: ProfileProps) {
         return <ConnectionsTab />;
       case "security":
         return <SecurityTab />;
+      case "storage":
+        return <StorageTab />;
     }
   };
 

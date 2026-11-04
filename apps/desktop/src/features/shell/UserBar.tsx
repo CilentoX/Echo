@@ -129,11 +129,13 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
         ) : (
           <div className="flex items-center gap-1.5 truncate">
             <span className="font-semibold text-txt truncate">{activeGuild?.name ?? "Guilda"}</span>
-            {activeChannel && (
+            {activeChannel ? (
               <>
                 <span className="text-mut/40 shrink-0">/</span>
                 <span className="text-acc font-mono font-medium truncate">#{activeChannel.name}</span>
               </>
+            ) : (
+              <span className="text-mut/60 text-[11px] truncate">• Geral</span>
             )}
           </div>
         )}
