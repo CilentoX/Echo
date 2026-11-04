@@ -85,25 +85,25 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full sm:max-w-[460px] rounded-xl border border-bd bg-surf p-6 shadow-xl"
+        className="w-full sm:max-w-[480px] max-h-[88vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
       >
         <DialogHeader className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-acc text-bg flex items-center justify-center font-display font-bold text-sm">
-              <Plus size={18} />
+            <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
+              <Plus size={20} weight="bold" />
             </div>
             <div>
               <DialogTitle className="font-display text-lg font-semibold text-txt">Criar guilda</DialogTitle>
-              <DialogDescription className="text-xs text-mut">Criar uma nova comunidade com nome, ícone, banner e descrição.</DialogDescription>
+              <DialogDescription className="text-xs text-mut/80">Crie um novo espaço para reunir sua comunidade.</DialogDescription>
             </div>
           </div>
           <button
             type="button"
             aria-label="Fechar"
             onClick={onClose}
-            className="cursor-pointer rounded p-1 text-mut hover:bg-surf2 hover:text-txt active:scale-95"
+            className="cursor-pointer rounded-xl p-1.5 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all"
           >
-            <X size={18} />
+            <X size={18} weight="bold" />
           </button>
         </DialogHeader>
 
@@ -220,7 +220,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
               variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 border border-bd bg-bg text-txt hover:bg-surf2 hover:border-bd-glass active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none"
+              className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] text-txt hover:bg-white/[0.08] hover:border-white/[0.15] active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </Button>
@@ -228,7 +228,7 @@ export default function CreateGuildModal({ open, onClose, onCreate, onCreated }:
               type="button"
               onClick={() => void handleSubmit()}
               disabled={loading}
-              className="flex-1 bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+              className="cursor-pointer flex-1 rounded-xl bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

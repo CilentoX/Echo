@@ -13,6 +13,7 @@ import {
   Trash,
   Plus,
   ArrowSquareOut,
+  ShieldCheck,
 } from "@phosphor-icons/react";
 import { useProfileStore } from "@/stores/profileStore";
 import { Button } from "@/components/ui/button";
@@ -281,9 +282,12 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           <div className="space-y-5">
             {/* Display Name */}
             <div className="space-y-1.5">
-              <Label htmlFor="displayName" className="text-sm font-medium text-txt">
-                Nome de exibição
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="displayName" className="text-sm font-medium text-txt">
+                  Nome de exibição
+                </Label>
+                <span className="text-[11px] text-acc font-medium">Sincroniza com a rede Matrix</span>
+              </div>
               <div className="relative">
                 <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-mut pointer-events-none" aria-hidden="true" />
                 <Input
@@ -299,12 +303,15 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                   autoFocus
                 />
               </div>
+              <p className="text-xs text-mut/80">
+                Como você é visto no chat, amigos e salas. Ao salvar, é sincronizado imediatamente no Matrix.
+              </p>
             </div>
 
-            {/* Nickname */}
+            {/* Nickname / Handle */}
             <div className="space-y-1.5">
               <Label htmlFor="nickname" className="text-sm font-medium text-txt">
-                Apelido
+                Apelido (@handle)
               </Label>
               <div className="relative">
                 <At size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-mut pointer-events-none" aria-hidden="true" />
@@ -319,7 +326,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                   className="pl-10"
                 />
               </div>
-              <p className="text-xs text-mut">Esse é o nome que aparecerá para outros usuários.</p>
+              <p className="text-xs text-mut/80">Identificador único usado para menções e pedidos de amizade.</p>
             </div>
 
             {/* Bio */}
@@ -458,12 +465,17 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             <InfoCard
               icon={<User size={18} />}
               label="Nome de exibição"
-              value={displayName || username}
+              value={effectiveDisplayName}
             />
             <InfoCard
               icon={<At size={18} />}
               label="Apelido"
-              value={`@${nickname || username.replace(/^@/, "")}`}
+              value={`@${effectiveHandle}`}
+            />
+            <InfoCard
+              icon={<ShieldCheck size={18} />}
+              label="Endereço Matrix"
+              value={username || `@${effectiveHandle}:litteris.online`}
             />
             {joinedAt && (
               <InfoCard

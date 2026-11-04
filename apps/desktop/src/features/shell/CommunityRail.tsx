@@ -192,7 +192,9 @@ export default function CommunityRail({}: CommunityRailProps) {
       <CreateGuildModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(data) => matrixService.createGuild(data, myUserId ?? "")}
+        onCreate={(data) =>
+          matrixService.createGuild(data, myUserId || matrixService.getUserId() || "")
+        }
         onCreated={handleCreated}
       />
     </nav>

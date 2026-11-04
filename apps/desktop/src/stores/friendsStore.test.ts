@@ -112,4 +112,29 @@ describe("useFriendsStore", () => {
     expect(useFriendsStore.getState().error).toBeNull();
     expect(useFriendsStore.getState().successMessage).toBeNull();
   });
+
+  it("loadDiscoveredUsers deve preencher lista de usuários descobertos", async () => {
+    const mockUsers = [
+      {
+        userId: "@paulo:litteris.online",
+        displayName: "Paulo Silva",
+        nickname: "paulo",
+        avatarUrl: null,
+        bio: "Bio teste",
+        status: "none" as const,
+        friendshipId: null,
+        directRoomId: null,
+        joinedAt: "2026-11-04T00:00:00Z",
+      },
+    ];
+
+    vi.spyOn(echoApi, "getDiscoveredUsers").mockResolvedValue({ users: mockUsers });
+
+    await useFriendsStore.getState().loadDiscoveredUsers();
+
+    const state = useFriendsStore.getState();
+    expect(state.discoveredUsers).toHaveLength(1);
+    expect(state.discoveredUsers[0].userId).toBe("@paulo:litteris.online");
+    expect(state.discovering).toBe(false);
+  });
 });

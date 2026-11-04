@@ -64,6 +64,22 @@ export interface FriendsResponse {
   blocked: FriendRequestItem[];
 }
 
+export interface DiscoveredUserItem {
+  userId: string;
+  displayName: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  status: "friend" | "pending_incoming" | "pending_outgoing" | "none";
+  friendshipId: string | null;
+  directRoomId: string | null;
+  joinedAt: string;
+}
+
+export interface DiscoveryResponse {
+  users: DiscoveredUserItem[];
+}
+
 /**
  * Low-level request helper that adds auth headers.
  * The Echo API middleware expects:
@@ -952,6 +968,23 @@ export class EchoApi {
     if (!res.ok) {
       const errTxt = await res.text();
       throw new Error(`Falha ao obter sala direta: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Lista usuários cadastrados para descobrimento. */
+  async getDiscoveredUsers(query?: string, limit?: number): Promise<DiscoveryResponse> {
+    if (!this.accessToken) {
+      return { users: [] };
+    }
+    const params = new URLSearchParams();
+    if (query?.trim()) params.append("q", query.trim());
+    if (limit) params.append("limit", String(limit));
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const res = await this.get(`/api/friends/discover${qs}`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Falha ao buscar usuários para descobrir: ${res.status} ${errTxt}`);
     }
     return res.json();
   }

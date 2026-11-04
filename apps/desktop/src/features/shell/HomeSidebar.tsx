@@ -40,7 +40,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
   };
 
   const handleOpenDm = async (userId: string) => {
-    await useFriendsStore.getState().openDirectMessage(userId);
+    await openDirectMessage(userId);
     onClose?.();
   };
 

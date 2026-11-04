@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Users,
   Check,
@@ -9,6 +9,9 @@ import {
   UserMinus,
   PaperPlaneTilt,
   MagnifyingGlass,
+  Compass,
+  UserPlus,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -20,8 +23,11 @@ export default function FriendsDashboard() {
     pendingIncoming,
     pendingOutgoing,
     blocked,
+    discoveredUsers,
+    discovering,
     activeTab,
     setActiveTab,
+    loadDiscoveredUsers,
     sendFriendRequest,
     acceptFriendRequest,
     declineFriendRequest,
@@ -39,8 +45,15 @@ export default function FriendsDashboard() {
 
   const [addInput, setAddInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [discoverQuery, setDiscoverQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab === "discover" && discoveredUsers.length === 0) {
+      void loadDiscoveredUsers();
+    }
+  }, [activeTab, discoveredUsers.length, loadDiscoveredUsers]);
 
   // Filtra amigos online
   const onlineFriends = useMemo(() => {
@@ -62,6 +75,19 @@ export default function FriendsDashboard() {
         f.userId.toLowerCase().includes(q),
     );
   }, [activeTab, onlineFriends, friends, searchQuery]);
+
+  // Filtra usuários descobertos pela busca
+  const filteredDiscoveredUsers = useMemo(() => {
+    const q = discoverQuery.toLowerCase().trim();
+    if (!q) return discoveredUsers;
+    return discoveredUsers.filter(
+      (u) =>
+        u.displayName.toLowerCase().includes(q) ||
+        (u.nickname ?? "").toLowerCase().includes(q) ||
+        u.userId.toLowerCase().includes(q) ||
+        (u.bio ?? "").toLowerCase().includes(q),
+    );
+  }, [discoveredUsers, discoverQuery]);
 
   const handleSendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,6 +174,26 @@ export default function FriendsDashboard() {
               }`}
             >
               Bloqueados ({blocked.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("discover");
+                void loadDiscoveredUsers();
+              }}
+              className={`cursor-pointer px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === "discover"
+                  ? "bg-white/[0.08] text-txt shadow-sm"
+                  : "text-mut hover:bg-white/[0.04] hover:text-txt"
+              }`}
+            >
+              <Compass
+                size={14}
+                weight={activeTab === "discover" ? "fill" : "regular"}
+                className={activeTab === "discover" ? "text-acc" : ""}
+              />
+              Descobrir
             </button>
 
             <button
@@ -502,6 +548,177 @@ export default function FriendsDashboard() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ABA: DESCOBRIR */}
+        {activeTab === "discover" && (
+          <div className="space-y-6 max-w-5xl">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display text-base font-bold text-txt">
+                    Descobrir Usuários
+                  </h2>
+                  <span className="rounded-full bg-acc/10 px-2.5 py-0.5 text-[11px] font-semibold text-acc border border-acc/20">
+                    {discoveredUsers.length} membros
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-mut/70">
+                  Explore novos membros cadastrados no Echo e conecte-se com a comunidade.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative w-full sm:w-64">
+                  <MagnifyingGlass
+                    size={15}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-mut/60 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    value={discoverQuery}
+                    onChange={(e) => setDiscoverQuery(e.target.value)}
+                    placeholder="Buscar por nome ou @..."
+                    className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] py-2 pl-9 pr-3 text-xs text-txt placeholder:text-mut/50 focus:border-acc/40 focus:bg-white/[0.05] focus:outline-none transition-all"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadDiscoveredUsers(discoverQuery)}
+                  disabled={discovering}
+                  title="Atualizar lista"
+                  className="cursor-pointer flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.06] text-mut hover:text-txt hover:bg-white/[0.08] active:scale-95 transition-all disabled:opacity-40"
+                >
+                  <ArrowsClockwise size={16} className={discovering ? "animate-spin text-acc" : ""} />
+                </button>
+              </div>
+            </div>
+
+            {discovering && discoveredUsers.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="h-36 rounded-2xl bg-white/[0.02] border border-white/[0.04] p-4 animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : filteredDiscoveredUsers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center text-mut/60 space-y-3">
+                <Compass size={48} className="opacity-20 text-mut" />
+                <p className="text-sm font-medium">Nenhum membro encontrado</p>
+                <p className="text-xs text-mut/50 max-w-sm">
+                  {discoverQuery
+                    ? "Tente buscar com outro nome ou identificador."
+                    : "Novos membros cadastrados aparecerão aqui para você descobrir."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {filteredDiscoveredUsers.map((user) => {
+                  const handle = (user.nickname || user.userId.replace(/^@/, "").split(":")[0]).toLowerCase();
+                  const isPending = user.status === "pending_outgoing";
+                  const isIncoming = user.status === "pending_incoming";
+                  const isFriend = user.status === "friend";
+
+                  return (
+                    <div
+                      key={user.userId}
+                      className="group relative flex flex-col justify-between rounded-2xl bg-[#141923] border border-white/[0.05] p-4 hover:border-acc/30 hover:bg-[#181f2c] transition-all duration-200 shadow-sm"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="relative">
+                            {user.avatarUrl ? (
+                              <MxcImage
+                                mxcUrl={user.avatarUrl}
+                                alt={user.displayName}
+                                className="h-12 w-12 rounded-full object-cover ring-2 ring-white/[0.08]"
+                                width={48}
+                                height={48}
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-acc/15 font-display text-base font-bold text-acc ring-2 ring-acc/20">
+                                {user.displayName.slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+
+                          {isFriend && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
+                              <Check size={11} weight="bold" /> Amigo
+                            </span>
+                          )}
+                          {isPending && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400 border border-amber-500/20">
+                              Enviado
+                            </span>
+                          )}
+                          {isIncoming && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-acc/10 px-2 py-0.5 text-[10px] font-semibold text-acc border border-acc/20">
+                              Solicitou
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="font-semibold text-sm text-txt truncate group-hover:text-acc transition-colors">
+                          {user.displayName}
+                        </h3>
+                        <p className="font-mono text-xs text-mut/80 truncate">@{handle}</p>
+
+                        {user.bio ? (
+                          <p className="mt-2 text-xs text-mut/70 line-clamp-2 leading-relaxed">
+                            {user.bio}
+                          </p>
+                        ) : (
+                          <p className="mt-2 text-[11px] text-mut/40 italic">
+                            Sem biografia
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-4 mt-2 border-t border-white/[0.04]">
+                        {isFriend ? (
+                          <button
+                            type="button"
+                            onClick={() => openDirectMessage(user.userId)}
+                            className="cursor-pointer w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white/[0.06] text-txt font-semibold text-xs hover:bg-acc hover:text-bg active:scale-[0.98] transition-all"
+                          >
+                            <ChatCircle size={15} weight="bold" />
+                            Conversar
+                          </button>
+                        ) : isIncoming ? (
+                          <button
+                            type="button"
+                            onClick={() => user.friendshipId && acceptFriendRequest(user.friendshipId)}
+                            className="cursor-pointer w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-acc text-bg font-semibold text-xs hover:bg-acc-press active:scale-[0.98] transition-all shadow shadow-acc/20"
+                          >
+                            <Check size={15} weight="bold" />
+                            Aceitar Pedido
+                          </button>
+                        ) : isPending ? (
+                          <div className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white/[0.03] text-mut text-xs font-medium border border-white/[0.06]">
+                            <Check size={13} weight="bold" className="text-amber-400" />
+                            Solicitação enviada
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-label={`Adicionar ${user.displayName} como amigo`}
+                            onClick={() => sendFriendRequest(user.userId)}
+                            className="cursor-pointer w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-acc text-bg font-semibold text-xs hover:bg-acc-press active:scale-[0.98] transition-all shadow shadow-acc/20"
+                          >
+                            <UserPlus size={15} weight="bold" />
+                            Adicionar Amigo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
