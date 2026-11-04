@@ -1,5 +1,6 @@
 import { Chats, Copy } from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
+import { useProfileStore } from "@/stores/profileStore";
 import { senderLabel } from "./groupMessages";
 import ReplyChip from "./ReplyChip";
 import EditedBadge from "./EditedBadge";
@@ -41,7 +42,8 @@ export default function MessageBubble({
   onToggleReaction,
 }: MessageBubbleProps) {
   const isSender = event.sender === myUserId;
-  const name = senderLabel(event.sender);
+  const myDisplayName = useProfileStore((s) => s.displayName);
+  const name = isSender && myDisplayName ? myDisplayName : senderLabel(event.sender);
   const time = new Date(event.originServerTs).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",

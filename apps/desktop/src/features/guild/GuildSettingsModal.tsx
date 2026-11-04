@@ -159,6 +159,9 @@ export default function GuildSettingsModal({
   // Members tab state
   const [membersData, setMembersData] = useState<GuildMembersData | null>(null);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [myGuildNickname, setMyGuildNickname] = useState("");
+  const [savingNickname, setSavingNickname] = useState(false);
+  const [nicknameMessage, setNicknameMessage] = useState<string | null>(null);
 
   // Invites tab state
   const [invites, setInvites] = useState<GuildInviteItem[]>([]);
@@ -219,10 +222,32 @@ export default function GuildSettingsModal({
       setLoadingMembers(true);
       const data = await echoApi.getGuildMembersData(guild.guildId);
       setMembersData(data);
+      if (myUserId && data?.memberProfiles) {
+        const myProfile = data.memberProfiles.find((mp) => mp.userId === myUserId);
+        if (myProfile?.nickname) {
+          setMyGuildNickname(myProfile.nickname);
+        }
+      }
     } catch {
       // Ignora falha
     } finally {
       setLoadingMembers(false);
+    }
+  };
+
+  const handleSaveGuildNickname = async () => {
+    try {
+      setSavingNickname(true);
+      setNicknameMessage(null);
+      const nickToSave = myGuildNickname.trim() || null;
+      await echoApi.setGuildMemberNickname(guild.guildId, nickToSave);
+      setNicknameMessage(nickToSave ? "Apelido atualizado para este servidor!" : "Apelido redefinido para o padrão global.");
+      await loadMembers();
+    } catch {
+      setErrorMessage("Falha ao atualizar apelido do servidor.");
+    } finally {
+      setSavingNickname(false);
+      setTimeout(() => setNicknameMessage(null), 3000);
     }
   };
 
@@ -991,11 +1016,66 @@ export default function GuildSettingsModal({
 
             {/* ── ABA 3: MEMBROS & APELIDOS ───────────────────────────── */}
             {activeTab === "members" && (
-              <div className="space-y-4">
+              <div className="space-y-5">
+                {/* Card de Configuração do Próprio Apelido no Servidor */}
+                <div className="p-4 rounded-xl border border-white/[0.08] bg-white/[0.02] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-acc">
+                        Seu Apelido nesta Guilda
+                      </h4>
+                      <p className="text-xs text-mut/70 mt-0.5">
+                        Define como seu nome aparece apenas dentro de {guild.name}. Se vazio, seu apelido global será exibido.
+                      </p>
+                    </div>
+                    {nicknameMessage && (
+                      <span className="text-xs font-medium text-acc bg-acc/10 border border-acc/20 px-2.5 py-1 rounded-lg animate-in fade-in">
+                        {nicknameMessage}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={myGuildNickname}
+                      maxLength={32}
+                      onChange={(e) => setMyGuildNickname(e.target.value)}
+                      placeholder="Apelido exclusivo para esta guilda"
+                      className="bg-white/[0.03] border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-txt focus:border-acc/50 focus:bg-white/[0.05] focus:ring-1 focus:ring-acc/30 hover:border-white/[0.15] transition-all flex-1"
+                    />
+                    <Button
+                      type="button"
+                      disabled={savingNickname}
+                      onClick={handleSaveGuildNickname}
+                      className="cursor-pointer shrink-0 rounded-xl bg-acc text-bg font-semibold text-xs px-4 py-2 shadow-md shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all"
+                    >
+                      {savingNickname ? "Salvando..." : "Salvar Apelido"}
+                    </Button>
+                    {myGuildNickname && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={savingNickname}
+                        onClick={async () => {
+                          setMyGuildNickname("");
+                          await echoApi.setGuildMemberNickname(guild.guildId, null);
+                          setNicknameMessage("Apelido redefinido para o padrão global.");
+                          loadMembers();
+                          setTimeout(() => setNicknameMessage(null), 3000);
+                        }}
+                        className="cursor-pointer shrink-0 rounded-xl border border-white/[0.08] text-xs text-mut hover:text-txt hover:bg-white/[0.04] px-3 py-2"
+                        title="Redefinir para o padrão global"
+                      >
+                        Redefinir
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-mut">
                   <span>Membros da Comunidade</span>
                   <span className="text-[11px] font-normal lowercase text-mut/60">
-                    Gerencie cargos e apelidos no servidor
+                    Cargos e apelidos locais registrados
                   </span>
                 </div>
 

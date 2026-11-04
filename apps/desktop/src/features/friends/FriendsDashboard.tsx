@@ -225,7 +225,7 @@ export default function FriendsDashboard() {
                 Adicionar Amigo
               </h2>
               <p className="mt-1 text-xs text-mut/70">
-                Você pode adicionar um amigo pelo identificador do Echo (@usuario:servidor) ou apelido.
+                Você pode adicionar um amigo usando o nome de usuário (@username).
               </p>
             </div>
 

@@ -35,7 +35,8 @@ export default function AppShell({ children }: AppShellProps) {
   const { membersVisible, sidebarOverlay } = useBreakpoints();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const profileOpen = useUiStore((state) => state.isProfileOpen);
+  const setProfileOpen = useUiStore((state) => state.setProfileOpen);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createGuildOpen, setCreateGuildOpen] = useState(false);
   const [joinGuildOpen, setJoinGuildOpen] = useState(false);

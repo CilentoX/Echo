@@ -32,6 +32,7 @@ export default function MemberList({
   const presenceMap = useUiStore((state) => state.presence);
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
   const myAvatarUrl = useProfileStore((state) => state.avatarUrl);
+  const myDisplayName = useProfileStore((state) => state.displayName);
 
   const getMemberPresence = (m: MemberSummary): "online" | "offline" | "unavailable" => {
     if (m.userId === myUserId) return "online";
@@ -186,7 +187,9 @@ export default function MemberList({
                     ? (member.avatarUrl ?? myAppwriteAvatarUrl ?? myAvatarUrl ?? null)
                     : (member.avatarUrl ?? null);
 
-                  const cleanDisplayName = member.displayName || member.userId.replace(/^@/, "").split(":")[0];
+                  const cleanDisplayName = isMe
+                    ? (myDisplayName || member.displayName || member.userId.replace(/^@/, "").split(":")[0])
+                    : (member.displayName || member.userId.replace(/^@/, "").split(":")[0]);
 
                   return (
                     <li key={member.userId} className="relative">

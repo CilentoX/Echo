@@ -6,6 +6,7 @@ describe("profileStore", () => {
     useProfileStore.setState({
       displayName: "",
       username: "",
+      matrixUserId: "",
       avatarUrl: null,
       bio: null,
       role: null,
@@ -19,11 +20,18 @@ describe("profileStore", () => {
   it("inicializa com valores vazios", () => {
     const s = useProfileStore.getState();
     expect(s.displayName).toBe("");
+    expect(s.username).toBe("");
+    expect(s.matrixUserId).toBe("");
     expect(s.avatarUrl).toBeNull();
     expect(s.bannerUrl).toBeNull();
     expect(s.nickname).toBeNull();
     expect(s.bio).toBeNull();
     expect(s.links).toEqual([]);
+  });
+
+  it("setUsername altera username", () => {
+    useProfileStore.getState().setUsername("lucas_cilento");
+    expect(useProfileStore.getState().username).toBe("lucas_cilento");
   });
 
   it("setAvatarUrl altera avatarUrl", () => {

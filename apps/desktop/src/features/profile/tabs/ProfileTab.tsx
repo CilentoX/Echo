@@ -34,7 +34,6 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
   const {
     displayName,
     username,
-    nickname,
     bio,
     role,
     joinedAt,
@@ -57,8 +56,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     return echoApi.uploadChatMedia(file);
   };
 
-  const effectiveDisplayName = displayName || nickname || (username ? username.replace(/^@/, "").split(":")[0] : "");
-  const effectiveHandle = nickname || (username ? username.replace(/^@/, "").split(":")[0] : "");
+  const effectiveDisplayName = displayName || (username ? username.replace(/^@/, "").split(":")[0] : "");
+  const effectiveHandle = username ? username.replace(/^@/, "").split(":")[0] : "";
 
   const initials = useMemo(() => {
     const name = effectiveDisplayName || "Usuário";
@@ -73,17 +72,18 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
   const {
     isEditing,
     editDisplayName,
-    editNickname,
+    editUsername,
     editBio,
     editAvatarUrl,
     editBannerUrl,
     editLinks,
     isSaving,
     error,
+    usernameStatus,
     startEditing,
     cancelEditing,
     setEditDisplayName,
-    setEditNickname,
+    setEditUsername,
     setEditBio,
     setEditAvatarUrl,
     setEditBannerUrl,
@@ -280,13 +280,13 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           </div>
 
           <div className="space-y-5">
-            {/* Display Name */}
+            {/* Apelido / Display Name */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="displayName" className="text-sm font-medium text-txt">
-                  Nome de exibição
+                  Apelido / Nome de exibição
                 </Label>
-                <span className="text-[11px] text-acc font-medium">Sincroniza com a rede Matrix</span>
+                <span className="text-[11px] text-acc font-medium">Nome principal visível</span>
               </div>
               <div className="relative">
                 <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-mut pointer-events-none" aria-hidden="true" />
@@ -295,7 +295,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                   type="text"
                   value={editDisplayName}
                   onChange={(e) => setEditDisplayName(e.target.value)}
-                  placeholder="Seu nome"
+                  placeholder="Seu apelido"
                   maxLength={64}
                   required
                   disabled={isSaving}
@@ -304,29 +304,64 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
                 />
               </div>
               <p className="text-xs text-mut/80">
-                Como você é visto no chat, amigos e salas. Ao salvar, é sincronizado imediatamente no Matrix.
+                Como você é visto no chat, amigos e salas. Pode conter espaços, maiúsculas e emojis.
               </p>
             </div>
 
-            {/* Nickname / Handle */}
+            {/* Username Único (@handle) */}
             <div className="space-y-1.5">
-              <Label htmlFor="nickname" className="text-sm font-medium text-txt">
-                Apelido (@handle)
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="username" className="text-sm font-medium text-txt">
+                  Nome de usuário único (@username)
+                </Label>
+                {usernameStatus.checking && (
+                  <span className="text-[11px] text-mut animate-pulse flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3 text-acc" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Verificando...
+                  </span>
+                )}
+                {!usernameStatus.checking && usernameStatus.available === true && (
+                  <span className="text-[11px] text-acc font-medium">
+                    ✓ Disponível
+                  </span>
+                )}
+                {!usernameStatus.checking && usernameStatus.available === false && (
+                  <span className="text-[11px] text-red-400 font-medium">
+                    ✕ Indisponível
+                  </span>
+                )}
+              </div>
               <div className="relative">
-                <At size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-mut pointer-events-none" aria-hidden="true" />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-mut font-mono text-sm pointer-events-none select-none">
+                  @
+                </span>
                 <Input
-                  id="nickname"
+                  id="username"
                   type="text"
-                  value={editNickname}
-                  onChange={(e) => setEditNickname(e.target.value)}
-                  placeholder="Seu apelido"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="seu_username"
                   maxLength={32}
                   disabled={isSaving}
-                  className="pl-10"
+                  className={`pl-8 font-mono text-sm transition-colors ${
+                    usernameStatus.available === false
+                      ? "border-red-500/50 focus:border-red-500 focus:ring-red-500/30"
+                      : usernameStatus.available === true
+                      ? "border-acc/50 focus:border-acc"
+                      : ""
+                  }`}
                 />
               </div>
-              <p className="text-xs text-mut/80">Identificador único usado para menções e pedidos de amizade.</p>
+              {usernameStatus.error ? (
+                <p className="text-xs text-red-400 font-medium">{usernameStatus.error}</p>
+              ) : (
+                <p className="text-xs text-mut/80">
+                  Identificador único usado para adicionar como amigo e menções. Apenas letras minúsculas, números, '.', '_' ou '-'.
+                </p>
+              )}
             </div>
 
             {/* Bio */}
@@ -438,7 +473,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
               </Button>
               <Button
                 type="submit"
-                disabled={isSaving}
+                disabled={isSaving || usernameStatus.available === false || usernameStatus.checking}
                 className="flex-1 py-3 rounded-xl font-semibold bg-acc text-bg hover:bg-acc-press active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
               >
                 {isSaving ? (
@@ -464,18 +499,21 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <InfoCard
               icon={<User size={18} />}
-              label="Nome de exibição"
+              label="Apelido / Nome de exibição"
               value={effectiveDisplayName}
+              description="Visível para todos na rede"
             />
             <InfoCard
               icon={<At size={18} />}
-              label="Apelido"
+              label="Nome de usuário (@handle)"
               value={`@${effectiveHandle}`}
+              description="Usado para adicionar como amigo"
             />
             <InfoCard
               icon={<ShieldCheck size={18} />}
-              label="Endereço Matrix"
-              value={username || `@${effectiveHandle}:litteris.online`}
+              label="ID Técnico Matrix"
+              value={useProfileStore.getState().matrixUserId || `@${effectiveHandle}:litteris.online`}
+              description="Privado · Invisível para outros usuários"
             />
             {joinedAt && (
               <InfoCard
@@ -521,7 +559,17 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
   );
 }
 
-function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function InfoCard({
+  icon,
+  label,
+  value,
+  description,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  description?: string;
+}) {
   return (
     <Card className="border-bd bg-surf hover:bg-surf2/50 transition-colors">
       <CardContent className="pt-4 pb-4 px-4">
@@ -532,6 +580,9 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-mut">{label}</p>
             <p className="text-txt truncate mt-0.5 font-medium">{value}</p>
+            {description && (
+              <p className="text-[11px] text-mut/70 mt-0.5">{description}</p>
+            )}
           </div>
         </div>
       </CardContent>

@@ -10,7 +10,8 @@ export interface ProfileLink {
 export interface ProfileState {
   /** Dados do próprio usuário (preenchidos no login / edição de perfil). */
   displayName: string;
-  username: string;           // MXID localpart + domain, ex: @lucas:echo.litteris.online
+  username: string;           // Username único sem @ e sem domínio, ex: lucas
+  matrixUserId: string;       // MXID Matrix interno completo, ex: @lucas:litteris.online
   nickname: string | null;    // apelido visível (Discord-style, opcional)
   avatarUrl: string | null;   // mxc:// do Matrix (perfil do usuário)
   bannerUrl: string | null;   // banner do perfil (mxc:// ou data URL)
@@ -23,6 +24,7 @@ export interface ProfileState {
   presence?: "online" | "offline" | "unavailable" | "idle" | "dnd";
 
   setDisplayName(name: string): void;
+  setUsername(username: string): void;
   setNickname(nickname: string | null): void;
   setBio(bio: string | null): void;
   setRole(role: string | null): void;
@@ -43,6 +45,7 @@ export interface ProfileState {
 export const useProfileStore = create<ProfileState>()((set) => ({
   displayName: "",
   username: "",
+  matrixUserId: "",
   nickname: null,
   avatarUrl: null,
   bannerUrl: null,
@@ -55,6 +58,7 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   presence: "online",
 
   setDisplayName: (name) => set({ displayName: name }),
+  setUsername: (username) => set({ username }),
   setNickname: (nickname) => set({ nickname }),
   setBio: (bio) => set({ bio }),
   setRole: (role) => set({ role }),
@@ -89,6 +93,8 @@ export const useProfileStore = create<ProfileState>()((set) => ({
 
       const userProfile = await matrixService.getUserProfile().catch(() => null);
       const myUserId = matrixService.getUserId() ?? userProfile?.userId ?? "";
+      const fallbackUsername = myUserId ? myUserId.replace(/^@/, "").split(":")[0] : "";
+      const resolvedUsername = userProfile?.username || fallbackUsername;
 
       // Restaura URLs persistidas (sobrevivem a reload/F5)
       const persistedAvatar = localStorage.getItem("echo:appwriteAvatarUrl");
@@ -107,10 +113,11 @@ export const useProfileStore = create<ProfileState>()((set) => ({
       }
 
       const nickname = userProfile?.nickname ?? userProfile?.displayName ?? null;
-      const displayName = userProfile?.displayName ?? userProfile?.nickname ?? (myUserId ? myUserId.replace(/^@/, "").split(":")[0] : "");
+      const displayName = userProfile?.displayName ?? userProfile?.nickname ?? resolvedUsername;
 
       set({
-        username: myUserId,
+        username: resolvedUsername,
+        matrixUserId: myUserId,
         nickname: nickname,
         displayName: displayName,
         avatarUrl: avatar,
@@ -135,6 +142,7 @@ export const useProfileStore = create<ProfileState>()((set) => ({
     set({
       displayName: "",
       username: "",
+      matrixUserId: "",
       nickname: null,
       avatarUrl: null,
       bannerUrl: null,

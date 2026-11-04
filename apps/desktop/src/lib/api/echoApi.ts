@@ -381,9 +381,26 @@ export class EchoApi {
       data,
     }).then(
       async (res) => {
-        if (!res.ok) throw new Error(`Failed to patch user profile: ${res.status}`);
+        if (!res.ok) {
+          const errTxt = await res.text();
+          let msg = `Failed to patch user profile: ${res.status}`;
+          try {
+            const json = JSON.parse(errTxt);
+            if (json.error) msg = json.error;
+          } catch {}
+          throw new Error(msg);
+        }
       },
     );
+  }
+
+  /** Check if a username is available. */
+  async checkUsername(username: string): Promise<{ available: boolean; username?: string; error?: string }> {
+    const res = await this.get(`/api/profiles/check-username?username=${encodeURIComponent(username)}`);
+    if (!res.ok) {
+      return { available: false, error: "Falha ao verificar disponibilidade do username" };
+    }
+    return res.json();
   }
 
   // ── Guilds ──────────────────────────────────────────────────────

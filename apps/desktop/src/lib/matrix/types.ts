@@ -72,12 +72,15 @@ export interface ChannelSummary {
 
 /** Perfil completo de um usuário (busca única no servidor Matrix). */
 export interface UserProfile {
+  userId?: string;
+  username?: string | null;
   displayName: string | null;
   nickname?: string | null;
   avatarUrl: string | null;
   bannerUrl: string | null;
   bio: string | null;
   role: string | null;
+  links?: Array<{ label: string; url: string }>;
 }
 
 export type SyncStatus = "connecting" | "syncing" | "error";

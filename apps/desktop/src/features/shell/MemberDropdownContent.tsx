@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react"
 import { useUiStore } from "@/stores/uiStore"
 import { useProfileStore } from "@/stores/profileStore"
 import { matrixService } from "@/lib/matrix/instance"
+import { useEchoApi } from "@/lib/api/echoApi"
 import type { UserProfile } from "@/lib/matrix/types"
-import { Chats, User, Copy } from "@phosphor-icons/react"
+import { Chats, User, Copy, Pencil } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import MxcImage from "@/components/media/MxcImage"
@@ -16,13 +17,18 @@ export default function MemberDropdownContent({
   userId,
 }: MemberDropdownContentProps) {
   const myUserId = useUiStore((state) => state.myUserId ?? "")
+  const activeGuildId = useUiStore((state) => state.activeGuildId)
   const isMyUser = userId === myUserId
   const presence = useUiStore((state) => state.presence[userId] ?? "offline")
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [editingGuildNick, setEditingGuildNick] = useState(false)
+  const [guildNickInput, setGuildNickInput] = useState("")
+  const [savingGuildNick, setSavingGuildNick] = useState(false)
 
+  const echoApi = useEchoApi()
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl)
   const myAppwriteBannerUrl = useProfileStore((state) => state.appwriteBannerUrl)
 
@@ -83,12 +89,13 @@ export default function MemberDropdownContent({
 
   const copyUserId = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(`@${cleanUserId(userId)}`)
+      const targetUsername = profile?.username || cleanUserId(userId)
+      await navigator.clipboard.writeText(`@${targetUsername}`)
       showToast("Username copiado")
     } catch {
       // falha silenciosa
     }
-  }, [userId, showToast])
+  }, [userId, profile?.username, showToast])
 
   const openDirectMessage = useCallback(() => {
     showToast("Iniciando mensagem direta")
@@ -179,11 +186,11 @@ export default function MemberDropdownContent({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-display font-bold text-lg text-txt truncate leading-tight" title={profile?.displayName ?? profile?.nickname ?? cleanUserId(userId)}>
-            {profile?.displayName ?? profile?.nickname ?? cleanUserId(userId)}
+          <p className="font-display font-bold text-lg text-txt truncate leading-tight" title={profile?.displayName ?? cleanUserId(userId)}>
+            {profile?.displayName ?? cleanUserId(userId)}
           </p>
           <p className="text-xs text-mut truncate">
-            @{profile?.nickname || cleanUserId(userId)} {isMyUser && " (você)"}
+            @{profile?.username || cleanUserId(userId)} {isMyUser && " (você)"}
           </p>
         </div>
       </div>
@@ -205,43 +212,160 @@ export default function MemberDropdownContent({
         </div>
       )}
 
+      {/* Editor rápido de apelido no servidor (se for o próprio usuário em guilda) */}
+      {editingGuildNick && activeGuildId && (
+        <div className="mt-3 p-3 bg-surf2/80 rounded-xl border border-bd space-y-2 animate-in fade-in">
+          <label className="text-[11px] font-semibold text-mut uppercase tracking-wider block">
+            Apelido nesta guilda
+          </label>
+          <input
+            type="text"
+            value={guildNickInput}
+            onChange={(e) => setGuildNickInput(e.target.value)}
+            placeholder="Seu apelido nesta comunidade"
+            maxLength={32}
+            className="w-full px-2.5 py-1.5 text-xs bg-bg border border-bd rounded-lg text-txt focus:border-acc focus:outline-none"
+            autoFocus
+          />
+          <div className="flex items-center justify-between pt-1">
+            <button
+              type="button"
+              disabled={savingGuildNick}
+              onClick={async () => {
+                try {
+                  setSavingGuildNick(true)
+                  await echoApi.setGuildMemberNickname(activeGuildId, null)
+                  showToast("Apelido resetado para o global")
+                  setProfile((prev) => (prev ? { ...prev, displayName: null } : null))
+                  setEditingGuildNick(false)
+                } catch {
+                  showToast("Falha ao redefinir apelido")
+                } finally {
+                  setSavingGuildNick(false)
+                }
+              }}
+              className="text-[11px] text-mut hover:text-txt cursor-pointer underline"
+            >
+              Resetar
+            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={savingGuildNick}
+                onClick={() => setEditingGuildNick(false)}
+                className="px-2.5 py-1 text-xs text-mut hover:text-txt rounded cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={savingGuildNick}
+                onClick={async () => {
+                  try {
+                    setSavingGuildNick(true)
+                    const saved = await echoApi.setGuildMemberNickname(activeGuildId, guildNickInput.trim() || null)
+                    showToast("Apelido atualizado!")
+                    setProfile((prev) => (prev ? { ...prev, displayName: saved.nickname || prev.displayName } : null))
+                    setEditingGuildNick(false)
+                  } catch {
+                    showToast("Falha ao atualizar apelido")
+                  } finally {
+                    setSavingGuildNick(false)
+                  }
+                }}
+                className="px-3 py-1 text-xs font-semibold bg-acc text-bg rounded-lg hover:bg-acc-press active:scale-95 transition-all cursor-pointer"
+              >
+                {savingGuildNick ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Separator className="my-4" />
 
       {/* Ações */}
       <div role="none" className="flex flex-col gap-0.5 px-1">
-        <Button
-          type="button"
-          role="menuitem"
-          variant="ghost"
-          size="sm"
-          onClick={openDirectMessage}
-          className={actionButton()}
-        >
-          <Chats size={14} className="shrink-0" />
-          <span>Enviar mensagem direta</span>
-        </Button>
-        <Button
-          type="button"
-          role="menuitem"
-          variant="ghost"
-          size="sm"
-          onClick={openViewProfile}
-          className={actionButton()}
-        >
-          <User size={14} className="shrink-0" />
-          <span>Ver perfil completo</span>
-        </Button>
-        <Button
-          type="button"
-          role="menuitem"
-          variant="ghost"
-          size="sm"
-          onClick={copyUserId}
-          className={actionButton()}
-        >
-          <Copy size={14} className="shrink-0" />
-          <span>Copiar username</span>
-        </Button>
+        {isMyUser ? (
+          <>
+            {activeGuildId && !editingGuildNick && (
+              <Button
+                type="button"
+                role="menuitem"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setGuildNickInput(profile?.displayName || "")
+                  setEditingGuildNick(true)
+                }}
+                className={actionButton()}
+              >
+                <Pencil size={14} className="shrink-0 text-acc" />
+                <span>Alterar apelido no servidor</span>
+              </Button>
+            )}
+            <Button
+              type="button"
+              role="menuitem"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                useUiStore.getState().setProfileOpen(true)
+              }}
+              className={actionButton()}
+            >
+              <User size={14} className="shrink-0" />
+              <span>Editar perfil</span>
+            </Button>
+            <Button
+              type="button"
+              role="menuitem"
+              variant="ghost"
+              size="sm"
+              onClick={copyUserId}
+              className={actionButton()}
+            >
+              <Copy size={14} className="shrink-0" />
+              <span>Copiar meu username</span>
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              role="menuitem"
+              variant="ghost"
+              size="sm"
+              onClick={openDirectMessage}
+              className={actionButton()}
+            >
+              <Chats size={14} className="shrink-0" />
+              <span>Enviar mensagem direta</span>
+            </Button>
+            <Button
+              type="button"
+              role="menuitem"
+              variant="ghost"
+              size="sm"
+              onClick={openViewProfile}
+              className={actionButton()}
+            >
+              <User size={14} className="shrink-0" />
+              <span>Ver perfil completo</span>
+            </Button>
+            <Button
+              type="button"
+              role="menuitem"
+              variant="ghost"
+              size="sm"
+              onClick={copyUserId}
+              className={actionButton()}
+            >
+              <Copy size={14} className="shrink-0" />
+              <span>Copiar username</span>
+            </Button>
+          </>
+        )}
       </div>
 
       {profile?.bio && (

@@ -18,6 +18,7 @@ export interface UserBarProps {
  */
 export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps) {
   const myUserId = useUiStore((s) => s.myUserId);
+  const username = useProfileStore((s) => s.username);
   const nickname = useProfileStore((s) => s.nickname);
   const displayName = useProfileStore((s) => s.displayName);
   const avatarUrl = useProfileStore((s) => s.avatarUrl);
@@ -36,8 +37,9 @@ export default function UserBar({ onOpenProfile, onOpenSettings }: UserBarProps)
   const activeChannelId = useUiStore((s) => s.activeChannelId);
 
   const effectiveAvatar = appwriteAvatarUrl ?? avatarUrl;
-  const effectiveName = nickname || displayName || myUserId?.replace(/^@/, "").split(":")[0] || "Usuário";
-  const userTag = myUserId ? `@${myUserId.replace(/^@/, "").split(":")[0]}` : "";
+  const effectiveHandle = username || myUserId?.replace(/^@/, "").split(":")[0] || "";
+  const effectiveName = nickname || displayName || effectiveHandle || "Usuário";
+  const userTag = effectiveHandle ? `@${effectiveHandle}` : "";
 
   const presenceColor =
     presence === "dnd"
