@@ -90,3 +90,4 @@ describe("GuildSettingsModal", () => {
     expect(mockEchoApi.listGuildInvites).toHaveBeenCalledWith("guild-1");
   });
 });
+

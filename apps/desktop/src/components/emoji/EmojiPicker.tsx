@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 const EMOJIS = [
   { emoji: "😀", name: "grinning face", keywords: ["face", "smile", "happy"] },
   { emoji: "😃", name: "grinning face with big eyes", keywords: ["face", "smile", "happy"] },
-  { emoji: "😄", name: "beaming face with smiling eyes", keywords: ["face", "smile", "happy"] },
+  { emoji: "😄", name: "grinning face with smiling eyes", keywords: ["face", "smile", "happy"] },
   { emoji: "😁", name: "beaming face with smiling eyes", keywords: ["face", "smile", "happy"] },
   { emoji: "😆", name: "grinning squinting face", keywords: ["face", "laugh", "happy"] },
   { emoji: "😅", name: "grinning face with sweat", keywords: ["face", "nervous", "smile"] },
@@ -52,7 +52,6 @@ const EMOJIS = [
   { emoji: "😧", name: "anguished face", keywords: ["face", "anguished"] },
   { emoji: "😮", name: "face with open mouth", keywords: ["face", "surprise", "open"] },
   { emoji: "😲", name: "astonished face", keywords: ["face", "astonished"] },
-  { emoji: "😴", name: "sleeping face", keywords: ["face", "sleep"] },
   { emoji: "😷", name: "face with medical mask", keywords: ["face", "mask", "sick"] },
   { emoji: "🤒", name: "face with thermometer", keywords: ["face", "sick", "thermometer"] },
   { emoji: "🤕", name: "face with head-bandage", keywords: ["face", "injury", "bandage"] },
@@ -72,15 +71,18 @@ const EMOJIS = [
   { emoji: "😫", name: "tired face", keywords: ["face", "tired"] },
   { emoji: "🥺", name: "pleading face", keywords: ["face", "plead", "cute"] },
   { emoji: "😶", name: "face without mouth", keywords: ["face", "mute"] },
-  { emoji: "😐", name: "neutral face", keywords: ["face", "neutral"] },
-  { emoji: "😑", name: "expressionless face", keywords: ["face", "expressionless"] },
   { emoji: "😏", name: "smirking face", keywords: ["face", "smirk"] },
   { emoji: "😒", name: "unamused face", keywords: ["face", "unamused"] },
-  { emoji: "🙂", name: "slightly smiling face", keywords: ["face", "smile"] },
-  { emoji: "🤗", name: "hugging face", keywords: ["face", "hug"] },
   { emoji: "🤩", name: "star-struck", keywords: ["face", "star", "eyes"] },
   { emoji: "🥳", name: "partying face", keywords: ["face", "party", "celebrate"] },
-  { emoji: "😎", name: "smiling face with sunglasses", keywords: ["face", "cool"] },
+  { emoji: "🔥", name: "fire", keywords: ["fire", "lit", "hot"] },
+  { emoji: "✨", name: "sparkles", keywords: ["sparkles", "shine", "magic"] },
+  { emoji: "🎉", name: "party popper", keywords: ["party", "celebrate", "tada"] },
+  { emoji: "❤️", name: "red heart", keywords: ["heart", "love"] },
+  { emoji: "👍", name: "thumbs up", keywords: ["thumbsup", "approve", "ok"] },
+  { emoji: "👎", name: "thumbs down", keywords: ["thumbsdown", "disapprove"] },
+  { emoji: "👏", name: "clapping hands", keywords: ["clap", "applause"] },
+  { emoji: "🚀", name: "rocket", keywords: ["rocket", "launch", "fast"] },
 ];
 
 const SKIN_TONES = ["", "🏻", "🏼", "🏽", "🏾", "🏿"];
@@ -143,9 +145,9 @@ export function EmojiPicker({ onSelect, open, onOpenChange }: EmojiPickerProps) 
 
         <div className="flex flex-col h-[420px]">
           <div className="flex-1 overflow-y-auto p-1 space-y-1" ref={scrollRef}>
-            {filtered.map((e) => (
+            {filtered.map((e, idx) => (
               <button
-                key={e.emoji + e.name}
+                key={`${e.emoji}-${e.name}-${idx}`}
                 onClick={() => handleSelect(e.emoji)}
                 className="w-full flex items-center justify-center gap-2 p-2 rounded hover:bg-surf2 transition-colors text-txt"
                 aria-label={e.name}
