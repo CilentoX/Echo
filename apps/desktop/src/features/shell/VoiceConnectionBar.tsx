@@ -3,7 +3,9 @@
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSyncStore } from "@/stores/syncStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { PhoneDisconnect, Broadcast, SpeakerHigh } from "@phosphor-icons/react";
+import { useVoiceActivity } from "@/features/voice/useVoiceActivity";
 
 export interface VoiceConnectionBarProps {
   onOpenVoiceSettings?: () => void;
@@ -12,10 +14,29 @@ export interface VoiceConnectionBarProps {
 export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnectionBarProps) {
   const isConnected = useVoiceStore((s) => s.isConnected);
   const isConnecting = useVoiceStore((s) => s.isConnecting);
+  const microphoneEnabled = useSettingsStore((s) => s.microphoneEnabled);
+  const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
+  const isMuted = !microphoneEnabled;
+  const isDeafened = !headphonesEnabled;
+  const setSpeaking = useVoiceStore((s) => s.setSpeaking);
+  const setParticipantSpeaking = useVoiceStore((s) => s.setParticipantSpeaking);
+  const myUserId = useUiStore((s) => s.myUserId);
   const activeVoiceChannelName = useVoiceStore((s) => s.activeVoiceChannelName);
   const activeVoiceGuildName = useVoiceStore((s) => s.activeVoiceGuildName);
   const pingMs = useVoiceStore((s) => s.pingMs);
   const disconnectVoice = useVoiceStore((s) => s.disconnectVoice);
+
+  useVoiceActivity({
+    enabled: isConnected && !isMuted && !isDeafened,
+    isMuted: isMuted || isDeafened,
+    onSpeakingChange: (speaking) => {
+      setSpeaking(speaking);
+      if (myUserId) {
+        setParticipantSpeaking(myUserId, speaking);
+      }
+      setParticipantSpeaking("me", speaking);
+    },
+  });
 
   const handleDisconnect = () => {
     const currentActiveVoiceId = useVoiceStore.getState().activeVoiceChannelId;

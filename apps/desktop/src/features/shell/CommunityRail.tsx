@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import { Compass, Plus, SignIn } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
@@ -40,9 +41,12 @@ function GuildButton({
   const handleClick = () => {
     // Left-click: apenas seleciona a guilda, NÃO abre o dropdown
     onSelect(guild.guildId);
+    useFriendsStore.getState().setSelectedFriendId(null);
     const existing = useSyncStore.getState().channelsByGuild[guild.guildId] ?? [];
     if (existing.length > 0) {
       useUiStore.getState().setActiveChannel(existing[0].channelId);
+    } else {
+      useUiStore.getState().setActiveChannel(null);
     }
   };
 
@@ -181,6 +185,7 @@ export default function CommunityRail({
           onClick={() => {
             setActiveGuild("home");
             setActiveChannel(null);
+            useFriendsStore.getState().setSelectedFriendId(null);
           }}
           className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 ${
             activeGuildId === "home"

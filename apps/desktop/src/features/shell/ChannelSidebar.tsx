@@ -6,6 +6,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
@@ -234,6 +235,7 @@ export default function ChannelSidebar({
       ],
     );
     setActiveChannel(channel.channelId);
+    useFriendsStore.getState().setSelectedFriendId(null);
   };
 
   // Drag and drop states
@@ -486,10 +488,14 @@ export default function ChannelSidebar({
     };
   }, [activeGuildId]);
 
-  // Se canais já estiverem em cache e nenhum canal estiver ativo, seleciona o primeiro
+  // Se canais já estiverem em cache e o canal ativo não pertencer à guilda, seleciona o primeiro
   useEffect(() => {
-    if (!activeChannelId && allChannels.length > 0) {
-      setActiveChannel(allChannels[0].channelId);
+    if (allChannels.length > 0) {
+      const channelExists = allChannels.some((c) => c.channelId === activeChannelId);
+      if (!channelExists) {
+        setActiveChannel(allChannels[0].channelId);
+        useFriendsStore.getState().setSelectedFriendId(null);
+      }
     }
   }, [activeChannelId, allChannels, setActiveChannel]);
 
@@ -1569,6 +1575,7 @@ export default function ChannelSidebar({
         }
         onCreated={(channel) => {
           setActiveChannel(channel.channelId);
+    useFriendsStore.getState().setSelectedFriendId(null);
           const currentChannels = useSyncStore.getState().channelsByGuild[activeGuildId ?? ""] ?? [];
           setChannels(activeGuildId ?? "", [
             {

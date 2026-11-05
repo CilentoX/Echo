@@ -58,17 +58,19 @@ export default function ChatPane({
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
 
-  // Auto-seleciona o primeiro canal da guilda se nenhum estiver selecionado
+  // Auto-seleciona o primeiro canal da guilda se nenhum estiver selecionado ou se o canal ativo não pertencer à guilda
   useEffect(() => {
-    if (!activeChannelId && activeGuildId && activeGuildId !== "home") {
+    if (activeGuildId && activeGuildId !== "home") {
       const guildChannels = channelsByGuild[activeGuildId] ?? [];
       if (guildChannels.length > 0) {
-        setActiveChannel(guildChannels[0].channelId);
+        const belongsToGuild = guildChannels.some((c) => c.channelId === activeChannelId);
+        if (!belongsToGuild) {
+          setActiveChannel(guildChannels[0].channelId);
+        }
       }
     }
   }, [activeChannelId, activeGuildId, channelsByGuild, setActiveChannel]);
   const friends = useFriendsStore((s) => s.friends);
-  const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
 
   const timeline = useSyncStore(
     useMemo(() => selectTimeline(activeChannelId ?? ""), [activeChannelId]),
@@ -100,12 +102,12 @@ export default function ChatPane({
 
   const groups = useMemo(() => groupMessages(timeline), [timeline]);
 
-  // Identifica se a sala é DM com um amigo
+  // Identifica se a sala é DM com um amigo (apenas quando fora de guildas)
+  const isGuild = Boolean(activeGuildId && activeGuildId !== "home");
   const activeFriend = useMemo(() => {
-    return friends.find(
-      (f) => f.directRoomId === activeChannelId || (selectedFriendId && f.userId === selectedFriendId),
-    );
-  }, [friends, activeChannelId, selectedFriendId]);
+    if (isGuild) return null;
+    return friends.find((f) => f.directRoomId === activeChannelId);
+  }, [friends, activeChannelId, isGuild]);
 
   const activeChannelData = useMemo(() => {
     if (!activeChannelId) return null;
@@ -381,6 +383,7 @@ export default function ChatPane({
       )}
 
       <Composer
+        key={activeChannelId ?? "empty"}
         roomId={activeChannelId}
         sendMessage={sendMessage}
         sendFile={sendFile}

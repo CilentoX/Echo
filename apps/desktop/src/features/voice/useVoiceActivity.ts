@@ -19,7 +19,7 @@ export interface UseVoiceActivityOptions {
 export function useVoiceActivity({
   enabled,
   isMuted,
-  threshold = 14,
+  threshold = 8,
   holdTimeMs = 350,
   onSpeakingChange,
 }: UseVoiceActivityOptions) {
@@ -85,6 +85,12 @@ export function useVoiceActivity({
         const ctx = new AudioContextClass();
         audioContextRef.current = ctx;
 
+        if (ctx.state === "suspended" && typeof ctx.resume === "function") {
+          try {
+            await ctx.resume();
+          } catch {}
+        }
+
         const source = ctx.createMediaStreamSource(stream);
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
@@ -94,13 +100,18 @@ export function useVoiceActivity({
 
         intervalRef.current = setInterval(() => {
           if (!audioContextRef.current || !mediaStreamRef.current) return;
+          if (audioContextRef.current.state === "suspended" && typeof audioContextRef.current.resume === "function") {
+            void audioContextRef.current.resume().catch(() => {});
+          }
           analyser.getByteFrequencyData(buffer);
 
           let sum = 0;
-          for (let i = 0; i < buffer.length; i++) {
+          // Foca a análise de energia na faixa de frequência da voz humana (bins 0 a 48)
+          const voiceBins = Math.min(buffer.length, 48);
+          for (let i = 0; i < voiceBins; i++) {
             sum += buffer[i]!;
           }
-          const averageVolume = sum / buffer.length;
+          const averageVolume = voiceBins > 0 ? sum / voiceBins : 0;
           const isLoudEnough = averageVolume > threshold;
 
           if (isLoudEnough) {

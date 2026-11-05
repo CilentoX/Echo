@@ -32,17 +32,17 @@ export default function ChatHeader({
   onToggleMembers,
 }: ChatHeaderProps) {
   const friends = useFriendsStore((s) => s.friends);
-  const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
+  const activeGuildId = useUiStore((s) => s.activeGuildId);
   const uiPresence = useUiStore((s) => s.presence);
 
-  // Identifica se a sala atual é uma DM com um amigo
+  // Identifica se a sala atual é uma DM com um amigo (apenas quando fora de guildas)
+  const isGuild = Boolean(activeGuildId && activeGuildId !== "home");
   const activeFriend = useMemo(() => {
-    return friends.find(
-      (f) => f.directRoomId === roomId || (selectedFriendId && f.userId === selectedFriendId),
-    );
-  }, [friends, roomId, selectedFriendId]);
+    if (isGuild) return null;
+    return friends.find((f) => f.directRoomId === roomId);
+  }, [friends, roomId, isGuild]);
 
-  const isDm = Boolean(activeFriend);
+  const isDm = !isGuild && Boolean(activeFriend);
 
   const presence = activeFriend
     ? uiPresence[activeFriend.userId] || activeFriend.presence || "offline"

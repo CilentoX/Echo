@@ -36,10 +36,37 @@ describe("RichEmbed", () => {
     expect(screen.getByText("Repositório no GitHub")).toBeTruthy();
   });
 
+  it("renderiza widget da Steam para links da loja da Steam", () => {
+    render(<RichEmbed content="Jogo novo: https://store.steampowered.com/app/730/CounterStrike_2/" />);
+
+    expect(screen.getByText("Steam Store")).toBeTruthy();
+    expect(screen.getByText("CounterStrike 2")).toBeTruthy();
+    expect(screen.getByTitle("Abrir no aplicativo Steam instalado")).toBeTruthy();
+    const iframe = screen.getByTitle("Steam Widget CounterStrike 2");
+    expect(iframe).toBeTruthy();
+    expect(iframe.getAttribute("src")).toBe("https://store.steampowered.com/widget/730/");
+  });
+
+  it("renderiza card da Epic Games Store para links da Epic", () => {
+    render(<RichEmbed content="Confira na Epic: https://store.epicgames.com/pt-BR/p/grand-theft-auto-v" />);
+
+    expect(screen.getByText("Epic Games Store")).toBeTruthy();
+    expect(screen.getAllByText("Grand Theft Auto V").length).toBeGreaterThan(0);
+    expect(screen.getByTitle("Abrir no Launcher da Epic Games")).toBeTruthy();
+  });
+
+  it("renderiza player do Spotify para links de faixas do Spotify", () => {
+    render(<RichEmbed content="Ouve essa música: https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT" />);
+
+    expect(screen.getByText("Spotify Player")).toBeTruthy();
+    const iframe = screen.getByTitle("Spotify Player");
+    expect(iframe).toBeTruthy();
+    expect(iframe.getAttribute("src")).toContain("open.spotify.com/embed/track/4cOdK2wGLETKBW3PvgPWqT");
+  });
+
   it("renderiza preview genérico para links comuns", () => {
     render(<RichEmbed content="Acesse https://example.com/artigo-novo" />);
 
     expect(screen.getByText("example.com")).toBeTruthy();
   });
 });
-
