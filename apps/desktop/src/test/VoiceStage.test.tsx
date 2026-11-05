@@ -376,7 +376,7 @@ describe("VoiceStage Component", () => {
     expect(screen.getByText("Webcam no Estúdio")).toBeTruthy();
   });
 
-  it("permite alternar entre os modos de layout Estúdio, Grade Teams e Cinema", () => {
+  it("permite alternar entre os modos de layout Estúdio, Grade e Cinema", () => {
     useVoiceStore.getState().connectVoice(
       "!guild1:echo",
       "Echo Guild",
@@ -406,11 +406,11 @@ describe("VoiceStage Component", () => {
       />,
     );
 
-    // Clica no modo Grade Teams
-    const teamsGridBtn = screen.getByRole("button", { name: /Grade Teams/i });
-    fireEvent.click(teamsGridBtn);
+    // Clica no modo Grade
+    const gridBtn = screen.getByRole("button", { name: /^Grade$/i });
+    fireEvent.click(gridBtn);
     expect(useVoiceStore.getState().screenShareLayout).toBe("split");
-    expect(screen.getByText("Teams Mode")).toBeTruthy();
+    expect(screen.getByText("Modo Grade")).toBeTruthy();
 
     // Clica no modo Cinema
     const cinemaBtn = screen.getByRole("button", { name: /Cinema/i });

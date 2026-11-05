@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SpeakerHigh,
   Microphone,
@@ -90,6 +90,27 @@ export default function VoiceStage({
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Sincroniza o MediaStream imediatamente em qualquer montagem/remontagem de layout sem tela preta
+  const setScreenVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    screenVideoRef.current = node;
+    if (node && screenStreamRef.current) {
+      if (node.srcObject !== screenStreamRef.current) {
+        node.srcObject = screenStreamRef.current;
+      }
+      node.play().catch(() => {});
+    }
+  }, []);
+
+  const setCameraVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    cameraVideoRef.current = node;
+    if (node && cameraStreamRef.current) {
+      if (node.srcObject !== cameraStreamRef.current) {
+        node.srcObject = cameraStreamRef.current;
+      }
+      node.play().catch(() => {});
+    }
+  }, []);
   const screenContainerRef = useRef<HTMLDivElement | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ startX: number; startY: number; startXPercent: number; startYPercent: number }>({
@@ -273,13 +294,35 @@ export default function VoiceStage({
 
   useEffect(() => {
     if (isScreenSharing && screenVideoRef.current && screenStreamRef.current) {
-      screenVideoRef.current.srcObject = screenStreamRef.current;
+      if (screenVideoRef.current.srcObject !== screenStreamRef.current) {
+        screenVideoRef.current.srcObject = screenStreamRef.current;
+      }
+      screenVideoRef.current.play().catch(() => {});
     }
-  }, [isScreenSharing]);
+  }, [isScreenSharing, screenShareLayout, isScreenDetached]);
+
+  useEffect(() => {
+    const video = screenVideoRef.current;
+    if (!video) return;
+
+    const onEnterPiP = () => setScreenDetached(true);
+    const onLeavePiP = () => setScreenDetached(false);
+
+    video.addEventListener("enterpictureinpicture", onEnterPiP);
+    video.addEventListener("leavepictureinpicture", onLeavePiP);
+
+    return () => {
+      video.removeEventListener("enterpictureinpicture", onEnterPiP);
+      video.removeEventListener("leavepictureinpicture", onLeavePiP);
+    };
+  }, [isScreenSharing, screenShareLayout]);
 
   useEffect(() => {
     if (isCameraOn && cameraVideoRef.current && cameraStreamRef.current) {
-      cameraVideoRef.current.srcObject = cameraStreamRef.current;
+      if (cameraVideoRef.current.srcObject !== cameraStreamRef.current) {
+        cameraVideoRef.current.srcObject = cameraStreamRef.current;
+      }
+      cameraVideoRef.current.play().catch(() => {});
     }
   }, [isCameraOn, screenShareLayout, isScreenDetached]);
 
@@ -504,7 +547,7 @@ export default function VoiceStage({
                 {isMe && isCameraOn && !isStudioWebcamActive ? (
                   <div className="relative w-full h-36 rounded-xl overflow-hidden border border-white/[0.1] shadow-inner bg-black mb-2">
                     <video
-                      ref={cameraVideoRef}
+                      ref={setCameraVideoRef}
                       autoPlay
                       playsInline
                       muted
@@ -602,132 +645,140 @@ export default function VoiceStage({
   const renderScreenShareStage = () => {
     if (!isScreenSharing) return null;
 
-    if (isScreenDetached) {
-      return (
-        <div className="relative w-full mb-6 rounded-2xl overflow-hidden bg-surf/90 border border-acc/30 p-8 flex flex-col items-center justify-center text-center shadow-2xl animate-in fade-in-0 duration-200">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-acc/15 border border-acc/30 text-acc mb-3 shadow-lg shadow-acc/10">
-            <PictureInPicture size={30} weight="bold" />
-          </div>
-          <h3 className="font-display text-base font-bold text-txt">Tela Destacada do Palco</h3>
-          <p className="text-xs text-mut max-w-md mt-1 mb-5 leading-relaxed">
-            A transmissão está em janela flutuante / Picture-in-Picture. Você pode movê-la livremente pela área de trabalho ou para outro monitor.
-          </p>
-          <button
-            type="button"
-            onClick={handleTogglePiP}
-            className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acc text-bg text-xs font-semibold shadow-lg shadow-acc/20 hover:opacity-90 active:scale-95 transition-all"
-          >
-            <ArrowsInSimple size={16} weight="bold" />
-            <span>Fixar Tela de Volta ao Palco</span>
-          </button>
-        </div>
-      );
-    }
-
     return (
       <div
         ref={screenContainerRef}
-        className="relative w-full mb-6 rounded-2xl overflow-hidden bg-black/95 border border-white/[0.1] shadow-2xl flex flex-col aspect-video max-h-[520px] animate-in fade-in-0 duration-200 select-none"
+        className={`relative w-full mb-6 rounded-2xl overflow-hidden shadow-2xl flex flex-col ${
+          isScreenDetached
+            ? "bg-surf/90 border border-acc/30 p-8 items-center justify-center text-center"
+            : "bg-black/95 border border-white/[0.1] aspect-video max-h-[520px]"
+        } animate-in fade-in-0 duration-200 select-none`}
       >
-        {/* Header Superior da Transmissão e Controles de Layout */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex flex-wrap items-center justify-between gap-2 p-3 bg-gradient-to-b from-black/90 via-black/50 to-transparent">
-          <div className="flex items-center gap-2">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
-            <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <Television size={16} weight="bold" className="text-acc" />
-              <span>Transmitindo Tela</span>
-              {screenShareConfig?.sourceName && (
-                <span className="text-white/60 font-normal lowercase truncate max-w-[130px] sm:max-w-xs">
-                  ({screenShareConfig.sourceName})
-                </span>
-              )}
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-white/[0.1] text-[10px] font-mono text-white/80">
-              {screenShareConfig ? `${screenShareConfig.resolution} ${screenShareConfig.fps}fps` : "1080p 60fps"}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Seletor de Modos de Visualização */}
-            <div className="flex items-center bg-black/60 border border-white/[0.12] rounded-xl p-0.5 backdrop-blur-md">
-              <button
-                type="button"
-                onClick={() => setScreenShareLayout("studio")}
-                title="Modo Estúdio: Câmera sobreposta à tela como webcam de streamer"
-                className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  screenShareLayout === "studio"
-                    ? "bg-acc text-bg shadow-sm"
-                    : "text-white/70 hover:text-white hover:bg-white/[0.05]"
-                }`}
-              >
-                <Broadcast size={14} weight="bold" />
-                <span>Estúdio</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setScreenShareLayout("split")}
-                title="Modo Split / Grade do Teams: Tela lado a lado com os participantes"
-                className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  screenShareLayout === "split"
-                    ? "bg-acc text-bg shadow-sm"
-                    : "text-white/70 hover:text-white hover:bg-white/[0.05]"
-                }`}
-              >
-                <Columns size={14} weight="bold" />
-                <span>Grade Teams</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setScreenShareLayout("fullscreen")}
-                title="Modo Cinema: Tela limpa e focada"
-                className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  screenShareLayout === "fullscreen"
-                    ? "bg-acc text-bg shadow-sm"
-                    : "text-white/70 hover:text-white hover:bg-white/[0.05]"
-                }`}
-              >
-                <SquaresFour size={14} weight="bold" />
-                <span>Cinema</span>
-              </button>
+        {isScreenDetached ? (
+          <div className="flex flex-col items-center justify-center text-center py-4 animate-in fade-in-0 duration-200">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-acc/15 border border-acc/30 text-acc mb-3 shadow-lg shadow-acc/10">
+              <PictureInPicture size={30} weight="bold" />
             </div>
-
-            {/* Botão Soltar Tela / Picture-in-Picture */}
+            <h3 className="font-display text-base font-bold text-txt">Tela Destacada do Palco</h3>
+            <p className="text-xs text-mut max-w-md mt-1 mb-5 leading-relaxed">
+              A transmissão está em janela flutuante / Picture-in-Picture. Você pode movê-la livremente pela área de trabalho ou para outro monitor.
+            </p>
             <button
               type="button"
               onClick={handleTogglePiP}
-              title="Soltar tela em janela flutuante / Picture-in-Picture para mover livremente para outro monitor"
-              aria-label="Soltar tela em janela flutuante"
-              className="cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.1] hover:bg-white/[0.2] text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 border border-white/[0.1]"
+              className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-xl bg-acc text-bg text-xs font-semibold shadow-lg shadow-acc/20 hover:opacity-90 active:scale-95 transition-all"
             >
-              <PictureInPicture size={15} weight="bold" />
-              <span className="hidden sm:inline">Soltar Tela</span>
-            </button>
-
-            {/* Botão Parar Transmissão */}
-            <button
-              type="button"
-              onClick={handleToggleScreenShare}
-              className="cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
-            >
-              <StopCircle size={15} weight="bold" />
-              <span>Parar Transmissão</span>
+              <ArrowsInSimple size={16} weight="bold" />
+              <span>Fixar Tela de Volta ao Palco</span>
             </button>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Header Superior da Transmissão e Controles de Layout */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex flex-wrap items-center justify-between gap-2 p-3 bg-gradient-to-b from-black/90 via-black/50 to-transparent">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Television size={16} weight="bold" className="text-acc" />
+                  <span>Transmitindo Tela</span>
+                  {screenShareConfig?.sourceName && (
+                    <span className="text-white/60 font-normal lowercase truncate max-w-[130px] sm:max-w-xs">
+                      ({screenShareConfig.sourceName})
+                    </span>
+                  )}
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-white/[0.1] text-[10px] font-mono text-white/80">
+                  {screenShareConfig ? `${screenShareConfig.resolution} ${screenShareConfig.fps}fps` : "1080p 60fps"}
+                </span>
+              </div>
 
-        {/* Video Player Principal da Tela */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Seletor de Modos de Visualização */}
+                <div className="flex items-center bg-black/60 border border-white/[0.12] rounded-xl p-0.5 backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={() => setScreenShareLayout("studio")}
+                    title="Modo Estúdio: Câmera sobreposta à tela como webcam de streamer"
+                    className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      screenShareLayout === "studio"
+                        ? "bg-acc text-bg shadow-sm"
+                        : "text-white/70 hover:text-white hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <Broadcast size={14} weight="bold" />
+                    <span>Estúdio</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setScreenShareLayout("split")}
+                    title="Modo Split / Grade: Tela lado a lado com os participantes"
+                    className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      screenShareLayout === "split"
+                        ? "bg-acc text-bg shadow-sm"
+                        : "text-white/70 hover:text-white hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <Columns size={14} weight="bold" />
+                    <span>Grade</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setScreenShareLayout("fullscreen")}
+                    title="Modo Cinema: Tela limpa e focada"
+                    className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      screenShareLayout === "fullscreen"
+                        ? "bg-acc text-bg shadow-sm"
+                        : "text-white/70 hover:text-white hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <SquaresFour size={14} weight="bold" />
+                    <span>Cinema</span>
+                  </button>
+                </div>
+
+                {/* Botão Soltar Tela / Picture-in-Picture */}
+                <button
+                  type="button"
+                  onClick={handleTogglePiP}
+                  title="Soltar tela em janela flutuante / Picture-in-Picture para mover livremente para outro monitor"
+                  aria-label="Soltar tela em janela flutuante"
+                  className="cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.1] hover:bg-white/[0.2] text-white text-xs font-semibold backdrop-blur-md transition-all active:scale-95 border border-white/[0.1]"
+                >
+                  <PictureInPicture size={15} weight="bold" />
+                  <span className="hidden sm:inline">Soltar Tela</span>
+                </button>
+
+                {/* Botão Parar Transmissão */}
+                <button
+                  type="button"
+                  onClick={handleToggleScreenShare}
+                  className="cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
+                >
+                  <StopCircle size={15} weight="bold" />
+                  <span>Parar Transmissão</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Video Player Principal da Tela: PERMANECE NO DOM para sustentar a sessão nativa de PiP ativa no Windows */}
         <video
-          ref={screenVideoRef}
+          ref={setScreenVideoRef}
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-contain"
+          className={
+            isScreenDetached
+              ? "opacity-0 pointer-events-none absolute w-1 h-1 -z-50"
+              : "w-full h-full object-contain"
+          }
         />
 
         {/* Overlaid Draggable Webcam in Studio Mode */}
-        {isStudioWebcamActive && (
+        {!isScreenDetached && isStudioWebcamActive && (
           <div
             role="region"
             aria-label="Webcam Flutuante do Modo Estúdio"
@@ -751,7 +802,7 @@ export default function VoiceStage({
           >
             {/* Câmera da Webcam */}
             <video
-              ref={cameraVideoRef}
+              ref={setCameraVideoRef}
               autoPlay
               playsInline
               muted
@@ -909,7 +960,7 @@ export default function VoiceStage({
           </div>
         ) : (
           <div className="flex flex-col w-full">
-            {/* Modo Split / Grade Teams: Tela Lado a Lado com os Participantes */}
+            {/* Modo Split / Grade: Tela Lado a Lado com os Participantes */}
             {isScreenSharing && !isScreenDetached && screenShareLayout === "split" ? (
               <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
                 <div className="flex-1 w-full min-w-0">
@@ -920,7 +971,7 @@ export default function VoiceStage({
                     <span className="text-xs font-semibold text-mut uppercase tracking-wider">
                       Grade ({participants.length})
                     </span>
-                    <span className="text-[10px] text-acc font-mono">Teams Mode</span>
+                    <span className="text-[10px] text-acc font-mono">Modo Grade</span>
                   </div>
                   <div className="flex flex-col gap-3">
                     {participants.map((p) => renderParticipantCard(p))}
