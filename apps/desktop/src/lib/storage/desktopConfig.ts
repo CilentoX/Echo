@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/updater";
 import type { ThemeId, ThemeMode } from "@/stores/themeStore";
 import type { GuildSummary, ChannelSummary } from "@/lib/matrix/types";
+import type { ChannelPermissionsConfig } from "@/lib/permissions/channelPermissions";
 
 export type { ThemeId, ThemeMode };
 
@@ -61,6 +62,7 @@ export interface AppCache {
   guilds?: GuildSummary[];
   channelsByGuild?: Record<string, ChannelSummary[]>;
   friends?: any[];
+  channelPermissions?: Record<string, ChannelPermissionsConfig>;
   [key: string]: any;
 }
 
@@ -108,6 +110,7 @@ export const DEFAULT_CACHE: AppCache = {
   guilds: [],
   channelsByGuild: {},
   friends: [],
+  channelPermissions: {},
 };
 
 // In-memory hot cache para respostas síncronas instantâneas (< 0.1ms)
@@ -268,6 +271,16 @@ export const desktopCache = {
   cacheChannels(guildId: string, channels: ChannelSummary[]): void {
     const map = desktopCache.get("channelsByGuild") || {};
     desktopCache.set("channelsByGuild", { ...map, [guildId]: channels });
+  },
+
+  cacheChannelPermissions(channelId: string, config: ChannelPermissionsConfig): void {
+    const map = desktopCache.get("channelPermissions") || {};
+    desktopCache.set("channelPermissions", { ...map, [channelId]: config });
+  },
+
+  getChannelPermissions(channelId: string): ChannelPermissionsConfig | undefined {
+    const map = desktopCache.get("channelPermissions") || {};
+    return map[channelId];
   },
 
   async clear(): Promise<void> {

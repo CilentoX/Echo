@@ -7,7 +7,9 @@ import type {
   NormalizedReaction,
   SyncStatus,
 } from "@/lib/matrix/types";
-import type { GuildMemberProfile } from "@/lib/api/echoApi";
+import type { GuildMemberProfile, GuildRole, GuildMemberRole } from "@/lib/api/echoApi";
+import type { ChannelPermissionsConfig } from "@/lib/permissions/channelPermissions";
+import { desktopCache } from "@/lib/storage/desktopConfig";
 
 export interface SyncState {
   status: SyncStatus;
@@ -17,12 +19,18 @@ export interface SyncState {
   reactionsByEvent: Record<string, NormalizedReaction[]>;
   membersByRoom: Record<string, MemberSummary[]>;
   guildMemberProfiles: Record<string, Record<string, GuildMemberProfile>>;
+  guildRoles: Record<string, GuildRole[]>;
+  guildMemberRoles: Record<string, Record<string, string[]>>; // guildId -> userId -> roleIds[]
+  channelPermissions: Record<string, ChannelPermissionsConfig>;
   readByChannel: Record<string, { userId: string; eventId: string }[]>;
   setGuilds(list: GuildSummary[]): void;
   setChannels(guildId: string, list: ChannelSummary[]): void;
   setMembers(roomId: string, members: MemberSummary[]): void;
   setGuildMemberProfiles(guildId: string, profiles: GuildMemberProfile[]): void;
   setMemberGuildNickname(guildId: string, userId: string, nickname: string | null): void;
+  setGuildRoles(guildId: string, roles: GuildRole[]): void;
+  setGuildMemberRoles(guildId: string, memberRoles: GuildMemberRole[]): void;
+  setChannelPermissions(channelId: string, config: ChannelPermissionsConfig): void;
   applyEvent(e: NormalizedEvent): void;
   prependEvents(channelId: string, events: NormalizedEvent[]): void;
   applyReaction(r: NormalizedReaction): void;
@@ -86,6 +94,9 @@ export const useSyncStore = create<SyncState>()((set) => {
     reactionsByEvent: {},
     membersByRoom: {},
     guildMemberProfiles: {},
+    guildRoles: {},
+    guildMemberRoles: {},
+    channelPermissions: desktopCache.get("channelPermissions") || {},
     readByChannel: {},
 
     setGuilds: (list) => set({ guilds: [...list] }),
@@ -136,6 +147,43 @@ export const useSyncStore = create<SyncState>()((set) => {
         };
       }),
 
+    setGuildRoles: (guildId, roles) =>
+      set((state) => ({
+        guildRoles: {
+          ...state.guildRoles,
+          [guildId]: [...roles],
+        },
+      })),
+
+    setGuildMemberRoles: (guildId, memberRoles) =>
+      set((state) => {
+        const userRoleMap: Record<string, string[]> = {};
+        for (const mr of memberRoles) {
+          if (!userRoleMap[mr.userId]) {
+            userRoleMap[mr.userId] = [];
+          }
+          if (!userRoleMap[mr.userId].includes(mr.roleId)) {
+            userRoleMap[mr.userId].push(mr.roleId);
+          }
+        }
+        return {
+          guildMemberRoles: {
+            ...state.guildMemberRoles,
+            [guildId]: userRoleMap,
+          },
+        };
+      }),
+
+    setChannelPermissions: (channelId, config) => {
+      desktopCache.cacheChannelPermissions(channelId, config);
+      set((state) => ({
+        channelPermissions: {
+          ...state.channelPermissions,
+          [channelId]: config,
+        },
+      }));
+    },
+
     setStatus: (status) => set({ status }),
 
     reset: () =>
@@ -147,6 +195,9 @@ export const useSyncStore = create<SyncState>()((set) => {
         reactionsByEvent: {},
         membersByRoom: {},
         guildMemberProfiles: {},
+        guildRoles: {},
+        guildMemberRoles: {},
+        channelPermissions: desktopCache.get("channelPermissions") || {},
         readByChannel: {},
       }),
 
@@ -252,3 +303,18 @@ export const selectReadByChannel =
   (roomId: string) =>
     (state: SyncState): { userId: string; eventId: string }[] | readonly never[] =>
       emptyOr(state.readByChannel[roomId]);
+
+export const selectChannelPermissions =
+  (channelId: string) =>
+    (state: SyncState): ChannelPermissionsConfig | undefined =>
+      state.channelPermissions[channelId];
+
+export const selectGuildRoles =
+  (guildId: string) =>
+    (state: SyncState): GuildRole[] | readonly never[] =>
+      emptyOr(state.guildRoles[guildId]);
+
+export const selectUserGuildRoles =
+  (guildId: string, userId: string) =>
+    (state: SyncState): string[] | readonly never[] =>
+      emptyOr(state.guildMemberRoles[guildId]?.[userId]);

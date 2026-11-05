@@ -8,6 +8,7 @@ import {
   Headphones,
   PhoneDisconnect,
   Waveform,
+  Lock,
 } from "@phosphor-icons/react";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -17,6 +18,10 @@ import { matrixService } from "@/lib/matrix/instance";
 import MxcImage from "@/components/media/MxcImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
+import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
+
+const EMPTY_ROLES: string[] = [];
+const EMPTY_GUILD_ROLES: any[] = [];
 
 export interface VoiceStageProps {
   channelId: string;
@@ -60,8 +65,37 @@ export default function VoiceStage({
     activeGuildId && activeGuildId !== "home" ? s.guildMemberProfiles[activeGuildId] : undefined,
   );
 
+  const activeGuild = useSyncStore((s) => s.guilds.find((g) => g.guildId === activeGuildId));
+  const effectiveUserId =
+    myUserId || (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : "") || "me";
+  const isGuildOwner = Boolean(
+    activeGuild && (activeGuild as any).createdBy && effectiveUserId && (activeGuild as any).createdBy === effectiveUserId,
+  );
+  const guildRoles = useSyncStore((s) => (activeGuildId ? s.guildRoles[activeGuildId] ?? EMPTY_GUILD_ROLES : EMPTY_GUILD_ROLES));
+  const userRoleIds = useSyncStore((s) =>
+    activeGuildId && effectiveUserId ? s.guildMemberRoles[activeGuildId]?.[effectiveUserId] ?? EMPTY_ROLES : EMPTY_ROLES,
+  );
+  const channelConfig = useSyncStore((s) => s.channelPermissions[channelId]);
+
+  const canConnectVoice = hasChannelPermission("CONNECT_VOICE", {
+    userId: effectiveUserId,
+    isGuildOwner,
+    userRoleIds: userRoleIds || [],
+    guildRoles: (guildRoles as any[]) || [],
+    channelConfig,
+    channelType: "voice",
+  });
+
+  const canSpeak = hasChannelPermission("SPEAK", {
+    userId: effectiveUserId,
+    isGuildOwner,
+    userRoleIds: userRoleIds || [],
+    guildRoles: (guildRoles as any[]) || [],
+    channelConfig,
+    channelType: "voice",
+  });
+
   // Participante do usuário local
-  const effectiveUserId = myUserId || matrixService.getUserId() || "me";
   const myGuildProfile = effectiveUserId ? guildProfiles?.[effectiveUserId] : undefined;
   const myEffectiveName =
     myGuildProfile?.nickname || profileDisplayName || effectiveUserId.split(":")[0].replace("@", "") || "Você";
@@ -73,8 +107,9 @@ export default function VoiceStage({
 
   const hasConnectedRef = useRef(false);
 
-  // Canal de áudio é estritamente de áudio: ao abrir o canal, conecta automaticamente à voz
+  // Canal de áudio é estritamente de áudio: ao abrir o canal, conecta automaticamente à voz (se permitido)
   useEffect(() => {
+    if (!canConnectVoice) return;
     if (!hasConnectedRef.current && activeVoiceChannelId !== channelId) {
       hasConnectedRef.current = true;
       connectVoice(
@@ -87,7 +122,7 @@ export default function VoiceStage({
             userId: effectiveUserId,
             username: myEffectiveName,
             avatarUrl: myEffectiveAvatar,
-            isMuted: false,
+            isMuted: !canSpeak,
             isDeafened: false,
             isSpeaking: false,
             volume: 100,
@@ -95,7 +130,7 @@ export default function VoiceStage({
         ],
       );
     }
-  }, [channelId, activeVoiceChannelId, activeGuildId, guildId, guildName, effectiveUserId, myEffectiveName, myEffectiveAvatar, connectVoice]);
+  }, [channelId, activeVoiceChannelId, activeGuildId, guildId, guildName, effectiveUserId, myEffectiveName, myEffectiveAvatar, connectVoice, canConnectVoice, canSpeak]);
 
   // Ao sair/desconectar do canal de voz, volta imediatamente para o canal de texto da guilda
   const handleDisconnect = () => {
@@ -109,8 +144,32 @@ export default function VoiceStage({
   const myParticipant = participants.find(
     (p) => p.userId === effectiveUserId || p.userId === "me" || p.userId === myUserId,
   );
-  const isMyMuted = myParticipant?.isMuted ?? false;
+  const isMyMuted = !canSpeak || (myParticipant?.isMuted ?? false);
   const isMyDeafened = myParticipant?.isDeafened ?? false;
+
+  if (!canConnectVoice) {
+    return (
+      <div
+        data-testid="voice-stage-restricted"
+        className="flex flex-1 flex-col items-center justify-center h-full w-full bg-bg p-6 text-center select-none"
+      >
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mb-4 shadow-lg shadow-amber-500/10">
+          <Lock size={32} weight="bold" />
+        </div>
+        <h2 className="font-display text-xl font-bold text-txt">Acesso Restrito ao Canal de Áudio</h2>
+        <p className="mt-1.5 text-xs text-mut max-w-md leading-relaxed">
+          Você não tem permissão para conectar neste canal de voz (<span className="text-txt font-semibold">#{channelName}</span>).
+        </p>
+        <button
+          type="button"
+          onClick={handleDisconnect}
+          className="mt-5 px-4 py-2 rounded-xl bg-acc text-bg text-xs font-semibold shadow-lg shadow-acc/20 hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+        >
+          Voltar para os canais de texto
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -133,6 +192,11 @@ export default function VoiceStage({
                 <span>{isConnecting ? "Conectando..." : "Áudio Conectado"}</span>
                 <span className="font-mono text-[9px] text-online/70 ml-1">({pingMs}ms)</span>
               </span>
+              {!canSpeak && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-semibold text-amber-400">
+                  Modo Ouvinte
+                </span>
+              )}
             </div>
             {topic && <p className="text-[11px] text-mut truncate">{topic}</p>}
           </div>
@@ -303,16 +367,19 @@ export default function VoiceStage({
             {/* Botão Microfone (Mudo / Desmudo) */}
             <button
               type="button"
-              onClick={() => toggleMute()}
-              aria-label={isMyMuted ? "Ativar microfone" : "Silenciar microfone"}
-              title={isMyMuted ? "Ativar microfone" : "Silenciar microfone"}
-              className={`cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-95 ${
-                isMyMuted
-                  ? "bg-err text-white shadow-md shadow-err/20 hover:bg-err-press"
-                  : "bg-white/[0.06] text-txt hover:bg-white/[0.12] border border-bd-subtle"
+              disabled={!canSpeak}
+              onClick={() => canSpeak && toggleMute()}
+              aria-label={!canSpeak ? "Modo ouvinte: sem permissão para falar" : isMyMuted ? "Ativar microfone" : "Silenciar microfone"}
+              title={!canSpeak ? "Modo ouvinte: sem permissão para falar" : isMyMuted ? "Ativar microfone" : "Silenciar microfone"}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-95 ${
+                !canSpeak
+                  ? "cursor-not-allowed opacity-40 bg-white/[0.04] text-mut border border-bd-subtle"
+                  : isMyMuted
+                    ? "cursor-pointer bg-err text-white shadow-md shadow-err/20 hover:bg-err-press"
+                    : "cursor-pointer bg-white/[0.06] text-txt hover:bg-white/[0.12] border border-bd-subtle"
               }`}
             >
-              {isMyMuted ? <MicrophoneSlash size={18} weight="bold" /> : <Microphone size={18} weight="bold" />}
+              {isMyMuted || !canSpeak ? <MicrophoneSlash size={18} weight="bold" /> : <Microphone size={18} weight="bold" />}
             </button>
 
             {/* Botão Fone de Ouvido (Ensurdecer) */}
@@ -333,17 +400,20 @@ export default function VoiceStage({
             {/* Botão de Teste de Fala (Simula/Ativa Fala em tempo real para ver a animação) */}
             <button
               type="button"
-              onClick={() => setSpeaking(!isSpeaking)}
-              aria-label={isSpeaking ? "Parar de falar" : "Falar (Testar animação)"}
-              title="Clique para alternar fala e testar a animação verde em tempo real"
-              className={`cursor-pointer flex h-10 items-center gap-1.5 px-3.5 rounded-xl font-medium text-xs transition-all active:scale-95 border ${
-                isSpeaking
-                  ? "bg-online text-bg font-bold border-online shadow-lg shadow-online/30 animate-pulse"
-                  : "bg-white/[0.06] text-txt hover:bg-white/[0.12] border-bd-subtle"
+              disabled={!canSpeak}
+              onClick={() => canSpeak && setSpeaking(!isSpeaking)}
+              aria-label={!canSpeak ? "Sem permissão para falar" : isSpeaking ? "Parar de falar" : "Falar (Testar animação)"}
+              title={!canSpeak ? "Modo ouvinte (sem permissão para falar)" : "Clique para alternar fala e testar a animação verde em tempo real"}
+              className={`flex h-10 items-center gap-1.5 px-3.5 rounded-xl font-medium text-xs transition-all active:scale-95 border ${
+                !canSpeak
+                  ? "cursor-not-allowed opacity-40 bg-white/[0.04] text-mut border-bd-subtle"
+                  : isSpeaking
+                    ? "cursor-pointer bg-online text-bg font-bold border-online shadow-lg shadow-online/30 animate-pulse"
+                    : "cursor-pointer bg-white/[0.06] text-txt hover:bg-white/[0.12] border-bd-subtle"
               }`}
             >
               <Waveform size={17} weight="bold" />
-              <span>{isSpeaking ? "Falando..." : "Falar (Teste)"}</span>
+              <span>{!canSpeak ? "Modo Ouvinte" : isSpeaking ? "Falando..." : "Falar (Teste)"}</span>
             </button>
 
             <div className="h-6 w-[1px] bg-bd-subtle mx-1" />

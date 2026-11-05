@@ -1,7 +1,7 @@
-import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X } from "@phosphor-icons/react";
+import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
-import { useSyncStore, selectChannels, selectGuilds } from "@/stores/syncStore";
+import { useSyncStore, selectChannels, selectGuilds, selectGuildRoles, selectUserGuildRoles } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { useVoiceStore } from "@/stores/voiceStore";
@@ -10,10 +10,13 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
+import ChannelSettingsModal from "@/features/guild/ChannelSettingsModal";
 import InviteModal from "@/features/guild/InviteModal";
 import MxcImage from "@/components/media/MxcImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import MemberDropdownContent from "./MemberDropdownContent";
+import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
+import type { ChannelSummary } from "@/lib/matrix/types";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
@@ -41,6 +44,7 @@ export default function ChannelSidebar({
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const [editGuildOpen, setEditGuildOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [channelSettingsTarget, setChannelSettingsTarget] = useState<ChannelSummary | null>(null);
   const [channelSearch, setChannelSearch] = useState("");
   const [openVoiceMemberId, setOpenVoiceMemberId] = useState<string | null>(null);
 
@@ -116,6 +120,52 @@ export default function ChannelSidebar({
 
   const activeGuild = guilds.find((g) => g.guildId === activeGuildId) ?? null;
 
+  const effectiveUserId =
+    myUserId || (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : "") || "";
+  const isGuildOwner = Boolean(
+    activeGuild && (activeGuild as any).createdBy && effectiveUserId && (activeGuild as any).createdBy === effectiveUserId,
+  );
+  const guildRoles = useSyncStore(
+    useMemo(() => selectGuildRoles(activeGuildId ?? ""), [activeGuildId]),
+  );
+  const userRoleIds = useSyncStore(
+    useMemo(() => selectUserGuildRoles(activeGuildId ?? "", effectiveUserId), [activeGuildId, effectiveUserId]),
+  );
+  const channelPermissions = useSyncStore((state) => state.channelPermissions);
+
+  const canViewChannel = (channel: { channelId: string; type?: string }) => {
+    const config = channelPermissions[channel.channelId];
+    return hasChannelPermission("VIEW_CHANNEL", {
+      userId: effectiveUserId,
+      isGuildOwner,
+      userRoleIds: (userRoleIds as string[]) || [],
+      guildRoles: (guildRoles as any[]) || [],
+      channelConfig: config,
+      channelType: channel.type === "voice" ? "voice" : "text",
+    });
+  };
+
+  const canManageChannel = (channel: { channelId: string; type?: string }) => {
+    const config = channelPermissions[channel.channelId];
+    return hasChannelPermission("MANAGE_CHANNELS", {
+      userId: effectiveUserId,
+      isGuildOwner,
+      userRoleIds: (userRoleIds as string[]) || [],
+      guildRoles: (guildRoles as any[]) || [],
+      channelConfig: config,
+      channelType: channel.type === "voice" ? "voice" : "text",
+    });
+  };
+
+  const visibleTextChannels = useMemo(
+    () => textChannels.filter((c) => canViewChannel(c)),
+    [textChannels, channelPermissions, effectiveUserId, isGuildOwner, userRoleIds, guildRoles],
+  );
+  const visibleVoiceChannels = useMemo(
+    () => voiceChannels.filter((c) => canViewChannel(c)),
+    [voiceChannels, channelPermissions, effectiveUserId, isGuildOwner, userRoleIds, guildRoles],
+  );
+
   const settingsGuildData = useMemo(
     () => ({
       guildId: activeGuild?.guildId ?? "",
@@ -162,6 +212,12 @@ export default function ChannelSidebar({
           if (!isMounted || !data) return;
           if (Array.isArray(data.memberProfiles)) {
             useSyncStore.getState().setGuildMemberProfiles(activeGuildId, data.memberProfiles);
+          }
+          if (Array.isArray(data.roles)) {
+            useSyncStore.getState().setGuildRoles(activeGuildId, data.roles);
+          }
+          if (Array.isArray(data.memberRoles)) {
+            useSyncStore.getState().setGuildMemberRoles(activeGuildId, data.memberRoles);
           }
         })
         .catch(() => {});
@@ -393,15 +449,18 @@ export default function ChannelSidebar({
                 Canais de texto
               </h2>
               <ul className="space-y-0.5 mt-1">
-                {textChannels.map((channel) => {
+                {visibleTextChannels.map((channel) => {
                   const active = channel.channelId === activeChannelId;
+                  const isPrivate = Boolean(channelPermissions[channel.channelId]?.isPrivate);
+                  const canManage = canManageChannel(channel) || isGuildOwner;
+
                   return (
-                    <li key={channel.channelId}>
+                    <li key={channel.channelId} className="group relative flex items-center">
                       <button
                         type="button"
                         aria-current={active ? "true" : undefined}
                         onClick={() => setActiveChannel(channel.channelId)}
-                        className={`cursor-pointer flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                        className={`cursor-pointer flex flex-1 min-w-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
                           active
                             ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
                             : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
@@ -411,6 +470,11 @@ export default function ChannelSidebar({
                         <span className={`truncate ${active ? "text-txt" : "text-mut"}`}>
                           {channel.name}
                         </span>
+                        {isPrivate && (
+                          <span title="Canal Privado">
+                            <Lock size={12} className="shrink-0 text-amber-400/80" />
+                          </span>
+                        )}
                         {channel.unreadCount > 0 && (
                           <span
                             aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}
@@ -420,6 +484,22 @@ export default function ChannelSidebar({
                           </span>
                         )}
                       </button>
+                      {canManage && (
+                        <button
+                          type="button"
+                          title="Configurações do canal"
+                          aria-label={`Configurações de ${channel.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChannelSettingsTarget(channel);
+                          }}
+                          className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
+                            active ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
+                          }`}
+                        >
+                          <Gear size={13} />
+                        </button>
+                      )}
                     </li>
                   );
                 })}
@@ -427,71 +507,97 @@ export default function ChannelSidebar({
             </section>
 
             {/* Canais de Voz */}
-            {voiceChannels.length > 0 && (
+            {visibleVoiceChannels.length > 0 && (
               <section>
                 <h2 className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mut/60">
                   Canais de voz
                 </h2>
                 <ul className="space-y-0.5 mt-1">
-                  {voiceChannels.map((channel) => {
+                  {visibleVoiceChannels.map((channel) => {
                     const active = channel.channelId === activeChannelId;
                     const connected = channel.channelId === activeVoiceChannelId;
+                    const isPrivate = Boolean(channelPermissions[channel.channelId]?.isPrivate);
+                    const canManage = canManageChannel(channel) || isGuildOwner;
 
                     return (
-                      <li key={channel.channelId}>
-                        <button
-                          type="button"
-                          aria-current={connected ? "true" : undefined}
-                          onClick={() => {
-                            const effectiveUserId = myUserId || matrixService.getUserId() || "me";
-                            const myGuildNick = effectiveUserId ? guildProfiles?.[effectiveUserId]?.nickname : undefined;
-                            const myEffectiveName =
-                              myGuildNick || profileDisplayName || effectiveUserId.split(":")[0].replace("@", "") || "Você";
-                            const myEffectiveAvatar =
-                              (effectiveUserId ? guildProfiles?.[effectiveUserId]?.avatarUrl : null) ||
-                              profileAvatarUrl ||
-                              myAppwriteAvatarUrl ||
-                              null;
+                      <li key={channel.channelId} className="group relative">
+                        <div className="flex items-center">
+                          <button
+                            type="button"
+                            aria-current={connected ? "true" : undefined}
+                            onClick={() => {
+                              const effectiveUserId =
+                                myUserId || (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : "") || "me";
+                              const myGuildNick = effectiveUserId ? guildProfiles?.[effectiveUserId]?.nickname : undefined;
+                              const myEffectiveName =
+                                myGuildNick || profileDisplayName || effectiveUserId.split(":")[0].replace("@", "") || "Você";
+                              const myEffectiveAvatar =
+                                (effectiveUserId ? guildProfiles?.[effectiveUserId]?.avatarUrl : null) ||
+                                profileAvatarUrl ||
+                                myAppwriteAvatarUrl ||
+                                null;
 
-                            connectVoice(
-                              activeGuild?.guildId ?? "",
-                              activeGuild?.name ?? "",
-                              channel.channelId,
-                              channel.name,
-                              [
-                                {
-                                  userId: effectiveUserId,
-                                  username: myEffectiveName,
-                                  avatarUrl: myEffectiveAvatar,
-                                  isMuted: !microphoneEnabled,
-                                  isDeafened: !headphonesEnabled,
-                                  isSpeaking: false,
-                                  volume: 100,
-                                },
-                              ],
-                            );
-                            setActiveChannel(channel.channelId);
-                          }}
-                          className={`cursor-pointer flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
-                            connected
-                              ? "bg-online/10 text-online font-semibold border border-online/20 shadow-xs"
-                              : active
-                                ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
-                                : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
-                          }`}
-                        >
-                          <SpeakerHigh
-                            size={15}
-                            className={`shrink-0 ${connected ? "text-online animate-pulse" : active ? "text-acc" : "text-mut/60"}`}
-                            aria-hidden
-                          />
-                          <span className={`truncate ${connected ? "text-online" : active ? "text-txt" : "text-mut"}`}>
-                            {channel.name}
-                          </span>
-                          {connected && (
-                            <span className="ml-auto flex h-2 w-2 rounded-full bg-online animate-ping" />
+                              connectVoice(
+                                activeGuild?.guildId ?? "",
+                                activeGuild?.name ?? "",
+                                channel.channelId,
+                                channel.name,
+                                [
+                                  {
+                                    userId: effectiveUserId,
+                                    username: myEffectiveName,
+                                    avatarUrl: myEffectiveAvatar,
+                                    isMuted: !microphoneEnabled,
+                                    isDeafened: !headphonesEnabled,
+                                    isSpeaking: false,
+                                    volume: 100,
+                                  },
+                                ],
+                              );
+                              setActiveChannel(channel.channelId);
+                            }}
+                            className={`cursor-pointer flex flex-1 min-w-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                              connected
+                                ? "bg-online/10 text-online font-semibold border border-online/20 shadow-xs"
+                                : active
+                                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
+                                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+                            }`}
+                          >
+                            <SpeakerHigh
+                              size={15}
+                              className={`shrink-0 ${connected ? "text-online animate-pulse" : active ? "text-acc" : "text-mut/60"}`}
+                              aria-hidden
+                            />
+                            <span className={`truncate ${connected ? "text-online" : active ? "text-txt" : "text-mut"}`}>
+                              {channel.name}
+                            </span>
+                            {isPrivate && (
+                              <span title="Canal Privado">
+                                <Lock size={12} className="shrink-0 text-amber-400/80" />
+                              </span>
+                            )}
+                            {connected && (
+                              <span className="flex h-2 w-2 rounded-full bg-online animate-ping shrink-0 ml-auto" />
+                            )}
+                          </button>
+                          {canManage && (
+                            <button
+                              type="button"
+                              title="Configurações do canal de voz"
+                              aria-label={`Configurações de ${channel.name}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setChannelSettingsTarget(channel);
+                              }}
+                              className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
+                                active || connected ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
+                              }`}
+                            >
+                              <Gear size={13} />
+                            </button>
                           )}
-                        </button>
+                        </div>
 
                         {/* Participantes conectados na chamada */}
                         {connected && voiceParticipants.length > 0 && (
@@ -633,6 +739,30 @@ export default function ChannelSidebar({
         guild={settingsGuildData}
         onSave={handleEditGuild}
       />
+
+      {channelSettingsTarget && (
+        <ChannelSettingsModal
+          open={Boolean(channelSettingsTarget)}
+          onClose={() => setChannelSettingsTarget(null)}
+          channel={channelSettingsTarget}
+          guildId={activeGuildId ?? ""}
+          onSave={async (updates) => {
+            const currentList = allChannels.map((c) =>
+              c.channelId === channelSettingsTarget.channelId
+                ? { ...c, name: updates.name, topic: updates.topic ?? c.topic }
+                : c,
+            );
+            useSyncStore.getState().setChannels(activeGuildId ?? "", currentList);
+          }}
+          onDelete={async (deletedId) => {
+            const nextList = allChannels.filter((c) => c.channelId !== deletedId);
+            useSyncStore.getState().setChannels(activeGuildId ?? "", nextList);
+            if (activeChannelId === deletedId && nextList.length > 0) {
+              useUiStore.getState().setActiveChannel(nextList[0].channelId);
+            }
+          }}
+        />
+      )}
 
       {activeGuild && (
         <InviteModal
