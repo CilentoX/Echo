@@ -179,6 +179,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                // Ao fechar a janela, encerra o processo do aplicativo imediatamente,
+                // garantindo que WebView2, WebRTC, microfone e chamadas de voz sejam 100% desligados.
+                std::process::exit(0);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             begin_sso_listener,
             finish_sso_listener,

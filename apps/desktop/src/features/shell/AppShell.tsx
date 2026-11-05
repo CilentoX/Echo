@@ -18,6 +18,7 @@ import QuickSwitcherModal from "./QuickSwitcherModal";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 import { isTauri } from "@/lib/updater";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -49,6 +50,19 @@ export default function AppShell({ children }: AppShellProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createGuildOpen, setCreateGuildOpen] = useState(false);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+
+  // Encerra imediatamente chamadas de voz ao fechar ou descarregar a janela do aplicativo
+  useEffect(() => {
+    const handleUnload = () => {
+      useVoiceStore.getState().disconnectVoice();
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handleUnload);
+    };
+  }, []);
 
   // Global shortcuts: Ctrl+K/Cmd+K (QuickSwitcher) and Escape cascade dismiss
   useEffect(() => {

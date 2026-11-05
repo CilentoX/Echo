@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import AppShell from "@/features/shell/AppShell";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 
 /** Column lookup helper for the `data-column` layout contract. */
 const column = (name: string): Element | null =>
@@ -157,5 +158,19 @@ describe("AppShell", () => {
     const chat = column("chat") as HTMLElement;
     expect(chat.querySelector('[role="status"]')).toBeNull();
     expect(column("chat")).toBeTruthy();
+  });
+
+  it("encerra automaticamente a chamada de voz ao disparar beforeunload na janela", () => {
+    useVoiceStore.getState().connectVoice("guild-1", "Guild 1", "voice-1", "Voz Geral");
+    expect(useVoiceStore.getState().activeVoiceChannelId).toBe("voice-1");
+
+    render(<AppShell />);
+
+    act(() => {
+      window.dispatchEvent(new Event("beforeunload"));
+    });
+
+    expect(useVoiceStore.getState().isConnected).toBe(false);
+    expect(useVoiceStore.getState().activeVoiceChannelId).toBeNull();
   });
 });

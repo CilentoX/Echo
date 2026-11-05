@@ -4,6 +4,7 @@ import { invoke, isTauri as coreIsTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { useUpdateStore } from "@/stores/updateStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 
 /**
  * Auto-atualização (Task 12) — caminho único via tauri-plugin-updater.
@@ -139,6 +140,7 @@ export async function setMainWindowMode(): Promise<void> {
 export async function closeAppWindow(): Promise<void> {
   if (!isTauri()) return;
   try {
+    useVoiceStore.getState().disconnectVoice();
     await getCurrentWindow().close();
   } catch (err) {
     console.warn("[updater] closeAppWindow falhou:", err);
