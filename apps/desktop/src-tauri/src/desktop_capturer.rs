@@ -142,3 +142,53 @@ pub async fn get_desktop_source_thumbnail(source_id: String) -> Result<String, S
     .await
     .map_err(|e| e.to_string())?
 }
+
+#[tauri::command]
+pub async fn capture_desktop_frame(
+    source_id: String,
+    width: Option<u32>,
+    height: Option<u32>,
+) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let parts: Vec<&str> = source_id.split(':').collect();
+        if parts.len() != 2 {
+            return Err("Identificador de fonte inválido".to_string());
+        }
+        let kind = parts[0];
+        let id_val: u32 = parts[1]
+            .parse()
+            .map_err(|e| format!("ID numérico inválido: {}", e))?;
+
+        let img = if kind == "screen" {
+            let monitors = Monitor::all().map_err(|e| e.to_string())?;
+            let monitor = monitors
+                .into_iter()
+                .find(|m| m.id().map(|id| id == id_val).unwrap_or(false))
+                .ok_or_else(|| "Monitor não encontrado".to_string())?;
+            monitor.capture_image().map_err(|e| e.to_string())?
+        } else if kind == "window" {
+            let windows = Window::all().map_err(|e| e.to_string())?;
+            let window = windows
+                .into_iter()
+                .find(|w| w.id().map(|id| id == id_val).unwrap_or(false))
+                .ok_or_else(|| "Janela não encontrada".to_string())?;
+            window.capture_image().map_err(|e| e.to_string())?
+        } else {
+            return Err("Tipo de fonte desconhecido".to_string());
+        };
+
+        let target_w = width.unwrap_or(1280);
+        let target_h = height.unwrap_or(720);
+        let resized = image::imageops::thumbnail(&img, target_w, target_h);
+
+        let mut buffer = Cursor::new(Vec::new());
+        resized
+            .write_to(&mut buffer, image::ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+
+        let encoded = BASE64.encode(buffer.into_inner());
+        Ok(format!("data:image/png;base64,{}", encoded))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
