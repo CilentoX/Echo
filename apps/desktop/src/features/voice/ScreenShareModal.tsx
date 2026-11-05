@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   Screencast,
@@ -9,6 +9,7 @@ import {
   Broadcast,
   CheckCircle,
   Gear,
+  CircleNotch,
 } from "@phosphor-icons/react";
 import {
   Dialog,
@@ -16,6 +17,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { invoke } from "@tauri-apps/api/core";
+import { isTauri } from "@/lib/updater";
 import type { ScreenShareConfig } from "@/stores/voiceStore";
 
 export interface ScreenShareModalProps {
@@ -24,12 +27,13 @@ export interface ScreenShareModalProps {
   onStartShare: (config: ScreenShareConfig) => void;
 }
 
-interface ShareSource {
+export interface ShareSource {
   id: string;
   name: string;
   type: "screen" | "window";
   subtitle: string;
   resolution: string;
+  thumbnail?: string;
 }
 
 const PRESET_SCREENS: ShareSource[] = [
@@ -86,9 +90,82 @@ export default function ScreenShareModal({
   onStartShare,
 }: ScreenShareModalProps) {
   const [activeTab, setActiveTab] = useState<"screens" | "windows">("screens");
+  const [nativeScreens, setNativeScreens] = useState<ShareSource[]>([]);
+  const [nativeWindows, setNativeWindows] = useState<ShareSource[]>([]);
+  const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [selectedSource, setSelectedSource] = useState<ShareSource>(PRESET_SCREENS[0]!);
   const [resolution, setResolution] = useState<"720p" | "1080p">("1080p");
   const [fps, setFps] = useState<30 | 60>(60);
+
+  const displayedScreens = nativeScreens.length > 0 ? nativeScreens : PRESET_SCREENS;
+  const displayedWindows = nativeWindows.length > 0 ? nativeWindows : PRESET_WINDOWS;
+  const currentList = activeTab === "screens" ? displayedScreens : displayedWindows;
+
+  // Busca fontes nativas reais quando o modal abre no Tauri
+  useEffect(() => {
+    if (!open) return;
+
+    if (isTauri()) {
+      setIsLoadingSources(true);
+      invoke<ShareSource[]>("get_desktop_sources")
+        .then((sources) => {
+          if (sources && Array.isArray(sources) && sources.length > 0) {
+            const screens = sources.filter((s) => s.type === "screen");
+            const windows = sources.filter((s) => s.type === "window");
+            if (screens.length > 0) {
+              setNativeScreens(screens);
+              if (activeTab === "screens") setSelectedSource(screens[0]!);
+            }
+            if (windows.length > 0) {
+              setNativeWindows(windows);
+              if (activeTab === "windows") setSelectedSource(windows[0]!);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("[ScreenShare] Não foi possível obter fontes nativas:", err);
+        })
+        .finally(() => {
+          setIsLoadingSources(false);
+        });
+    }
+  }, [open]);
+
+  // Carrega miniatura sob demanda para a fonte selecionada
+  useEffect(() => {
+    if (!isTauri() || !selectedSource?.id || selectedSource.thumbnail) return;
+
+    let isMounted = true;
+    invoke<string>("get_desktop_source_thumbnail", { sourceId: selectedSource.id })
+      .then((thumbnailUrl) => {
+        if (!isMounted || !thumbnailUrl) return;
+        const updateThumbnail = (list: ShareSource[]) =>
+          list.map((item) =>
+            item.id === selectedSource.id ? { ...item, thumbnail: thumbnailUrl } : item,
+          );
+
+        setNativeScreens(updateThumbnail);
+        setNativeWindows(updateThumbnail);
+        setSelectedSource((curr) =>
+          curr.id === selectedSource.id ? { ...curr, thumbnail: thumbnailUrl } : curr,
+        );
+      })
+      .catch(() => {
+        // Miniatura opcional silenciosa
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedSource?.id]);
+
+  const handleTabChange = (tab: "screens" | "windows") => {
+    setActiveTab(tab);
+    const targetList = tab === "screens" ? displayedScreens : displayedWindows;
+    if (targetList[0]) {
+      setSelectedSource(targetList[0]);
+    }
+  };
 
   const handleConfirm = () => {
     onStartShare({
@@ -137,10 +214,7 @@ export default function ScreenShareModal({
           <div className="flex rounded-xl bg-white/[0.03] p-1 border border-white/[0.06] gap-1">
             <button
               type="button"
-              onClick={() => {
-                setActiveTab("screens");
-                setSelectedSource(PRESET_SCREENS[0]!);
-              }}
+              onClick={() => handleTabChange("screens")}
               className={`cursor-pointer flex flex-1 items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-95 ${
                 activeTab === "screens"
                   ? "bg-acc text-bg shadow-md shadow-acc/20"
@@ -152,10 +226,7 @@ export default function ScreenShareModal({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setActiveTab("windows");
-                setSelectedSource(PRESET_WINDOWS[0]!);
-              }}
+              onClick={() => handleTabChange("windows")}
               className={`cursor-pointer flex flex-1 items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-95 ${
                 activeTab === "windows"
                   ? "bg-acc text-bg shadow-md shadow-acc/20"
@@ -170,8 +241,15 @@ export default function ScreenShareModal({
 
         {/* Grade de Telas ou Janelas Selecionáveis */}
         <div className="p-5 max-h-[300px] overflow-y-auto scrollbar-thin">
+          {isLoadingSources && (
+            <div className="flex items-center justify-center py-6 gap-2 text-xs text-mut">
+              <CircleNotch size={16} className="animate-spin text-acc" />
+              <span>Detectando telas e janelas ativas...</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {(activeTab === "screens" ? PRESET_SCREENS : PRESET_WINDOWS).map((source) => {
+            {currentList.map((source) => {
               const isSelected = selectedSource.id === source.id;
               return (
                 <button
@@ -184,9 +262,15 @@ export default function ScreenShareModal({
                       : "bg-white/[0.03] border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.05]"
                   }`}
                 >
-                  {/* Mockup Preview */}
+                  {/* Mockup Preview ou Miniatura Real */}
                   <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black/60 border border-white/[0.06] flex flex-col items-center justify-center mb-2.5">
-                    {source.type === "screen" ? (
+                    {source.thumbnail ? (
+                      <img
+                        src={source.thumbnail}
+                        alt={source.name}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ) : source.type === "screen" ? (
                       <div className="flex flex-col items-center gap-1 text-mut/60 group-hover:text-acc transition-colors">
                         <Monitor size={32} weight={isSelected ? "fill" : "regular"} className={isSelected ? "text-acc" : ""} />
                         <span className="text-[10px] font-mono opacity-80">{source.resolution}</span>
@@ -314,4 +398,3 @@ export default function ScreenShareModal({
     </Dialog>
   );
 }
-

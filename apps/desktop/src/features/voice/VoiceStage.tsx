@@ -90,12 +90,19 @@ export default function VoiceStage({
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia) {
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: {
-            frameRate: { ideal: config.fps },
+            frameRate: { ideal: config.fps, max: config.fps },
             width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
             height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
+            displaySurface: config.sourceType === "screen" ? "monitor" : "window",
           },
-          audio: true,
-        });
+          audio: {
+            suppressLocalAudioPlayback: false,
+          },
+          systemAudio: "include",
+          selfBrowserSurface: "exclude",
+          surfaceSwitching: "include",
+          monitorTypeSurfaces: "include",
+        } as MediaStreamConstraints);
         screenStreamRef.current = stream;
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {

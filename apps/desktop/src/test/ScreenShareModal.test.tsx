@@ -1,5 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
+
+vi.mock("@/lib/updater", () => ({
+  isTauri: vi.fn(() => false),
+}));
+
+import { invoke } from "@tauri-apps/api/core";
+import { isTauri } from "@/lib/updater";
 import ScreenShareModal from "@/features/voice/ScreenShareModal";
 
 describe("ScreenShareModal (Seleção Nativa Própria de Telas e Janelas)", () => {
@@ -94,5 +105,47 @@ describe("ScreenShareModal (Seleção Nativa Própria de Telas e Janelas)", () =
     expect(handleClose).toHaveBeenCalled();
     expect(handleStart).not.toHaveBeenCalled();
   });
-});
 
+  it("carrega e renderiza fontes nativas dinamicamente quando em ambiente Tauri", async () => {
+    const handleClose = vi.fn();
+    const handleStart = vi.fn();
+
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === "get_desktop_sources") {
+        return [
+          {
+            id: "screen:99",
+            name: "Monitor Gamer 144Hz",
+            type: "screen",
+            subtitle: "Monitor Desktop Primário",
+            resolution: "2560x1440",
+          },
+          {
+            id: "window:1234",
+            name: "Counter-Strike 2",
+            type: "window",
+            subtitle: "cs2.exe",
+            resolution: "1920x1080",
+          },
+        ];
+      }
+      return null;
+    });
+
+    render(
+      <ScreenShareModal
+        open={true}
+        onClose={handleClose}
+        onStartShare={handleStart}
+      />,
+    );
+
+    expect(await screen.findByText("Monitor Gamer 144Hz")).toBeTruthy();
+    expect(screen.getAllByText("2560x1440").length).toBeGreaterThanOrEqual(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Janelas de Aplicativos/i }));
+    expect(await screen.findByText("Counter-Strike 2")).toBeTruthy();
+    expect(screen.getAllByText("cs2.exe").length).toBeGreaterThanOrEqual(1);
+  });
+});

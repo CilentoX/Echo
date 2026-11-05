@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod config_store;
+mod desktop_capturer;
 mod keyring_cmds;
 mod sso;
 
@@ -71,6 +72,21 @@ fn register_custom_scheme() {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn setup_webview2_flags() {
+    let current_args = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
+    let echo_args = "--disable-infobars --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,PreloadMediaEngagementData --enable-usermedia-screen-capturing";
+    let combined = if current_args.is_empty() {
+        echo_args.to_string()
+    } else {
+        format!("{} {}", current_args, echo_args)
+    };
+    // Configura flags nativas do WebView2 antes da inicialização do runtime Edge
+    unsafe {
+        std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", combined);
+    }
+}
+
 /// Opens the one-shot loopback listener for the SSO callback; returns its port.
 #[tauri::command]
 async fn begin_sso_listener() -> Result<u16, String> {
@@ -128,6 +144,9 @@ pub fn run() {
     #[cfg(target_os = "windows")]
     register_custom_scheme();
 
+    #[cfg(target_os = "windows")]
+    setup_webview2_flags();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // Se outra instância for iniciada (ex: link echo://invite/ clicado no navegador),
@@ -158,7 +177,9 @@ pub fn run() {
             config_store::write_app_cache,
             config_store::update_app_cache_key,
             config_store::clear_app_cache,
-            config_store::get_app_storage_info
+            config_store::get_app_storage_info,
+            desktop_capturer::get_desktop_sources,
+            desktop_capturer::get_desktop_source_thumbnail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

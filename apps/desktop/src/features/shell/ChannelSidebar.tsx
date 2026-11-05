@@ -862,7 +862,7 @@ export default function ChannelSidebar({
                             className="cursor-pointer flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs text-mut/80 hover:text-acc hover:bg-acc/10 border border-dashed border-bd-subtle hover:border-acc/30 transition-all active:scale-[0.98]"
                           >
                             <Plus size={13} weight="bold" className="text-acc" />
-                            <span className="font-semibold truncate">➕ Criar Sala de Voz</span>
+                            <span className="font-medium truncate">Criar Sala de Voz Temporária</span>
                           </button>
                         </li>
                       )}
