@@ -7,6 +7,7 @@ import { useVoiceStore } from "@/stores/voiceStore";
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import MemberDropdownContent from "./MemberDropdownContent";
+import MemberContextMenu from "./MemberContextMenu";
 import MxcImage from "@/components/media/MxcImage";
 
 export interface MemberListProps {
@@ -207,90 +208,97 @@ export default function MemberList({
 
                   return (
                     <li key={member.userId} className="relative">
-                      <Popover
-                        open={openMemberId === member.userId}
-                        onOpenChange={(open) => setOpenMemberId(open ? member.userId : null)}
+                      <MemberContextMenu
+                        userId={member.userId}
+                        displayName={cleanDisplayName}
+                        avatarUrl={effectiveAvatarUrl}
+                        onOpenProfile={() => setOpenMemberId(member.userId)}
                       >
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label={cleanDisplayName}
-                            className={`cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-sm transition-all active:scale-[0.99] group ${
-                              openMemberId === member.userId
-                                ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
-                                : isMe
-                                ? "text-mut/70 dark:hover:bg-white/[0.05] hover:bg-black/[0.05] hover:text-txt"
-                                : "text-mut dark:hover:bg-white/[0.05] hover:bg-black/[0.05] hover:text-txt"
-                            }`}
-                          >
-                            <div className="relative w-8 h-8 shrink-0">
-                              {effectiveAvatarUrl ? (
-                                <MxcImage
-                                  mxcUrl={effectiveAvatarUrl}
-                                  alt="Avatar"
-                                  className={`w-8 h-8 rounded-full object-cover border border-bd-subtle bg-surf2 ring-1 transition-all ${
-                                    isSpeaking
-                                      ? "ring-2 ring-online shadow-sm shadow-online/30 animate-pulse"
-                                      : "ring-bd-subtle group-hover:ring-acc/40"
-                                  }`}
-                                  width={32}
-                                  height={32}
-                                />
-                              ) : (
-                                <div
-                                  className={`w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm ring-1 transition-all ${
-                                    isSpeaking
-                                      ? "ring-2 ring-online shadow-sm shadow-online/30 animate-pulse"
-                                      : "ring-bd-subtle group-hover:ring-acc/40"
-                                  }`}
-                                >
-                                  {initial}
-                                </div>
-                              )}
-                              <span
-                                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-rail ${presenceColor}`}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-txt truncate">
-                                {cleanDisplayName}
-                              </p>
-                              {guildNick && guildNick !== baseDisplayName ? (
-                                <p className="text-[10px] text-mut truncate -mt-0.5 font-mono">
-                                  @{baseDisplayName}
-                                </p>
-                              ) : isMe && myCustomStatus ? (
-                                <p className="text-[10px] text-acc/90 truncate -mt-0.5 flex items-center gap-1 font-medium" title={myCustomStatus.text}>
-                                  {myCustomStatus.emoji && <span>{myCustomStatus.emoji}</span>}
-                                  <span className="truncate">{myCustomStatus.text}</span>
-                                </p>
-                              ) : (member as any).customStatus ? (
-                                <p className="text-[10px] text-mut/80 truncate -mt-0.5 flex items-center gap-1" title={(member as any).customStatus.text}>
-                                  {(member as any).customStatus.emoji && <span>{(member as any).customStatus.emoji}</span>}
-                                  <span className="truncate">{(member as any).customStatus.text}</span>
-                                </p>
-                              ) : null}
-                            </div>
-                            {isMe && (
-                              <span className="ml-auto text-[11px] text-acc/70 font-medium">
-                                (você)
-                              </span>
-                            )}
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="left"
-                          align="start"
-                          sideOffset={12}
-                          collisionPadding={16}
-                          className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none"
+                        <Popover
+                          open={openMemberId === member.userId}
+                          onOpenChange={(open) => setOpenMemberId(open ? member.userId : null)}
                         >
-                          <MemberDropdownContent
-                            userId={member.userId}
-                            onClose={() => setOpenMemberId(null)}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label={cleanDisplayName}
+                              className={`cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-sm transition-all active:scale-[0.99] group ${
+                                openMemberId === member.userId
+                                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
+                                  : isMe
+                                  ? "text-mut/70 dark:hover:bg-white/[0.05] hover:bg-black/[0.05] hover:text-txt"
+                                  : "text-mut dark:hover:bg-white/[0.05] hover:bg-black/[0.05] hover:text-txt"
+                              }`}
+                            >
+                              <div className="relative w-8 h-8 shrink-0">
+                                {effectiveAvatarUrl ? (
+                                  <MxcImage
+                                    mxcUrl={effectiveAvatarUrl}
+                                    alt="Avatar"
+                                    className={`w-8 h-8 rounded-full object-cover border border-bd-subtle bg-surf2 ring-1 transition-all ${
+                                      isSpeaking
+                                        ? "ring-2 ring-online shadow-sm shadow-online/30 animate-pulse"
+                                        : "ring-bd-subtle group-hover:ring-acc/40"
+                                    }`}
+                                    width={32}
+                                    height={32}
+                                  />
+                                ) : (
+                                  <div
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center font-display font-bold text-xs text-bg bg-acc shadow-sm ring-1 transition-all ${
+                                      isSpeaking
+                                        ? "ring-2 ring-online shadow-sm shadow-online/30 animate-pulse"
+                                        : "ring-bd-subtle group-hover:ring-acc/40"
+                                    }`}
+                                  >
+                                    {initial}
+                                  </div>
+                                )}
+                                <span
+                                  className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-rail ${presenceColor}`}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-txt truncate">
+                                  {cleanDisplayName}
+                                </p>
+                                {guildNick && guildNick !== baseDisplayName ? (
+                                  <p className="text-[10px] text-mut truncate -mt-0.5 font-mono">
+                                    @{baseDisplayName}
+                                  </p>
+                                ) : isMe && myCustomStatus ? (
+                                  <p className="text-[10px] text-acc/90 truncate -mt-0.5 flex items-center gap-1 font-medium" title={myCustomStatus.text}>
+                                    {myCustomStatus.emoji && <span>{myCustomStatus.emoji}</span>}
+                                    <span className="truncate">{myCustomStatus.text}</span>
+                                  </p>
+                                ) : (member as any).customStatus ? (
+                                  <p className="text-[10px] text-mut/80 truncate -mt-0.5 flex items-center gap-1" title={(member as any).customStatus.text}>
+                                    {(member as any).customStatus.emoji && <span>{(member as any).customStatus.emoji}</span>}
+                                    <span className="truncate">{(member as any).customStatus.text}</span>
+                                  </p>
+                                ) : null}
+                              </div>
+                              {isMe && (
+                                <span className="ml-auto text-[11px] text-acc/70 font-medium">
+                                  (você)
+                                </span>
+                              )}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            side="left"
+                            align="start"
+                            sideOffset={12}
+                            collisionPadding={16}
+                            className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none"
+                          >
+                            <MemberDropdownContent
+                              userId={member.userId}
+                              onClose={() => setOpenMemberId(null)}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </MemberContextMenu>
                     </li>
                   );
                 })}

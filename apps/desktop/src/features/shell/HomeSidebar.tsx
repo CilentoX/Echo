@@ -3,6 +3,7 @@ import { Users, Plus, X, MagnifyingGlass, ChatCircle, Compass } from "@phosphor-
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
 import MxcImage from "@/components/media/MxcImage";
+import MemberContextMenu from "./MemberContextMenu";
 
 export interface HomeSidebarProps {
   variant?: "static" | "overlay";
@@ -183,47 +184,53 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
                 : "bg-zinc-500";
 
             return (
-              <button
+              <MemberContextMenu
                 key={friend.friendshipId}
-                type="button"
-                onClick={() => handleOpenDm(friend.userId)}
-                className={`cursor-pointer group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all ${
-                  isDmActive
-                    ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm"
-                    : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
-                }`}
+                userId={friend.userId}
+                displayName={friend.displayName}
+                avatarUrl={friend.avatarUrl}
               >
-                {/* Avatar com status */}
-                <div className="relative shrink-0">
-                  {friend.avatarUrl ? (
-                    <MxcImage
-                      mxcUrl={friend.avatarUrl}
-                      alt={friend.displayName}
-                      className="h-8 w-8 rounded-full object-cover"
-                      width={32}
-                      height={32}
+                <button
+                  type="button"
+                  onClick={() => handleOpenDm(friend.userId)}
+                  className={`cursor-pointer group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all ${
+                    isDmActive
+                      ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt shadow-sm"
+                      : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+                  }`}
+                >
+                  {/* Avatar com status */}
+                  <div className="relative shrink-0">
+                    {friend.avatarUrl ? (
+                      <MxcImage
+                        mxcUrl={friend.avatarUrl}
+                        alt={friend.displayName}
+                        className="h-8 w-8 rounded-full object-cover"
+                        width={32}
+                        height={32}
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/20 font-display text-xs font-bold text-acc">
+                        {friend.displayName.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surf ${presenceColor}`}
+                      aria-hidden="true"
                     />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/20 font-display text-xs font-bold text-acc">
-                      {friend.displayName.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
-                  <span
-                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surf ${presenceColor}`}
-                    aria-hidden="true"
-                  />
-                </div>
+                  </div>
 
-                {/* Nome do amigo */}
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-xs font-semibold text-txt group-hover:text-txt">
-                    {friend.displayName}
-                  </p>
-                  <p className="truncate text-[10px] text-mut/80 font-mono">
-                    {friend.nickname ? `@${friend.nickname}` : friend.userId.split(":")[0]}
-                  </p>
-                </div>
-              </button>
+                  {/* Nome do amigo */}
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-xs font-semibold text-txt group-hover:text-txt">
+                      {friend.displayName}
+                    </p>
+                    <p className="truncate text-[10px] text-mut/80 font-mono">
+                      {friend.nickname ? `@${friend.nickname}` : friend.userId.split(":")[0]}
+                    </p>
+                  </div>
+                </button>
+              </MemberContextMenu>
             );
           })
         )}

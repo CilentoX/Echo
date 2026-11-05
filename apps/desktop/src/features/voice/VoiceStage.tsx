@@ -30,6 +30,7 @@ import { matrixService } from "@/lib/matrix/instance";
 import MxcImage from "@/components/media/MxcImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
+import MemberContextMenu from "@/features/shell/MemberContextMenu";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import SoundboardPopover, { type SoundEffect } from "./SoundboardPopover";
 import ScreenShareModal from "./ScreenShareModal";
@@ -463,128 +464,136 @@ export default function VoiceStage({
       (isMe && (isSpeaking || speakingMembers.includes("me") || speakingMembers.includes(effectiveUserId)));
 
     return (
-      <div key={participant.userId} className="relative w-full">
-        <Popover
-          open={openMemberId === participant.userId}
-          onOpenChange={(open) => setOpenMemberId(open ? participant.userId : null)}
-        >
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label={`Perfil de ${memberNick}`}
-              className={`cursor-pointer group relative flex flex-col items-center justify-center w-full min-h-[190px] p-4 rounded-2xl transition-all duration-200 select-none ${
-                participantSpeaking
-                  ? "bg-card-bg/95 border-2 border-online shadow-xl shadow-online/20 scale-[1.02]"
-                  : "bg-card-bg/70 hover:bg-card-bg/90 border border-bd-subtle hover:border-white/[0.15] shadow-sm hover:scale-[1.01]"
-              }`}
-            >
-              {/* Equalizer Waveform quando Falando */}
-              {participantSpeaking && (
-                <div
-                  className="absolute top-3 right-3 flex items-center gap-0.5 px-2 py-1 rounded-full bg-online/15 border border-online/30 animate-pulse"
-                  title="Falando agora"
-                >
-                  <span className="w-1 h-3 rounded-full bg-online animate-[pulse_0.6s_ease-in-out_infinite]" />
-                  <span className="w-1 h-4 rounded-full bg-online animate-[pulse_0.4s_ease-in-out_infinite_150ms]" />
-                  <span className="w-1 h-2 rounded-full bg-online animate-[pulse_0.5s_ease-in-out_infinite_300ms]" />
-                </div>
-              )}
-
-              {/* Câmera Ao Vivo ou Avatar */}
-              {isMe && isCameraOn && !isStudioWebcamActive ? (
-                <div className="relative w-full h-36 rounded-xl overflow-hidden border border-white/[0.1] shadow-inner bg-black mb-2">
-                  <video
-                    ref={cameraVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[10px] text-white">
-                    <VideoCamera size={12} weight="fill" className="text-online" />
-                    <span>Câmera ativa</span>
-                  </div>
-                </div>
-              ) : (
-                /* Avatar Central com Foto e Anel de Fala */
-                <div className="relative mt-2">
-                  {memberAvatar ? (
-                    <MxcImage
-                      mxcUrl={memberAvatar}
-                      alt={memberNick}
-                      className={`h-20 w-20 rounded-full object-cover shadow-lg transition-all duration-150 ${
-                        participantSpeaking
-                          ? "ring-4 ring-online shadow-online/60 animate-pulse"
-                          : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
-                      }`}
-                      width={80}
-                      height={80}
-                    />
-                  ) : (
-                    <div
-                      className={`flex h-20 w-20 items-center justify-center rounded-full bg-acc text-bg font-display text-2xl font-black shadow-lg transition-all duration-150 ${
-                        participantSpeaking
-                          ? "ring-4 ring-online shadow-online/60 animate-pulse"
-                          : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
-                      }`}
-                    >
-                      {memberNick.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-
-                  {/* Badge de Microfone Mutado */}
-                  {participant.isMuted && (
-                    <div
-                      className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-err text-white ring-2 ring-card-bg shadow-sm"
-                      title="Microfone mutado"
-                    >
-                      <MicrophoneSlash size={13} weight="bold" />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Indicação se câmera está na tela compartilhada (Modo Estúdio) */}
-              {isMe && isCameraOn && isStudioWebcamActive && (
-                <span className="mt-1 px-2 py-0.5 rounded-md bg-acc/15 text-acc text-[10px] font-semibold border border-acc/30">
-                  Webcam no Estúdio
-                </span>
-              )}
-
-              {/* Apelido e Identificador */}
-              <div className="mt-3 flex flex-col items-center max-w-[90%]">
-                <span className="font-display text-sm font-bold text-txt truncate group-hover:text-acc transition-colors">
-                  {memberNick}
-                </span>
-                <span className="text-[11px] text-mut/80 font-mono truncate">
-                  {isMe ? "(você)" : `@${memberUserId.split(":")[0].replace("@", "")}`}
-                </span>
-              </div>
-
-              {/* Badge de Fala Animado */}
-              {participantSpeaking && (
-                <span className="mt-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-online/15 border border-online/30 text-[9px] font-bold uppercase tracking-wider text-online animate-pulse">
-                  <Waveform size={11} weight="bold" />
-                  <span>Falando</span>
-                </span>
-              )}
-            </button>
-          </PopoverTrigger>
-
-          <PopoverContent
-            side="bottom"
-            align="center"
-            sideOffset={8}
-            collisionPadding={16}
-            className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none z-50"
+      <MemberContextMenu
+        key={participant.userId}
+        userId={memberUserId}
+        displayName={memberNick}
+        avatarUrl={memberAvatar}
+        onOpenProfile={() => setOpenMemberId(participant.userId)}
+      >
+        <div className="relative w-full">
+          <Popover
+            open={openMemberId === participant.userId}
+            onOpenChange={(open) => setOpenMemberId(open ? participant.userId : null)}
           >
-            <MemberDropdownContent
-              userId={memberUserId}
-              onClose={() => setOpenMemberId(null)}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Perfil de ${memberNick}`}
+                className={`cursor-pointer group relative flex flex-col items-center justify-center w-full min-h-[190px] p-4 rounded-2xl transition-all duration-200 select-none ${
+                  participantSpeaking
+                    ? "bg-card-bg/95 border-2 border-online shadow-xl shadow-online/20 scale-[1.02]"
+                    : "bg-card-bg/70 hover:bg-card-bg/90 border border-bd-subtle hover:border-white/[0.15] shadow-sm hover:scale-[1.01]"
+                }`}
+              >
+                {/* Equalizer Waveform quando Falando */}
+                {participantSpeaking && (
+                  <div
+                    className="absolute top-3 right-3 flex items-center gap-0.5 px-2 py-1 rounded-full bg-online/15 border border-online/30 animate-pulse"
+                    title="Falando agora"
+                  >
+                    <span className="w-1 h-3 rounded-full bg-online animate-[pulse_0.6s_ease-in-out_infinite]" />
+                    <span className="w-1 h-4 rounded-full bg-online animate-[pulse_0.4s_ease-in-out_infinite_150ms]" />
+                    <span className="w-1 h-2 rounded-full bg-online animate-[pulse_0.5s_ease-in-out_infinite_300ms]" />
+                  </div>
+                )}
+
+                {/* Câmera Ao Vivo ou Avatar */}
+                {isMe && isCameraOn && !isStudioWebcamActive ? (
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-white/[0.1] shadow-inner bg-black mb-2">
+                    <video
+                      ref={cameraVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[10px] text-white">
+                      <VideoCamera size={12} weight="fill" className="text-online" />
+                      <span>Câmera ativa</span>
+                    </div>
+                  </div>
+                ) : (
+                  /* Avatar Central com Foto e Anel de Fala */
+                  <div className="relative mt-2">
+                    {memberAvatar ? (
+                      <MxcImage
+                        mxcUrl={memberAvatar}
+                        alt={memberNick}
+                        className={`h-20 w-20 rounded-full object-cover shadow-lg transition-all duration-150 ${
+                          participantSpeaking
+                            ? "ring-4 ring-online shadow-online/60 animate-pulse"
+                            : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
+                        }`}
+                        width={80}
+                        height={80}
+                      />
+                    ) : (
+                      <div
+                        className={`flex h-20 w-20 items-center justify-center rounded-full bg-acc text-bg font-display text-2xl font-black shadow-lg transition-all duration-150 ${
+                          participantSpeaking
+                            ? "ring-4 ring-online shadow-online/60 animate-pulse"
+                            : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
+                        }`}
+                      >
+                        {memberNick.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    {/* Badge de Microfone Mutado */}
+                    {participant.isMuted && (
+                      <div
+                        className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-err text-white ring-2 ring-card-bg shadow-sm"
+                        title="Microfone mutado"
+                      >
+                        <MicrophoneSlash size={13} weight="bold" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Indicação se câmera está na tela compartilhada (Modo Estúdio) */}
+                {isMe && isCameraOn && isStudioWebcamActive && (
+                  <span className="mt-1 px-2 py-0.5 rounded-md bg-acc/15 text-acc text-[10px] font-semibold border border-acc/30">
+                    Webcam no Estúdio
+                  </span>
+                )}
+
+                {/* Apelido e Identificador */}
+                <div className="mt-3 flex flex-col items-center max-w-[90%]">
+                  <span className="font-display text-sm font-bold text-txt truncate group-hover:text-acc transition-colors">
+                    {memberNick}
+                  </span>
+                  <span className="text-[11px] text-mut/80 font-mono truncate">
+                    {isMe ? "(você)" : `@${memberUserId.split(":")[0].replace("@", "")}`}
+                  </span>
+                </div>
+
+                {/* Badge de Fala Animado */}
+                {participantSpeaking && (
+                  <span className="mt-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-online/15 border border-online/30 text-[9px] font-bold uppercase tracking-wider text-online animate-pulse">
+                    <Waveform size={11} weight="bold" />
+                    <span>Falando</span>
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+
+            <PopoverContent
+              side="bottom"
+              align="center"
+              sideOffset={8}
+              collisionPadding={16}
+              className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none z-50"
+            >
+              <MemberDropdownContent
+                userId={memberUserId}
+                onClose={() => setOpenMemberId(null)}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </MemberContextMenu>
     );
   };
 

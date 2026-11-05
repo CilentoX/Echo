@@ -18,6 +18,7 @@ import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import MxcImage from "@/components/media/MxcImage";
+import MemberContextMenu from "@/features/shell/MemberContextMenu";
 
 export default function FriendsDashboard() {
   const {
@@ -331,11 +332,16 @@ export default function FriendsDashboard() {
                   const isMenuOpen = openMenuId === friend.friendshipId;
 
                   return (
-                    <div
+                    <MemberContextMenu
                       key={friend.friendshipId}
-                      className="group flex items-center justify-between py-2.5 px-3 rounded-xl dark:hover:bg-white/[0.04] hover:bg-black/[0.04] transition-all"
+                      userId={friend.userId}
+                      displayName={friend.displayName}
+                      avatarUrl={friend.avatarUrl}
                     >
-                      {/* Dados do Amigo */}
+                      <div
+                        className="group flex items-center justify-between py-2.5 px-3 rounded-xl dark:hover:bg-white/[0.04] hover:bg-black/[0.04] transition-all cursor-pointer"
+                      >
+                        {/* Dados do Amigo */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative shrink-0">
                           {friend.avatarUrl ? (
@@ -412,6 +418,7 @@ export default function FriendsDashboard() {
                         )}
                       </div>
                     </div>
+                  </MemberContextMenu>
                   );
                 })}
               </div>
@@ -631,10 +638,15 @@ export default function FriendsDashboard() {
                   const isFriend = user.status === "friend";
 
                   return (
-                    <div
+                    <MemberContextMenu
                       key={user.userId}
-                      className="group relative flex flex-col justify-between rounded-2xl dark:bg-[#141923] bg-card-bg border border-bd-subtle p-4 hover:border-acc/30 dark:hover:bg-[#181f2c] hover:bg-surf2/40 transition-all duration-200 shadow-sm"
+                      userId={user.userId}
+                      displayName={user.displayName}
+                      avatarUrl={user.avatarUrl}
                     >
+                      <div
+                        className="group relative flex flex-col justify-between rounded-2xl dark:bg-[#141923] bg-card-bg border border-bd-subtle p-4 hover:border-acc/30 dark:hover:bg-[#181f2c] hover:bg-surf2/40 transition-all duration-200 shadow-sm"
+                      >
                       <div>
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="relative">
@@ -723,6 +735,7 @@ export default function FriendsDashboard() {
                         )}
                       </div>
                     </div>
+                  </MemberContextMenu>
                   );
                 })}
               </div>
@@ -754,51 +767,57 @@ export default function FriendsDashboard() {
               {onlineFriends.length > 0 ? (
                 <div className="space-y-2">
                   {onlineFriends.slice(0, 5).map((f) => (
-                    <div
+                    <MemberContextMenu
                       key={f.userId}
-                      onClick={() => openDirectMessage(f.userId)}
-                      className="cursor-pointer group flex items-center justify-between p-2.5 rounded-xl bg-card-bg/60 border border-bd-glass dark:bg-white/[0.02] dark:border-white/[0.04] hover:bg-card-bg hover:border-acc/30 transition-all"
+                      userId={f.userId}
+                      displayName={f.displayName}
+                      avatarUrl={f.avatarUrl}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="relative shrink-0">
-                          {f.avatarUrl ? (
-                            <MxcImage
-                              mxcUrl={f.avatarUrl}
-                              alt={f.displayName}
-                              className="h-8 w-8 rounded-full object-cover"
-                              width={32}
-                              height={32}
-                            />
-                          ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/15 font-display text-xs font-bold text-acc">
-                              {f.displayName.slice(0, 1).toUpperCase()}
-                            </div>
-                          )}
-                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card-bg" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-txt truncate group-hover:text-acc transition-colors">
-                            {f.displayName}
-                          </p>
-                          <p className="text-[10px] text-emerald-400/80 truncate flex items-center gap-1">
-                            {f.userId === myUserId && myCustomStatus ? (
-                              <>
-                                {myCustomStatus.emoji && <span>{myCustomStatus.emoji}</span>}
-                                <span>{myCustomStatus.text}</span>
-                              </>
-                            ) : (f as any).customStatus ? (
-                              <>
-                                {(f as any).customStatus.emoji && <span>{(f as any).customStatus.emoji}</span>}
-                                <span>{(f as any).customStatus.text}</span>
-                              </>
+                      <div
+                        onClick={() => openDirectMessage(f.userId)}
+                        className="cursor-pointer group flex items-center justify-between p-2.5 rounded-xl bg-card-bg/60 border border-bd-glass dark:bg-white/[0.02] dark:border-white/[0.04] hover:bg-card-bg hover:border-acc/30 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative shrink-0">
+                            {f.avatarUrl ? (
+                              <MxcImage
+                                mxcUrl={f.avatarUrl}
+                                alt={f.displayName}
+                                className="h-8 w-8 rounded-full object-cover"
+                                width={32}
+                                height={32}
+                              />
                             ) : (
-                              "Disponível no Echo"
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/15 font-display text-xs font-bold text-acc">
+                                {f.displayName.slice(0, 1).toUpperCase()}
+                              </div>
                             )}
-                          </p>
+                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card-bg" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-txt truncate group-hover:text-acc transition-colors">
+                              {f.displayName}
+                            </p>
+                            <p className="text-[10px] text-emerald-400/80 truncate flex items-center gap-1">
+                              {f.userId === myUserId && myCustomStatus ? (
+                                <>
+                                  {myCustomStatus.emoji && <span>{myCustomStatus.emoji}</span>}
+                                  <span>{myCustomStatus.text}</span>
+                                </>
+                              ) : (f as any).customStatus ? (
+                                <>
+                                  {(f as any).customStatus.emoji && <span>{(f as any).customStatus.emoji}</span>}
+                                  <span>{(f as any).customStatus.text}</span>
+                                </>
+                              ) : (
+                                "Disponível no Echo"
+                              )}
+                            </p>
+                          </div>
                         </div>
+                        <ChatCircle size={15} className="text-mut group-hover:text-txt transition-colors shrink-0" />
                       </div>
-                      <ChatCircle size={15} className="text-mut group-hover:text-txt transition-colors shrink-0" />
-                    </div>
+                    </MemberContextMenu>
                   ))}
                 </div>
               ) : (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsOutSimple, Chats, Copy, PushPin } from "@phosphor-icons/react";
+import { ArrowsOutSimple, Chats, Copy, PushPin, Hash, At } from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSyncStore } from "@/stores/syncStore";
@@ -17,6 +17,14 @@ import RichEmbed from "./RichEmbed";
 import MxcImage from "@/components/media/MxcImage";
 import AudioPlayer from "@/components/media/AudioPlayer";
 import MediaLightbox from "@/components/media/MediaLightbox";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { mxcToHttp } from "@/lib/media/mxc";
 
 const EMPTY_MEMBERS: import("@/lib/matrix/types").MemberSummary[] = [];
@@ -128,17 +136,19 @@ export default function MessageBubble({
         mediaUrl.endsWith(".svg")));
 
   return (
-    <article
-      data-event-id={event.eventId}
-      data-pending={pending || undefined}
-      data-is-sender={isSender || undefined}
-      className={`group relative flex gap-3 px-4 transition-colors ${
-        isCompact ? "py-0.5" : "py-1"
-      } ${
-        isSender ? "justify-end" : "justify-start"
-      } hover:bg-surf/40`}
-    >
-      {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <article
+          data-event-id={event.eventId}
+          data-pending={pending || undefined}
+          data-is-sender={isSender || undefined}
+          className={`group relative flex gap-3 px-4 transition-colors ${
+            isCompact ? "py-0.5" : "py-1"
+          } ${
+            isSender ? "justify-end" : "justify-start"
+          } hover:bg-surf/40`}
+        >
+          {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
       {!pending && (
         <div
           data-testid="message-hover-bar"
@@ -365,5 +375,89 @@ export default function MessageBubble({
         )
       )}
     </article>
+  </ContextMenuTrigger>
+
+  <ContextMenuContent className="w-56">
+    <ContextMenuLabel className="truncate text-txt font-semibold flex items-center justify-between">
+      <span className="truncate">{name}</span>
+      <span className="text-[10px] text-mut/60 font-mono">{time}</span>
+    </ContextMenuLabel>
+    <ContextMenuSeparator />
+
+    {/* Reações rápidas */}
+    {onToggleReaction && !pending && (
+      <>
+        <div className="flex items-center justify-around px-2 py-1.5 bg-white/[0.02] rounded-lg my-1">
+          {["❤️", "👍", "😂", "🎉", "🔥"].map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => onToggleReaction(event.eventId, emoji)}
+              className="cursor-pointer text-base hover:scale-125 transition-transform p-1 rounded hover:bg-white/[0.08]"
+              title={`Reagir com ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+        <ContextMenuSeparator />
+      </>
+    )}
+
+    {/* Copiar Texto */}
+    {event.body && (
+      <ContextMenuItem onClick={() => navigator.clipboard.writeText(event.body)}>
+        <Copy size={15} weight="bold" />
+        <span>Copiar Texto</span>
+      </ContextMenuItem>
+    )}
+
+    {/* Fixar / Desafixar */}
+    {!pending && (
+      <ContextMenuItem
+        onClick={() => {
+          if (isPinned) unpinMessage(event.roomId, event.eventId);
+          else pinMessage(event.roomId, event.eventId);
+        }}
+      >
+        <PushPin size={15} weight={isPinned ? "fill" : "bold"} className={isPinned ? "text-acc" : ""} />
+        <span>{isPinned ? "Desafixar Mensagem" : "Fixar Mensagem"}</span>
+      </ContextMenuItem>
+    )}
+
+    {/* Mencionar Autor */}
+    {!isSender && (
+      <ContextMenuItem
+        onClick={() => {
+          const cleanNick = name.replace(/\s+/g, "");
+          window.dispatchEvent(
+            new CustomEvent("echo:insert-mention", {
+              detail: { userId: event.sender, mentionText: `@${cleanNick} ` },
+            })
+          );
+        }}
+      >
+        <At size={15} weight="bold" />
+        <span>Mencionar Autor</span>
+      </ContextMenuItem>
+    )}
+
+    {/* Se mídia */}
+    {mediaUrl && (
+      <ContextMenuItem onClick={() => setLightboxOpen(true)}>
+        <ArrowsOutSimple size={15} weight="bold" />
+        <span>Ampliar Mídia</span>
+      </ContextMenuItem>
+    )}
+
+    <ContextMenuSeparator />
+
+    {/* Copiar ID */}
+    <ContextMenuItem onClick={() => navigator.clipboard.writeText(event.eventId)}>
+      <Hash size={15} weight="bold" />
+      <span>Copiar ID da Mensagem</span>
+    </ContextMenuItem>
+  </ContextMenuContent>
+</ContextMenu>
   );
 }
