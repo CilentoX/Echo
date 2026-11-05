@@ -4,6 +4,8 @@ import { useState } from "react";
 import { ArrowsOutSimple, Chats, Copy } from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { useProfileStore } from "@/stores/profileStore";
+import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 import { senderLabel } from "./groupMessages";
 import ReplyChip from "./ReplyChip";
 import EditedBadge from "./EditedBadge";
@@ -50,8 +52,22 @@ export default function MessageBubble({
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const isSender = event.sender === myUserId;
+  const activeGuildId = useUiStore((s) => s.activeGuildId);
+  const guildProfiles = useSyncStore((s) =>
+    activeGuildId && activeGuildId !== "home" ? s.guildMemberProfiles[activeGuildId] : undefined,
+  );
+  const memberProfile = guildProfiles?.[event.sender];
+  const guildNick = memberProfile?.nickname;
+  const myNickname = useProfileStore((s) => s.nickname);
   const myDisplayName = useProfileStore((s) => s.displayName);
-  const name = isSender && myDisplayName ? myDisplayName : senderLabel(event.sender);
+
+  // Nome de exibição: prioriza apelido na guilda, depois apelido global, depois displayName, depois fallback do Matrix
+  const name =
+    guildNick ||
+    (isSender ? (myNickname || myDisplayName) : null) ||
+    senderLabel(event.sender);
+
+  const senderAvatar = memberProfile?.avatarUrl ?? event.senderAvatarUrl ?? null;
   const time = new Date(event.originServerTs).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -145,13 +161,13 @@ export default function MessageBubble({
       {!isSender && showHeader && (
         <div className="shrink-0 w-9 h-9 mt-0.5">
           <MxcImage
-            mxcUrl={event.senderAvatarUrl ?? null}
+            mxcUrl={senderAvatar}
             width={36}
             height={36}
             alt={`Avatar de ${name}`}
             className="h-9 w-9 rounded-full object-cover border border-bd"
           />
-          {!event.senderAvatarUrl && (
+          {!senderAvatar && (
             <span
               aria-hidden="true"
               className="absolute flex h-9 w-9 items-center justify-center rounded-full bg-surf2 font-display text-xs font-semibold text-txt"

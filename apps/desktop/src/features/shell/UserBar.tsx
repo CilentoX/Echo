@@ -41,10 +41,14 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const channelsByGuild = useSyncStore((s) => s.channelsByGuild);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const activeChannelId = useUiStore((s) => s.activeChannelId);
+  const guildProfiles = useSyncStore((s) =>
+    activeGuildId && activeGuildId !== "home" && myUserId ? s.guildMemberProfiles[activeGuildId] : undefined,
+  );
+  const myGuildNick = myUserId && guildProfiles ? guildProfiles[myUserId]?.nickname : null;
 
   const effectiveAvatar = appwriteAvatarUrl ?? avatarUrl;
   const effectiveHandle = username || myUserId?.replace(/^@/, "").split(":")[0] || "";
-  const effectiveName = nickname || displayName || effectiveHandle || "Usuário";
+  const effectiveName = myGuildNick || nickname || displayName || effectiveHandle || "Usuário";
   const userTag = effectiveHandle ? `@${effectiveHandle}` : "";
 
   const presenceColor =

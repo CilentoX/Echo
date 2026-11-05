@@ -73,6 +73,9 @@ export default function ChannelSidebar({
   const activeVoiceChannelId = useVoiceStore((state) => state.activeVoiceChannelId);
   const voiceParticipants = useVoiceStore((state) => state.participants);
   const connectVoice = useVoiceStore((state) => state.connectVoice);
+  const guildProfiles = useSyncStore((state) =>
+    activeGuildId && activeGuildId !== "home" ? state.guildMemberProfiles[activeGuildId] : undefined,
+  );
 
   // Seletores devolvem snapshot vazio estável em miss (sem loop no useSyncExternalStore).
   const allChannels = useSyncStore(
@@ -117,6 +120,19 @@ export default function ChannelSidebar({
         }
       })
       .catch(() => {});
+
+    // Carrega dados e apelidos dos membros da guilda em cache
+    if (typeof matrixService.getGuildMembersData === "function") {
+      void matrixService
+        .getGuildMembersData(activeGuildId)
+        .then((data) => {
+          if (!isMounted || !data) return;
+          if (Array.isArray(data.memberProfiles)) {
+            useSyncStore.getState().setGuildMemberProfiles(activeGuildId, data.memberProfiles);
+          }
+        })
+        .catch(() => {});
+    }
 
     return () => {
       isMounted = false;
@@ -426,23 +442,26 @@ export default function ChannelSidebar({
                         {/* Participantes conectados na chamada */}
                         {connected && voiceParticipants.length > 0 && (
                           <div className="ml-5 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
-                            {voiceParticipants.map((p) => (
-                              <div
-                                key={p.userId}
-                                className="flex items-center gap-2 py-1 px-2 rounded-lg bg-black/5 dark:bg-white/[0.03] text-xs"
-                              >
+                            {voiceParticipants.map((p) => {
+                              const effectiveNick = guildProfiles?.[p.userId]?.nickname || p.username;
+                              return (
                                 <div
-                                  className={`relative h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shrink-0 ${
-                                    p.isSpeaking ? "ring-2 ring-online animate-pulse" : ""
-                                  }`}
+                                  key={p.userId}
+                                  className="flex items-center gap-2 py-1 px-2 rounded-lg bg-black/5 dark:bg-white/[0.03] text-xs"
                                 >
-                                  {p.username.charAt(0).toUpperCase()}
+                                  <div
+                                    className={`relative h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shrink-0 ${
+                                      p.isSpeaking ? "ring-2 ring-online animate-pulse" : ""
+                                    }`}
+                                  >
+                                    {effectiveNick.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="text-[11px] text-txt truncate flex-1">
+                                    {effectiveNick}
+                                  </span>
                                 </div>
-                                <span className="text-[11px] text-txt truncate flex-1">
-                                  {p.username}
-                                </span>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </li>

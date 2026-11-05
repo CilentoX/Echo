@@ -232,10 +232,15 @@ export default function GuildSettingsModal({
       setLoadingMembers(true);
       const data = await echoApi.getGuildMembersData(guild.guildId);
       setMembersData(data);
+      if (Array.isArray(data?.memberProfiles)) {
+        useSyncStore.getState().setGuildMemberProfiles(guild.guildId, data.memberProfiles);
+      }
       if (myUserId && data?.memberProfiles) {
         const myProfile = data.memberProfiles.find((mp) => mp.userId === myUserId);
         if (myProfile?.nickname) {
           setMyGuildNickname(myProfile.nickname);
+        } else {
+          setMyGuildNickname("");
         }
       }
     } catch {
@@ -251,6 +256,9 @@ export default function GuildSettingsModal({
       setNicknameMessage(null);
       const nickToSave = myGuildNickname.trim() || null;
       await echoApi.setGuildMemberNickname(guild.guildId, nickToSave);
+      if (myUserId) {
+        useSyncStore.getState().setMemberGuildNickname(guild.guildId, myUserId, nickToSave);
+      }
       setNicknameMessage(nickToSave ? "Apelido atualizado para este servidor!" : "Apelido redefinido para o padrão global.");
       await loadMembers();
     } catch {
@@ -1069,6 +1077,9 @@ export default function GuildSettingsModal({
                         onClick={async () => {
                           setMyGuildNickname("");
                           await echoApi.setGuildMemberNickname(guild.guildId, null);
+                          if (myUserId) {
+                            useSyncStore.getState().setMemberGuildNickname(guild.guildId, myUserId, null);
+                          }
                           setNicknameMessage("Apelido redefinido para o padrão global.");
                           loadMembers();
                           setTimeout(() => setNicknameMessage(null), 3000);

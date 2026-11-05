@@ -65,13 +65,19 @@ describe("Composer (Fase B)", () => {
   });
 
   it("placeholder otimista aparece na timeline ao enviar", async () => {
-    const sendMessage = vi.fn().mockResolvedValue("$real1");
+    let finishSend!: (val: string) => void;
+    const sendMessage = vi.fn().mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          finishSend = resolve;
+        }),
+    );
     useUiStore.getState().setMyUserId("@eu:hs");
     render(<Composer roomId={ROOM} sendMessage={sendMessage} />);
 
     await userEvent.type(screen.getByLabelText("Mensagem"), "placeholder{Enter}");
 
-    // Placeholder aparece imediatamente na timeline.
+    // Placeholder aparece imediatamente na timeline enquanto o envio está em andamento.
     expect(pendingCount()).toBe(1);
     expect(timeline()[0].sender).toBe("@eu:hs");
     expect(timeline()[0].body).toBe("placeholder");
@@ -81,6 +87,9 @@ describe("Composer (Fase B)", () => {
     expect(
       (screen.getByLabelText("Mensagem") as HTMLTextAreaElement).value,
     ).toBe("");
+
+    // Ao confirmar com o ID real, o placeholder é resolvido.
+    finishSend("$real1");
   });
 
   it("falha no envio: placeholder fica na timeline com erro e botão Tentar novamente", async () => {

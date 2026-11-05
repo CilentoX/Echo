@@ -7,6 +7,7 @@ import type {
   NormalizedReaction,
   SyncStatus,
 } from "@/lib/matrix/types";
+import type { GuildMemberProfile } from "@/lib/api/echoApi";
 
 export interface SyncState {
   status: SyncStatus;
@@ -15,10 +16,13 @@ export interface SyncState {
   timelineByChannel: Record<string, NormalizedEvent[]>;
   reactionsByEvent: Record<string, NormalizedReaction[]>;
   membersByRoom: Record<string, MemberSummary[]>;
+  guildMemberProfiles: Record<string, Record<string, GuildMemberProfile>>;
   readByChannel: Record<string, { userId: string; eventId: string }[]>;
   setGuilds(list: GuildSummary[]): void;
   setChannels(guildId: string, list: ChannelSummary[]): void;
   setMembers(roomId: string, members: MemberSummary[]): void;
+  setGuildMemberProfiles(guildId: string, profiles: GuildMemberProfile[]): void;
+  setMemberGuildNickname(guildId: string, userId: string, nickname: string | null): void;
   applyEvent(e: NormalizedEvent): void;
   prependEvents(channelId: string, events: NormalizedEvent[]): void;
   applyReaction(r: NormalizedReaction): void;
@@ -55,6 +59,20 @@ export const useSyncStore = create<SyncState>()((set) => {
     set((state) => {
       const timeline = state.timelineByChannel[e.roomId] ?? [];
       if (timeline.some((m) => m.eventId === e.eventId)) return state;
+      // Se este evento real é do próprio usuário e corresponde a um placeholder pendente recente:
+      const pendingIdx = timeline.findIndex(
+        (m) =>
+          m.eventId.startsWith("pending-") &&
+          m.sender === e.sender &&
+          (m.body === e.body || (m.msgtype === e.msgtype && Math.abs(m.originServerTs - e.originServerTs) < 60000)),
+      );
+      if (pendingIdx !== -1) {
+        const nextTimeline = [...timeline];
+        nextTimeline[pendingIdx] = e;
+        return {
+          timelineByChannel: { ...state.timelineByChannel, [e.roomId]: nextTimeline },
+        };
+      }
       return {
         timelineByChannel: { ...state.timelineByChannel, [e.roomId]: [...timeline, e] },
       };
@@ -67,6 +85,7 @@ export const useSyncStore = create<SyncState>()((set) => {
     timelineByChannel: {},
     reactionsByEvent: {},
     membersByRoom: {},
+    guildMemberProfiles: {},
     readByChannel: {},
 
     setGuilds: (list) => set({ guilds: [...list] }),
@@ -81,6 +100,42 @@ export const useSyncStore = create<SyncState>()((set) => {
         membersByRoom: { ...state.membersByRoom, [roomId]: [...members] },
       })),
 
+    setGuildMemberProfiles: (guildId, profiles) =>
+      set((state) => {
+        const currentMap = state.guildMemberProfiles[guildId] || {};
+        const nextMap = { ...currentMap };
+        for (const p of profiles) {
+          nextMap[p.userId] = p;
+        }
+        return {
+          guildMemberProfiles: {
+            ...state.guildMemberProfiles,
+            [guildId]: nextMap,
+          },
+        };
+      }),
+
+    setMemberGuildNickname: (guildId, userId, nickname) =>
+      set((state) => {
+        const currentMap = state.guildMemberProfiles[guildId] || {};
+        const existing = currentMap[userId] || {
+          id: `local-${Date.now()}`,
+          guildId,
+          userId,
+          nickname,
+          avatarUrl: null,
+        };
+        return {
+          guildMemberProfiles: {
+            ...state.guildMemberProfiles,
+            [guildId]: {
+              ...currentMap,
+              [userId]: { ...existing, nickname },
+            },
+          },
+        };
+      }),
+
     setStatus: (status) => set({ status }),
 
     reset: () =>
@@ -91,6 +146,7 @@ export const useSyncStore = create<SyncState>()((set) => {
         timelineByChannel: {},
         reactionsByEvent: {},
         membersByRoom: {},
+        guildMemberProfiles: {},
         readByChannel: {},
       }),
 
@@ -139,12 +195,20 @@ export const useSyncStore = create<SyncState>()((set) => {
       set((state) => {
         const timeline = state.timelineByChannel[event.roomId] ?? [];
         const idx = timeline.findIndex((m) => m.eventId === localId);
-        const withoutPending = idx === -1 ? timeline : timeline.filter((_, i) => i !== idx);
-        const merged = withoutPending.some((m) => m.eventId === event.eventId)
-          ? withoutPending
-          : [...withoutPending, event];
+        if (idx === -1) {
+          if (timeline.some((m) => m.eventId === event.eventId)) return state;
+          return {
+            timelineByChannel: { ...state.timelineByChannel, [event.roomId]: [...timeline, event] },
+          };
+        }
+        const nextTimeline = [...timeline];
+        if (nextTimeline.some((m) => m.eventId === event.eventId)) {
+          nextTimeline.splice(idx, 1);
+        } else {
+          nextTimeline[idx] = event;
+        }
         return {
-          timelineByChannel: { ...state.timelineByChannel, [event.roomId]: merged },
+          timelineByChannel: { ...state.timelineByChannel, [event.roomId]: nextTimeline },
         };
       }),
 

@@ -47,6 +47,9 @@ export default function MemberList({
   // Canais da guilda ativa (para agregar membros quando não há canal selecionado).
   const channelsByGuild = useSyncStore((state) => state.channelsByGuild);
   const allMembersByRoom = useSyncStore((state) => state.membersByRoom);
+  const guildProfiles = useSyncStore((state) =>
+    activeGuildId && activeGuildId !== "home" ? state.guildMemberProfiles[activeGuildId] : undefined,
+  );
 
   // Membros do canal ativo (se houver), como array mutável.
   const channelMembers = useSyncStore(selectMembers(activeChannelId ?? ""));
@@ -91,8 +94,9 @@ export default function MemberList({
     const query = search.toLowerCase().trim();
     const list = members.filter((m) => {
       if (!query) return true;
+      const nick = guildProfiles?.[m.userId]?.nickname?.toLowerCase() ?? "";
       const nome = (m.displayName || m.userId || "").toLowerCase();
-      return nome.includes(query);
+      return nome.includes(query) || nick.includes(query);
     });
     const groups: Record<string, typeof list> = {
       online: [],
@@ -183,16 +187,20 @@ export default function MemberList({
                       : effectivePresence === "unavailable"
                         ? "bg-dnd"
                         : "bg-offline";
-                  const initial = (member.displayName || member.userId.replace(/^@/, "").split(":")[0]).charAt(0).toUpperCase();
+                  const guildProfile = guildProfiles?.[member.userId];
+                  const guildNick = guildProfile?.nickname;
 
-                  // Fallback chain: Matrix avatar → Appwrite avatar (my user) → local avatarUrl → initials
-                  const effectiveAvatarUrl = isMe
-                    ? (member.avatarUrl ?? myAppwriteAvatarUrl ?? myAvatarUrl ?? null)
-                    : (member.avatarUrl ?? null);
-
-                  const cleanDisplayName = isMe
+                  const baseDisplayName = isMe
                     ? (myDisplayName || member.displayName || member.userId.replace(/^@/, "").split(":")[0])
                     : (member.displayName || member.userId.replace(/^@/, "").split(":")[0]);
+
+                  const cleanDisplayName = guildNick || baseDisplayName;
+                  const initial = cleanDisplayName.charAt(0).toUpperCase();
+
+                  // Fallback chain: Guild avatar override → Matrix avatar → Appwrite avatar (my user) → local avatarUrl → initials
+                  const effectiveAvatarUrl = isMe
+                    ? (guildProfile?.avatarUrl ?? member.avatarUrl ?? myAppwriteAvatarUrl ?? myAvatarUrl ?? null)
+                    : (guildProfile?.avatarUrl ?? member.avatarUrl ?? null);
 
                   const isSpeaking = speakingMembers.includes(member.userId) || (isMe && speakingMembers.includes("me"));
 
@@ -246,6 +254,11 @@ export default function MemberList({
                               <p className="text-sm font-medium text-txt truncate">
                                 {cleanDisplayName}
                               </p>
+                              {guildNick && guildNick !== baseDisplayName && (
+                                <p className="text-[10px] text-mut truncate -mt-0.5 font-mono">
+                                  @{baseDisplayName}
+                                </p>
+                              )}
                             </div>
                             {isMe && (
                               <span className="ml-auto text-[11px] text-acc/70 font-medium">

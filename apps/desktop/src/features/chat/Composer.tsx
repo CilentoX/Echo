@@ -33,6 +33,7 @@ interface PendingMessage {
   error?: string;
   duration?: number;
   waveform?: number[];
+  optimisticEvent?: NormalizedEvent;
 }
 
 export default function Composer({
@@ -50,6 +51,7 @@ export default function Composer({
 
   const myUserId = useUiStore((s) => s.myUserId);
   const addEvent = useSyncStore((s) => s.addPendingEvent);
+  const resolveEvent = useSyncStore((s) => s.resolvePending);
   const removeEvent = useSyncStore((s) => s.removePending);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -174,8 +176,13 @@ export default function Composer({
 
   /** Constrói um evento placeholder otimista. */
   const buildOptimisticEvent = useCallback(
-    (body: string, file?: File, waveform?: number[], duration?: number): NormalizedEvent => {
-      const localId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    (
+      localId: string,
+      body: string,
+      file?: File,
+      waveform?: number[],
+      duration?: number,
+    ): NormalizedEvent => {
       const isImg = file?.type.startsWith("image/");
       const isAud = file?.type.startsWith("audio/");
       const event: NormalizedEvent = {
@@ -214,10 +221,33 @@ export default function Composer({
         list.map((p) => (p.localId === item.localId ? { ...p, status: "sending" as const } : p)),
       );
       try {
+        let realEventId: string | undefined;
         if (item.file && sendFile) {
-          await sendFile(roomId, item.file, item.body);
+          realEventId = await sendFile(roomId, item.file, item.body);
         } else {
-          await sendMessage(roomId, item.body);
+          realEventId = await sendMessage(roomId, item.body);
+        }
+        if (realEventId && typeof realEventId === "string") {
+          const base = item.optimisticEvent ?? {
+            eventId: realEventId,
+            roomId,
+            sender: myUserId ?? "",
+            body: item.body,
+            originServerTs: Date.now(),
+            msgtype: item.file
+              ? item.file.type.startsWith("audio/")
+                ? "m.audio"
+                : item.file.type.startsWith("image/")
+                  ? "m.image"
+                  : "m.file"
+              : "m.text",
+          };
+          resolveEvent(item.localId, {
+            ...base,
+            eventId: realEventId,
+          });
+        } else {
+          removeEvent(roomId, item.localId);
         }
         setPending((list) => list.filter((p) => p.localId !== item.localId));
       } catch (err) {
@@ -232,7 +262,7 @@ export default function Composer({
         );
       }
     },
-    [roomId, sendFile, sendMessage],
+    [myUserId, resolveEvent, removeEvent, roomId, sendFile, sendMessage],
   );
 
   const handleSend = useCallback(async () => {
@@ -243,26 +273,30 @@ export default function Composer({
     sendingRef.current = true;
 
     try {
+      const localId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       if (attachment) {
+        const bodyText = body || attachment.file.name;
+        const optEvent = buildOptimisticEvent(localId, bodyText, attachment.file);
         const item: PendingMessage = {
-          localId: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          body: body || attachment.file.name,
+          localId,
+          body: bodyText,
           file: attachment.file,
           status: "sending",
+          optimisticEvent: optEvent,
         };
         setPending((list) => [...list, item]);
-        buildOptimisticEvent(item.body, item.file);
         setAttachment(null);
         setDraft("");
         void sendPending(item);
       } else {
+        const optEvent = buildOptimisticEvent(localId, body);
         const item: PendingMessage = {
-          localId: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          localId,
           body,
           status: "sending",
+          optimisticEvent: optEvent,
         };
         setPending((list) => [...list, item]);
-        buildOptimisticEvent(body);
         setDraft("");
         void sendPending(item);
       }
@@ -275,41 +309,57 @@ export default function Composer({
   const handleSendVoice = useCallback(
     (file: File, duration: number, waveform: number[]) => {
       setIsVoiceRecording(false);
+      const localId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const optEvent = buildOptimisticEvent(localId, "[Mensagem de voz]", file, waveform, duration);
       const item: PendingMessage = {
-        localId: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        localId,
         body: "[Mensagem de voz]",
         file,
         status: "sending",
         duration,
         waveform,
+        optimisticEvent: optEvent,
       };
       setPending((list) => [...list, item]);
-      buildOptimisticEvent("[Mensagem de voz]", file, waveform, duration);
       void sendPending(item);
     },
     [buildOptimisticEvent, sendPending],
   );
 
-  const retryPending = useCallback((localId: string) => {
-    setPending((list) => {
-      const item = list.find((p) => p.localId === localId);
-      if (!item) return list;
-      const updated = list.map((p) =>
-        p.localId === localId ? { ...p, status: "sending" as const, error: undefined } : p,
-      );
-      setPending(updated);
-      buildOptimisticEvent(item.body, item.file, item.waveform, item.duration);
-      void sendPending(item);
-      return updated;
-    });
-  }, [buildOptimisticEvent, sendPending]);
+  const retryPending = useCallback(
+    (localId: string) => {
+      setPending((list) => {
+        const item = list.find((p) => p.localId === localId);
+        if (!item) return list;
+        const optEvent = buildOptimisticEvent(
+          item.localId,
+          item.body,
+          item.file,
+          item.waveform,
+          item.duration,
+        );
+        const updatedItem = {
+          ...item,
+          status: "sending" as const,
+          error: undefined,
+          optimisticEvent: optEvent,
+        };
+        void sendPending(updatedItem);
+        return list.map((p) => (p.localId === localId ? updatedItem : p));
+      });
+    },
+    [buildOptimisticEvent, sendPending],
+  );
 
-  const cancelPending = useCallback((localId: string) => {
-    setPending((list) => {
-      removeEvent(roomId, localId);
-      return list.filter((p) => p.localId !== localId);
-    });
-  }, [removeEvent, roomId]);
+  const cancelPending = useCallback(
+    (localId: string) => {
+      setPending((list) => {
+        removeEvent(roomId, localId);
+        return list.filter((p) => p.localId !== localId);
+      });
+    },
+    [removeEvent, roomId],
+  );
 
   return (
     <div

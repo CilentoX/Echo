@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { useUiStore } from "@/stores/uiStore"
+import { useSyncStore } from "@/stores/syncStore"
 import { useProfileStore } from "@/stores/profileStore"
 import { useFriendsStore } from "@/stores/friendsStore"
 import { matrixService } from "@/lib/matrix/instance"
@@ -77,6 +78,9 @@ export default function MemberDropdownContent({
           setProfile(fetched)
 
           if (guildData) {
+            if (activeGuildId && Array.isArray(guildData.memberProfiles)) {
+              useSyncStore.getState().setGuildMemberProfiles(activeGuildId, guildData.memberProfiles)
+            }
             // Verifica apelido do membro nesta guilda
             const memberProfile = guildData.memberProfiles?.find((mp) => mp.userId === userId)
             if (memberProfile?.nickname) {
@@ -156,14 +160,16 @@ export default function MemberDropdownContent({
       const trimmed = guildNickInput.trim()
       const saved = await echoApi.setGuildMemberNickname(activeGuildId, trimmed || null)
       showToast("Apelido atualizado!")
-      setGuildNickname(saved.nickname || null)
+      const newNick = saved.nickname || null
+      setGuildNickname(newNick)
+      useSyncStore.getState().setMemberGuildNickname(activeGuildId, userId, newNick)
       setEditingGuildNick(false)
     } catch {
       showToast("Falha ao atualizar apelido")
     } finally {
       setSavingGuildNick(false)
     }
-  }, [activeGuildId, guildNickInput, echoApi, showToast])
+  }, [activeGuildId, guildNickInput, echoApi, showToast, userId])
 
   const handleResetNickname = useCallback(async () => {
     if (!activeGuildId) return
@@ -172,13 +178,14 @@ export default function MemberDropdownContent({
       await echoApi.setGuildMemberNickname(activeGuildId, null)
       showToast("Apelido resetado para o global")
       setGuildNickname(null)
+      useSyncStore.getState().setMemberGuildNickname(activeGuildId, userId, null)
       setEditingGuildNick(false)
     } catch {
       showToast("Falha ao redefinir apelido")
     } finally {
       setSavingGuildNick(false)
     }
-  }, [activeGuildId, echoApi, showToast])
+  }, [activeGuildId, echoApi, showToast, userId])
 
   // Presença do usuário
   const effectivePresence: PresenceState = (
