@@ -122,34 +122,75 @@ export default function Profile({ open, onClose, initialTab }: ProfileProps) {
         )}
       >
         {/* Sidebar Navigation */}
-        <aside className="flex flex-col w-52 flex-shrink-0 bg-bg border-r border-bd p-4">
-          <nav className="flex-1 space-y-1" aria-label="Categorias de configurações">
-            {Object.entries(TAB_CONFIG).map(([key, config]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setActiveTab(key as TabKey)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-rail",
-                  activeTab === key
-                    ? "bg-surf text-txt font-medium"
-                    : "text-mut hover:bg-surf2 hover:text-txt",
-                  "data-[state=active]:bg-surf data-[state=active]:text-txt"
-                )}
-                data-state={activeTab === key ? "active" : "inactive"}
-                role="tab"
-                aria-selected={activeTab === key}
-                aria-controls={`panel-${key}`}
-              >
-                <span className="flex-shrink-0" aria-hidden="true">{config.icon}</span>
-                <span className="truncate font-medium">{config.label}</span>
-              </button>
-            ))}
+        <aside className="flex flex-col w-52 flex-shrink-0 bg-bg border-r border-bd p-3">
+          <nav className="flex-1 space-y-3 overflow-y-auto scrollbar-thin pr-0.5" aria-label="Categorias de configurações">
+            <div>
+              <h3 className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-mut/60">
+                Configurações de Usuário
+              </h3>
+              <div className="space-y-0.5">
+                {(["profile", "privacy", "security", "connections"] as TabKey[]).map((key) => {
+                  const config = TAB_CONFIG[key];
+                  const isActive = activeTab === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setActiveTab(key)}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs text-left transition-all duration-150 cursor-pointer",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-rail",
+                        isActive
+                          ? "bg-surf text-txt font-semibold shadow-xs"
+                          : "text-mut hover:bg-surf2 hover:text-txt"
+                      )}
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-controls={`panel-${key}`}
+                    >
+                      <span className="flex-shrink-0" aria-hidden="true">{config.icon}</span>
+                      <span className="truncate">{config.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-mut/60">
+                Configurações do App
+              </h3>
+              <div className="space-y-0.5">
+                {(["appearance", "voice", "notifications", "storage"] as TabKey[]).map((key) => {
+                  const config = TAB_CONFIG[key];
+                  const isActive = activeTab === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setActiveTab(key)}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs text-left transition-all duration-150 cursor-pointer",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-rail",
+                        isActive
+                          ? "bg-surf text-txt font-semibold shadow-xs"
+                          : "text-mut hover:bg-surf2 hover:text-txt"
+                      )}
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-controls={`panel-${key}`}
+                    >
+                      <span className="flex-shrink-0" aria-hidden="true">{config.icon}</span>
+                      <span className="truncate">{config.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </nav>
 
           {/* User preview at bottom of sidebar */}
-          <div className="pt-4 border-t border-bd">
+          <div className="pt-3 border-t border-bd">
             <ProfileSidebarPreview onClose={onClose} />
           </div>
         </aside>

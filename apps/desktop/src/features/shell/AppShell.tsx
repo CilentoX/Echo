@@ -146,8 +146,8 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Área Principal de Navegação e Conteúdo ("|") */}
       <div className="flex flex-1 min-h-0 w-full overflow-hidden">
         <CommunityRail
-          onOpenProfile={() => setProfileOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenProfile={() => setProfileOpen(true, "profile")}
+          onOpenSettings={() => setProfileOpen(true, "appearance")}
           onOpenCreate={() => setCreateGuildOpen(true)}
           onOpenJoin={() => setJoinGuildOpen(true)}
         />
@@ -169,14 +169,14 @@ export default function AppShell({ children }: AppShellProps) {
               <ChannelSidebar
                 variant="overlay"
                 onClose={() => setSidebarOpen(false)}
-                onOpenProfile={() => setProfileOpen(true)}
-                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenProfile={() => setProfileOpen(true, "profile")}
+                onOpenSettings={() => setProfileOpen(true, "appearance")}
               />
             )
           ) : (
             <ChannelSidebar
-              onOpenProfile={() => setProfileOpen(true)}
-              onOpenSettings={() => setSettingsOpen(true)}
+              onOpenProfile={() => setProfileOpen(true, "profile")}
+              onOpenSettings={() => setProfileOpen(true, "appearance")}
             />
           )
         )}
