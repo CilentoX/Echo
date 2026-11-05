@@ -1,7 +1,7 @@
-import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock, CaretDown, CaretRight, BellSlash } from "@phosphor-icons/react";
+import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock, CaretDown, CaretRight, BellSlash, FolderSimplePlus, Trash } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
-import { useSyncStore, selectChannels, selectGuilds, selectGuildRoles, selectUserGuildRoles } from "@/stores/syncStore";
+import { useSyncStore, selectChannels, selectGuilds, selectGuildRoles, selectUserGuildRoles, selectGuildCategories } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { useVoiceStore } from "@/stores/voiceStore";
@@ -9,6 +9,7 @@ import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
+import CreateCategoryModal from "@/features/guild/CreateCategoryModal";
 import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
 import ChannelSettingsModal from "@/features/guild/ChannelSettingsModal";
 import InviteModal from "@/features/guild/InviteModal";
@@ -44,12 +45,21 @@ export default function ChannelSidebar({
   const setChannels = useSyncStore((state) => state.setChannels);
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
+  const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
+  const [targetCategoryForChannel, setTargetCategoryForChannel] = useState<string | undefined>(undefined);
+  const [targetTypeForChannel, setTargetTypeForChannel] = useState<"text" | "voice">("text");
   const [editGuildOpen, setEditGuildOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [channelSettingsTarget, setChannelSettingsTarget] = useState<ChannelSummary | null>(null);
   const [channelSearch, setChannelSearch] = useState("");
   const [openVoiceMemberId, setOpenVoiceMemberId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const guildCategories = useSyncStore(
+    useMemo(() => selectGuildCategories(activeGuildId ?? ""), [activeGuildId]),
+  );
+  const createCategory = useSyncStore((state) => state.createCategory);
+  const deleteCategory = useSyncStore((state) => state.deleteCategory);
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
@@ -180,12 +190,22 @@ export default function ChannelSidebar({
     const defaultVoice = "Canais de voz";
     const map = new Map<string, ChannelSummary[]>();
 
+    // 1. Registra categorias criadas explicitamente para a guilda
+    for (const customCat of (guildCategories as string[])) {
+      const trimmed = customCat.trim();
+      if (trimmed && !map.has(trimmed)) {
+        map.set(trimmed, []);
+      }
+    }
+
+    // 2. Agrupa canais de texto visíveis
     for (const c of visibleTextChannels) {
       const cat = c.category?.trim() || defaultText;
       if (!map.has(cat)) map.set(cat, []);
       map.get(cat)!.push(c);
     }
 
+    // 3. Agrupa canais de voz visíveis
     for (const c of visibleVoiceChannels) {
       const cat = c.category?.trim() || defaultVoice;
       if (!map.has(cat)) map.set(cat, []);
@@ -202,7 +222,7 @@ export default function ChannelSidebar({
     });
 
     return entries.map(([name, groupChannels]) => ({ name, channels: groupChannels }));
-  }, [visibleTextChannels, visibleVoiceChannels]);
+  }, [visibleTextChannels, visibleVoiceChannels, guildCategories]);
 
   const settingsGuildData = useMemo(
     () => ({
@@ -425,12 +445,27 @@ export default function ChannelSidebar({
             >
               <Gear size={15} aria-hidden />
             </button>
+            {isGuildOwner && !overlay && (
+              <button
+                type="button"
+                aria-label="Criar categoria"
+                title="Criar categoria"
+                onClick={() => setCreateCategoryOpen(true)}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
+              >
+                <FolderSimplePlus size={15} aria-hidden />
+              </button>
+            )}
             {!overlay && (
               <button
                 type="button"
                 aria-label="Criar canal"
                 title="Criar canal"
-                onClick={() => setCreateChannelOpen(true)}
+                onClick={() => {
+                  setTargetCategoryForChannel(undefined);
+                  setTargetTypeForChannel("text");
+                  setCreateChannelOpen(true);
+                }}
                 className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
               >
                 <Plus size={15} aria-hidden />
@@ -536,6 +571,7 @@ export default function ChannelSidebar({
           <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
             {channelGroups.map((group) => {
               const isCollapsed = Boolean(collapsedCategories[group.name]);
+              const isDefaultCategory = group.name === "Canais de texto" || group.name === "Canais de voz";
 
               return (
                 <section key={group.name}>
@@ -554,30 +590,82 @@ export default function ChannelSidebar({
                       )}
                       <span className="truncate">{group.name}</span>
                     </div>
-                    {isGuildOwner && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        title={`Criar canal em ${group.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCreateChannelOpen(true);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
+
+                    <div className="flex items-center gap-0.5">
+                      {isGuildOwner && !isDefaultCategory && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          title={`Excluir categoria ${group.name}`}
+                          aria-label={`Excluir categoria ${group.name}`}
+                          onClick={(e) => {
                             e.stopPropagation();
+                            if (activeGuildId) {
+                              deleteCategory(activeGuildId, group.name);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              if (activeGuildId) {
+                                deleteCategory(activeGuildId, group.name);
+                              }
+                            }
+                          }}
+                          className="cursor-pointer opacity-0 group-hover:opacity-100 p-0.5 rounded text-mut hover:text-err hover:bg-err/10 transition-all"
+                        >
+                          <Trash size={12} />
+                        </span>
+                      )}
+
+                      {isGuildOwner && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          title={`Criar canal em ${group.name}`}
+                          aria-label={`Criar canal em ${group.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTargetCategoryForChannel(group.name);
+                            setTargetTypeForChannel(group.name === "Canais de voz" ? "voice" : "text");
                             setCreateChannelOpen(true);
-                          }
-                        }}
-                        className="cursor-pointer opacity-0 group-hover:opacity-100 p-0.5 rounded text-mut hover:text-txt hover:bg-white/[0.08] transition-all"
-                      >
-                        <Plus size={12} weight="bold" />
-                      </span>
-                    )}
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              setTargetCategoryForChannel(group.name);
+                              setTargetTypeForChannel(group.name === "Canais de voz" ? "voice" : "text");
+                              setCreateChannelOpen(true);
+                            }
+                          }}
+                          className="cursor-pointer opacity-0 group-hover:opacity-100 p-0.5 rounded text-mut hover:text-txt hover:bg-white/[0.08] transition-all"
+                        >
+                          <Plus size={12} weight="bold" />
+                        </span>
+                      )}
+                    </div>
                   </button>
 
                   {!isCollapsed && (
-                    <ul className="space-y-0.5 mt-1">
+                    group.channels.length === 0 ? (
+                      <div className="mx-2 my-1 px-2.5 py-2 rounded-xl border border-dashed border-bd-subtle dark:bg-white/[0.01] bg-black/[0.01] flex items-center justify-between text-[11px] text-mut/60">
+                        <span>Nenhum canal</span>
+                        {isGuildOwner && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTargetCategoryForChannel(group.name);
+                              setTargetTypeForChannel("text");
+                              setCreateChannelOpen(true);
+                            }}
+                            className="cursor-pointer text-[10px] text-acc hover:underline font-semibold"
+                          >
+                            + Criar canal
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <ul className="space-y-0.5 mt-1">
                       {group.channels.map((channel) => {
                         const isVoice = channel.type === "voice";
                         const active = channel.channelId === activeChannelId;
@@ -867,7 +955,7 @@ export default function ChannelSidebar({
                         </li>
                       )}
                     </ul>
-                  )}
+                  ))}
                 </section>
               );
             })}
@@ -877,8 +965,20 @@ export default function ChannelSidebar({
 
       <CreateChannelModal
         open={createChannelOpen}
-        onClose={() => setCreateChannelOpen(false)}
+        onClose={() => {
+          setCreateChannelOpen(false);
+          setTargetCategoryForChannel(undefined);
+          setTargetTypeForChannel("text");
+        }}
         guildId={activeGuildId ?? ""}
+        initialCategory={targetCategoryForChannel}
+        initialType={targetTypeForChannel}
+        existingCategories={Array.from(
+          new Set([
+            ...(guildCategories as string[]),
+            ...channelGroups.map((g) => g.name),
+          ]),
+        ).filter((c) => c !== "Canais de texto" && c !== "Canais de voz")}
         onCreate={(data) =>
           matrixService.createChannel(activeGuildId ?? "", data)
         }
@@ -886,9 +986,24 @@ export default function ChannelSidebar({
           setActiveChannel(channel.channelId);
           const currentChannels = useSyncStore.getState().channelsByGuild[activeGuildId ?? ""] ?? [];
           setChannels(activeGuildId ?? "", [
-            { ...channel, unreadCount: 0 },
+            {
+              ...channel,
+              unreadCount: 0,
+              type: (channel as any).type ?? targetTypeForChannel,
+              category: (channel as any).category ?? targetCategoryForChannel,
+            },
             ...currentChannels,
           ]);
+        }}
+      />
+      <CreateCategoryModal
+        open={createCategoryOpen}
+        guildId={activeGuildId ?? ""}
+        onClose={() => setCreateCategoryOpen(false)}
+        onCreateCategory={(catName) => {
+          if (activeGuildId) {
+            createCategory(activeGuildId, catName);
+          }
         }}
       />
       <GuildSettingsModal

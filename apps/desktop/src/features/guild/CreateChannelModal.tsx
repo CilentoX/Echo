@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,9 @@ export interface CreateChannelModalProps {
   open: boolean;
   onClose: () => void;
   guildId: string;
+  initialCategory?: string;
+  initialType?: "text" | "voice";
+  existingCategories?: string[];
   onCreate: (
     data: { name: string; type: string; topic?: string; category?: string }
   ) => Promise<{ channelId: string; name: string }>;
@@ -36,15 +39,25 @@ export default function CreateChannelModal({
   open,
   onClose,
   guildId: _guildId,
+  initialCategory,
+  initialType,
+  existingCategories,
   onCreate,
   onCreated,
 }: CreateChannelModalProps) {
   const [name, setName] = useState("");
-  const [type, setType] = useState("text");
+  const [type, setType] = useState<string>(initialType ?? "text");
   const [topic, setTopic] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(initialCategory ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      if (initialCategory !== undefined) setCategory(initialCategory);
+      if (initialType !== undefined) setType(initialType);
+    }
+  }, [open, initialCategory, initialType]);
 
   if (!open) return null;
 
@@ -78,7 +91,7 @@ export default function CreateChannelModal({
   const handleClose = () => {
     setName("");
     setTopic("");
-    setCategory("");
+    setCategory(initialCategory ?? "");
     setError(null);
     onClose();
   };
@@ -93,14 +106,14 @@ export default function CreateChannelModal({
         <div className="relative p-6 pb-4 border-b border-bd-subtle flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-acc text-bg flex items-center justify-center font-display font-bold text-sm shadow-md shadow-acc/20">
-              <Hash size={20} weight="bold" />
+              {type === "voice" ? <SpeakerHigh size={20} weight="bold" /> : <Hash size={20} weight="bold" />}
             </div>
             <div>
               <DialogTitle className="font-display text-lg font-semibold text-txt">
                 Criar canal
               </DialogTitle>
               <DialogDescription className="text-xs text-mut/80 mt-0.5">
-                Crie um novo espaço de comunicação na sua guilda.
+                {category ? `Criando canal na categoria "${category}".` : "Crie um novo espaço de comunicação na sua guilda."}
               </DialogDescription>
             </div>
           </div>
@@ -171,7 +184,7 @@ export default function CreateChannelModal({
             </div>
             <div className="relative flex items-center">
               <span className="absolute left-3.5 text-mut font-semibold select-none">
-                #
+                {type === "voice" ? "🔊" : "#"}
               </span>
               <input
                 type="text"
@@ -184,7 +197,7 @@ export default function CreateChannelModal({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !loading) void handleSubmit();
                 }}
-                placeholder="novo-canal"
+                placeholder={type === "voice" ? "sala-de-conversa" : "novo-canal"}
                 autoFocus
                 className="w-full rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg pl-8 pr-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
               />
@@ -197,7 +210,7 @@ export default function CreateChannelModal({
             )}
           </div>
 
-          {/* Categoria Opcional */}
+          {/* Categoria */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-mut">
               Categoria <span className="normal-case font-normal text-mut/60">(opcional)</span>
@@ -212,6 +225,25 @@ export default function CreateChannelModal({
               placeholder="Ex: Geral, Voz, Projetos"
               className="w-full rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-card-bg px-3.5 py-2.5 text-sm text-txt outline-none placeholder:text-mut/50 focus:border-acc/50 focus:bg-card-bg focus:ring-1 focus:ring-acc/30 hover:border-bd transition-all"
             />
+            {existingCategories && existingCategories.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[10px] text-mut/60">Existentes:</span>
+                {existingCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategory(cat)}
+                    className={`cursor-pointer text-[10px] font-medium px-2 py-0.5 rounded-lg border transition-all ${
+                      category.toLowerCase() === cat.toLowerCase()
+                        ? "bg-acc/15 text-acc border-acc/40"
+                        : "bg-white/[0.02] border-white/[0.06] text-mut hover:text-txt hover:bg-white/[0.06]"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Tópico Opcional */}
@@ -237,7 +269,7 @@ export default function CreateChannelModal({
           <button
             type="button"
             onClick={handleClose}
-            className="cursor-pointer flex-1 rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-surf/50 py-2.5 text-sm font-medium text-txt hover:bg-surf hover:border-bd active:scale-95 transition-all"
+            className="cursor-pointer flex-1 rounded-xl border border-bd-subtle dark:bg-white/[0.03] bg-surf/50 py-2.5 text-sm font-medium text-txt hover:bg-surf hover:border-bd active:scale-95 transition-all text-center"
           >
             Cancelar
           </button>

@@ -3,13 +3,15 @@
 import { useCallback, useMemo, useState } from "react"
 import { useUiStore } from "@/stores/uiStore"
 import { matrixService } from "@/lib/matrix/instance"
-import { Chats, Pencil, Gear, Users, Copy } from "@phosphor-icons/react"
+import { Chats, Pencil, Gear, Users, Copy, FolderSimplePlus } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import ImageUploadButton from "@/components/ImageUploadButton"
 import MxcImage from "@/components/media/MxcImage"
 import InviteModal from "./InviteModal"
 import GuildSettingsModal from "./GuildSettingsModal"
+import CreateCategoryModal from "./CreateCategoryModal"
+import { useSyncStore } from "@/stores/syncStore"
 
 export interface GuildDropdownContentProps {
   guildId: string
@@ -27,9 +29,11 @@ export default function GuildDropdownContent({
   onClose,
 }: GuildDropdownContentProps) {
   const activeGuildId = useUiStore((state) => state.activeGuildId)
+  const createCategory = useSyncStore((state) => state.createCategory)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
 
   const isActive = activeGuildId === guildId
 
@@ -165,6 +169,18 @@ export default function GuildDropdownContent({
           role="menuitem"
           variant="ghost"
           size="sm"
+          onClick={() => setCreateCategoryOpen(true)}
+          className="w-full justify-start gap-2.5 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/50 rounded-lg"
+        >
+          <FolderSimplePlus size={14} className="shrink-0" />
+          <span>Criar categoria</span>
+        </Button>
+
+        <Button
+          type="button"
+          role="menuitem"
+          variant="ghost"
+          size="sm"
           onClick={handleGuildSettings}
           className="w-full justify-start gap-2.5 text-sm text-txt hover:bg-surf2 hover:text-txt focus:ring-2 focus:ring-acc/50 rounded-lg"
         >
@@ -246,6 +262,19 @@ export default function GuildDropdownContent({
         onClose={() => {
           setSettingsOpen(false)
           onClose()
+        }}
+      />
+
+      <CreateCategoryModal
+        open={createCategoryOpen}
+        guildId={guildId}
+        onClose={() => {
+          setCreateCategoryOpen(false)
+          onClose()
+        }}
+        onCreateCategory={(catName) => {
+          createCategory(guildId, catName)
+          showToast(`Categoria "${catName}" criada`)
         }}
       />
     </div>

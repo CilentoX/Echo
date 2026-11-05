@@ -41,6 +41,7 @@ export interface SyncState {
   mutedChannels: Record<string, MuteEntry>;
   mutedGuilds: Record<string, MuteEntry>;
   guildEmojis: Record<string, CustomGuildEmoji[]>;
+  guildCategories: Record<string, string[]>;
   setGuilds(list: GuildSummary[]): void;
   setChannels(guildId: string, list: ChannelSummary[]): void;
   setMembers(roomId: string, members: MemberSummary[]): void;
@@ -63,6 +64,8 @@ export interface SyncState {
   isGuildMuted(guildId: string): boolean;
   addGuildEmoji(guildId: string, emoji: { name: string; url: string; createdBy?: string }): void;
   removeGuildEmoji(guildId: string, emojiId: string): void;
+  createCategory(guildId: string, name: string): void;
+  deleteCategory(guildId: string, name: string): void;
   setStatus(s: SyncStatus): void;
   /** Volta ao estado inicial (logout/troca de conta; usado pelo wiring). */
   reset(): void;
@@ -153,6 +156,14 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     guildEmojis: (() => {
       try {
         const raw = localStorage.getItem("echo:guildEmojis");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })(),
+    guildCategories: (() => {
+      try {
+        const raw = localStorage.getItem("echo:guildCategories");
         return raw ? JSON.parse(raw) : {};
       } catch {
         return {};
@@ -267,6 +278,35 @@ export const useSyncStore = create<SyncState>()((set, get) => {
           localStorage.setItem("echo:guildEmojis", JSON.stringify(updated));
         } catch {}
         return { guildEmojis: updated };
+      }),
+
+    createCategory: (guildId, name) =>
+      set((state) => {
+        const trimmed = name.trim();
+        if (!trimmed) return state;
+        const list = state.guildCategories[guildId] ?? [];
+        if (list.includes(trimmed)) return state;
+        const updated = {
+          ...state.guildCategories,
+          [guildId]: [...list, trimmed],
+        };
+        try {
+          localStorage.setItem("echo:guildCategories", JSON.stringify(updated));
+        } catch {}
+        return { guildCategories: updated };
+      }),
+
+    deleteCategory: (guildId, name) =>
+      set((state) => {
+        const list = state.guildCategories[guildId] ?? [];
+        const updated = {
+          ...state.guildCategories,
+          [guildId]: list.filter((c) => c !== name),
+        };
+        try {
+          localStorage.setItem("echo:guildCategories", JSON.stringify(updated));
+        } catch {}
+        return { guildCategories: updated };
       }),
 
     pinMessage: (roomId, eventId) =>
@@ -398,6 +438,7 @@ export const useSyncStore = create<SyncState>()((set, get) => {
         channelPermissions: desktopCache.get("channelPermissions") || {},
         readByChannel: {},
         pinnedByRoom: {},
+        guildCategories: {},
       }),
 
     addPendingEvent: appendEvent,
@@ -522,3 +563,10 @@ export const selectGuildEmojis =
   (guildId: string) =>
     (state: SyncState): CustomGuildEmoji[] | readonly never[] =>
       emptyOr(state.guildEmojis[guildId]);
+
+const EMPTY_CATEGORIES: readonly string[] = Object.freeze([]);
+
+export const selectGuildCategories =
+  (guildId: string) =>
+    (state: SyncState): readonly string[] =>
+      state.guildCategories[guildId] ?? EMPTY_CATEGORIES;
