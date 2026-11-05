@@ -1,0 +1,11 @@
+{
+  "version": "0.1.13",
+  "notes": "Echo v0.1.13: Correção de convites e entrada em guildas, VAD (detecção de voz em tempo real estilo Discord com filtro de ruído e histerese), dock com microfone/fone verdes e pulsantes, transmissão de tela fluida sem tela preta.",
+  "pub_date": "2026-11-05T19:48:15.189Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1ZNM1ZVRk9OVVJGTVZwa1YweHlaMk40UlhKNVJYZFJRMnhSYUU1b2VtRnVkeXMzTVdWaFJrbFdUa3BFV25SRGNFaEZVMDVKTWxJNFJqVXpPVEpOVWtWMmFscExWMjlaTTNWTlJXSk1RWFZVUkdwWVMwRlpQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94Tnprek9UQTRNRFV5Q1dacGJHVTZSV05vYjE4d0xqRXVNVE5mZURZMExYTmxkSFZ3TG1WNFpRbDJaWEp6YVc5dU9qQXVNUzR4TXdwV2RYRmtVRGxITHpaUFEybEJWRTgxVms5c1ZWZzVRMnh2YTNGcVVYSk9lREpVZVVwblpWRjVRV3BUV201UFdIbFlMelZrWjNaek5scG5kMWcxV1VSNFpVdFBVRU5rTldsWmF6aEZSbmxYVjAxR2VUWkVkejA5Q2c9PQ==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.13/Echo_0.1.13_x64-setup.exe"
+    }
+  }
+}
