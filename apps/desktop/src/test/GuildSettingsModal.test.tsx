@@ -134,5 +134,33 @@ describe("GuildSettingsModal", () => {
     // Deve permanecer na aba de Membros
     expect(screen.getByText(/Salvar Apelido/i)).toBeTruthy();
   });
+
+  it("renderiza a aba de Emojis e permite cadastrar e visualizar emojis da comunidade", async () => {
+    const user = userEvent.setup();
+    render(
+      <GuildSettingsModal
+        open={true}
+        guild={{ guildId: "guild-1", name: "Minha Guilda", createdBy: "@lucas:litteris.online" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Clica na aba de Emojis
+    await user.click(screen.getByRole("button", { name: /Emojis/i }));
+    expect(screen.getByText(/Emojis da Comunidade/i)).toBeTruthy();
+
+    // Clica em Novo Emoji
+    await user.click(screen.getByRole("button", { name: /Novo Emoji/i }));
+    expect(screen.getByText("Adicionar Emoji Customizado")).toBeTruthy();
+
+    // Clica na sugestão rápida :echo_hype:
+    await user.click(screen.getByText(":echo_hype:"));
+
+    // Salva o emoji
+    await user.click(screen.getByRole("button", { name: /Salvar Emoji/i }));
+
+    // Deve exibir o emoji na lista
+    expect(screen.getByText(":echo_hype:")).toBeTruthy();
+  });
 });
 

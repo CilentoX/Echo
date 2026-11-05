@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { renderMarkdown } from "@/lib/markdown";
+import { useSyncStore } from "@/stores/syncStore";
 
 export interface MessageBodyProps {
   /** Texto cru da mensagem (sem markdown processado). */
@@ -11,14 +13,27 @@ export interface MessageBodyProps {
 
 /**
  * Corpo da mensagem: renderiza markdown simples (negrito, itálico, código,
- * links, listas, citações) de forma segura (escape de HTML). Quando a
- * mensagem foi redactada, mostra "[mensagem excluída]" em vez do corpo.
+ * links, listas, citações) de forma segura (escape de HTML) e emojis customizados.
  */
 export default function MessageBody({
   body,
   redacted = false,
   pending = false,
 }: MessageBodyProps) {
+  const guildEmojis = useSyncStore((s) => s.guildEmojis);
+
+  const customEmojiMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const list of Object.values(guildEmojis)) {
+      if (Array.isArray(list)) {
+        for (const e of list) {
+          map[e.name] = e.url;
+        }
+      }
+    }
+    return map;
+  }, [guildEmojis]);
+
   if (redacted) {
     return (
       <p
@@ -30,7 +45,7 @@ export default function MessageBody({
     );
   }
 
-  const html = renderMarkdown(body);
+  const html = renderMarkdown(body, customEmojiMap);
 
   return (
     <p

@@ -81,6 +81,7 @@ export interface ChannelSummary {
   type?: string;
   category?: string;
   unreadCount: number;
+  isTemporary?: boolean;
 }
 
 /** Perfil completo de um usuário (busca única no servidor Matrix). */

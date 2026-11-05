@@ -188,4 +188,27 @@ describe("ChannelSidebar", () => {
     await userEvent.click(categoryHeader);
     expect(screen.getByText("anúncios")).toBeTruthy();
   });
+
+  it("permite criar uma sala de voz temporária dinâmica e conectar nela imediatamente", async () => {
+    useSyncStore.getState().setGuilds([GUILD]);
+    useSyncStore.getState().setChannels(GUILD.guildId, [
+      makeChannel({ channelId: "!v1:hs", name: "Voz Geral", type: "voice", category: "Canais de voz" }),
+    ]);
+    useUiStore.getState().setActiveGuild(GUILD.guildId);
+    useUiStore.setState({ myUserId: "@lucas:hs" });
+
+    render(<ChannelSidebar />);
+
+    const createTempRoomBtn = screen.getByLabelText("Criar sala de voz temporária");
+    expect(createTempRoomBtn).toBeTruthy();
+
+    await userEvent.click(createTempRoomBtn);
+
+    // Deve ter criado a sala temporária dinâmica e conectado nela
+    const channels = useSyncStore.getState().channelsByGuild[GUILD.guildId]!;
+    expect(channels.some((c) => c.isTemporary)).toBe(true);
+
+    const voiceState = useVoiceStore.getState();
+    expect(voiceState.activeVoiceChannelId).toMatch(/^temp-voice-/);
+  });
 });

@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import EmojiPickerReact, {
   Theme,
   EmojiStyle,
   SkinTones,
   Categories,
   type EmojiClickData,
+  type CustomEmoji,
 } from "emoji-picker-react";
 import {
   Popover,
@@ -13,6 +14,8 @@ import {
 } from "@/components/ui/popover";
 import { Smile } from "lucide-react";
 import { useThemeStore } from "@/stores/themeStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useSyncStore } from "@/stores/syncStore";
 
 export type EmojiPickerProps = {
   children?: React.ReactNode;
@@ -53,6 +56,23 @@ export function EmojiPicker({
   onOpenChange,
 }: EmojiPickerProps) {
   const mode = useThemeStore((s) => s.mode);
+  const activeGuildId = useUiStore((s) => s.activeGuildId);
+  const guilds = useSyncStore((s) => s.guilds);
+  const guildEmojis = useSyncStore((s) => s.guildEmojis);
+
+  const customEmojis: CustomEmoji[] | undefined = useMemo(() => {
+    if (!activeGuildId || activeGuildId === "home") return undefined;
+    const list = guildEmojis[activeGuildId] ?? [];
+    if (list.length === 0) return undefined;
+    const activeGuild = guilds.find((g) => g.guildId === activeGuildId);
+    return list.map((e) => ({
+      id: e.id,
+      names: [e.name],
+      imgUrl: e.url,
+      group: activeGuild?.name ?? "Servidor",
+    }));
+  }, [activeGuildId, guildEmojis, guilds]);
+
   const [skinTone, setSkinTone] = useState<SkinTones>(SkinTones.NEUTRAL);
   const [isHoveringSkinTones, setIsHoveringSkinTones] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -72,7 +92,11 @@ export function EmojiPicker({
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
-    onSelect(emojiData.emoji);
+    if (emojiData.isCustom || (emojiData as any).imageUrl) {
+      onSelect(`:${emojiData.names?.[0] || "emoji"}: `);
+    } else {
+      onSelect(emojiData.emoji);
+    }
     onOpenChange(false);
   };
 
@@ -176,6 +200,7 @@ export function EmojiPicker({
         {/* EmojiPickerReact com Tema Adaptativo (Light/Dark) e Categorias em Português */}
         <EmojiPickerReact
           onEmojiClick={handleEmojiClick}
+          customEmojis={customEmojis}
           theme={mode === "light" ? Theme.LIGHT : Theme.DARK}
           emojiStyle={EmojiStyle.NATIVE}
           searchPlaceHolder="Buscar emoji..."

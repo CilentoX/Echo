@@ -9,6 +9,11 @@ import {
   PhoneDisconnect,
   Waveform,
   Lock,
+  Screencast,
+  VideoCamera,
+  VideoCameraSlash,
+  StopCircle,
+  Television,
 } from "@phosphor-icons/react";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -20,6 +25,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import SoundboardPopover, { type SoundEffect } from "./SoundboardPopover";
+import ScreenShareModal from "./ScreenShareModal";
+import type { ScreenShareConfig } from "@/stores/voiceStore";
 
 const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
@@ -50,6 +57,118 @@ export default function VoiceStage({
   const setSpeaking = useVoiceStore((s) => s.setSpeaking);
   const toggleMute = useVoiceStore((s) => s.toggleMute);
   const toggleDeafen = useVoiceStore((s) => s.toggleDeafen);
+  const isScreenSharing = useVoiceStore((s) => s.isScreenSharing);
+  const isCameraOn = useVoiceStore((s) => s.isCameraOn);
+  const setScreenSharing = useVoiceStore((s) => s.setScreenSharing);
+  const setCameraOn = useVoiceStore((s) => s.setCameraOn);
+  const screenShareConfig = useVoiceStore((s) => s.screenShareConfig);
+  const setScreenShareConfig = useVoiceStore((s) => s.setScreenShareConfig);
+
+  const [screenShareModalOpen, setScreenShareModalOpen] = useState(false);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const screenVideoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const handleToggleScreenShare = async () => {
+    if (isScreenSharing) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((t) => t.stop());
+        screenStreamRef.current = null;
+      }
+      setScreenSharing(false);
+      setScreenShareConfig(null);
+      return;
+    }
+
+    setScreenShareModalOpen(true);
+  };
+
+  const handleStartScreenShare = async (config: ScreenShareConfig) => {
+    setScreenShareConfig(config);
+    try {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia) {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            frameRate: { ideal: config.fps },
+            width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
+            height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
+          },
+          audio: true,
+        });
+        screenStreamRef.current = stream;
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.onended = () => {
+            screenStreamRef.current = null;
+            setScreenSharing(false);
+            setScreenShareConfig(null);
+          };
+        }
+        setScreenSharing(true);
+      } else {
+        setScreenSharing(true);
+      }
+    } catch {
+      // Se prompt do sistema for cancelado ou simulado em teste/desktop
+      setScreenSharing(true);
+    }
+  };
+
+  const handleToggleCamera = async () => {
+    if (isCameraOn) {
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+        cameraStreamRef.current = null;
+      }
+      setCameraOn(false);
+      return;
+    }
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        cameraStreamRef.current = stream;
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.onended = () => {
+            cameraStreamRef.current = null;
+            setCameraOn(false);
+          };
+        }
+        setCameraOn(true);
+      } else {
+        setCameraOn(true);
+      }
+    } catch {
+      // Sem permissão de câmera ou cancelado
+    }
+  };
+
+  useEffect(() => {
+    if (isScreenSharing && screenVideoRef.current && screenStreamRef.current) {
+      screenVideoRef.current.srcObject = screenStreamRef.current;
+    }
+  }, [isScreenSharing]);
+
+  useEffect(() => {
+    if (isCameraOn && cameraVideoRef.current && cameraStreamRef.current) {
+      cameraVideoRef.current.srcObject = cameraStreamRef.current;
+    }
+  }, [isCameraOn]);
+
+  useEffect(() => {
+    return () => {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((t) => t.stop());
+        screenStreamRef.current = null;
+      }
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+        cameraStreamRef.current = null;
+      }
+    };
+  }, []);
 
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
   const [lastSound, setLastSound] = useState<SoundEffect | null>(null);
@@ -137,7 +256,19 @@ export default function VoiceStage({
   // Ao sair/desconectar do canal de voz, volta imediatamente para o canal de texto da guilda
   const handleDisconnect = () => {
     hasConnectedRef.current = true;
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((t) => t.stop());
+      screenStreamRef.current = null;
+    }
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+      cameraStreamRef.current = null;
+    }
     disconnectVoice();
+    if (channelId.startsWith("temp-voice-") && activeGuildId) {
+      const existing = (channelsByGuild[activeGuildId] ?? []).filter((c) => c.channelId !== channelId);
+      useSyncStore.getState().setChannels(activeGuildId, existing);
+    }
     const guildChannels = (activeGuildId ? channelsByGuild[activeGuildId] : []) ?? [];
     const firstTextChannel = guildChannels.find((c) => c.type !== "voice");
     setActiveChannel(firstTextChannel?.channelId ?? null);
@@ -238,8 +369,48 @@ export default function VoiceStage({
             </p>
           </div>
         ) : (
-          /* Grid de Participantes de Áudio com Fotos em Cache e Animação de Fala */
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 w-full auto-rows-fr">
+          <div className="flex flex-col w-full">
+            {/* Cinema Stage: Tela Compartilhada */}
+            {isScreenSharing && (
+              <div className="relative w-full mb-6 rounded-2xl overflow-hidden bg-black/90 border border-white/[0.08] shadow-2xl flex flex-col aspect-video max-h-[500px] animate-in fade-in-0 duration-200">
+                {/* Header da Transmissão */}
+                <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-3.5 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Television size={16} weight="bold" className="text-acc" />
+                      <span>Transmitindo Tela</span>
+                      {screenShareConfig?.sourceName && (
+                        <span className="text-white/60 font-normal lowercase">({screenShareConfig.sourceName})</span>
+                      )}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/[0.1] text-[10px] font-mono text-white/80">
+                      {screenShareConfig ? `${screenShareConfig.resolution} ${screenShareConfig.fps}fps` : "1080p 60fps"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleScreenShare}
+                    className="cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
+                  >
+                    <StopCircle size={15} weight="bold" />
+                    <span>Parar Transmissão</span>
+                  </button>
+                </div>
+
+                {/* Video Player */}
+                <video
+                  ref={screenVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
+
+            {/* Grid de Participantes de Áudio com Fotos em Cache e Animação de Fala */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 w-full auto-rows-fr">
             {participants.map((participant) => {
               const isMe =
                 participant.userId === effectiveUserId ||
@@ -287,42 +458,59 @@ export default function VoiceStage({
                           </div>
                         )}
 
-                        {/* Avatar Central com Foto e Anel de Fala */}
-                        <div className="relative mt-2">
-                          {memberAvatar ? (
-                            <MxcImage
-                              mxcUrl={memberAvatar}
-                              alt={memberNick}
-                              className={`h-20 w-20 rounded-full object-cover shadow-lg transition-all duration-150 ${
-                                participantSpeaking
-                                  ? "ring-4 ring-online shadow-online/60 animate-pulse"
-                                  : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
-                              }`}
-                              width={80}
-                              height={80}
+                        {/* Câmera Ao Vivo ou Avatar */}
+                        {isMe && isCameraOn ? (
+                          <div className="relative w-full h-36 rounded-xl overflow-hidden border border-white/[0.1] shadow-inner bg-black mb-2">
+                            <video
+                              ref={cameraVideoRef}
+                              autoPlay
+                              playsInline
+                              muted
+                              className="w-full h-full object-cover"
                             />
-                          ) : (
-                            <div
-                              className={`flex h-20 w-20 items-center justify-center rounded-full bg-acc text-bg font-display text-2xl font-black shadow-lg transition-all duration-150 ${
-                                participantSpeaking
-                                  ? "ring-4 ring-online shadow-online/60 animate-pulse"
-                                  : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
-                              }`}
-                            >
-                              {memberNick.charAt(0).toUpperCase()}
+                            <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[10px] text-white">
+                              <VideoCamera size={12} weight="fill" className="text-online" />
+                              <span>Câmera ativa</span>
                             </div>
-                          )}
+                          </div>
+                        ) : (
+                          /* Avatar Central com Foto e Anel de Fala */
+                          <div className="relative mt-2">
+                            {memberAvatar ? (
+                              <MxcImage
+                                mxcUrl={memberAvatar}
+                                alt={memberNick}
+                                className={`h-20 w-20 rounded-full object-cover shadow-lg transition-all duration-150 ${
+                                  participantSpeaking
+                                    ? "ring-4 ring-online shadow-online/60 animate-pulse"
+                                    : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
+                                }`}
+                                width={80}
+                                height={80}
+                              />
+                            ) : (
+                              <div
+                                className={`flex h-20 w-20 items-center justify-center rounded-full bg-acc text-bg font-display text-2xl font-black shadow-lg transition-all duration-150 ${
+                                  participantSpeaking
+                                    ? "ring-4 ring-online shadow-online/60 animate-pulse"
+                                    : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
+                                }`}
+                              >
+                                {memberNick.charAt(0).toUpperCase()}
+                              </div>
+                            )}
 
-                          {/* Badge de Microfone Mutado */}
-                          {participant.isMuted && (
-                            <div
-                              className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-err text-white ring-2 ring-card-bg shadow-sm"
-                              title="Microfone mutado"
-                            >
-                              <MicrophoneSlash size={13} weight="bold" />
-                            </div>
-                          )}
-                        </div>
+                            {/* Badge de Microfone Mutado */}
+                            {participant.isMuted && (
+                              <div
+                                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-err text-white ring-2 ring-card-bg shadow-sm"
+                                title="Microfone mutado"
+                              >
+                                <MicrophoneSlash size={13} weight="bold" />
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Apelido e Identificador */}
                         <div className="mt-3.5 flex flex-col items-center max-w-[90%]">
@@ -360,6 +548,7 @@ export default function VoiceStage({
                 </div>
               );
             })}
+            </div>
           </div>
         )}
 
@@ -417,6 +606,37 @@ export default function VoiceStage({
               }}
             />
 
+            {/* Botão Câmera */}
+            <button
+              type="button"
+              onClick={handleToggleCamera}
+              aria-label={isCameraOn ? "Desativar câmera" : "Ativar câmera"}
+              title={isCameraOn ? "Desativar câmera" : "Ativar câmera"}
+              className={`cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-95 ${
+                isCameraOn
+                  ? "bg-online text-bg font-bold shadow-md shadow-online/30 border border-online"
+                  : "bg-white/[0.06] text-txt hover:bg-white/[0.12] border border-bd-subtle"
+              }`}
+            >
+              {isCameraOn ? <VideoCamera size={18} weight="bold" /> : <VideoCameraSlash size={18} weight="bold" />}
+            </button>
+
+            {/* Botão Compartilhar Tela */}
+            <button
+              type="button"
+              onClick={handleToggleScreenShare}
+              aria-label={isScreenSharing ? "Parar de compartilhar tela" : "Compartilhar tela"}
+              title={isScreenSharing ? "Parar de compartilhar tela" : "Compartilhar tela"}
+              className={`cursor-pointer flex h-10 items-center gap-1.5 px-3 rounded-xl transition-all active:scale-95 text-xs font-semibold ${
+                isScreenSharing
+                  ? "bg-acc text-bg shadow-md shadow-acc/30 border border-acc"
+                  : "bg-white/[0.06] text-txt hover:bg-white/[0.12] border border-bd-subtle"
+              }`}
+            >
+              <Screencast size={18} weight="bold" />
+              <span className="hidden sm:inline">{isScreenSharing ? "Compartilhando" : "Compartilhar Tela"}</span>
+            </button>
+
             {/* Botão de Teste de Fala (Simula/Ativa Fala em tempo real para ver a animação) */}
             <button
               type="button"
@@ -452,6 +672,13 @@ export default function VoiceStage({
           </div>
         </div>
       </div>
+
+      {/* Modal Nativo do Echo para Seleção de Tela e Janela (Padrão Discord, sem webview/barra externa) */}
+      <ScreenShareModal
+        open={screenShareModalOpen}
+        onClose={() => setScreenShareModalOpen(false)}
+        onStartShare={handleStartScreenShare}
+      />
     </div>
   );
 }

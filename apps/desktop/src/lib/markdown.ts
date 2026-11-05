@@ -23,7 +23,7 @@ function escapeHtml(text: string): string {
  * Converte texto markdown simples em HTML seguro.
  * Elementos gerados usam classes Tailwind para estilo.
  */
-export function renderMarkdown(text: string): string {
+export function renderMarkdown(text: string, customEmojis?: Record<string, string>): string {
   if (!text) return "";
 
   let html = escapeHtml(text);
@@ -77,6 +77,17 @@ export function renderMarkdown(text: string): string {
   );
   // Envolve blocos de li consecutivos em <ul>
   html = html.replace(/(?:<li.*<\/li>\s?)+/g, (block) => `<ul class="my-2">${block}</ul>`);
+
+  // Emojis customizados (:shortcode:) processados após formatações para evitar que underscores virem itálico
+  if (customEmojis) {
+    html = html.replace(/:([a-zA-Z0-9_-]+):/g, (match, name) => {
+      const url = customEmojis[name];
+      if (url) {
+        return `<img src="${escapeHtml(url)}" alt=":${name}:" title=":${name}:" class="inline-block h-5 w-5 object-contain align-middle mx-0.5" />`;
+      }
+      return match;
+    });
+  }
 
   // Quebras de linha simples
   html = html.replace(/\n/g, "<br>");

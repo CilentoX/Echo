@@ -220,4 +220,94 @@ describe("VoiceStage Component", () => {
     // Ao desconectar, redireciona o activeChannelId para o primeiro canal de texto da guilda
     expect(useUiStore.getState().activeChannelId).toBe("ch-text-1");
   });
+
+  it("permite alternar compartilhamento de tela exibindo o palco cinema e botão de parar", () => {
+    useVoiceStore.getState().connectVoice(
+      "!guild1:echo",
+      "Echo Guild",
+      "ch-voice-1",
+      "Voz Geral",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina Pro",
+          isSpeaking: false,
+          volume: 100,
+        },
+      ],
+    );
+
+    render(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
+
+    const shareBtn = screen.getByLabelText("Compartilhar tela");
+    expect(shareBtn).toBeTruthy();
+
+    fireEvent.click(shareBtn);
+
+    // Modal próprio de compartilhamento de tela do Echo (estilo Discord) deve abrir
+    expect(screen.getByText("Compartilhar Sua Tela")).toBeTruthy();
+    expect(screen.getByText("Telas Inteiras")).toBeTruthy();
+    expect(screen.getByText("Janelas de Aplicativos")).toBeTruthy();
+
+    // Clica no botão "Transmitir ao Vivo"
+    const goLiveBtn = screen.getByRole("button", { name: /Transmitir ao Vivo/i });
+    expect(goLiveBtn).toBeTruthy();
+    fireEvent.click(goLiveBtn);
+
+    expect(useVoiceStore.getState().isScreenSharing).toBe(true);
+
+    // Deve exibir o cinema de tela compartilhada
+    expect(screen.getByText("Transmitindo Tela")).toBeTruthy();
+    expect(screen.getByText("1080p 60fps")).toBeTruthy();
+
+    const stopBtn = screen.getByRole("button", { name: /Parar Transmissão/i });
+    expect(stopBtn).toBeTruthy();
+    fireEvent.click(stopBtn);
+
+    expect(useVoiceStore.getState().isScreenSharing).toBe(false);
+  });
+
+  it("permite alternar câmera ao vivo exibindo o badge de câmera ativa", () => {
+    useVoiceStore.getState().connectVoice(
+      "!guild1:echo",
+      "Echo Guild",
+      "ch-voice-1",
+      "Voz Geral",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina Pro",
+          isSpeaking: false,
+          volume: 100,
+        },
+      ],
+    );
+
+    render(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
+
+    const cameraBtn = screen.getByLabelText("Ativar câmera");
+    expect(cameraBtn).toBeTruthy();
+
+    fireEvent.click(cameraBtn);
+    expect(useVoiceStore.getState().isCameraOn).toBe(true);
+    expect(screen.getByText("Câmera ativa")).toBeTruthy();
+
+    const cameraOffBtn = screen.getByLabelText("Desativar câmera");
+    fireEvent.click(cameraOffBtn);
+    expect(useVoiceStore.getState().isCameraOn).toBe(false);
+  });
 });

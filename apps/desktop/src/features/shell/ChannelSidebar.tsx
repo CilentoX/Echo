@@ -1,4 +1,4 @@
-import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock, CaretDown, CaretRight } from "@phosphor-icons/react";
+import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock, CaretDown, CaretRight, BellSlash } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
 import { useSyncStore, selectChannels, selectGuilds, selectGuildRoles, selectUserGuildRoles } from "@/stores/syncStore";
@@ -12,6 +12,8 @@ import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
 import ChannelSettingsModal from "@/features/guild/ChannelSettingsModal";
 import InviteModal from "@/features/guild/InviteModal";
+import ChannelMutePopover from "@/features/channels/ChannelMutePopover";
+import GuildMutePopover from "@/features/guild/GuildMutePopover";
 import MxcImage from "@/components/media/MxcImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import MemberDropdownContent from "./MemberDropdownContent";
@@ -137,6 +139,8 @@ export default function ChannelSidebar({
     useMemo(() => selectUserGuildRoles(activeGuildId ?? "", effectiveUserId), [activeGuildId, effectiveUserId]),
   );
   const channelPermissions = useSyncStore((state) => state.channelPermissions);
+  const isChannelMuted = useSyncStore((state) => state.isChannelMuted);
+  const isGuildMuted = useSyncStore((state) => state.isGuildMuted);
 
   const canViewChannel = (channel: { channelId: string; type?: string }) => {
     const config = channelPermissions[channel.channelId];
@@ -218,6 +222,53 @@ export default function ChannelSidebar({
       (activeGuild as any)?.createdBy,
     ],
   );
+
+  const handleCreateDynamicVoiceRoom = () => {
+    if (!activeGuildId || !activeGuild) return;
+
+    const myGuildNick = effectiveUserId ? guildProfiles?.[effectiveUserId]?.nickname : undefined;
+    const myEffectiveName =
+      myGuildNick || profileDisplayName || effectiveUserId.split(":")[0].replace("@", "") || "Você";
+    const myEffectiveAvatar =
+      (effectiveUserId ? guildProfiles?.[effectiveUserId]?.avatarUrl : null) ||
+      profileAvatarUrl ||
+      myAppwriteAvatarUrl ||
+      null;
+
+    const tempId = `temp-voice-${Date.now()}`;
+    const tempName = `🔊 Sala de ${myEffectiveName}`;
+
+    const newChannel: ChannelSummary = {
+      channelId: tempId,
+      name: tempName,
+      type: "voice",
+      category: "Canais de voz",
+      unreadCount: 0,
+      isTemporary: true,
+    };
+
+    const currentChannels = (allChannels as ChannelSummary[]) || [];
+    setChannels(activeGuildId, [...currentChannels, newChannel]);
+
+    connectVoice(
+      activeGuild.guildId,
+      activeGuild.name,
+      tempId,
+      tempName,
+      [
+        {
+          userId: effectiveUserId || "me",
+          username: myEffectiveName,
+          avatarUrl: myEffectiveAvatar,
+          isMuted: !microphoneEnabled,
+          isDeafened: !headphonesEnabled,
+          isSpeaking: false,
+          volume: 100,
+        },
+      ],
+    );
+    setActiveChannel(tempId);
+  };
 
   // Busca canais da guilda e garante seleção automática do primeiro canal
   useEffect(() => {
@@ -347,9 +398,15 @@ export default function ChannelSidebar({
             <h1 className="truncate font-display text-sm font-bold text-txt">
               {activeGuild.name}
             </h1>
+            {isGuildMuted(activeGuild.guildId) && (
+              <span title="Servidor Silenciado">
+                <BellSlash size={13} className="shrink-0 text-amber-400" />
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-0.5 shrink-0">
+            <GuildMutePopover guildId={activeGuild.guildId} guildName={activeGuild.name} />
             <button
               type="button"
               aria-label="Convidar pessoas"
@@ -549,7 +606,12 @@ export default function ChannelSidebar({
                                     <Lock size={12} className="shrink-0 text-amber-400/80" />
                                   </span>
                                 )}
-                                {channel.unreadCount > 0 && (
+                                {isChannelMuted(channel.channelId, activeGuild?.guildId) && (
+                                  <span title="Canal Silenciado">
+                                    <BellSlash size={12} className="shrink-0 text-amber-400/80" />
+                                  </span>
+                                )}
+                                {channel.unreadCount > 0 && !isChannelMuted(channel.channelId, activeGuild?.guildId) && (
                                   <span
                                     aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}
                                     className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-err px-1 text-[10px] font-bold text-bg"
@@ -558,22 +620,29 @@ export default function ChannelSidebar({
                                   </span>
                                 )}
                               </button>
-                              {canManage && (
-                                <button
-                                  type="button"
-                                  title="Configurações do canal"
-                                  aria-label={`Configurações de ${channel.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setChannelSettingsTarget(channel);
-                                  }}
-                                  className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
-                                    active ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
-                                  }`}
-                                >
-                                  <Gear size={13} />
-                                </button>
-                              )}
+                              <div className="flex items-center gap-0.5 ml-1 shrink-0">
+                                <ChannelMutePopover
+                                  channelId={channel.channelId}
+                                  channelName={channel.name}
+                                  guildId={activeGuild?.guildId}
+                                />
+                                {canManage && (
+                                  <button
+                                    type="button"
+                                    title="Configurações do canal"
+                                    aria-label={`Configurações de ${channel.name}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setChannelSettingsTarget(channel);
+                                    }}
+                                    className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all ${
+                                      active ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
+                                    }`}
+                                  >
+                                    <Gear size={13} />
+                                  </button>
+                                )}
+                              </div>
                             </li>
                           );
                         }
@@ -639,26 +708,38 @@ export default function ChannelSidebar({
                                     <Lock size={12} className="shrink-0 text-amber-400/80" />
                                   </span>
                                 )}
+                                {isChannelMuted(channel.channelId, activeGuild?.guildId) && (
+                                  <span title="Canal Silenciado">
+                                    <BellSlash size={12} className="shrink-0 text-amber-400/80" />
+                                  </span>
+                                )}
                                 {connected && (
                                   <span className="flex h-2 w-2 rounded-full bg-online animate-ping shrink-0 ml-auto" />
                                 )}
                               </button>
-                              {canManage && (
-                                <button
-                                  type="button"
-                                  title="Configurações do canal de voz"
-                                  aria-label={`Configurações de ${channel.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setChannelSettingsTarget(channel);
-                                  }}
-                                  className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
-                                    active || connected ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
-                                  }`}
-                                >
-                                  <Gear size={13} />
-                                </button>
-                              )}
+                              <div className="flex items-center gap-0.5 ml-1 shrink-0">
+                                <ChannelMutePopover
+                                  channelId={channel.channelId}
+                                  channelName={channel.name}
+                                  guildId={activeGuild?.guildId}
+                                />
+                                {canManage && (
+                                  <button
+                                    type="button"
+                                    title="Configurações do canal de voz"
+                                    aria-label={`Configurações de ${channel.name}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setChannelSettingsTarget(channel);
+                                    }}
+                                    className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all ${
+                                      active || connected ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
+                                    }`}
+                                  >
+                                    <Gear size={13} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             {/* Participantes conectados na chamada */}
@@ -772,6 +853,19 @@ export default function ChannelSidebar({
                           </li>
                         );
                       })}
+                      {group.channels.some((c) => c.type === "voice") && (
+                        <li className="mt-1">
+                          <button
+                            type="button"
+                            onClick={handleCreateDynamicVoiceRoom}
+                            aria-label="Criar sala de voz temporária"
+                            className="cursor-pointer flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs text-mut/80 hover:text-acc hover:bg-acc/10 border border-dashed border-bd-subtle hover:border-acc/30 transition-all active:scale-[0.98]"
+                          >
+                            <Plus size={13} weight="bold" className="text-acc" />
+                            <span className="font-semibold truncate">➕ Criar Sala de Voz</span>
+                          </button>
+                        </li>
+                      )}
                     </ul>
                   )}
                 </section>

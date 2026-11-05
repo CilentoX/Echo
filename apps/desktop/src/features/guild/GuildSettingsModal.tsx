@@ -17,6 +17,7 @@ import {
   CaretUp,
   UserCheck,
   Clock,
+  Smiley,
 } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
@@ -54,7 +55,7 @@ export interface GuildSettingsModalProps {
   }) => Promise<void>;
 }
 
-type TabType = "overview" | "roles" | "members" | "invites";
+type TabType = "overview" | "roles" | "members" | "invites" | "emojis";
 
 const PRESET_COLORS = [
   "#0FB9A8", // Echo Teal
@@ -123,6 +124,15 @@ function getInitials(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+const PRESET_EMOJI_TEMPLATES = [
+  { name: "echo_hype", url: "https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f525.svg" },
+  { name: "echo_cool", url: "https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f60e.svg" },
+  { name: "echo_gg", url: "https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f3c6.svg" },
+  { name: "echo_heart", url: "https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f496.svg" },
+];
+
+const EMPTY_GUILD_EMOJIS: readonly any[] = Object.freeze([]);
+
 export default function GuildSettingsModal({
   open,
   onClose,
@@ -174,6 +184,40 @@ export default function GuildSettingsModal({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [creatingInvite, setCreatingInvite] = useState(false);
   const [expandedInvites, setExpandedInvites] = useState<Record<string, boolean>>({});
+
+  // Emojis tab state
+  const guildEmojis = useSyncStore((s) => s.guildEmojis[guild.guildId] ?? EMPTY_GUILD_EMOJIS);
+  const addGuildEmoji = useSyncStore((s) => s.addGuildEmoji);
+  const removeGuildEmoji = useSyncStore((s) => s.removeGuildEmoji);
+  const setGuildRoles = useSyncStore((s) => s.setGuildRoles);
+
+  const [addEmojiOpen, setAddEmojiOpen] = useState(false);
+  const [newEmojiName, setNewEmojiName] = useState("");
+  const [newEmojiUrl, setNewEmojiUrl] = useState("");
+
+  const handleSaveEmoji = () => {
+    if (!newEmojiName.trim() || !newEmojiUrl.trim()) return;
+    addGuildEmoji(guild.guildId, {
+      name: newEmojiName.trim().toLowerCase().replace(/[^a-z0-9_-]/g, ""),
+      url: newEmojiUrl.trim(),
+    });
+    setNewEmojiName("");
+    setNewEmojiUrl("");
+    setAddEmojiOpen(false);
+    setStatusMessage("Emoji adicionado com sucesso!");
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
+
+  const handleMoveRole = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= roles.length) return;
+    const newRoles = [...roles];
+    const temp = newRoles[index]!;
+    newRoles[index] = newRoles[targetIndex]!;
+    newRoles[targetIndex] = temp;
+    setRoles(newRoles);
+    setGuildRoles(guild.guildId, newRoles);
+  };
 
   const toggleExpandedInvite = (id: string) => {
     setExpandedInvites((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -638,6 +682,27 @@ export default function GuildSettingsModal({
                 </span>
               )}
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("emojis")}
+              className={`cursor-pointer px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                activeTab === "emojis"
+                  ? "bg-acc text-bg shadow-sm shadow-acc/20"
+                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+              }`}
+            >
+              <Smiley size={15} weight="bold" />
+              Emojis
+              {guildEmojis.length > 0 && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    activeTab === "emojis" ? "bg-bg/20 text-bg" : "dark:bg-white/[0.08] bg-black/[0.06] text-mut"
+                  }`}
+                >
+                  {guildEmojis.length}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Feedback de Status / Erro */}
@@ -866,7 +931,7 @@ export default function GuildSettingsModal({
                         Nenhum cargo criado ainda.
                       </div>
                     ) : (
-                      roles.map((r) => {
+                      roles.map((r, index) => {
                         const isSelected = selectedRoleId === r.id;
                         return (
                           <div
@@ -885,19 +950,55 @@ export default function GuildSettingsModal({
                               />
                               <span className="truncate">{r.name}</span>
                             </div>
-                            {isOwner && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteRole(r.id);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-mut hover:text-red-400 hover:bg-red-500/10 transition-all"
-                                title="Excluir cargo"
-                              >
-                                <Trash size={13} />
-                              </button>
-                            )}
+                            <div className="flex items-center gap-0.5">
+                              {isOwner && (
+                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    type="button"
+                                    disabled={index === 0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveRole(index, "up");
+                                    }}
+                                    className={`p-1 rounded hover:bg-white/[0.1] text-mut hover:text-txt transition-all ${
+                                      index === 0 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                                    }`}
+                                    title="Subir prioridade do cargo"
+                                    aria-label={`Subir ${r.name}`}
+                                  >
+                                    <CaretUp size={12} weight="bold" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={index === roles.length - 1}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveRole(index, "down");
+                                    }}
+                                    className={`p-1 rounded hover:bg-white/[0.1] text-mut hover:text-txt transition-all ${
+                                      index === roles.length - 1 ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                                    }`}
+                                    title="Descer prioridade do cargo"
+                                    aria-label={`Descer ${r.name}`}
+                                  >
+                                    <CaretDown size={12} weight="bold" />
+                                  </button>
+                                </div>
+                              )}
+                              {isOwner && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteRole(r.id);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-mut hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                                  title="Excluir cargo"
+                                >
+                                  <Trash size={13} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })
@@ -1404,6 +1505,154 @@ export default function GuildSettingsModal({
                     })
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ── ABA 5: EMOJIS CUSTOMIZADOS DO SERVIDOR ──────────────── */}
+            {activeTab === "emojis" && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-bd-subtle">
+                  <div>
+                    <h3 className="font-display text-sm font-bold text-txt">
+                      Emojis da Comunidade ({guildEmojis.length})
+                    </h3>
+                    <p className="text-xs text-mut/80 mt-0.5">
+                      Adicione emojis exclusivos para os membros usarem no chat deste servidor.
+                    </p>
+                  </div>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => setAddEmojiOpen(!addEmojiOpen)}
+                      className="cursor-pointer px-3.5 py-1.5 rounded-xl bg-acc text-bg font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all"
+                    >
+                      <Plus size={14} weight="bold" />
+                      <span>Novo Emoji</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Formulário de Criação de Emoji */}
+                {addEmojiOpen && (
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3.5 animate-in fade-in-0 duration-150">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-mut">
+                      Adicionar Emoji Customizado
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-mut">
+                          Nome do Emoji (Shortcode)
+                        </Label>
+                        <Input
+                          placeholder="ex: echo_hype"
+                          value={newEmojiName}
+                          onChange={(e) =>
+                            setNewEmojiName(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))
+                          }
+                          className="dark:bg-white/[0.03] bg-card-bg border border-bd-subtle rounded-xl px-3.5 py-2 text-xs text-txt"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-mut">
+                          URL da Imagem
+                        </Label>
+                        <Input
+                          placeholder="https://.../emoji.png ou svg"
+                          value={newEmojiUrl}
+                          onChange={(e) => setNewEmojiUrl(e.target.value)}
+                          className="dark:bg-white/[0.03] bg-card-bg border border-bd-subtle rounded-xl px-3.5 py-2 text-xs text-txt"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Sugestões Rápidas de Emojis */}
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <span className="text-[11px] text-mut font-medium">Sugestões rápidas:</span>
+                      {PRESET_EMOJI_TEMPLATES.map((tpl) => (
+                        <button
+                          key={tpl.name}
+                          type="button"
+                          onClick={() => {
+                            setNewEmojiName(tpl.name);
+                            setNewEmojiUrl(tpl.url);
+                          }}
+                          className="cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-xs text-mut hover:text-txt transition-all"
+                        >
+                          <img src={tpl.url} alt={tpl.name} className="w-3.5 h-3.5 object-contain" />
+                          <span>:{tpl.name}:</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddEmojiOpen(false);
+                          setNewEmojiName("");
+                          setNewEmojiUrl("");
+                        }}
+                        className="cursor-pointer px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-semibold text-mut hover:text-txt"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!newEmojiName.trim() || !newEmojiUrl.trim()}
+                        onClick={handleSaveEmoji}
+                        className="cursor-pointer px-3.5 py-1.5 rounded-xl bg-acc text-bg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-acc-press transition-all flex items-center gap-1"
+                      >
+                        <Check size={13} weight="bold" />
+                        <span>Salvar Emoji</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Grade de Emojis Cadastrados */}
+                {guildEmojis.length === 0 ? (
+                  <div className="py-12 text-center border border-dashed border-bd-subtle rounded-2xl flex flex-col items-center justify-center p-6">
+                    <Smiley size={36} className="text-mut/40 mb-2" />
+                    <p className="text-sm font-semibold text-txt">Nenhum emoji customizado ainda</p>
+                    <p className="text-xs text-mut/80 mt-1 max-w-sm">
+                      Dê uma identidade única ao seu servidor adicionando emojis personalizados para a comunidade!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {guildEmojis.map((emoji) => (
+                      <div
+                        key={emoji.id}
+                        className="group relative flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] transition-all"
+                      >
+                        <img
+                          src={emoji.url}
+                          alt={emoji.name}
+                          className="w-8 h-8 rounded-lg object-contain bg-black/40 p-1 border border-white/[0.06] shrink-0"
+                        />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-xs font-semibold text-txt truncate">
+                            :{emoji.name}:
+                          </span>
+                          <span className="text-[10px] text-mut/60 font-mono">
+                            Guild Emoji
+                          </span>
+                        </div>
+                        {isOwner && (
+                          <button
+                            type="button"
+                            onClick={() => removeGuildEmoji(guild.guildId, emoji.id)}
+                            title="Excluir emoji"
+                            className="cursor-pointer opacity-0 group-hover:opacity-100 p-1 rounded-lg text-mut hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                          >
+                            <Trash size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

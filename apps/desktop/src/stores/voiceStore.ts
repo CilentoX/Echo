@@ -1,5 +1,13 @@
 import { create } from "zustand";
 
+export interface ScreenShareConfig {
+  sourceId: string;
+  sourceName: string;
+  sourceType: "screen" | "window";
+  resolution: "720p" | "1080p";
+  fps: 30 | 60;
+}
+
 export interface VoiceParticipant {
   userId: string;
   username: string;
@@ -7,6 +15,8 @@ export interface VoiceParticipant {
   isMuted?: boolean;
   isDeafened?: boolean;
   isSpeaking?: boolean;
+  isScreenSharing?: boolean;
+  hasCamera?: boolean;
   volume?: number; // 0 a 200 (100 padrão)
 }
 
@@ -19,6 +29,9 @@ export interface VoiceState {
   isConnecting: boolean;
   pingMs: number;
   isSpeaking: boolean;
+  isScreenSharing: boolean;
+  isCameraOn: boolean;
+  screenShareConfig: ScreenShareConfig | null;
   speakingMembers: string[];
   participants: VoiceParticipant[];
 
@@ -31,6 +44,9 @@ export interface VoiceState {
   ) => void;
   disconnectVoice: () => void;
   setSpeaking: (isSpeaking: boolean) => void;
+  setScreenSharing: (isScreenSharing: boolean) => void;
+  setCameraOn: (isCameraOn: boolean) => void;
+  setScreenShareConfig: (config: ScreenShareConfig | null) => void;
   setParticipantSpeaking: (userId: string, isSpeaking: boolean) => void;
   setPing: (pingMs: number) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
@@ -51,6 +67,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   isConnecting: false,
   pingMs: 24,
   isSpeaking: false,
+  isScreenSharing: false,
+  isCameraOn: false,
+  screenShareConfig: null,
   speakingMembers: [],
   participants: [],
 
@@ -96,10 +115,17 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       isConnected: false,
       isConnecting: false,
       isSpeaking: false,
+      isScreenSharing: false,
+      isCameraOn: false,
+      screenShareConfig: null,
       speakingMembers: [],
       participants: [],
     });
   },
+
+  setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
+  setCameraOn: (isCameraOn) => set({ isCameraOn }),
+  setScreenShareConfig: (screenShareConfig) => set({ screenShareConfig }),
 
   setSpeaking: (isSpeaking) => {
     set((state) => {

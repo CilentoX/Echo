@@ -11,6 +11,20 @@ import type { GuildMemberProfile, GuildRole, GuildMemberRole } from "@/lib/api/e
 import type { ChannelPermissionsConfig } from "@/lib/permissions/channelPermissions";
 import { desktopCache } from "@/lib/storage/desktopConfig";
 
+export interface MuteEntry {
+  until: number | "indefinite";
+  mutedAt: number;
+}
+
+export interface CustomGuildEmoji {
+  id: string;
+  guildId: string;
+  name: string;
+  url: string;
+  createdBy?: string;
+  createdAt: number;
+}
+
 export interface SyncState {
   status: SyncStatus;
   guilds: GuildSummary[];
@@ -24,6 +38,9 @@ export interface SyncState {
   channelPermissions: Record<string, ChannelPermissionsConfig>;
   readByChannel: Record<string, { userId: string; eventId: string }[]>;
   pinnedByRoom: Record<string, string[]>;
+  mutedChannels: Record<string, MuteEntry>;
+  mutedGuilds: Record<string, MuteEntry>;
+  guildEmojis: Record<string, CustomGuildEmoji[]>;
   setGuilds(list: GuildSummary[]): void;
   setChannels(guildId: string, list: ChannelSummary[]): void;
   setMembers(roomId: string, members: MemberSummary[]): void;
@@ -38,6 +55,14 @@ export interface SyncState {
   markRead(roomId: string, userId: string, eventId: string): void;
   pinMessage(roomId: string, eventId: string): void;
   unpinMessage(roomId: string, eventId: string): void;
+  muteChannel(channelId: string, durationMinutes?: number): void;
+  unmuteChannel(channelId: string): void;
+  muteGuild(guildId: string, durationMinutes?: number): void;
+  unmuteGuild(guildId: string): void;
+  isChannelMuted(channelId: string, guildId?: string): boolean;
+  isGuildMuted(guildId: string): boolean;
+  addGuildEmoji(guildId: string, emoji: { name: string; url: string; createdBy?: string }): void;
+  removeGuildEmoji(guildId: string, emojiId: string): void;
   setStatus(s: SyncStatus): void;
   /** Volta ao estado inicial (logout/troca de conta; usado pelo wiring). */
   reset(): void;
@@ -62,7 +87,7 @@ function emptyOr<T>(list: T[] | undefined): T[] | readonly never[] {
  * MatrixService ↔ store é o SessionGate/bootstrap
  * (startSyncHandlers → applyEvent / applyReaction / markRead / setMembers).
  */
-export const useSyncStore = create<SyncState>()((set) => {
+export const useSyncStore = create<SyncState>()((set, get) => {
   // Dedupe por eventId cobre os ecos do sync; placeholders pend-* nunca
   // colidem com eventIds reais — são trocados/removidos via resolvePending/
   // removePending (R2).
@@ -109,6 +134,140 @@ export const useSyncStore = create<SyncState>()((set) => {
         return {};
       }
     })(),
+    mutedChannels: (() => {
+      try {
+        const raw = localStorage.getItem("echo:mutedChannels");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })(),
+    mutedGuilds: (() => {
+      try {
+        const raw = localStorage.getItem("echo:mutedGuilds");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })(),
+    guildEmojis: (() => {
+      try {
+        const raw = localStorage.getItem("echo:guildEmojis");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })(),
+
+    muteChannel: (channelId, durationMinutes) =>
+      set((state) => {
+        const until: number | "indefinite" = durationMinutes
+          ? Date.now() + durationMinutes * 60 * 1000
+          : "indefinite";
+        const updated: Record<string, MuteEntry> = {
+          ...state.mutedChannels,
+          [channelId]: { until, mutedAt: Date.now() },
+        };
+        try {
+          localStorage.setItem("echo:mutedChannels", JSON.stringify(updated));
+        } catch {}
+        return { mutedChannels: updated };
+      }),
+
+    unmuteChannel: (channelId) =>
+      set((state) => {
+        const updated = { ...state.mutedChannels };
+        delete updated[channelId];
+        try {
+          localStorage.setItem("echo:mutedChannels", JSON.stringify(updated));
+        } catch {}
+        return { mutedChannels: updated };
+      }),
+
+    muteGuild: (guildId, durationMinutes) =>
+      set((state) => {
+        const until: number | "indefinite" = durationMinutes
+          ? Date.now() + durationMinutes * 60 * 1000
+          : "indefinite";
+        const updated: Record<string, MuteEntry> = {
+          ...state.mutedGuilds,
+          [guildId]: { until, mutedAt: Date.now() },
+        };
+        try {
+          localStorage.setItem("echo:mutedGuilds", JSON.stringify(updated));
+        } catch {}
+        return { mutedGuilds: updated };
+      }),
+
+    unmuteGuild: (guildId) =>
+      set((state) => {
+        const updated = { ...state.mutedGuilds };
+        delete updated[guildId];
+        try {
+          localStorage.setItem("echo:mutedGuilds", JSON.stringify(updated));
+        } catch {}
+        return { mutedGuilds: updated };
+      }),
+
+    isChannelMuted: (channelId, guildId) => {
+      const state = get();
+      const channelMute = state.mutedChannels[channelId];
+      if (channelMute) {
+        if (channelMute.until === "indefinite" || Date.now() < channelMute.until) {
+          return true;
+        }
+      }
+      if (guildId) {
+        const guildMute = state.mutedGuilds[guildId];
+        if (guildMute) {
+          if (guildMute.until === "indefinite" || Date.now() < guildMute.until) {
+            return true;
+          }
+        }
+      }
+      return false;
+    },
+
+    isGuildMuted: (guildId) => {
+      const state = get();
+      const guildMute = state.mutedGuilds[guildId];
+      if (!guildMute) return false;
+      return guildMute.until === "indefinite" || Date.now() < guildMute.until;
+    },
+
+    addGuildEmoji: (guildId, emoji) =>
+      set((state) => {
+        const list = state.guildEmojis[guildId] ?? [];
+        const newEmoji: CustomGuildEmoji = {
+          id: `emoji-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          guildId,
+          name: emoji.name.replace(/[^a-zA-Z0-9_-]/g, "").toLowerCase() || "emoji",
+          url: emoji.url,
+          createdBy: emoji.createdBy,
+          createdAt: Date.now(),
+        };
+        const updated = {
+          ...state.guildEmojis,
+          [guildId]: [...list, newEmoji],
+        };
+        try {
+          localStorage.setItem("echo:guildEmojis", JSON.stringify(updated));
+        } catch {}
+        return { guildEmojis: updated };
+      }),
+
+    removeGuildEmoji: (guildId, emojiId) =>
+      set((state) => {
+        const list = state.guildEmojis[guildId] ?? [];
+        const updated = {
+          ...state.guildEmojis,
+          [guildId]: list.filter((e) => e.id !== emojiId),
+        };
+        try {
+          localStorage.setItem("echo:guildEmojis", JSON.stringify(updated));
+        } catch {}
+        return { guildEmojis: updated };
+      }),
 
     pinMessage: (roomId, eventId) =>
       set((state) => {
@@ -358,3 +517,8 @@ export const selectUserGuildRoles =
   (guildId: string, userId: string) =>
     (state: SyncState): string[] | readonly never[] =>
       emptyOr(state.guildMemberRoles[guildId]?.[userId]);
+
+export const selectGuildEmojis =
+  (guildId: string) =>
+    (state: SyncState): CustomGuildEmoji[] | readonly never[] =>
+      emptyOr(state.guildEmojis[guildId]);
