@@ -1,6 +1,6 @@
 import { Paperclip, Send, Smile, X } from "lucide-react";
 import { Microphone } from "@phosphor-icons/react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -220,6 +220,27 @@ export default function Composer({
         }
       });
     }
+  }, []);
+
+  /** Escuta arquivos soltos na timeline do Chat (Drag & Drop global da timeline) */
+  useEffect(() => {
+    const handleFilesDropped = (e: Event) => {
+      const custom = e as CustomEvent<{ files: FileList }>;
+      const files = custom.detail?.files;
+      if (files && files.length > 0) {
+        const rawFile = files[0];
+        const preview = URL.createObjectURL(rawFile);
+        setAttachment({ file: rawFile, preview });
+        void optimizeImageForUpload(rawFile).then((optimized) => {
+          if (optimized !== rawFile) {
+            setAttachment((curr) => (curr ? { ...curr, file: optimized } : null));
+          }
+        });
+      }
+    };
+
+    window.addEventListener("echo:files-dropped", handleFilesDropped);
+    return () => window.removeEventListener("echo:files-dropped", handleFilesDropped);
   }, []);
 
   /** Constrói um evento placeholder otimista. */

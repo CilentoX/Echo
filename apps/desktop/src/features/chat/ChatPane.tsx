@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Hash, ArrowDown } from "@phosphor-icons/react";
+import { Hash, ArrowDown, UploadSimple } from "@phosphor-icons/react";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
@@ -78,6 +78,7 @@ export default function ChatPane({
   const typingUsers = useUiStore(
     useShallow((state) => (activeChannelId ? state.typingUsers[activeChannelId] ?? [] : [])),
   );
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
 
   // Reações reais via m.reaction (P12) — lidas do store, não estado local.
   const reactionsByEvent = useSyncStore((s) => s.reactionsByEvent);
@@ -234,8 +235,52 @@ export default function ChatPane({
     <section
       data-column="chat"
       aria-label="Mensagens"
+      onDragEnter={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          setIsDraggingFiles(true);
+        }
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          if (!isDraggingFiles) setIsDraggingFiles(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setIsDraggingFiles(false);
+      }}
+      onDrop={(e) => {
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          setIsDraggingFiles(false);
+          window.dispatchEvent(
+            new CustomEvent("echo:files-dropped", { detail: { files: e.dataTransfer.files } }),
+          );
+        }
+      }}
       className="relative flex min-w-0 flex-1 flex-col bg-bg font-ui"
     >
+      {/* Overlay de Drag and Drop de Arquivos na Timeline */}
+      {isDraggingFiles && (
+        <div
+          data-testid="chat-file-drop-overlay"
+          className="absolute inset-3 z-50 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-acc bg-[#12161f]/95 backdrop-blur-xl shadow-2xl p-6 text-center animate-in fade-in-0 zoom-in-95 pointer-events-none"
+        >
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-acc/15 text-acc mb-3 shadow-lg shadow-acc/20">
+            <UploadSimple size={36} weight="bold" className="animate-bounce" />
+          </div>
+          <h3 className="font-display text-base font-bold text-txt">
+            Solte seus arquivos aqui
+          </h3>
+          <p className="text-xs text-mut/80 mt-1 max-w-sm">
+            Enviar arquivo diretamente para <span className="text-acc font-semibold">#{channelName}</span>
+          </p>
+        </div>
+      )}
+
       {/* Cabeçalho Superior Fixo */}
       <ChatHeader
         roomId={activeChannelId}

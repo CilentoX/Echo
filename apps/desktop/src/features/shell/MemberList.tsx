@@ -207,7 +207,18 @@ export default function MemberList({
                   const isSpeaking = speakingMembers.includes(member.userId) || (isMe && speakingMembers.includes("me"));
 
                   return (
-                    <li key={member.userId} className="relative">
+                    <li
+                      key={member.userId}
+                      className="relative cursor-grab active:cursor-grabbing"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(
+                          "application/x-echo-member",
+                          JSON.stringify({ userId: member.userId, username: cleanDisplayName }),
+                        );
+                        e.dataTransfer.effectAllowed = "copyMove";
+                      }}
+                    >
                       <MemberContextMenu
                         userId={member.userId}
                         displayName={cleanDisplayName}

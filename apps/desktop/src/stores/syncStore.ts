@@ -66,6 +66,9 @@ export interface SyncState {
   removeGuildEmoji(guildId: string, emojiId: string): void;
   createCategory(guildId: string, name: string): void;
   deleteCategory(guildId: string, name: string): void;
+  reorderCategories(guildId: string, orderedCategories: string[]): void;
+  moveChannelCategory(guildId: string, channelId: string, targetCategory: string, targetIndex?: number): void;
+  reorderChannels(guildId: string, orderedChannels: ChannelSummary[]): void;
   setStatus(s: SyncStatus): void;
   /** Volta ao estado inicial (logout/troca de conta; usado pelo wiring). */
   reset(): void;
@@ -309,6 +312,65 @@ export const useSyncStore = create<SyncState>()((set, get) => {
         return { guildCategories: updated };
       }),
 
+    reorderCategories: (guildId, orderedCategories) =>
+      set((state) => {
+        const updated = {
+          ...state.guildCategories,
+          [guildId]: [...orderedCategories],
+        };
+        try {
+          localStorage.setItem("echo:guildCategories", JSON.stringify(updated));
+        } catch {}
+        return { guildCategories: updated };
+      }),
+
+    moveChannelCategory: (guildId, channelId, targetCategory, targetIndex) =>
+      set((state) => {
+        const channels = state.channelsByGuild[guildId] ? [...state.channelsByGuild[guildId]] : [];
+        const channelIndex = channels.findIndex((c) => c.channelId === channelId);
+        if (channelIndex === -1) return state;
+
+        const [channel] = channels.splice(channelIndex, 1);
+        const updatedChannel = { ...channel, category: targetCategory };
+
+        if (typeof targetIndex === "number" && targetIndex >= 0 && targetIndex <= channels.length) {
+          channels.splice(targetIndex, 0, updatedChannel);
+        } else {
+          channels.push(updatedChannel);
+        }
+
+        const updatedChannels = {
+          ...state.channelsByGuild,
+          [guildId]: channels,
+        };
+
+        try {
+          const raw = localStorage.getItem("echo:channelOverrides");
+          const map = raw ? JSON.parse(raw) : {};
+          const guildMap = map[guildId] || {};
+          guildMap[channelId] = { category: targetCategory };
+          map[guildId] = guildMap;
+          localStorage.setItem("echo:channelOverrides", JSON.stringify(map));
+        } catch {}
+
+        return { channelsByGuild: updatedChannels };
+      }),
+
+    reorderChannels: (guildId, orderedChannels) =>
+      set((state) => {
+        const updatedChannels = {
+          ...state.channelsByGuild,
+          [guildId]: [...orderedChannels],
+        };
+        try {
+          localStorage.setItem(
+            `echo:channelOrder:${guildId}`,
+            JSON.stringify(orderedChannels.map((c) => c.channelId))
+          );
+        } catch {}
+        return { channelsByGuild: updatedChannels };
+      }),
+
     pinMessage: (roomId, eventId) =>
       set((state) => {
         const current = state.pinnedByRoom[roomId] ?? [];
@@ -340,9 +402,39 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     setGuilds: (list) => set({ guilds: [...list] }),
 
     setChannels: (guildId, list) =>
-      set((state) => ({
-        channelsByGuild: { ...state.channelsByGuild, [guildId]: [...list] },
-      })),
+      set((state) => {
+        let channels = [...list];
+        try {
+          const raw = localStorage.getItem("echo:channelOverrides");
+          if (raw) {
+            const map = JSON.parse(raw);
+            const guildMap = map[guildId];
+            if (guildMap) {
+              channels = channels.map((c) => {
+                if (guildMap[c.channelId]?.category !== undefined) {
+                  return { ...c, category: guildMap[c.channelId].category };
+                }
+                return c;
+              });
+            }
+          }
+          const orderRaw = localStorage.getItem(`echo:channelOrder:${guildId}`);
+          if (orderRaw) {
+            const order: string[] = JSON.parse(orderRaw);
+            channels.sort((a, b) => {
+              const idxA = order.indexOf(a.channelId);
+              const idxB = order.indexOf(b.channelId);
+              if (idxA === -1 && idxB === -1) return 0;
+              if (idxA === -1) return 1;
+              if (idxB === -1) return -1;
+              return idxA - idxB;
+            });
+          }
+        } catch {}
+        return {
+          channelsByGuild: { ...state.channelsByGuild, [guildId]: channels },
+        };
+      }),
 
     setMembers: (roomId, members) =>
       set((state) => ({

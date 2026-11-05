@@ -64,6 +64,12 @@ export interface VoiceState {
   setParticipantVolume: (userId: string, volume: number) => void;
   addParticipant: (participant: VoiceParticipant) => void;
   removeParticipant: (userId: string) => void;
+  moveParticipantToChannel: (
+    userId: string,
+    targetChannelId: string,
+    targetChannelName: string,
+    currentUserId?: string,
+  ) => void;
   toggleMute: (userId?: string) => void;
   toggleDeafen: (userId?: string) => void;
   setParticipantMuted: (userId: string, isMuted: boolean) => void;
@@ -205,6 +211,37 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       participants: state.participants.filter((p) => p.userId !== userId),
       speakingMembers: state.speakingMembers.filter((id) => id !== userId),
     }));
+  },
+
+  moveParticipantToChannel: (userId, targetChannelId, targetChannelName, currentUserId) => {
+    const state = get();
+    const isLocalUser =
+      userId === "me" ||
+      (currentUserId ? userId === currentUserId : false);
+
+    if (isLocalUser) {
+      const myParticipant =
+        state.participants.find((p) => p.userId === userId) || state.participants[0];
+
+      set({
+        activeVoiceChannelId: targetChannelId,
+        activeVoiceChannelName: targetChannelName,
+        participants: myParticipant ? [myParticipant] : [],
+      });
+    } else {
+      set((s) => ({
+        participants: s.participants.filter((p) => p.userId !== userId),
+        speakingMembers: s.speakingMembers.filter((id) => id !== userId),
+      }));
+    }
+
+    try {
+      window.dispatchEvent(
+        new CustomEvent("echo:member-moved-voice-channel", {
+          detail: { userId, targetChannelId, targetChannelName, isLocalUser },
+        }),
+      );
+    } catch {}
   },
 
   toggleMute: (userId) => {
