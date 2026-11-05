@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { startSyncWiring } from "@/lib/matrix/wiring";
 import MxcImage from "@/components/media/MxcImage";
@@ -33,6 +34,10 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const setMicrophoneEnabled = useSettingsStore((s) => s.setMicrophoneEnabled);
   const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
   const setHeadphonesEnabled = useSettingsStore((s) => s.setHeadphonesEnabled);
+
+  const setSpeaking = useVoiceStore((s) => s.setSpeaking);
+  const setParticipantMuted = useVoiceStore((s) => s.setParticipantMuted);
+  const setParticipantDeafened = useVoiceStore((s) => s.setParticipantDeafened);
 
   const [audioQuickOpen, setAudioQuickOpen] = useState(false);
 
@@ -153,7 +158,15 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               type="button"
               aria-label={microphoneEnabled ? "Silenciar microfone" : "Ativar microfone"}
               title={microphoneEnabled ? "Silenciar microfone (Botão direito para opções)" : "Ativar microfone (Botão direito para opções)"}
-              onClick={() => setMicrophoneEnabled(!microphoneEnabled)}
+              onClick={() => {
+                const next = !microphoneEnabled;
+                setMicrophoneEnabled(next);
+                if (!next) setSpeaking(false);
+                if (myUserId) {
+                  setParticipantMuted(myUserId, !next);
+                  setParticipantMuted("me", !next);
+                }
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setAudioQuickOpen(true);
@@ -171,7 +184,15 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               type="button"
               aria-label={headphonesEnabled ? "Desativar áudio" : "Ativar áudio"}
               title={headphonesEnabled ? "Desativar áudio (Botão direito para opções)" : "Ativar áudio (Botão direito para opções)"}
-              onClick={() => setHeadphonesEnabled(!headphonesEnabled)}
+              onClick={() => {
+                const next = !headphonesEnabled;
+                setHeadphonesEnabled(next);
+                if (!next) setSpeaking(false);
+                if (myUserId) {
+                  setParticipantDeafened(myUserId, !next);
+                  setParticipantDeafened("me", !next);
+                }
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setAudioQuickOpen(true);

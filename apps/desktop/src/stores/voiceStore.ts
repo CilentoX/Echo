@@ -36,6 +36,10 @@ export interface VoiceState {
   setParticipantVolume: (userId: string, volume: number) => void;
   addParticipant: (participant: VoiceParticipant) => void;
   removeParticipant: (userId: string) => void;
+  toggleMute: (userId?: string) => void;
+  toggleDeafen: (userId?: string) => void;
+  setParticipantMuted: (userId: string, isMuted: boolean) => void;
+  setParticipantDeafened: (userId: string, isDeafened: boolean) => void;
 }
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
@@ -99,15 +103,16 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   setSpeaking: (isSpeaking) => {
     set((state) => {
+      const myId = state.participants[0]?.userId ?? "me";
       const speaking = isSpeaking
-        ? Array.from(new Set([...state.speakingMembers, "me"]))
-        : state.speakingMembers.filter((id) => id !== "me");
+        ? Array.from(new Set([...state.speakingMembers, "me", myId]))
+        : state.speakingMembers.filter((id) => id !== "me" && id !== myId);
 
       return {
         isSpeaking,
         speakingMembers: speaking,
         participants: state.participants.map((p) =>
-          p.userId === "me" ? { ...p, isSpeaking } : p,
+          p.userId === "me" || p.userId === myId ? { ...p, isSpeaking } : p,
         ),
       };
     });
@@ -153,6 +158,74 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     set((state) => ({
       participants: state.participants.filter((p) => p.userId !== userId),
       speakingMembers: state.speakingMembers.filter((id) => id !== userId),
+    }));
+  },
+
+  toggleMute: (userId) => {
+    set((state) => {
+      const targetId = userId ?? state.participants[0]?.userId ?? "me";
+      return {
+        participants: state.participants.map((p) => {
+          if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
+            const nextMuted = !p.isMuted;
+            return {
+              ...p,
+              isMuted: nextMuted,
+              isSpeaking: nextMuted ? false : p.isSpeaking,
+            };
+          }
+          return p;
+        }),
+      };
+    });
+  },
+
+  toggleDeafen: (userId) => {
+    set((state) => {
+      const targetId = userId ?? state.participants[0]?.userId ?? "me";
+      return {
+        participants: state.participants.map((p) => {
+          if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
+            const nextDeafened = !p.isDeafened;
+            return {
+              ...p,
+              isDeafened: nextDeafened,
+              isMuted: nextDeafened ? true : p.isMuted,
+              isSpeaking: nextDeafened ? false : p.isSpeaking,
+            };
+          }
+          return p;
+        }),
+      };
+    });
+  },
+
+  setParticipantMuted: (userId, isMuted) => {
+    set((state) => ({
+      participants: state.participants.map((p) =>
+        p.userId === userId
+          ? {
+              ...p,
+              isMuted,
+              isSpeaking: isMuted ? false : p.isSpeaking,
+            }
+          : p,
+      ),
+    }));
+  },
+
+  setParticipantDeafened: (userId, isDeafened) => {
+    set((state) => ({
+      participants: state.participants.map((p) =>
+        p.userId === userId
+          ? {
+              ...p,
+              isDeafened,
+              isMuted: isDeafened ? true : p.isMuted,
+              isSpeaking: isDeafened ? false : p.isSpeaking,
+            }
+          : p,
+      ),
     }));
   },
 }));

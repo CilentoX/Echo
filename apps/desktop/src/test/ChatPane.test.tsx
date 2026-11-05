@@ -138,4 +138,22 @@ describe("ChatPane", () => {
       (screen.getByLabelText("Mensagem") as HTMLTextAreaElement).placeholder,
     ).toContain("#geral");
   });
+
+  it("renderiza o VoiceStage quando o canal ativo é do tipo voice", () => {
+    const voiceChannel = {
+      channelId: "!voice-ch:hs",
+      name: "Bate-Papo de Voz",
+      type: "voice",
+      unreadCount: 0,
+    };
+    useSyncStore.setState({
+      channelsByGuild: { "!g1:hs": [CHANNEL, voiceChannel] },
+    });
+    useUiStore.setState({ activeGuildId: "!g1:hs", activeChannelId: "!voice-ch:hs" });
+
+    render(<ChatPane sendMessage={vi.fn()} />);
+
+    expect(screen.getByTestId("voice-stage")).toBeTruthy();
+    expect(screen.getByText("Bate-Papo de Voz")).toBeTruthy();
+  });
 });

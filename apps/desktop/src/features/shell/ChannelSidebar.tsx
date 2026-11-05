@@ -5,11 +5,15 @@ import { useSyncStore, selectChannels, selectGuilds } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { useVoiceStore } from "@/stores/voiceStore";
+import { useProfileStore } from "@/stores/profileStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
 import InviteModal from "@/features/guild/InviteModal";
 import MxcImage from "@/components/media/MxcImage";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import MemberDropdownContent from "./MemberDropdownContent";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
@@ -38,9 +42,19 @@ export default function ChannelSidebar({
   const [editGuildOpen, setEditGuildOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
+  const [openVoiceMemberId, setOpenVoiceMemberId] = useState<string | null>(null);
 
   const themeId = useThemeStore((state) => state.themeId);
   const mode = useThemeStore((state) => state.mode);
+
+  const myUserId = useUiStore((state) => state.myUserId);
+  const profileDisplayName = useProfileStore((state) => state.displayName);
+  const profileAvatarUrl = useProfileStore((state) => state.avatarUrl);
+  const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
+  const microphoneEnabled = useSettingsStore((state) => state.microphoneEnabled);
+  const headphonesEnabled = useSettingsStore((state) => state.headphonesEnabled);
+  const speakingMembers = useVoiceStore((state) => state.speakingMembers);
+  const isSpeaking = useVoiceStore((state) => state.isSpeaking);
 
   const bannerFallbackGradient = useMemo(() => {
     if (mode === "light") {
@@ -429,11 +443,32 @@ export default function ChannelSidebar({
                           type="button"
                           aria-current={connected ? "true" : undefined}
                           onClick={() => {
+                            const effectiveUserId = myUserId || matrixService.getUserId() || "me";
+                            const myGuildNick = effectiveUserId ? guildProfiles?.[effectiveUserId]?.nickname : undefined;
+                            const myEffectiveName =
+                              myGuildNick || profileDisplayName || effectiveUserId.split(":")[0].replace("@", "") || "Você";
+                            const myEffectiveAvatar =
+                              (effectiveUserId ? guildProfiles?.[effectiveUserId]?.avatarUrl : null) ||
+                              profileAvatarUrl ||
+                              myAppwriteAvatarUrl ||
+                              null;
+
                             connectVoice(
                               activeGuild?.guildId ?? "",
                               activeGuild?.name ?? "",
                               channel.channelId,
                               channel.name,
+                              [
+                                {
+                                  userId: effectiveUserId,
+                                  username: myEffectiveName,
+                                  avatarUrl: myEffectiveAvatar,
+                                  isMuted: !microphoneEnabled,
+                                  isDeafened: !headphonesEnabled,
+                                  isSpeaking: false,
+                                  volume: 100,
+                                },
+                              ],
                             );
                             setActiveChannel(channel.channelId);
                           }}
@@ -460,28 +495,111 @@ export default function ChannelSidebar({
 
                         {/* Participantes conectados na chamada */}
                         {connected && voiceParticipants.length > 0 && (
-                          <div className="ml-5 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
+                          <ul className="ml-4 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
                             {voiceParticipants.map((p) => {
-                              const effectiveNick = guildProfiles?.[p.userId]?.nickname || p.username;
+                              const isMe =
+                                p.userId === "me" ||
+                                p.userId === myUserId ||
+                                (myUserId ? p.userId === myUserId : false);
+                              const effectiveUserId = p.userId === "me" ? (myUserId || "") : p.userId;
+                              const effectiveNick = guildProfiles?.[effectiveUserId]?.nickname || p.username;
+                              const effectiveAvatar =
+                                p.avatarUrl ||
+                                guildProfiles?.[effectiveUserId]?.avatarUrl ||
+                                (isMe ? (myAppwriteAvatarUrl || profileAvatarUrl) : null);
+                              const participantSpeaking =
+                                p.isSpeaking ||
+                                speakingMembers.includes(p.userId) ||
+                                (isMe &&
+                                  (isSpeaking ||
+                                    speakingMembers.includes("me") ||
+                                    (effectiveUserId ? speakingMembers.includes(effectiveUserId) : false)));
+
                               return (
-                                <div
-                                  key={p.userId}
-                                  className="flex items-center gap-2 py-1 px-2 rounded-lg bg-black/5 dark:bg-white/[0.03] text-xs"
-                                >
-                                  <div
-                                    className={`relative h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shrink-0 ${
-                                      p.isSpeaking ? "ring-2 ring-online animate-pulse" : ""
-                                    }`}
+                                <li key={p.userId} className="relative">
+                                  <Popover
+                                    open={openVoiceMemberId === p.userId}
+                                    onOpenChange={(open) => setOpenVoiceMemberId(open ? p.userId : null)}
                                   >
-                                    {effectiveNick.charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="text-[11px] text-txt truncate flex-1">
-                                    {effectiveNick}
-                                  </span>
-                                </div>
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        type="button"
+                                        aria-label={`Perfil de ${effectiveNick}`}
+                                        className={`cursor-pointer flex w-full items-center gap-2 py-1 px-2 rounded-xl text-xs transition-all active:scale-[0.98] group ${
+                                          openVoiceMemberId === p.userId
+                                            ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
+                                            : participantSpeaking
+                                              ? "bg-online/10 text-online border border-online/20"
+                                              : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+                                        }`}
+                                      >
+                                        <div className="relative h-5 w-5 shrink-0">
+                                          {effectiveAvatar ? (
+                                            <MxcImage
+                                              mxcUrl={effectiveAvatar}
+                                              alt={effectiveNick}
+                                              className={`h-5 w-5 rounded-full object-cover transition-all ${
+                                                participantSpeaking
+                                                  ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
+                                                  : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
+                                              }`}
+                                              width={20}
+                                              height={20}
+                                            />
+                                          ) : (
+                                            <div
+                                              className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shadow-sm transition-all ${
+                                                participantSpeaking
+                                                  ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
+                                                  : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
+                                              }`}
+                                            >
+                                              {effectiveNick.charAt(0).toUpperCase()}
+                                            </div>
+                                          )}
+                                          {p.isMuted && (
+                                            <span
+                                              className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-err ring-1 ring-surf"
+                                              title="Mutado"
+                                            />
+                                          )}
+                                        </div>
+
+                                        <span
+                                          className={`text-[11px] truncate flex-1 text-left ${
+                                            participantSpeaking ? "text-online font-semibold" : "text-txt/90"
+                                          }`}
+                                        >
+                                          {effectiveNick}
+                                        </span>
+
+                                        {/* Equalizer Waveform quando Falando */}
+                                        {participantSpeaking && (
+                                          <div className="flex items-center gap-0.5 shrink-0" title="Falando...">
+                                            <span className="h-2 w-0.5 rounded-full bg-online animate-[pulse_0.6s_ease-in-out_infinite]" />
+                                            <span className="h-3 w-0.5 rounded-full bg-online animate-[pulse_0.4s_ease-in-out_infinite_150ms]" />
+                                            <span className="h-1.5 w-0.5 rounded-full bg-online animate-[pulse_0.5s_ease-in-out_infinite_300ms]" />
+                                          </div>
+                                        )}
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                      side="right"
+                                      align="start"
+                                      sideOffset={8}
+                                      collisionPadding={16}
+                                      className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none z-50"
+                                    >
+                                      <MemberDropdownContent
+                                        userId={effectiveUserId || (myUserId ?? "")}
+                                        onClose={() => setOpenVoiceMemberId(null)}
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                </li>
                               );
                             })}
-                          </div>
+                          </ul>
                         )}
                       </li>
                     );

@@ -5,6 +5,7 @@ import type { ChannelSummary, GuildSummary } from "@/lib/matrix/types";
 import ChannelSidebar from "@/features/shell/ChannelSidebar";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 
 const GUILD: GuildSummary = {
   guildId: "!g1:hs",
@@ -114,5 +115,55 @@ describe("ChannelSidebar", () => {
 
     expect(screen.getByTestId("guild-banner-fallback")).toBeTruthy();
     expect(screen.getByText("Echo Guild")).toBeTruthy();
+  });
+
+  it("renderiza participantes conectados no canal de voz com apelidos, foto e animação de fala", () => {
+    const voiceChannel = makeChannel({
+      channelId: "voice-1",
+      name: "Sala de Voz",
+      type: "voice",
+    });
+
+    useSyncStore.getState().setGuilds([GUILD]);
+    useSyncStore.getState().setChannels(GUILD.guildId, [voiceChannel]);
+    useUiStore.getState().setActiveGuild(GUILD.guildId);
+    useUiStore.getState().setMyUserId("@nina:echo.litteris.online");
+
+    useSyncStore.getState().setGuildMemberProfiles(GUILD.guildId, [
+      {
+        id: "prof-1",
+        guildId: GUILD.guildId,
+        userId: "@nina:echo.litteris.online",
+        nickname: "Nina Pro Gamer",
+        avatarUrl: "https://echo.litteris.online/avatar-nina.png",
+      },
+    ]);
+
+    useVoiceStore.getState().connectVoice(
+      GUILD.guildId,
+      GUILD.name,
+      "voice-1",
+      "Sala de Voz",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina",
+          avatarUrl: "https://echo.litteris.online/avatar-nina.png",
+          isSpeaking: true,
+          volume: 100,
+        },
+      ],
+    );
+
+    render(<ChannelSidebar />);
+
+    // Apelido da guilda deve aparecer sob o canal de voz
+    expect(screen.getByText("Nina Pro Gamer")).toBeTruthy();
+
+    // Foto de perfil via MxcImage deve ser renderizada
+    expect(screen.getByAltText("Nina Pro Gamer")).toBeTruthy();
+
+    // Animação de fala (Equalizer waveform) deve estar presente
+    expect(screen.getByTitle("Falando...")).toBeTruthy();
   });
 });
