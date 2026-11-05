@@ -1,4 +1,4 @@
-import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock } from "@phosphor-icons/react";
+import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
 import { useSyncStore, selectChannels, selectGuilds, selectGuildRoles, selectUserGuildRoles } from "@/stores/syncStore";
@@ -47,6 +47,11 @@ export default function ChannelSidebar({
   const [channelSettingsTarget, setChannelSettingsTarget] = useState<ChannelSummary | null>(null);
   const [channelSearch, setChannelSearch] = useState("");
   const [openVoiceMemberId, setOpenVoiceMemberId] = useState<string | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
+  };
 
   const themeId = useThemeStore((state) => state.themeId);
   const mode = useThemeStore((state) => state.mode);
@@ -165,6 +170,35 @@ export default function ChannelSidebar({
     () => voiceChannels.filter((c) => canViewChannel(c)),
     [voiceChannels, channelPermissions, effectiveUserId, isGuildOwner, userRoleIds, guildRoles],
   );
+
+  const channelGroups = useMemo(() => {
+    const defaultText = "Canais de texto";
+    const defaultVoice = "Canais de voz";
+    const map = new Map<string, ChannelSummary[]>();
+
+    for (const c of visibleTextChannels) {
+      const cat = c.category?.trim() || defaultText;
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(c);
+    }
+
+    for (const c of visibleVoiceChannels) {
+      const cat = c.category?.trim() || defaultVoice;
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(c);
+    }
+
+    const entries = Array.from(map.entries());
+    entries.sort(([a], [b]) => {
+      if (a === defaultText) return -1;
+      if (b === defaultText) return 1;
+      if (a === defaultVoice) return 1;
+      if (b === defaultVoice) return -1;
+      return a.localeCompare(b);
+    });
+
+    return entries.map(([name, groupChannels]) => ({ name, channels: groupChannels }));
+  }, [visibleTextChannels, visibleVoiceChannels]);
 
   const settingsGuildData = useMemo(
     () => ({
@@ -443,276 +477,306 @@ export default function ChannelSidebar({
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
-            {/* Canais de Texto */}
-            <section>
-              <h2 className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mut/60">
-                Canais de texto
-              </h2>
-              <ul className="space-y-0.5 mt-1">
-                {visibleTextChannels.map((channel) => {
-                  const active = channel.channelId === activeChannelId;
-                  const isPrivate = Boolean(channelPermissions[channel.channelId]?.isPrivate);
-                  const canManage = canManageChannel(channel) || isGuildOwner;
+            {channelGroups.map((group) => {
+              const isCollapsed = Boolean(collapsedCategories[group.name]);
 
-                  return (
-                    <li key={channel.channelId} className="group relative flex items-center">
-                      <button
-                        type="button"
-                        aria-current={active ? "true" : undefined}
-                        onClick={() => setActiveChannel(channel.channelId)}
-                        className={`cursor-pointer flex flex-1 min-w-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
-                          active
-                            ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
-                            : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
-                        }`}
-                      >
-                        <Hash size={15} className={`shrink-0 ${active ? "text-acc" : "text-mut/60"}`} aria-hidden />
-                        <span className={`truncate ${active ? "text-txt" : "text-mut"}`}>
-                          {channel.name}
-                        </span>
-                        {isPrivate && (
-                          <span title="Canal Privado">
-                            <Lock size={12} className="shrink-0 text-amber-400/80" />
-                          </span>
-                        )}
-                        {channel.unreadCount > 0 && (
-                          <span
-                            aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}
-                            className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-err px-1 text-[10px] font-bold text-bg"
-                          >
-                            {channel.unreadCount}
-                          </span>
-                        )}
-                      </button>
-                      {canManage && (
-                        <button
-                          type="button"
-                          title="Configurações do canal"
-                          aria-label={`Configurações de ${channel.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setChannelSettingsTarget(channel);
-                          }}
-                          className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
-                            active ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
-                          }`}
-                        >
-                          <Gear size={13} />
-                        </button>
+              return (
+                <section key={group.name}>
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(group.name)}
+                    className="cursor-pointer group flex w-full items-center justify-between px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mut/60 hover:text-txt transition-colors"
+                    aria-expanded={!isCollapsed}
+                    aria-label={`${group.name} ${isCollapsed ? "recolhido" : "expandido"}`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {isCollapsed ? (
+                        <CaretRight size={11} weight="bold" className="shrink-0 text-mut/60 group-hover:text-txt transition-transform" />
+                      ) : (
+                        <CaretDown size={11} weight="bold" className="shrink-0 text-mut/60 group-hover:text-txt transition-transform" />
                       )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+                      <span className="truncate">{group.name}</span>
+                    </div>
+                    {isGuildOwner && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        title={`Criar canal em ${group.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCreateChannelOpen(true);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                            setCreateChannelOpen(true);
+                          }
+                        }}
+                        className="cursor-pointer opacity-0 group-hover:opacity-100 p-0.5 rounded text-mut hover:text-txt hover:bg-white/[0.08] transition-all"
+                      >
+                        <Plus size={12} weight="bold" />
+                      </span>
+                    )}
+                  </button>
 
-            {/* Canais de Voz */}
-            {visibleVoiceChannels.length > 0 && (
-              <section>
-                <h2 className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mut/60">
-                  Canais de voz
-                </h2>
-                <ul className="space-y-0.5 mt-1">
-                  {visibleVoiceChannels.map((channel) => {
-                    const active = channel.channelId === activeChannelId;
-                    const connected = channel.channelId === activeVoiceChannelId;
-                    const isPrivate = Boolean(channelPermissions[channel.channelId]?.isPrivate);
-                    const canManage = canManageChannel(channel) || isGuildOwner;
+                  {!isCollapsed && (
+                    <ul className="space-y-0.5 mt-1">
+                      {group.channels.map((channel) => {
+                        const isVoice = channel.type === "voice";
+                        const active = channel.channelId === activeChannelId;
+                        const isPrivate = Boolean(channelPermissions[channel.channelId]?.isPrivate);
+                        const canManage = canManageChannel(channel) || isGuildOwner;
 
-                    return (
-                      <li key={channel.channelId} className="group relative">
-                        <div className="flex items-center">
-                          <button
-                            type="button"
-                            aria-current={connected ? "true" : undefined}
-                            onClick={() => {
-                              const effectiveUserId =
-                                myUserId || (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : "") || "me";
-                              const myGuildNick = effectiveUserId ? guildProfiles?.[effectiveUserId]?.nickname : undefined;
-                              const myEffectiveName =
-                                myGuildNick || profileDisplayName || effectiveUserId.split(":")[0].replace("@", "") || "Você";
-                              const myEffectiveAvatar =
-                                (effectiveUserId ? guildProfiles?.[effectiveUserId]?.avatarUrl : null) ||
-                                profileAvatarUrl ||
-                                myAppwriteAvatarUrl ||
-                                null;
-
-                              connectVoice(
-                                activeGuild?.guildId ?? "",
-                                activeGuild?.name ?? "",
-                                channel.channelId,
-                                channel.name,
-                                [
-                                  {
-                                    userId: effectiveUserId,
-                                    username: myEffectiveName,
-                                    avatarUrl: myEffectiveAvatar,
-                                    isMuted: !microphoneEnabled,
-                                    isDeafened: !headphonesEnabled,
-                                    isSpeaking: false,
-                                    volume: 100,
-                                  },
-                                ],
-                              );
-                              setActiveChannel(channel.channelId);
-                            }}
-                            className={`cursor-pointer flex flex-1 min-w-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
-                              connected
-                                ? "bg-online/10 text-online font-semibold border border-online/20 shadow-xs"
-                                : active
-                                  ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
-                                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
-                            }`}
-                          >
-                            <SpeakerHigh
-                              size={15}
-                              className={`shrink-0 ${connected ? "text-online animate-pulse" : active ? "text-acc" : "text-mut/60"}`}
-                              aria-hidden
-                            />
-                            <span className={`truncate ${connected ? "text-online" : active ? "text-txt" : "text-mut"}`}>
-                              {channel.name}
-                            </span>
-                            {isPrivate && (
-                              <span title="Canal Privado">
-                                <Lock size={12} className="shrink-0 text-amber-400/80" />
-                              </span>
-                            )}
-                            {connected && (
-                              <span className="flex h-2 w-2 rounded-full bg-online animate-ping shrink-0 ml-auto" />
-                            )}
-                          </button>
-                          {canManage && (
-                            <button
-                              type="button"
-                              title="Configurações do canal de voz"
-                              aria-label={`Configurações de ${channel.name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setChannelSettingsTarget(channel);
-                              }}
-                              className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
-                                active || connected ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
-                              }`}
-                            >
-                              <Gear size={13} />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Participantes conectados na chamada */}
-                        {connected && voiceParticipants.length > 0 && (
-                          <ul className="ml-4 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
-                            {voiceParticipants.map((p) => {
-                              const isMe =
-                                p.userId === "me" ||
-                                p.userId === myUserId ||
-                                (myUserId ? p.userId === myUserId : false);
-                              const effectiveUserId = p.userId === "me" ? (myUserId || "") : p.userId;
-                              const effectiveNick = guildProfiles?.[effectiveUserId]?.nickname || p.username;
-                              const effectiveAvatar =
-                                p.avatarUrl ||
-                                guildProfiles?.[effectiveUserId]?.avatarUrl ||
-                                (isMe ? (myAppwriteAvatarUrl || profileAvatarUrl) : null);
-                              const participantSpeaking =
-                                p.isSpeaking ||
-                                speakingMembers.includes(p.userId) ||
-                                (isMe &&
-                                  (isSpeaking ||
-                                    speakingMembers.includes("me") ||
-                                    (effectiveUserId ? speakingMembers.includes(effectiveUserId) : false)));
-
-                              return (
-                                <li key={p.userId} className="relative">
-                                  <Popover
-                                    open={openVoiceMemberId === p.userId}
-                                    onOpenChange={(open) => setOpenVoiceMemberId(open ? p.userId : null)}
+                        if (!isVoice) {
+                          return (
+                            <li key={channel.channelId} className="group relative flex items-center">
+                              <button
+                                type="button"
+                                aria-current={active ? "true" : undefined}
+                                onClick={() => setActiveChannel(channel.channelId)}
+                                className={`cursor-pointer flex flex-1 min-w-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                                  active
+                                    ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
+                                    : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+                                }`}
+                              >
+                                <Hash size={15} className={`shrink-0 ${active ? "text-acc" : "text-mut/60"}`} aria-hidden />
+                                <span className={`truncate ${active ? "text-txt" : "text-mut"}`}>
+                                  {channel.name}
+                                </span>
+                                {isPrivate && (
+                                  <span title="Canal Privado">
+                                    <Lock size={12} className="shrink-0 text-amber-400/80" />
+                                  </span>
+                                )}
+                                {channel.unreadCount > 0 && (
+                                  <span
+                                    aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}
+                                    className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-err px-1 text-[10px] font-bold text-bg"
                                   >
-                                    <PopoverTrigger asChild>
-                                      <button
-                                        type="button"
-                                        aria-label={`Perfil de ${effectiveNick}`}
-                                        className={`cursor-pointer flex w-full items-center gap-2 py-1 px-2 rounded-xl text-xs transition-all active:scale-[0.98] group ${
-                                          openVoiceMemberId === p.userId
-                                            ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
-                                            : participantSpeaking
-                                              ? "bg-online/10 text-online border border-online/20"
-                                              : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
-                                        }`}
+                                    {channel.unreadCount}
+                                  </span>
+                                )}
+                              </button>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  title="Configurações do canal"
+                                  aria-label={`Configurações de ${channel.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setChannelSettingsTarget(channel);
+                                  }}
+                                  className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
+                                    active ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
+                                  }`}
+                                >
+                                  <Gear size={13} />
+                                </button>
+                              )}
+                            </li>
+                          );
+                        }
+
+                        // Canal de voz
+                        const connected = channel.channelId === activeVoiceChannelId;
+
+                        return (
+                          <li key={channel.channelId} className="group relative">
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                aria-current={connected ? "true" : undefined}
+                                onClick={() => {
+                                  const effectiveUserId =
+                                    myUserId || (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : "") || "me";
+                                  const myGuildNick = effectiveUserId ? guildProfiles?.[effectiveUserId]?.nickname : undefined;
+                                  const myEffectiveName =
+                                    myGuildNick || profileDisplayName || effectiveUserId.split(":")[0].replace("@", "") || "Você";
+                                  const myEffectiveAvatar =
+                                    (effectiveUserId ? guildProfiles?.[effectiveUserId]?.avatarUrl : null) ||
+                                    profileAvatarUrl ||
+                                    myAppwriteAvatarUrl ||
+                                    null;
+
+                                  connectVoice(
+                                    activeGuild?.guildId ?? "",
+                                    activeGuild?.name ?? "",
+                                    channel.channelId,
+                                    channel.name,
+                                    [
+                                      {
+                                        userId: effectiveUserId,
+                                        username: myEffectiveName,
+                                        avatarUrl: myEffectiveAvatar,
+                                        isMuted: !microphoneEnabled,
+                                        isDeafened: !headphonesEnabled,
+                                        isSpeaking: false,
+                                        volume: 100,
+                                      },
+                                    ],
+                                  );
+                                  setActiveChannel(channel.channelId);
+                                }}
+                                className={`cursor-pointer flex flex-1 min-w-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                                  connected
+                                    ? "bg-online/10 text-online font-semibold border border-online/20 shadow-xs"
+                                    : active
+                                      ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
+                                      : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+                                }`}
+                              >
+                                <SpeakerHigh
+                                  size={15}
+                                  className={`shrink-0 ${connected ? "text-online animate-pulse" : active ? "text-acc" : "text-mut/60"}`}
+                                  aria-hidden
+                                />
+                                <span className={`truncate ${connected ? "text-online" : active ? "text-txt" : "text-mut"}`}>
+                                  {channel.name}
+                                </span>
+                                {isPrivate && (
+                                  <span title="Canal Privado">
+                                    <Lock size={12} className="shrink-0 text-amber-400/80" />
+                                  </span>
+                                )}
+                                {connected && (
+                                  <span className="flex h-2 w-2 rounded-full bg-online animate-ping shrink-0 ml-auto" />
+                                )}
+                              </button>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  title="Configurações do canal de voz"
+                                  aria-label={`Configurações de ${channel.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setChannelSettingsTarget(channel);
+                                  }}
+                                  className={`cursor-pointer p-1 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all shrink-0 ml-1 ${
+                                    active || connected ? "opacity-80 hover:opacity-100" : "opacity-0 group-hover:opacity-100"
+                                  }`}
+                                >
+                                  <Gear size={13} />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Participantes conectados na chamada */}
+                            {connected && voiceParticipants.length > 0 && (
+                              <ul className="ml-4 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
+                                {voiceParticipants.map((p) => {
+                                  const isMe =
+                                    p.userId === "me" ||
+                                    p.userId === myUserId ||
+                                    (myUserId ? p.userId === myUserId : false);
+                                  const effectiveUserId = p.userId === "me" ? (myUserId || "") : p.userId;
+                                  const effectiveNick = guildProfiles?.[effectiveUserId]?.nickname || p.username;
+                                  const effectiveAvatar =
+                                    p.avatarUrl ||
+                                    guildProfiles?.[effectiveUserId]?.avatarUrl ||
+                                    (isMe ? (myAppwriteAvatarUrl || profileAvatarUrl) : null);
+                                  const participantSpeaking =
+                                    p.isSpeaking ||
+                                    speakingMembers.includes(p.userId) ||
+                                    (isMe &&
+                                      (isSpeaking ||
+                                        speakingMembers.includes("me") ||
+                                        (effectiveUserId ? speakingMembers.includes(effectiveUserId) : false)));
+
+                                  return (
+                                    <li key={p.userId} className="relative">
+                                      <Popover
+                                        open={openVoiceMemberId === p.userId}
+                                        onOpenChange={(open) => setOpenVoiceMemberId(open ? p.userId : null)}
                                       >
-                                        <div className="relative h-5 w-5 shrink-0">
-                                          {effectiveAvatar ? (
-                                            <MxcImage
-                                              mxcUrl={effectiveAvatar}
-                                              alt={effectiveNick}
-                                              className={`h-5 w-5 rounded-full object-cover transition-all ${
-                                                participantSpeaking
-                                                  ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
-                                                  : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
-                                              }`}
-                                              width={20}
-                                              height={20}
-                                            />
-                                          ) : (
-                                            <div
-                                              className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shadow-sm transition-all ${
-                                                participantSpeaking
-                                                  ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
-                                                  : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
+                                        <PopoverTrigger asChild>
+                                          <button
+                                            type="button"
+                                            aria-label={`Perfil de ${effectiveNick}`}
+                                            className={`cursor-pointer flex w-full items-center gap-2 py-1 px-2 rounded-xl text-xs transition-all active:scale-[0.98] group ${
+                                              openVoiceMemberId === p.userId
+                                                ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
+                                                : participantSpeaking
+                                                  ? "bg-online/10 text-online border border-online/20"
+                                                  : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
+                                            }`}
+                                          >
+                                            <div className="relative h-5 w-5 shrink-0">
+                                              {effectiveAvatar ? (
+                                                <MxcImage
+                                                  mxcUrl={effectiveAvatar}
+                                                  alt={effectiveNick}
+                                                  className={`h-5 w-5 rounded-full object-cover transition-all ${
+                                                    participantSpeaking
+                                                      ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
+                                                      : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
+                                                  }`}
+                                                  width={20}
+                                                  height={20}
+                                                />
+                                              ) : (
+                                                <div
+                                                  className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shadow-sm transition-all ${
+                                                    participantSpeaking
+                                                      ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
+                                                      : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
+                                                  }`}
+                                                >
+                                                  {effectiveNick.charAt(0).toUpperCase()}
+                                                </div>
+                                              )}
+                                              {p.isMuted && (
+                                                <span
+                                                  className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-err ring-1 ring-surf"
+                                                  title="Mutado"
+                                                />
+                                              )}
+                                            </div>
+
+                                            <span
+                                              className={`text-[11px] truncate flex-1 text-left ${
+                                                participantSpeaking ? "text-online font-semibold" : "text-txt/90"
                                               }`}
                                             >
-                                              {effectiveNick.charAt(0).toUpperCase()}
-                                            </div>
-                                          )}
-                                          {p.isMuted && (
-                                            <span
-                                              className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-err ring-1 ring-surf"
-                                              title="Mutado"
-                                            />
-                                          )}
-                                        </div>
+                                              {effectiveNick}
+                                            </span>
 
-                                        <span
-                                          className={`text-[11px] truncate flex-1 text-left ${
-                                            participantSpeaking ? "text-online font-semibold" : "text-txt/90"
-                                          }`}
+                                            {/* Equalizer Waveform quando Falando */}
+                                            {participantSpeaking && (
+                                              <div className="flex items-center gap-0.5 shrink-0" title="Falando...">
+                                                <span className="h-2 w-0.5 rounded-full bg-online animate-[pulse_0.6s_ease-in-out_infinite]" />
+                                                <span className="h-3 w-0.5 rounded-full bg-online animate-[pulse_0.4s_ease-in-out_infinite_150ms]" />
+                                                <span className="h-1.5 w-0.5 rounded-full bg-online animate-[pulse_0.5s_ease-in-out_infinite_300ms]" />
+                                              </div>
+                                            )}
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                          side="right"
+                                          align="start"
+                                          sideOffset={8}
+                                          collisionPadding={16}
+                                          className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none z-50"
                                         >
-                                          {effectiveNick}
-                                        </span>
-
-                                        {/* Equalizer Waveform quando Falando */}
-                                        {participantSpeaking && (
-                                          <div className="flex items-center gap-0.5 shrink-0" title="Falando...">
-                                            <span className="h-2 w-0.5 rounded-full bg-online animate-[pulse_0.6s_ease-in-out_infinite]" />
-                                            <span className="h-3 w-0.5 rounded-full bg-online animate-[pulse_0.4s_ease-in-out_infinite_150ms]" />
-                                            <span className="h-1.5 w-0.5 rounded-full bg-online animate-[pulse_0.5s_ease-in-out_infinite_300ms]" />
-                                          </div>
-                                        )}
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                      side="right"
-                                      align="start"
-                                      sideOffset={8}
-                                      collisionPadding={16}
-                                      className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none z-50"
-                                    >
-                                      <MemberDropdownContent
-                                        userId={effectiveUserId || (myUserId ?? "")}
-                                        onClose={() => setOpenVoiceMemberId(null)}
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
+                                          <MemberDropdownContent
+                                            userId={effectiveUserId || (myUserId ?? "")}
+                                            onClose={() => setOpenVoiceMemberId(null)}
+                                          />
+                                        </PopoverContent>
+                                      </Popover>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
           </div>
         </>
       )}

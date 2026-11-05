@@ -19,6 +19,7 @@ import MxcImage from "@/components/media/MxcImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
+import SoundboardPopover, { type SoundEffect } from "./SoundboardPopover";
 
 const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
@@ -51,6 +52,7 @@ export default function VoiceStage({
   const toggleDeafen = useVoiceStore((s) => s.toggleDeafen);
 
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  const [lastSound, setLastSound] = useState<SoundEffect | null>(null);
 
   const myUserId = useUiStore((s) => s.myUserId);
   const activeGuildId = useUiStore((s) => s.activeGuildId ?? guildId ?? "");
@@ -361,8 +363,18 @@ export default function VoiceStage({
           </div>
         )}
 
+        {/* Floating Soundboard Notification Badge */}
+        {lastSound && (
+          <div className="flex justify-center w-full mb-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-150">
+            <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-acc/15 border border-acc/30 text-acc text-xs font-semibold shadow-lg backdrop-blur-md">
+              <span className="text-base">{lastSound.emoji}</span>
+              <span>{lastSound.name}</span>
+            </div>
+          </div>
+        )}
+
         {/* Barra Flutuante Inferior de Controles de Áudio (Ergonomia Discord) */}
-        <div className="mt-6 flex justify-center w-full">
+        <div className="mt-4 flex justify-center w-full">
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card-bg/95 border border-bd-subtle backdrop-blur-xl shadow-2xl">
             {/* Botão Microfone (Mudo / Desmudo) */}
             <button
@@ -396,6 +408,14 @@ export default function VoiceStage({
             >
               <Headphones size={18} weight="bold" />
             </button>
+
+            {/* Soundboard Comunitário */}
+            <SoundboardPopover
+              onPlaySound={(sound) => {
+                setLastSound(sound);
+                setTimeout(() => setLastSound((curr) => (curr?.id === sound.id ? null : curr)), 2500);
+              }}
+            />
 
             {/* Botão de Teste de Fala (Simula/Ativa Fala em tempo real para ver a animação) */}
             <button

@@ -23,6 +23,7 @@ export interface SyncState {
   guildMemberRoles: Record<string, Record<string, string[]>>; // guildId -> userId -> roleIds[]
   channelPermissions: Record<string, ChannelPermissionsConfig>;
   readByChannel: Record<string, { userId: string; eventId: string }[]>;
+  pinnedByRoom: Record<string, string[]>;
   setGuilds(list: GuildSummary[]): void;
   setChannels(guildId: string, list: ChannelSummary[]): void;
   setMembers(roomId: string, members: MemberSummary[]): void;
@@ -35,6 +36,8 @@ export interface SyncState {
   prependEvents(channelId: string, events: NormalizedEvent[]): void;
   applyReaction(r: NormalizedReaction): void;
   markRead(roomId: string, userId: string, eventId: string): void;
+  pinMessage(roomId: string, eventId: string): void;
+  unpinMessage(roomId: string, eventId: string): void;
   setStatus(s: SyncStatus): void;
   /** Volta ao estado inicial (logout/troca de conta; usado pelo wiring). */
   reset(): void;
@@ -98,6 +101,42 @@ export const useSyncStore = create<SyncState>()((set) => {
     guildMemberRoles: {},
     channelPermissions: desktopCache.get("channelPermissions") || {},
     readByChannel: {},
+    pinnedByRoom: (() => {
+      try {
+        const raw = localStorage.getItem("echo:pinnedMessages");
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    })(),
+
+    pinMessage: (roomId, eventId) =>
+      set((state) => {
+        const current = state.pinnedByRoom[roomId] ?? [];
+        if (current.includes(eventId)) return state;
+        const updated = {
+          ...state.pinnedByRoom,
+          [roomId]: [...current, eventId],
+        };
+        try {
+          localStorage.setItem("echo:pinnedMessages", JSON.stringify(updated));
+        } catch {}
+        return { pinnedByRoom: updated };
+      }),
+
+    unpinMessage: (roomId, eventId) =>
+      set((state) => {
+        const current = state.pinnedByRoom[roomId] ?? [];
+        if (!current.includes(eventId)) return state;
+        const updated = {
+          ...state.pinnedByRoom,
+          [roomId]: current.filter((id) => id !== eventId),
+        };
+        try {
+          localStorage.setItem("echo:pinnedMessages", JSON.stringify(updated));
+        } catch {}
+        return { pinnedByRoom: updated };
+      }),
 
     setGuilds: (list) => set({ guilds: [...list] }),
 
@@ -199,6 +238,7 @@ export const useSyncStore = create<SyncState>()((set) => {
         guildMemberRoles: {},
         channelPermissions: desktopCache.get("channelPermissions") || {},
         readByChannel: {},
+        pinnedByRoom: {},
       }),
 
     addPendingEvent: appendEvent,

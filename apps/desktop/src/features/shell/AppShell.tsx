@@ -14,6 +14,7 @@ import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import Profile from "@/features/profile/Profile";
 import Settings from "@/features/settings/Settings";
+import QuickSwitcherModal from "./QuickSwitcherModal";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -47,6 +48,69 @@ export default function AppShell({ children }: AppShellProps) {
   const setJoinGuildOpen = useUiStore((state) => state.setJoinGuildOpen);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createGuildOpen, setCreateGuildOpen] = useState(false);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+
+  // Global shortcuts: Ctrl+K/Cmd+K (QuickSwitcher) and Escape cascade dismiss
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setQuickSwitcherOpen((v) => !v);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        if (quickSwitcherOpen) {
+          e.preventDefault();
+          setQuickSwitcherOpen(false);
+          return;
+        }
+        if (createGuildOpen) {
+          e.preventDefault();
+          setCreateGuildOpen(false);
+          return;
+        }
+        if (isJoinGuildOpen) {
+          e.preventDefault();
+          setJoinGuildOpen(false);
+          return;
+        }
+        if (settingsOpen) {
+          e.preventDefault();
+          setSettingsOpen(false);
+          return;
+        }
+        if (profileOpen) {
+          e.preventDefault();
+          setProfileOpen(false);
+          return;
+        }
+        if (sidebarOpen) {
+          e.preventDefault();
+          setSidebarOpen(false);
+          return;
+        }
+        if (membersOpen) {
+          e.preventDefault();
+          setMembersOpen(false);
+          return;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    quickSwitcherOpen,
+    createGuildOpen,
+    isJoinGuildOpen,
+    settingsOpen,
+    profileOpen,
+    sidebarOpen,
+    membersOpen,
+    setJoinGuildOpen,
+    setProfileOpen,
+  ]);
 
   // Deep linking e verificação de instância única
   useEffect(() => {
@@ -250,6 +314,11 @@ export default function AppShell({ children }: AppShellProps) {
           setJoinGuildOpen(false);
           setCreateGuildOpen(true);
         }}
+      />
+
+      <QuickSwitcherModal
+        open={quickSwitcherOpen}
+        onClose={() => setQuickSwitcherOpen(false)}
       />
     </div>
   );

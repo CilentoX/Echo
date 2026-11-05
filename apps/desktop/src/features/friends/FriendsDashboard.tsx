@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useProfileStore } from "@/stores/profileStore";
 import MxcImage from "@/components/media/MxcImage";
 
 export default function FriendsDashboard() {
@@ -44,6 +45,7 @@ export default function FriendsDashboard() {
 
   const uiPresence = useUiStore((s) => s.presence);
   const myUserId = useUiStore((s) => s.myUserId);
+  const myCustomStatus = useProfileStore((s) => s.customStatus);
 
   const [addInput, setAddInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -778,8 +780,20 @@ export default function FriendsDashboard() {
                           <p className="text-xs font-semibold text-txt truncate group-hover:text-acc transition-colors">
                             {f.displayName}
                           </p>
-                          <p className="text-[10px] text-emerald-400/80 truncate">
-                            Disponível no Echo
+                          <p className="text-[10px] text-emerald-400/80 truncate flex items-center gap-1">
+                            {f.userId === myUserId && myCustomStatus ? (
+                              <>
+                                {myCustomStatus.emoji && <span>{myCustomStatus.emoji}</span>}
+                                <span>{myCustomStatus.text}</span>
+                              </>
+                            ) : (f as any).customStatus ? (
+                              <>
+                                {(f as any).customStatus.emoji && <span>{(f as any).customStatus.emoji}</span>}
+                                <span>{(f as any).customStatus.text}</span>
+                              </>
+                            ) : (
+                              "Disponível no Echo"
+                            )}
                           </p>
                         </div>
                       </div>

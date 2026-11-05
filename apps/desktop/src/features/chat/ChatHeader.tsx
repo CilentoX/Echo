@@ -4,13 +4,13 @@ import {
   List,
   MagnifyingGlass,
   Phone,
-  PushPin,
   Users,
   VideoCamera,
 } from "@phosphor-icons/react";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
 import MxcImage from "@/components/media/MxcImage";
+import PinnedMessagesPopover from "./PinnedMessagesPopover";
 
 export interface ChatHeaderProps {
   roomId: string;
@@ -147,14 +147,7 @@ export default function ChatHeader({
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            title="Mensagens fixadas"
-            aria-label="Mensagens fixadas"
-            className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-mut hover:bg-surf2 hover:text-txt transition-colors"
-          >
-            <PushPin size={18} />
-          </button>
+          <PinnedMessagesPopover roomId={roomId} />
         )}
 
         <button

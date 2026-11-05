@@ -582,6 +582,19 @@ export default function Composer({
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 void handleSend();
+              } else if (e.key === "ArrowUp" && draft.trim() === "") {
+                const timeline = useSyncStore.getState().timelineByChannel[roomId] ?? [];
+                const myMessages = timeline.filter(
+                  (m) =>
+                    (m.sender === effectiveUserId || (myUserId ? m.sender === myUserId : false)) &&
+                    m.body &&
+                    !m.eventId.startsWith("pending-"),
+                );
+                const lastMsg = myMessages[myMessages.length - 1];
+                if (lastMsg && lastMsg.body) {
+                  e.preventDefault();
+                  setDraft(lastMsg.body);
+                }
               }
             }}
             placeholder={

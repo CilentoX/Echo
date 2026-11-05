@@ -8,6 +8,11 @@ export interface ProfileLink {
   url: string;
 }
 
+export interface CustomStatus {
+  emoji?: string;
+  text: string;
+}
+
 export interface ProfileState {
   /** Dados do próprio usuário (preenchidos no login / edição de perfil). */
   displayName: string;
@@ -23,6 +28,7 @@ export interface ProfileState {
   joinedAt: string | null;    // data de entrada na rede
   links: ProfileLink[];       // links sociais (GitHub, LinkedIn, etc.)
   presence?: "online" | "offline" | "unavailable" | "idle" | "dnd";
+  customStatus?: CustomStatus | null;
 
   setDisplayName(name: string): void;
   setUsername(username: string): void;
@@ -34,6 +40,7 @@ export interface ProfileState {
   setAppwriteAvatarUrl(url: string | null): void;
   setAppwriteBannerUrl(url: string | null): void;
   setPresence?(presence: "online" | "offline" | "unavailable" | "idle" | "dnd"): void;
+  setCustomStatus(status: CustomStatus | null): void;
   /** Carrega dados do perfil do próprio usuário do servidor Matrix. */
   loadProfile(): Promise<void>;
   setLinks(links: ProfileLink[]): void;
@@ -57,6 +64,14 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   joinedAt: null,
   links: [],
   presence: "online",
+  customStatus: (() => {
+    try {
+      const raw = localStorage.getItem("echo:customStatus");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })(),
 
   setDisplayName: (name) => set({ displayName: name }),
   setUsername: (username) => set({ username }),
@@ -66,6 +81,18 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   setAvatarUrl: (url) => set({ avatarUrl: url }),
   setBannerUrl: (url) => set({ bannerUrl: url }),
   setPresence: (presence) => set({ presence }),
+  setCustomStatus: (status) => {
+    set({ customStatus: status });
+    if (status) {
+      try {
+        localStorage.setItem("echo:customStatus", JSON.stringify(status));
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem("echo:customStatus");
+      } catch {}
+    }
+  },
   setAppwriteAvatarUrl: (url) => {
     set({ appwriteAvatarUrl: url });
     if (url) localStorage.setItem("echo:appwriteAvatarUrl", url);
@@ -153,6 +180,7 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   reset: () => {
     localStorage.removeItem("echo:appwriteAvatarUrl");
     localStorage.removeItem("echo:appwriteBannerUrl");
+    localStorage.removeItem("echo:customStatus");
     try {
       desktopCache.cacheUserProfile(null);
     } catch {}
@@ -169,6 +197,7 @@ export const useProfileStore = create<ProfileState>()((set) => ({
       role: null,
       joinedAt: null,
       links: [],
+      customStatus: null,
     });
   },
 }));

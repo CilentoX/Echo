@@ -42,9 +42,15 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
     appwriteAvatarUrl,
     appwriteBannerUrl,
     links,
+    customStatus,
+    setCustomStatus,
     setAppwriteAvatarUrl,
     setAppwriteBannerUrl,
   } = useProfileStore();
+
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [statusText, setStatusText] = useState("");
+  const [statusEmoji, setStatusEmoji] = useState("");
 
   const echoApi = useEchoApi();
 
@@ -229,6 +235,121 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
               <Calendar size={12} aria-hidden="true" />
               Membro desde {new Date(joinedAt).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })}
             </p>
+          )}
+
+          {/* Status de Atividade Personalizado ("Ativo Agora") */}
+          {isOwnProfile && !isEditing && (
+            <div className="mt-2 w-full flex justify-center">
+              {isEditingStatus ? (
+                <div className="flex flex-col items-center gap-2.5 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] w-full max-w-sm animate-in fade-in-0 duration-150">
+                  <div className="flex items-center gap-2 w-full">
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={statusEmoji}
+                      onChange={(e) => setStatusEmoji(e.target.value)}
+                      placeholder="😀"
+                      className="w-10 text-center py-1.5 px-1 bg-white/[0.05] border border-white/[0.08] rounded-xl text-base outline-none focus:border-acc"
+                    />
+                    <input
+                      type="text"
+                      maxLength={64}
+                      value={statusText}
+                      onChange={(e) => setStatusText(e.target.value)}
+                      placeholder="O que você está fazendo agora?"
+                      className="flex-1 py-1.5 px-3 bg-white/[0.05] border border-white/[0.08] rounded-xl text-xs text-txt outline-none focus:border-acc"
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Sugestões rápidas de status */}
+                  <div className="flex items-center gap-1.5 flex-wrap justify-center text-xs">
+                    {[
+                      { emoji: "🎧", text: "Ouvindo música" },
+                      { emoji: "🎮", text: "Jogando" },
+                      { emoji: "💻", text: "Codando no Echo" },
+                      { emoji: "☕", text: "Pausa para café" },
+                      { emoji: "🚀", text: "Focado" },
+                    ].map((s) => (
+                      <button
+                        key={s.text}
+                        type="button"
+                        onClick={() => {
+                          setStatusEmoji(s.emoji);
+                          setStatusText(s.text);
+                        }}
+                        className="cursor-pointer px-2 py-0.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[11px] text-mut hover:text-txt transition-all"
+                      >
+                        {s.emoji} {s.text}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (statusText.trim()) {
+                          setCustomStatus({ emoji: statusEmoji.trim() || undefined, text: statusText.trim() });
+                        } else {
+                          setCustomStatus(null);
+                        }
+                        setIsEditingStatus(false);
+                      }}
+                      className="cursor-pointer flex-1 py-1.5 px-3 rounded-xl bg-acc text-bg font-semibold text-xs hover:bg-acc-press transition-all shadow-sm"
+                    >
+                      Salvar Status
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomStatus(null);
+                        setStatusText("");
+                        setStatusEmoji("");
+                        setIsEditingStatus(false);
+                      }}
+                      className="cursor-pointer py-1.5 px-2.5 rounded-xl border border-white/[0.08] text-mut hover:text-err text-xs transition-all"
+                    >
+                      Limpar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingStatus(false)}
+                      className="cursor-pointer py-1.5 px-2.5 rounded-xl text-mut hover:text-txt text-xs transition-all"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusEmoji(customStatus?.emoji ?? "💬");
+                    setStatusText(customStatus?.text ?? "");
+                    setIsEditingStatus(true);
+                  }}
+                  className="cursor-pointer group flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-acc/30 transition-all text-xs"
+                >
+                  {customStatus ? (
+                    <>
+                      {customStatus.emoji && <span className="text-sm">{customStatus.emoji}</span>}
+                      <span className="font-medium text-txt group-hover:text-acc transition-colors">
+                        {customStatus.text}
+                      </span>
+                      <span className="text-[10px] text-mut/60 ml-1">Editar</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm">💬</span>
+                      <span className="text-mut/70 group-hover:text-txt transition-colors">
+                        Definir status de atividade…
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           )}
         </div>
 

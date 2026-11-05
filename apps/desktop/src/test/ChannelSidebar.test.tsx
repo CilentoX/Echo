@@ -166,4 +166,26 @@ describe("ChannelSidebar", () => {
     // Animação de fala (Equalizer waveform) deve estar presente
     expect(screen.getByTitle("Falando...")).toBeTruthy();
   });
+
+  it("recolhe e expande uma categoria de canais ao clicar no cabeçalho", async () => {
+    useSyncStore.getState().setGuilds([GUILD]);
+    useSyncStore.getState().setChannels(GUILD.guildId, [
+      makeChannel({ channelId: "!c1:hs", name: "anúncios", category: "INFORMAÇÕES" }),
+    ]);
+    useUiStore.getState().setActiveGuild(GUILD.guildId);
+
+    render(<ChannelSidebar />);
+
+    expect(screen.getByText("anúncios")).toBeTruthy();
+
+    const categoryHeader = screen.getByRole("button", { name: /INFORMAÇÕES/i });
+    await userEvent.click(categoryHeader);
+
+    // Canal deve ficar oculto quando categoria for recolhida
+    expect(screen.queryByText("anúncios")).toBeNull();
+
+    // Clicar novamente expande a categoria
+    await userEvent.click(categoryHeader);
+    expect(screen.getByText("anúncios")).toBeTruthy();
+  });
 });

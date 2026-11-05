@@ -1,23 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsOutSimple, Chats, Copy } from "@phosphor-icons/react";
+import { ArrowsOutSimple, Chats, Copy, PushPin } from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
+import { useThemeStore } from "@/stores/themeStore";
 import { senderLabel } from "./groupMessages";
 import ReplyChip from "./ReplyChip";
 import EditedBadge from "./EditedBadge";
 import ReactionStack from "./ReactionStack";
 import MessageBody from "./MessageBody";
+import RichEmbed from "./RichEmbed";
 import MxcImage from "@/components/media/MxcImage";
 import AudioPlayer from "@/components/media/AudioPlayer";
 import MediaLightbox from "@/components/media/MediaLightbox";
 import { mxcToHttp } from "@/lib/media/mxc";
 
 const EMPTY_MEMBERS: import("@/lib/matrix/types").MemberSummary[] = [];
+const EMPTY_PINNED: readonly string[] = Object.freeze([]);
 
 export interface MessageBubbleProps {
   event: NormalizedEvent;
@@ -55,6 +58,8 @@ export default function MessageBubble({
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const isSender = event.sender === myUserId;
+  const density = useThemeStore((s) => s.density);
+  const isCompact = density === "compact";
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const guildProfiles = useSyncStore((s) =>
     activeGuildId && activeGuildId !== "home" ? s.guildMemberProfiles[activeGuildId] : undefined,
@@ -71,6 +76,12 @@ export default function MessageBubble({
   const roomMember = roomMembers.find((m) => m.userId === event.sender);
   const friends = useFriendsStore((s) => s.friends);
   const friend = friends.find((f) => f.userId === event.sender);
+
+  const isPinned = useSyncStore((s) =>
+    (s.pinnedByRoom[event.roomId] ?? EMPTY_PINNED).includes(event.eventId),
+  );
+  const pinMessage = useSyncStore((s) => s.pinMessage);
+  const unpinMessage = useSyncStore((s) => s.unpinMessage);
 
   // Nome de exibição: prioriza apelido na guilda, depois apelido global, depois displayName, depois fallback do Matrix
   const name =
@@ -121,7 +132,9 @@ export default function MessageBubble({
       data-event-id={event.eventId}
       data-pending={pending || undefined}
       data-is-sender={isSender || undefined}
-      className={`group relative flex gap-3 px-4 py-1 transition-colors ${
+      className={`group relative flex gap-3 px-4 transition-colors ${
+        isCompact ? "py-0.5" : "py-1"
+      } ${
         isSender ? "justify-end" : "justify-start"
       } hover:bg-surf/40`}
     >
@@ -161,6 +174,20 @@ export default function MessageBubble({
           <div className="w-[1px] h-3.5 bg-bd mx-0.5" />
           <button
             type="button"
+            title={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
+            aria-label={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
+            onClick={() => {
+              if (isPinned) unpinMessage(event.roomId, event.eventId);
+              else pinMessage(event.roomId, event.eventId);
+            }}
+            className={`cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 transition-colors active:scale-95 ${
+              isPinned ? "text-acc font-bold" : "text-mut hover:text-txt"
+            }`}
+          >
+            <PushPin size={13} weight={isPinned ? "fill" : "regular"} />
+          </button>
+          <button
+            type="button"
             title="Copiar texto"
             aria-label="Copiar texto"
             onClick={() => navigator.clipboard.writeText(event.body)}
@@ -174,17 +201,21 @@ export default function MessageBubble({
       {/* Avatar do remetente (à esquerda para outros membros) */}
       {!isSender && (
         showHeader ? (
-          <div className="shrink-0 w-9 h-9 mt-0.5 relative">
+          <div className={`shrink-0 mt-0.5 relative ${isCompact ? "w-7 h-7" : "w-9 h-9"}`}>
             <MxcImage
               mxcUrl={senderAvatar}
-              width={36}
-              height={36}
+              width={isCompact ? 28 : 36}
+              height={isCompact ? 28 : 36}
               alt={`Avatar de ${name}`}
-              className="h-9 w-9 rounded-full object-cover border border-bd shadow-sm"
+              className={`rounded-full object-cover border border-bd shadow-sm ${
+                isCompact ? "h-7 w-7" : "h-9 w-9"
+              }`}
               fallback={
                 <span
                   aria-hidden="true"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-surf2 font-display text-xs font-semibold text-txt"
+                  className={`flex items-center justify-center rounded-full bg-surf2 font-display font-semibold text-txt ${
+                    isCompact ? "h-7 w-7 text-[10px]" : "h-9 w-9 text-xs"
+                  }`}
                 >
                   {name.slice(0, 1).toUpperCase()}
                 </span>
@@ -192,7 +223,7 @@ export default function MessageBubble({
             />
           </div>
         ) : (
-          <div className="w-9 shrink-0" aria-hidden="true" />
+          <div className={isCompact ? "w-7 shrink-0" : "w-9 shrink-0"} aria-hidden="true" />
         )
       )}
 
@@ -220,6 +251,11 @@ export default function MessageBubble({
             )}
             {event.editedAt && <EditedBadge editedAt={event.editedAt} />}
             <time className="shrink-0 text-[10px] text-mut">{time}</time>
+            {isPinned && (
+              <span title="Mensagem fixada" className="text-acc inline-flex items-center">
+                <PushPin size={11} weight="fill" />
+              </span>
+            )}
           </div>
         )}
 
@@ -264,7 +300,10 @@ export default function MessageBubble({
           </div>
         ) : (
           /* Corpo da mensagem (markdown) */
-          <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+          <>
+            <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+            {!event.redacted && <RichEmbed content={event.body} />}
+          </>
         )}
 
         {pending && (

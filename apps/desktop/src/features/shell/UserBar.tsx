@@ -29,6 +29,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const avatarUrl = useProfileStore((s) => s.avatarUrl);
   const appwriteAvatarUrl = useProfileStore((s) => s.appwriteAvatarUrl);
   const presence = useProfileStore((s) => s.presence);
+  const customStatus = useProfileStore((s) => s.customStatus);
 
   const microphoneEnabled = useSettingsStore((s) => s.microphoneEnabled);
   const setMicrophoneEnabled = useSettingsStore((s) => s.setMicrophoneEnabled);
@@ -115,12 +116,19 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               />
             </div>
 
-            {/* Nome e @tag */}
+            {/* Nome e @tag ou Status de Atividade */}
             <div className="flex-1 min-w-0 leading-tight">
               <p className="truncate text-xs font-semibold text-txt group-hover:text-acc transition-colors">
                 {effectiveName}
               </p>
-              <p className="truncate text-[10px] text-mut/80 font-mono">{userTag}</p>
+              {customStatus ? (
+                <p className="truncate text-[10px] text-acc/90 flex items-center gap-1 font-medium" title={customStatus.text}>
+                  {customStatus.emoji && <span>{customStatus.emoji}</span>}
+                  <span className="truncate">{customStatus.text}</span>
+                </p>
+              ) : (
+                <p className="truncate text-[10px] text-mut/80 font-mono">{userTag}</p>
+              )}
             </div>
           </button>
         </div>

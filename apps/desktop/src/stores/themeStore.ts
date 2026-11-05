@@ -3,6 +3,7 @@ import { desktopConfig } from "@/lib/storage/desktopConfig";
 
 export type ThemeId = "echo" | "sakura" | "sunset" | "ocean";
 export type ThemeMode = "dark" | "light";
+export type InterfaceDensity = "compact" | "comfortable";
 
 export interface ThemeTokens {
   bg: string;
@@ -283,8 +284,10 @@ export function applyThemeTokens(tokens: ThemeTokens, mode: ThemeMode, themeId: 
 export interface ThemeState {
   themeId: ThemeId;
   mode: ThemeMode;
+  density: InterfaceDensity;
   setTheme: (id: ThemeId) => void;
   setMode: (mode: ThemeMode) => void;
+  setDensity: (density: InterfaceDensity) => void;
   toggleMode: () => void;
   getCurrentTokens: () => ThemeTokens;
 }
@@ -307,9 +310,19 @@ const getInitialMode = (): ThemeMode => {
   return "dark";
 };
 
+const getInitialDensity = (): InterfaceDensity => {
+  const fromConfig = desktopConfig.get("theme")?.density;
+  if (fromConfig === "compact" || fromConfig === "comfortable") return fromConfig;
+  if (typeof window === "undefined") return "comfortable";
+  const saved = localStorage.getItem("echo:density");
+  if (saved === "Compacta" || saved === "compact") return "compact";
+  return "comfortable";
+};
+
 export const useThemeStore = create<ThemeState>()((set, get) => {
   const initialTheme = getInitialTheme();
   const initialMode = getInitialMode();
+  const initialDensity = getInitialDensity();
 
   // Aplica imediatamente as variáveis de tema
   const initialTokens = THEME_PRESETS[initialTheme].modes[initialMode];
@@ -318,6 +331,15 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
   return {
     themeId: initialTheme,
     mode: initialMode,
+    density: initialDensity,
+
+    setDensity: (density: InterfaceDensity) => {
+      try {
+        desktopConfig.setTheme({ density });
+        localStorage.setItem("echo:density", density === "compact" ? "Compacta" : "Confortável");
+      } catch {}
+      set({ density });
+    },
 
     setTheme: (id: ThemeId) => {
       const mode = get().mode;

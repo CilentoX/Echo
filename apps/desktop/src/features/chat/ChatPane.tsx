@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Hash } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Hash, ArrowDown } from "@phosphor-icons/react";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
@@ -135,10 +135,14 @@ export default function ChatPane({
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const atBottomRef = useRef(true);
+  const [hasNewMessagesBelow, setHasNewMessagesBelow] = useState(false);
+  const prevTimelineLenRef = useRef(timeline.length);
   const lastChannelRef = useRef<string | null>(activeChannelId);
+
   if (lastChannelRef.current !== activeChannelId) {
     lastChannelRef.current = activeChannelId;
     atBottomRef.current = true;
+    if (hasNewMessagesBelow) setHasNewMessagesBelow(false);
   }
 
   useEffect(() => {
@@ -146,14 +150,22 @@ export default function ChatPane({
     if (!el) return;
     if (atBottomRef.current) {
       el.scrollTop = el.scrollHeight;
+      if (hasNewMessagesBelow) setHasNewMessagesBelow(false);
+    } else if (timeline.length > prevTimelineLenRef.current) {
+      setHasNewMessagesBelow(true);
     }
-  }, [timeline]);
+    prevTimelineLenRef.current = timeline.length;
+  }, [timeline, hasNewMessagesBelow]);
 
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
     const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    atBottomRef.current = distanceToBottom < 80;
+    const isAtBottom = distanceToBottom < 80;
+    atBottomRef.current = isAtBottom;
+    if (isAtBottom && hasNewMessagesBelow) {
+      setHasNewMessagesBelow(false);
+    }
 
     if (el.scrollTop === 0 && activeChannelId && timeline.length >= 30) {
       void loadHistory(activeChannelId, 30);
@@ -222,7 +234,7 @@ export default function ChatPane({
     <section
       data-column="chat"
       aria-label="Mensagens"
-      className="flex min-w-0 flex-1 flex-col bg-bg font-ui"
+      className="relative flex min-w-0 flex-1 flex-col bg-bg font-ui"
     >
       {/* Cabeçalho Superior Fixo */}
       <ChatHeader
@@ -301,6 +313,27 @@ export default function ChatPane({
       </div>
 
       <TypingIndicator names={typingUsers} />
+
+      {hasNewMessagesBelow && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 animate-in fade-in-0 slide-in-from-bottom-2 duration-150">
+          <button
+            type="button"
+            aria-label="Rolar para novas mensagens"
+            onClick={() => {
+              const el = scrollRef.current;
+              if (el) {
+                el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                setHasNewMessagesBelow(false);
+                atBottomRef.current = true;
+              }
+            }}
+            className="cursor-pointer flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-acc text-bg font-semibold text-xs shadow-lg shadow-acc/25 hover:bg-acc-press active:scale-95 transition-all"
+          >
+            <span>Novas mensagens abaixo</span>
+            <ArrowDown size={14} weight="bold" />
+          </button>
+        </div>
+      )}
 
       <Composer
         roomId={activeChannelId}

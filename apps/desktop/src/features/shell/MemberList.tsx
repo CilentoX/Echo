@@ -34,6 +34,7 @@ export default function MemberList({
   const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
   const myAvatarUrl = useProfileStore((state) => state.avatarUrl);
   const myDisplayName = useProfileStore((state) => state.displayName);
+  const myCustomStatus = useProfileStore((state) => state.customStatus);
   const speakingMembers = useVoiceStore((state) => state.speakingMembers);
 
   const getMemberPresence = (m: MemberSummary): "online" | "offline" | "unavailable" => {
@@ -254,11 +255,21 @@ export default function MemberList({
                               <p className="text-sm font-medium text-txt truncate">
                                 {cleanDisplayName}
                               </p>
-                              {guildNick && guildNick !== baseDisplayName && (
+                              {guildNick && guildNick !== baseDisplayName ? (
                                 <p className="text-[10px] text-mut truncate -mt-0.5 font-mono">
                                   @{baseDisplayName}
                                 </p>
-                              )}
+                              ) : isMe && myCustomStatus ? (
+                                <p className="text-[10px] text-acc/90 truncate -mt-0.5 flex items-center gap-1 font-medium" title={myCustomStatus.text}>
+                                  {myCustomStatus.emoji && <span>{myCustomStatus.emoji}</span>}
+                                  <span className="truncate">{myCustomStatus.text}</span>
+                                </p>
+                              ) : (member as any).customStatus ? (
+                                <p className="text-[10px] text-mut/80 truncate -mt-0.5 flex items-center gap-1" title={(member as any).customStatus.text}>
+                                  {(member as any).customStatus.emoji && <span>{(member as any).customStatus.emoji}</span>}
+                                  <span className="truncate">{(member as any).customStatus.text}</span>
+                                </p>
+                              ) : null}
                             </div>
                             {isMe && (
                               <span className="ml-auto text-[11px] text-acc/70 font-medium">
