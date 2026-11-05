@@ -6,6 +6,7 @@ import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import { senderLabel } from "./groupMessages";
 import ReplyChip from "./ReplyChip";
 import EditedBadge from "./EditedBadge";
@@ -15,6 +16,8 @@ import MxcImage from "@/components/media/MxcImage";
 import AudioPlayer from "@/components/media/AudioPlayer";
 import MediaLightbox from "@/components/media/MediaLightbox";
 import { mxcToHttp } from "@/lib/media/mxc";
+
+const EMPTY_MEMBERS: import("@/lib/matrix/types").MemberSummary[] = [];
 
 export interface MessageBubbleProps {
   event: NormalizedEvent;
@@ -60,14 +63,25 @@ export default function MessageBubble({
   const guildNick = memberProfile?.nickname;
   const myNickname = useProfileStore((s) => s.nickname);
   const myDisplayName = useProfileStore((s) => s.displayName);
+  const myAppwriteAvatar = useProfileStore((s) => s.appwriteAvatarUrl);
+  const myAvatar = useProfileStore((s) => s.avatarUrl);
+
+  const rawRoomMembers = useSyncStore((s) => s.membersByRoom[event.roomId]);
+  const roomMembers = rawRoomMembers ?? EMPTY_MEMBERS;
+  const roomMember = roomMembers.find((m) => m.userId === event.sender);
+  const friends = useFriendsStore((s) => s.friends);
+  const friend = friends.find((f) => f.userId === event.sender);
 
   // Nome de exibição: prioriza apelido na guilda, depois apelido global, depois displayName, depois fallback do Matrix
   const name =
     guildNick ||
-    (isSender ? (myNickname || myDisplayName) : null) ||
+    (isSender ? (myNickname || myDisplayName) : roomMember?.displayName || friend?.displayName) ||
     senderLabel(event.sender);
 
-  const senderAvatar = memberProfile?.avatarUrl ?? event.senderAvatarUrl ?? null;
+  // Avatar com cadeia de fallback e cache persistente em disco
+  const senderAvatar = isSender
+    ? (memberProfile?.avatarUrl ?? myAppwriteAvatar ?? myAvatar ?? event.senderAvatarUrl ?? null)
+    : (memberProfile?.avatarUrl ?? roomMember?.avatarUrl ?? friend?.avatarUrl ?? event.senderAvatarUrl ?? null);
   const time = new Date(event.originServerTs).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -157,25 +171,29 @@ export default function MessageBubble({
         </div>
       )}
 
-      {/* Avatar do remetente (apenas receiver, primeiro do grupo) */}
-      {!isSender && showHeader && (
-        <div className="shrink-0 w-9 h-9 mt-0.5">
-          <MxcImage
-            mxcUrl={senderAvatar}
-            width={36}
-            height={36}
-            alt={`Avatar de ${name}`}
-            className="h-9 w-9 rounded-full object-cover border border-bd"
-          />
-          {!senderAvatar && (
-            <span
-              aria-hidden="true"
-              className="absolute flex h-9 w-9 items-center justify-center rounded-full bg-surf2 font-display text-xs font-semibold text-txt"
-            >
-              {name.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-        </div>
+      {/* Avatar do remetente (à esquerda para outros membros) */}
+      {!isSender && (
+        showHeader ? (
+          <div className="shrink-0 w-9 h-9 mt-0.5 relative">
+            <MxcImage
+              mxcUrl={senderAvatar}
+              width={36}
+              height={36}
+              alt={`Avatar de ${name}`}
+              className="h-9 w-9 rounded-full object-cover border border-bd shadow-sm"
+              fallback={
+                <span
+                  aria-hidden="true"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-surf2 font-display text-xs font-semibold text-txt"
+                >
+                  {name.slice(0, 1).toUpperCase()}
+                </span>
+              }
+            />
+          </div>
+        ) : (
+          <div className="w-9 shrink-0" aria-hidden="true" />
+        )
       )}
 
       {/* Bolha da mensagem */}
@@ -222,11 +240,10 @@ export default function MessageBubble({
               className="relative group/img cursor-pointer overflow-hidden rounded-xl border border-bd-subtle max-w-sm inline-block shadow-sm"
               onClick={() => setLightboxOpen(true)}
             >
-              <img
-                src={mediaUrl}
+              <MxcImage
+                mxcUrl={mediaUrl}
                 alt={event.body || "Imagem"}
                 className="max-h-64 max-w-full rounded-xl object-cover hover:scale-[1.02] transition-transform duration-200"
-                loading="lazy"
               />
               <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                 <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-xs font-semibold">
@@ -283,6 +300,31 @@ export default function MessageBubble({
           </div>
         )}
       </div>
+
+      {/* Avatar do remetente (à direita para o próprio usuário) */}
+      {isSender && (
+        showHeader ? (
+          <div className="shrink-0 w-9 h-9 mt-0.5 relative order-last">
+            <MxcImage
+              mxcUrl={senderAvatar}
+              width={36}
+              height={36}
+              alt={`Avatar de ${name}`}
+              className="h-9 w-9 rounded-full object-cover border border-bd shadow-sm"
+              fallback={
+                <span
+                  aria-hidden="true"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-acc text-bg font-display text-xs font-semibold shadow-sm"
+                >
+                  {name.slice(0, 1).toUpperCase()}
+                </span>
+              }
+            />
+          </div>
+        ) : (
+          <div className="w-9 shrink-0 order-last" aria-hidden="true" />
+        )
+      )}
     </article>
   );
 }

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { mxcToHttp, mxcToThumbnail, mxcToHttpWithAuth, mxcToThumbnailWithAuth } from "@/lib/media/mxc";
+import { useEffect, useMemo, useState } from "react";
+import { getCachedMediaUrl, resolveCanonicalMediaUrl } from "@/lib/media/mediaDiskCache";
 
 export interface MxcImageProps {
   /** URI mxc://serverName/mediaId */
@@ -55,10 +55,14 @@ export default function MxcImage({
   useAuth = true,
 }: MxcImageProps) {
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [useThumbnail, setUseThumbnail] = useState(false);
-  const [httpUrl, setHttpUrl] = useState<string | null>(null);
+  const initialUrl = useMemo(
+    () => (mxcUrl ? resolveCanonicalMediaUrl(mxcUrl, { width, height, useAuth }) : null),
+    [mxcUrl, width, height, useAuth],
+  );
+  const [httpUrl, setHttpUrl] = useState<string | null>(initialUrl);
 
   useEffect(() => {
     if (!mxcUrl) {
@@ -67,43 +71,35 @@ export default function MxcImage({
       return;
     }
 
-    // URLs data:, blob:, http(s) passam direto
-    if (mxcUrl.startsWith("data:") || mxcUrl.startsWith("blob:") || mxcUrl.startsWith("http")) {
+    // URLs data: e blob: locais passam direto sem necessidade de download
+    if (mxcUrl.startsWith("data:") || mxcUrl.startsWith("blob:")) {
       setHttpUrl(mxcUrl);
       setLoading(false);
       return;
     }
 
-    // mxc:// URL - converte para HTTP
-    const buildUrl = async () => {
-      try {
-        let url: string | null = null;
+    const canonical = resolveCanonicalMediaUrl(mxcUrl, { width, height, useAuth });
+    if (canonical) {
+      setHttpUrl(canonical);
+    }
 
-        if (width && height) {
-          // Thumbnail
-          if (useAuth) {
-            url = mxcToThumbnailWithAuth(mxcUrl, width, height, "crop");
-          } else {
-            url = mxcToThumbnail(mxcUrl, width, height, "crop");
-          }
-        } else {
-          // Download direto
-          if (useAuth) {
-            url = mxcToHttpWithAuth(mxcUrl);
-          } else {
-            url = mxcToHttp(mxcUrl);
-          }
-        }
+    let isMounted = true;
+
+    void getCachedMediaUrl(mxcUrl, { width, height, useAuth })
+      .then((url) => {
+        if (!isMounted || !url) return;
         setHttpUrl(url);
-      } catch {
-        setHttpUrl(null);
-      } finally {
         setLoading(false);
-      }
-    };
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setLoading(false);
+      });
 
-    buildUrl();
-  }, [mxcUrl, width, height]);
+    return () => {
+      isMounted = false;
+    };
+  }, [mxcUrl, width, height, useAuth]);
 
   console.debug("[MxcImage] httpUrl:", httpUrl, { mxcUrl, width, height });
 

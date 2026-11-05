@@ -273,6 +273,10 @@ export const desktopCache = {
   async clear(): Promise<void> {
     memCache = { ...DEFAULT_CACHE };
     writeLocalFallback(LOCAL_STORAGE_CACHE_KEY, memCache);
+    try {
+      const { clearMediaDiskCache } = await import("@/lib/media/mediaDiskCache");
+      await clearMediaDiskCache();
+    } catch {}
     if (isTauri()) {
       try {
         await invoke("clear_app_cache");

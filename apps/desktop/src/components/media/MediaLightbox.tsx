@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useCachedMedia } from "@/lib/media/mediaDiskCache";
 import {
   ArrowSquareOut,
   Copy,
@@ -26,6 +27,8 @@ export default function MediaLightbox({
 }: MediaLightboxProps) {
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
+  const { src: cachedSrc } = useCachedMedia(src);
+  const effectiveSrc = cachedSrc || src;
 
   useEffect(() => {
     if (open) {
@@ -58,7 +61,7 @@ export default function MediaLightbox({
 
   const handleCopyImage = async () => {
     try {
-      const response = await fetch(src);
+      const response = await fetch(effectiveSrc);
       const blob = await response.blob();
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob }),
@@ -75,7 +78,7 @@ export default function MediaLightbox({
 
   const handleDownload = () => {
     const a = document.createElement("a");
-    a.href = src;
+    a.href = effectiveSrc;
     a.download = alt || "echo-imagem";
     a.target = "_blank";
     document.body.appendChild(a);
@@ -193,7 +196,7 @@ export default function MediaLightbox({
         onClick={onClose}
       >
         <img
-          src={src}
+          src={effectiveSrc}
           alt={alt}
           style={{ transform: `scale(${zoom})` }}
           onClick={(e) => {
