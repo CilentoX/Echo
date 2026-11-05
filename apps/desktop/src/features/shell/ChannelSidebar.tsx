@@ -102,6 +102,25 @@ export default function ChannelSidebar({
 
   const activeGuild = guilds.find((g) => g.guildId === activeGuildId) ?? null;
 
+  const settingsGuildData = useMemo(
+    () => ({
+      guildId: activeGuild?.guildId ?? "",
+      name: activeGuild?.name ?? "",
+      avatarUrl: activeGuild?.avatarUrl ?? null,
+      bannerUrl: activeGuild?.bannerUrl ?? null,
+      description: activeGuild?.description ?? null,
+      createdBy: (activeGuild as any)?.createdBy ?? null,
+    }),
+    [
+      activeGuild?.guildId,
+      activeGuild?.name,
+      activeGuild?.avatarUrl,
+      activeGuild?.bannerUrl,
+      activeGuild?.description,
+      (activeGuild as any)?.createdBy,
+    ],
+  );
+
   // Busca canais da guilda e garante seleção automática do primeiro canal
   useEffect(() => {
     if (!activeGuildId || activeGuildId === "home") return;
@@ -493,14 +512,7 @@ export default function ChannelSidebar({
       <GuildSettingsModal
         open={editGuildOpen}
         onClose={() => setEditGuildOpen(false)}
-        guild={{
-          guildId: activeGuild?.guildId ?? "",
-          name: activeGuild?.name ?? "",
-          avatarUrl: activeGuild?.avatarUrl ?? null,
-          bannerUrl: activeGuild?.bannerUrl ?? null,
-          description: activeGuild?.description ?? null,
-          createdBy: (activeGuild as any)?.createdBy ?? null,
-        }}
+        guild={settingsGuildData}
         onSave={handleEditGuild}
       />
 

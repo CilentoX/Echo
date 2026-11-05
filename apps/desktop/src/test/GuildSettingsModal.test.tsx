@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
 import { useEchoApi } from "@/lib/api/echoApi";
+import { useUiStore } from "@/stores/uiStore";
 
 vi.mock("@/lib/api/echoApi", () => ({
   useEchoApi: vi.fn(),
@@ -42,6 +43,7 @@ describe("GuildSettingsModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useEchoApi).mockReturnValue(mockEchoApi as any);
+    useUiStore.setState({ myUserId: "@lucas:litteris.online" });
   });
 
   it("não renderiza quando open é falso", () => {
@@ -88,6 +90,49 @@ describe("GuildSettingsModal", () => {
     // Clica na aba de Convites
     await user.click(screen.getByRole("button", { name: /Convites/i }));
     expect(mockEchoApi.listGuildInvites).toHaveBeenCalledWith("guild-1");
+  });
+
+  it("mantém a aba ativa selecionada mesmo se o componente pai re-renderizar com nova referência de guild", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <GuildSettingsModal
+        open={true}
+        guild={{ guildId: "guild-1", name: "Minha Guilda" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Clica na aba de Cargos & Permissões
+    await user.click(screen.getByRole("button", { name: /Cargos & Permissões/i }));
+    expect(screen.getByText("Criar Cargo")).toBeTruthy();
+
+    // Re-renderiza passando uma nova referência de objeto (simulando re-render do componente pai)
+    rerender(
+      <GuildSettingsModal
+        open={true}
+        guild={{ guildId: "guild-1", name: "Minha Guilda" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Deve permanecer na aba de Cargos, sem voltar para Visão Geral
+    expect(screen.getByText("Criar Cargo")).toBeTruthy();
+
+    // Clica na aba de Membros
+    await user.click(screen.getByRole("button", { name: /Membros/i }));
+    expect(screen.getByText(/Salvar Apelido/i)).toBeTruthy();
+
+    // Re-renderiza novamente com nova referência
+    rerender(
+      <GuildSettingsModal
+        open={true}
+        guild={{ guildId: "guild-1", name: "Minha Guilda Atualizada" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Deve permanecer na aba de Membros
+    expect(screen.getByText(/Salvar Apelido/i)).toBeTruthy();
   });
 });
 

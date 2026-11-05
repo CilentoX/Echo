@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useUiStore } from "@/stores/uiStore"
 import { matrixService } from "@/lib/matrix/instance"
 import { Chats, Pencil, Gear, Users, Copy } from "@phosphor-icons/react"
@@ -32,6 +32,15 @@ export default function GuildDropdownContent({
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const isActive = activeGuildId === guildId
+
+  const modalGuild = useMemo(
+    () => ({
+      guildId,
+      name: guildName,
+      avatarUrl,
+    }),
+    [guildId, guildName, avatarUrl],
+  )
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message)
@@ -233,11 +242,7 @@ export default function GuildDropdownContent({
 
       <GuildSettingsModal
         open={settingsOpen}
-        guild={{
-          guildId,
-          name: guildName,
-          avatarUrl,
-        }}
+        guild={modalGuild}
         onClose={() => {
           setSettingsOpen(false)
           onClose()

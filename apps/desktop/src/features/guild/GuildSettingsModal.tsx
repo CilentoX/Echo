@@ -194,23 +194,34 @@ export default function GuildSettingsModal({
   const setActiveGuild = useUiStore((state) => state.setActiveGuild);
   const setActiveChannel = useUiStore((state) => state.setActiveChannel);
 
-  // Reset form when modal opens
+  const prevOpenRef = useRef(false);
+  const prevGuildIdRef = useRef<string | null>(null);
+
+  // Reset form only when modal opens or switches to a different guild
   useEffect(() => {
     if (open) {
-      setName(guild.name);
-      setDescription(guild.description ?? "");
-      setIconPreview(guild.avatarUrl ?? null);
-      setBannerPreview(guild.bannerUrl ?? null);
-      setIconFile(null);
-      setBannerFile(null);
-      setErrorMessage(null);
-      setStatusMessage(null);
-      setActiveTab("overview");
-      loadRoles();
-      loadMembers();
-      loadInvites();
+      const isNewlyOpened = !prevOpenRef.current;
+      const isDifferentGuild = prevGuildIdRef.current !== guild.guildId;
+
+      if (isNewlyOpened || isDifferentGuild) {
+        setName(guild.name);
+        setDescription(guild.description ?? "");
+        setIconPreview(guild.avatarUrl ?? null);
+        setBannerPreview(guild.bannerUrl ?? null);
+        setIconFile(null);
+        setBannerFile(null);
+        setErrorMessage(null);
+        setStatusMessage(null);
+        setActiveTab("overview");
+        void loadRoles();
+        void loadMembers();
+        void loadInvites();
+      }
     }
-  }, [open, guild]);
+
+    prevOpenRef.current = open;
+    prevGuildIdRef.current = open ? guild.guildId : null;
+  }, [open, guild.guildId]);
 
   const loadRoles = async () => {
     try {
