@@ -35,8 +35,6 @@ import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import SoundboardPopover, { type SoundEffect } from "./SoundboardPopover";
 import ScreenShareModal from "./ScreenShareModal";
 import type { ScreenShareConfig } from "@/stores/voiceStore";
-import { isTauri } from "@/lib/updater";
-import { invoke } from "@tauri-apps/api/core";
 
 const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
@@ -89,7 +87,6 @@ export default function VoiceStage({
     yPercent: 60,
   });
   const screenStreamRef = useRef<MediaStream | null>(null);
-  const captureIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -160,8 +157,7 @@ export default function VoiceStage({
       } else if (
         screenVideoRef.current &&
         typeof document !== "undefined" &&
-        (document as any).pictureInPictureEnabled &&
-        !isTauri()
+        (document as any).pictureInPictureEnabled
       ) {
         await screenVideoRef.current.requestPictureInPicture();
         setScreenDetached(true);
@@ -197,10 +193,6 @@ export default function VoiceStage({
 
   const handleToggleScreenShare = async () => {
     if (isScreenSharing) {
-      if (captureIntervalRef.current) {
-        clearInterval(captureIntervalRef.current);
-        captureIntervalRef.current = null;
-      }
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
         screenStreamRef.current = null;
@@ -216,71 +208,6 @@ export default function VoiceStage({
   const handleStartScreenShare = async (config: ScreenShareConfig) => {
     setScreenShareConfig(config);
     try {
-      // 1. Em ambiente nativo Desktop (Tauri):
-      // Captura interna e proprietária via Rust/xcap.
-      // ZERO diálogo nativo do navegador, ZERO barra cinza flutuante, ZERO janelas extras de WebView!
-      if (isTauri()) {
-        const targetW = config.resolution === "1080p" ? 1920 : 1280;
-        const targetH = config.resolution === "1080p" ? 1080 : 720;
-        const canvas = document.createElement("canvas");
-        canvas.width = targetW;
-        canvas.height = targetH;
-        const ctx = canvas.getContext("2d");
-
-        // Desenha primeiro frame com a miniatura de alta definição da fonte selecionada
-        const initialThumb = await invoke<string>("get_desktop_source_thumbnail", {
-          sourceId: config.sourceId,
-        }).catch(() => null);
-
-        if (initialThumb && ctx) {
-          const img = new Image();
-          img.onload = () => {
-            ctx.drawImage(img, 0, 0, targetW, targetH);
-          };
-          img.src = initialThumb;
-        }
-
-        if (typeof (canvas as any).captureStream === "function") {
-          const stream = (canvas as any).captureStream(config.fps || 30) as MediaStream;
-          screenStreamRef.current = stream;
-          if (screenVideoRef.current) {
-            screenVideoRef.current.srcObject = stream;
-          }
-        }
-
-        // Loop contínuo de atualização de quadros via Rust xcap
-        if (captureIntervalRef.current) {
-          clearInterval(captureIntervalRef.current);
-        }
-        captureIntervalRef.current = setInterval(async () => {
-          if (!useVoiceStore.getState().isScreenSharing) {
-            if (captureIntervalRef.current) {
-              clearInterval(captureIntervalRef.current);
-              captureIntervalRef.current = null;
-            }
-            return;
-          }
-          try {
-            const frame = await invoke<string>("capture_desktop_frame", {
-              sourceId: config.sourceId,
-              width: targetW,
-              height: targetH,
-            });
-            if (frame && ctx) {
-              const frameImg = new Image();
-              frameImg.onload = () => {
-                ctx.drawImage(frameImg, 0, 0, targetW, targetH);
-              };
-              frameImg.src = frame;
-            }
-          } catch {}
-        }, 1000 / (config.fps || 30));
-
-        setScreenSharing(true);
-        return;
-      }
-
-      // 2. Fallback para navegador web comum (não-Tauri)
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia) {
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: {
@@ -295,22 +222,22 @@ export default function VoiceStage({
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {
           videoTrack.onended = () => {
-            if (captureIntervalRef.current) {
-              clearInterval(captureIntervalRef.current);
-              captureIntervalRef.current = null;
-            }
             screenStreamRef.current = null;
             setScreenSharing(false);
             setScreenShareConfig(null);
           };
+        }
+        if (screenVideoRef.current) {
+          screenVideoRef.current.srcObject = stream;
         }
         setScreenSharing(true);
       } else {
         setScreenSharing(true);
       }
     } catch {
-      // Se prompt for cancelado em ambiente web
-      setScreenSharing(true);
+      // Se prompt for cancelado pelo usuário ou sem permissão
+      setScreenSharing(false);
+      setScreenShareConfig(null);
     }
   };
 
@@ -358,10 +285,6 @@ export default function VoiceStage({
 
   useEffect(() => {
     return () => {
-      if (captureIntervalRef.current) {
-        clearInterval(captureIntervalRef.current);
-        captureIntervalRef.current = null;
-      }
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
         screenStreamRef.current = null;

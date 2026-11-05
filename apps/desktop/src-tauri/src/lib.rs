@@ -179,8 +179,7 @@ pub fn run() {
             config_store::clear_app_cache,
             config_store::get_app_storage_info,
             desktop_capturer::get_desktop_sources,
-            desktop_capturer::get_desktop_source_thumbnail,
-            desktop_capturer::capture_desktop_frame
+            desktop_capturer::get_desktop_source_thumbnail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
