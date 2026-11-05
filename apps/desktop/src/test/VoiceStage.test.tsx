@@ -35,6 +35,12 @@ describe("VoiceStage Component", () => {
       activeChannelId: "ch-voice-1",
     });
     useSyncStore.setState({
+      channelsByGuild: {
+        "!guild1:echo": [
+          { channelId: "ch-text-1", name: "geral", type: "text", unreadCount: 0 },
+          { channelId: "ch-voice-1", name: "Voz Geral", type: "voice", unreadCount: 0 },
+        ],
+      },
       guildMemberProfiles: {
         "!guild1:echo": {
           "@nina:echo.litteris.online": {
@@ -56,7 +62,7 @@ describe("VoiceStage Component", () => {
     });
   });
 
-  it("renderiza o estado inicial de boas-vindas do canal de voz quando desconectado", () => {
+  it("conecta automaticamente ao abrir o canal de áudio e exibe informações da sala", () => {
     render(
       <VoiceStage
         channelId="ch-voice-1"
@@ -69,25 +75,7 @@ describe("VoiceStage Component", () => {
 
     expect(screen.getByText("Voz Geral")).toBeTruthy();
     expect(screen.getByText("Bate-papo por voz da guilda")).toBeTruthy();
-    expect(screen.getByText("Entrar no Canal de Voz")).toBeTruthy();
-  });
-
-  it("permite conectar à chamada de voz pelo botão principal", () => {
-    render(
-      <VoiceStage
-        channelId="ch-voice-1"
-        channelName="Voz Geral"
-        guildId="!guild1:echo"
-        guildName="Echo Guild"
-      />,
-    );
-
-    const joinBtn = screen.getByText("Entrar no Canal de Voz");
-    fireEvent.click(joinBtn);
-
-    const voiceState = useVoiceStore.getState();
-    expect(voiceState.activeVoiceChannelId).toBe("ch-voice-1");
-    expect(voiceState.participants.length).toBeGreaterThan(0);
+    expect(useVoiceStore.getState().activeVoiceChannelId).toBe("ch-voice-1");
   });
 
   it("renderiza os participantes conectados com apelidos e fotos de perfil quando conectado", () => {
@@ -207,7 +195,7 @@ describe("VoiceStage Component", () => {
     expect(useVoiceStore.getState().isSpeaking).toBe(false);
   });
 
-  it("permite desconectar da chamada com o botão Desconectar", () => {
+  it("permite desconectar da chamada com o botão Desconectar e volta ao canal de texto", () => {
     useVoiceStore.getState().connectVoice(
       "!guild1:echo",
       "Echo Guild",
@@ -229,5 +217,7 @@ describe("VoiceStage Component", () => {
 
     expect(useVoiceStore.getState().isConnected).toBe(false);
     expect(useVoiceStore.getState().activeVoiceChannelId).toBeNull();
+    // Ao desconectar, redireciona o activeChannelId para o primeiro canal de texto da guilda
+    expect(useUiStore.getState().activeChannelId).toBe("ch-text-1");
   });
 });

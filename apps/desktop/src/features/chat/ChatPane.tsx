@@ -198,7 +198,7 @@ export default function ChatPane({
     );
   }
 
-  // Visualização dedicada de Canal de Voz (Palco de Voz + Participantes + Chat lateral)
+  // Visualização dedicada de Canal de Áudio (Estritamente de Áudio - sem composer e sem mensagens de texto)
   if (activeChannelData?.type === "voice") {
     const activeGuild = guilds.find((g) => g.guildId === activeGuildId);
     return (
@@ -213,57 +213,6 @@ export default function ChatPane({
           topic={activeChannelData.topic}
           guildId={activeGuildId}
           guildName={activeGuild?.name}
-          chatComponent={
-            <div className="flex flex-col h-full bg-bg font-ui">
-              <ChatHeader
-                roomId={activeChannelId}
-                channelName={channelName}
-                topic={channelTopic}
-                showSidebarToggle={showSidebarToggle}
-                showMembersToggle={showMembersToggle}
-                onToggleSidebar={onToggleSidebar}
-                onToggleMembers={onToggleMembers}
-              />
-              <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-4">
-                <div className="px-4 pt-4 pb-3 mb-2">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surf2 border border-bd text-acc mb-2 shadow-sm">
-                    <Hash size={24} weight="bold" />
-                  </div>
-                  <h2 className="font-display text-xl font-bold text-txt">
-                    Bate-papo de #{channelName ?? "voz"}
-                  </h2>
-                  <p className="mt-0.5 text-xs text-mut max-w-lg">
-                    Canal de texto vinculado ao canal de voz #{channelName ?? "voz"}.
-                  </p>
-                  <div className="w-full h-[1px] bg-bd/40 mt-3" />
-                </div>
-                <div className="space-y-4">
-                  {groups.map((group) =>
-                    group.events.map((event, index) => (
-                      <MessageBubble
-                        key={event.eventId}
-                        event={event}
-                        showHeader={index === 0}
-                        pending={event.eventId.startsWith("pending-")}
-                        isBot={botSenders.includes(event.sender)}
-                        reactions={reactionsFor(event.eventId)}
-                        myUserId={myUserId ?? undefined}
-                        threadReplies={threadReplies?.[event.eventId]}
-                        onToggleReaction={sendReaction}
-                      />
-                    )),
-                  )}
-                </div>
-              </div>
-              <TypingIndicator names={typingUsers} />
-              <Composer
-                roomId={activeChannelId}
-                sendMessage={sendMessage}
-                sendFile={sendFile}
-                channelName={channelName ?? undefined}
-              />
-            </div>
-          }
         />
       </section>
     );
