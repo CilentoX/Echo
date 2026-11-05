@@ -160,7 +160,7 @@ describe("VoiceStage Component", () => {
     expect(screen.getByTitle("Falando agora")).toBeTruthy();
   });
 
-  it("permite alternar fala com o botão 'Falar (Teste)' para testar a animação", () => {
+  it("não exibe mais o botão manual 'Falar (Teste)' e ativa animação quando detecta fala", () => {
     useVoiceStore.getState().connectVoice(
       "!guild1:echo",
       "Echo Guild",
@@ -176,7 +176,7 @@ describe("VoiceStage Component", () => {
       ],
     );
 
-    render(
+    const { rerender } = render(
       <VoiceStage
         channelId="ch-voice-1"
         channelName="Voz Geral"
@@ -185,14 +185,23 @@ describe("VoiceStage Component", () => {
       />,
     );
 
-    const testSpeakBtn = screen.getByTitle("Clique para alternar fala e testar a animação verde em tempo real");
-    expect(testSpeakBtn).toBeTruthy();
+    // O botão manual foi removido em prol da detecção automática de voz
+    const testSpeakBtn = screen.queryByTitle("Clique para alternar fala e testar a animação verde em tempo real");
+    expect(testSpeakBtn).toBeNull();
 
-    fireEvent.click(testSpeakBtn);
-    expect(useVoiceStore.getState().isSpeaking).toBe(true);
+    // Ativa fala via store (como o hook useVoiceActivity faz)
+    useVoiceStore.getState().setSpeaking(true);
+    rerender(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
 
-    fireEvent.click(testSpeakBtn);
-    expect(useVoiceStore.getState().isSpeaking).toBe(false);
+    expect(screen.getByText("Falando")).toBeTruthy();
+    expect(screen.getByTitle("Falando agora")).toBeTruthy();
   });
 
   it("permite desconectar da chamada com o botão Desconectar e volta ao canal de texto", () => {
@@ -309,5 +318,144 @@ describe("VoiceStage Component", () => {
     const cameraOffBtn = screen.getByLabelText("Desativar câmera");
     fireEvent.click(cameraOffBtn);
     expect(useVoiceStore.getState().isCameraOn).toBe(false);
+  });
+
+  it("renderiza Modo Estúdio com webcam sobreposta à tela quando transmitindo com câmera ativa", () => {
+    useVoiceStore.getState().connectVoice(
+      "!guild1:echo",
+      "Echo Guild",
+      "ch-voice-1",
+      "Voz Geral",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina Pro",
+          isSpeaking: false,
+          volume: 100,
+        },
+      ],
+    );
+
+    useVoiceStore.setState({
+      isScreenSharing: true,
+      isCameraOn: true,
+      screenShareLayout: "studio",
+      screenShareConfig: {
+        sourceId: "screen:0",
+        sourceName: "Tela 1",
+        sourceType: "screen",
+        resolution: "1080p",
+        fps: 60,
+      },
+    });
+
+    render(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
+
+    // Webcam flutuante dentro do container de transmissão
+    const studioWebcam = screen.getByLabelText("Webcam Flutuante do Modo Estúdio");
+    expect(studioWebcam).toBeTruthy();
+
+    // Controles de canto rápido
+    const tlSnap = screen.getByTitle("Fixar Topo Esquerda");
+    fireEvent.click(tlSnap);
+
+    // Alternador de formato (retangular vs redondo)
+    const shapeBtn = screen.getByTitle("Mudar para Círculo");
+    expect(shapeBtn).toBeTruthy();
+    fireEvent.click(shapeBtn);
+    expect(useVoiceStore.getState().webcamShape).toBe("circle");
+
+    // Indicador na lista de participantes de que a webcam está no estúdio
+    expect(screen.getByText("Webcam no Estúdio")).toBeTruthy();
+  });
+
+  it("permite alternar entre os modos de layout Estúdio, Grade Teams e Cinema", () => {
+    useVoiceStore.getState().connectVoice(
+      "!guild1:echo",
+      "Echo Guild",
+      "ch-voice-1",
+      "Voz Geral",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina Pro",
+          isSpeaking: false,
+          volume: 100,
+        },
+      ],
+    );
+
+    useVoiceStore.setState({
+      isScreenSharing: true,
+      screenShareLayout: "studio",
+    });
+
+    render(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
+
+    // Clica no modo Grade Teams
+    const teamsGridBtn = screen.getByRole("button", { name: /Grade Teams/i });
+    fireEvent.click(teamsGridBtn);
+    expect(useVoiceStore.getState().screenShareLayout).toBe("split");
+    expect(screen.getByText("Teams Mode")).toBeTruthy();
+
+    // Clica no modo Cinema
+    const cinemaBtn = screen.getByRole("button", { name: /Cinema/i });
+    fireEvent.click(cinemaBtn);
+    expect(useVoiceStore.getState().screenShareLayout).toBe("fullscreen");
+  });
+
+  it("permite soltar a tela em janela flutuante / Picture-in-Picture e fixar de volta", () => {
+    useVoiceStore.getState().connectVoice(
+      "!guild1:echo",
+      "Echo Guild",
+      "ch-voice-1",
+      "Voz Geral",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina Pro",
+          isSpeaking: false,
+          volume: 100,
+        },
+      ],
+    );
+
+    useVoiceStore.setState({
+      isScreenSharing: true,
+      isScreenDetached: false,
+    });
+
+    render(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
+
+    const detachBtn = screen.getByLabelText("Soltar tela em janela flutuante");
+    fireEvent.click(detachBtn);
+
+    expect(useVoiceStore.getState().isScreenDetached).toBe(true);
+    expect(screen.getByText("Tela Destacada do Palco")).toBeTruthy();
+
+    const redockBtn = screen.getByRole("button", { name: /Fixar Tela de Volta ao Palco/i });
+    fireEvent.click(redockBtn);
+    expect(useVoiceStore.getState().isScreenDetached).toBe(false);
   });
 });

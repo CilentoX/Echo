@@ -8,6 +8,10 @@ export interface ScreenShareConfig {
   fps: 30 | 60;
 }
 
+export type ScreenShareLayout = "studio" | "split" | "fullscreen";
+export type WebcamShape = "rectangle" | "circle";
+export type WebcamSize = "sm" | "md" | "lg";
+
 export interface VoiceParticipant {
   userId: string;
   username: string;
@@ -34,6 +38,10 @@ export interface VoiceState {
   screenShareConfig: ScreenShareConfig | null;
   speakingMembers: string[];
   participants: VoiceParticipant[];
+  screenShareLayout: ScreenShareLayout;
+  webcamShape: WebcamShape;
+  webcamSize: WebcamSize;
+  isScreenDetached: boolean;
 
   connectVoice: (
     guildId: string,
@@ -47,6 +55,10 @@ export interface VoiceState {
   setScreenSharing: (isScreenSharing: boolean) => void;
   setCameraOn: (isCameraOn: boolean) => void;
   setScreenShareConfig: (config: ScreenShareConfig | null) => void;
+  setScreenShareLayout: (layout: ScreenShareLayout) => void;
+  setWebcamShape: (shape: WebcamShape) => void;
+  setWebcamSize: (size: WebcamSize) => void;
+  setScreenDetached: (detached: boolean) => void;
   setParticipantSpeaking: (userId: string, isSpeaking: boolean) => void;
   setPing: (pingMs: number) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
@@ -72,6 +84,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   screenShareConfig: null,
   speakingMembers: [],
   participants: [],
+  screenShareLayout: "studio",
+  webcamShape: "rectangle",
+  webcamSize: "md",
+  isScreenDetached: false,
 
   connectVoice: (guildId, guildName, channelId, channelName, initialParticipants) => {
     // Se já estiver conectado no mesmo canal, não faz nada
@@ -126,6 +142,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
   setCameraOn: (isCameraOn) => set({ isCameraOn }),
   setScreenShareConfig: (screenShareConfig) => set({ screenShareConfig }),
+  setScreenShareLayout: (screenShareLayout) => set({ screenShareLayout }),
+  setWebcamShape: (webcamShape) => set({ webcamShape }),
+  setWebcamSize: (webcamSize) => set({ webcamSize }),
+  setScreenDetached: (isScreenDetached) => set({ isScreenDetached }),
 
   setSpeaking: (isSpeaking) => {
     set((state) => {
