@@ -9,11 +9,7 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [
-    react({
-      babel: {
-        plugins: [],
-      },
-    }),
+    react(),
     tailwindcss(),
   ],
 
@@ -36,7 +32,7 @@ export default defineConfig(() => ({
       ? {
           protocol: "ws",
           host,
-          port: 1421,
+          port: 1422,
         }
       : undefined,
     watch: {
