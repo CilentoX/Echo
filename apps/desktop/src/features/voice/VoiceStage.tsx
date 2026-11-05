@@ -1015,10 +1015,12 @@ export default function VoiceStage({
                   ? "cursor-not-allowed opacity-40 bg-white/[0.04] text-mut border border-bd-subtle"
                   : isMyMuted
                     ? "cursor-pointer bg-err text-white shadow-md shadow-err/20 hover:bg-err-press"
-                    : "cursor-pointer bg-white/[0.06] text-txt hover:bg-white/[0.12] border border-bd-subtle"
+                    : isSpeaking
+                      ? "cursor-pointer bg-online/25 text-online border border-online/50 shadow-md shadow-online/30 animate-pulse"
+                      : "cursor-pointer bg-online/10 text-online hover:bg-online/20 border border-online/30"
               }`}
             >
-              {isMyMuted || !canSpeak ? <MicrophoneSlash size={18} weight="bold" /> : <Microphone size={18} weight="bold" />}
+              {isMyMuted || !canSpeak ? <MicrophoneSlash size={18} weight="bold" /> : <Microphone size={18} weight="fill" />}
             </button>
 
             {/* Botão Fone de Ouvido (Ensurdecer) */}
@@ -1030,10 +1032,10 @@ export default function VoiceStage({
               className={`cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-95 ${
                 isMyDeafened
                   ? "bg-err text-white shadow-md shadow-err/20 hover:bg-err-press"
-                  : "bg-white/[0.06] text-txt hover:bg-white/[0.12] border border-bd-subtle"
+                  : "bg-online/10 text-online hover:bg-online/20 border border-online/30"
               }`}
             >
-              <Headphones size={18} weight="bold" />
+              <Headphones size={18} weight={isMyDeafened ? "bold" : "fill"} />
             </button>
 
             {/* Soundboard Comunitário */}

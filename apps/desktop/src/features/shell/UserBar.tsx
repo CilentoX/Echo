@@ -192,11 +192,13 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               }}
               className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
                 microphoneEnabled
-                  ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
+                  ? isSpeaking
+                    ? "text-online bg-online/20 ring-1 ring-online/50 shadow-sm shadow-online/30 animate-pulse"
+                    : "text-online bg-online/10 hover:bg-online/20"
                   : "text-err bg-err/10 hover:bg-err/20"
               }`}
             >
-              {microphoneEnabled ? <Microphone size={18} /> : <MicrophoneSlash size={18} />}
+              {microphoneEnabled ? <Microphone size={18} weight="fill" /> : <MicrophoneSlash size={18} />}
             </button>
 
             <button
@@ -218,11 +220,11 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               }}
               className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
                 headphonesEnabled
-                  ? "text-mut dark:hover:bg-white/[0.06] hover:bg-black/[0.06] hover:text-txt"
+                  ? "text-online bg-online/10 hover:bg-online/20"
                   : "text-err bg-err/10 hover:bg-err/20"
               }`}
             >
-              <Headphones size={18} />
+              <Headphones size={18} weight={headphonesEnabled ? "fill" : "regular"} />
             </button>
 
             <PopoverTrigger asChild>
