@@ -59,12 +59,22 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
       data-testid="voice-connection-bar"
       className="flex h-12 w-full shrink-0 items-center justify-between border-b border-bd-subtle bg-surf/95 px-3 backdrop-blur-md z-20 select-none animate-in fade-in-0 duration-150"
     >
-      {/* Informações da Conexão */}
+      {/* Informações da Conexão (Arrastável para outro canal de voz) */}
       <button
         type="button"
+        draggable={true}
+        onDragStart={(e) => {
+          e.stopPropagation();
+          e.dataTransfer.setData(
+            "application/x-echo-voice-member",
+            JSON.stringify({ userId: myUserId || "me", username: "Você", isMe: true }),
+          );
+          e.dataTransfer.setData("text/plain", myUserId || "me");
+          e.dataTransfer.effectAllowed = "move";
+        }}
         onClick={onOpenVoiceSettings}
-        className="cursor-pointer group flex items-center gap-2.5 min-w-0 text-left transition-all"
-        title="Configurações de voz"
+        className="cursor-pointer group flex items-center gap-2.5 min-w-0 text-left transition-all cursor-grab active:cursor-grabbing"
+        title="Arrastar para outro canal de voz para transferir chamada, ou clicar para configurações"
       >
         <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-online/10 text-online border border-online/20 shadow-xs">
           {isConnecting ? (

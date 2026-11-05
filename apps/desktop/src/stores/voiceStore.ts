@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useUiStore } from "./uiStore";
 
 export interface ScreenShareConfig {
   sourceId: string;
@@ -228,6 +229,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         activeVoiceChannelName: targetChannelName,
         participants: myParticipant ? [myParticipant] : [],
       });
+
+      try {
+        useUiStore.getState().setActiveChannel(targetChannelId);
+      } catch {}
     } else {
       set((s) => ({
         participants: s.participants.filter((p) => p.userId !== userId),

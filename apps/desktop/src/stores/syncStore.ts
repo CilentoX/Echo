@@ -351,6 +351,11 @@ export const useSyncStore = create<SyncState>()((set, get) => {
           guildMap[channelId] = { category: targetCategory };
           map[guildId] = guildMap;
           localStorage.setItem("echo:channelOverrides", JSON.stringify(map));
+
+          localStorage.setItem(
+            `echo:channelOrder:${guildId}`,
+            JSON.stringify(channels.map((c) => c.channelId))
+          );
         } catch {}
 
         return { channelsByGuild: updatedChannels };

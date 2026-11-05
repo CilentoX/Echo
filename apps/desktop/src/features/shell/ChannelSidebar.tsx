@@ -275,23 +275,45 @@ export default function ChannelSidebar({
     position: "before" | "after" = "after"
   ) => {
     if (!activeGuildId || sourceChannelId === targetChannelId) return;
-    const targetIdxInAll = allChannels.findIndex((c) => c.channelId === targetChannelId);
-    const targetPos = position === "before" ? targetIdxInAll : targetIdxInAll + 1;
-    moveChannelCategory(activeGuildId, sourceChannelId, targetCategory, targetPos);
+    const sourceIdxInAll = allChannels.findIndex((c) => c.channelId === sourceChannelId);
+    let targetIdxInAll = allChannels.findIndex((c) => c.channelId === targetChannelId);
+    if (targetIdxInAll === -1) return;
+
+    if (position === "after") {
+      targetIdxInAll += 1;
+    }
+    if (sourceIdxInAll !== -1 && sourceIdxInAll < targetIdxInAll) {
+      targetIdxInAll -= 1;
+    }
+    moveChannelCategory(activeGuildId, sourceChannelId, targetCategory, targetIdxInAll);
   };
 
   const handleMoveVoiceMemberToChannel = (
     userId: string,
     _username: string,
     targetChannel: ChannelSummary,
+    isMePayload?: boolean,
   ) => {
     if (!activeGuildId) return;
-    moveParticipantToChannel(
-      userId,
-      targetChannel.channelId,
-      targetChannel.name,
-      effectiveUserId,
-    );
+    const isMe =
+      isMePayload === true ||
+      userId === "me" ||
+      userId === effectiveUserId ||
+      (myUserId ? userId === myUserId : false) ||
+      (activeVoiceChannelId && voiceParticipants.length === 1);
+
+    if (isMe) {
+      // Se for o próprio usuário, transfere a chamada de áudio imediatamente para a nova sala
+      handleConnectVoice(targetChannel);
+    } else {
+      // Se for outro membro, move o participante para o canal destino
+      moveParticipantToChannel(
+        userId,
+        targetChannel.channelId,
+        targetChannel.name,
+        effectiveUserId,
+      );
+    }
   };
 
   const handleAddMemberToVoiceChannel = (
@@ -1262,8 +1284,8 @@ export default function ChannelSidebar({
 
                                   if (voiceMemberRaw) {
                                     try {
-                                      const { userId, username } = JSON.parse(voiceMemberRaw);
-                                      handleMoveVoiceMemberToChannel(userId, username, channel);
+                                      const { userId, username, isMe } = JSON.parse(voiceMemberRaw);
+                                      handleMoveVoiceMemberToChannel(userId, username, channel, isMe);
                                       return;
                                     } catch {}
                                   }
@@ -1271,7 +1293,12 @@ export default function ChannelSidebar({
                                   if (memberRaw) {
                                     try {
                                       const { userId, username } = JSON.parse(memberRaw);
-                                      handleAddMemberToVoiceChannel(userId, username, channel);
+                                      const isMe = userId === "me" || userId === effectiveUserId || (myUserId ? userId === myUserId : false);
+                                      if (isMe) {
+                                        handleConnectVoice(channel);
+                                      } else {
+                                        handleAddMemberToVoiceChannel(userId, username, channel);
+                                      }
                                       return;
                                     } catch {}
                                   }
@@ -1398,8 +1425,9 @@ export default function ChannelSidebar({
                                               e.stopPropagation();
                                               e.dataTransfer.setData(
                                                 "application/x-echo-voice-member",
-                                                JSON.stringify({ userId: effectiveUserId || p.userId, username: effectiveNick }),
+                                                JSON.stringify({ userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe }),
                                               );
+                                              e.dataTransfer.setData("text/plain", effectiveUserId || p.userId || "me");
                                               e.dataTransfer.effectAllowed = "move";
                                             }}
                                           >
@@ -1410,8 +1438,18 @@ export default function ChannelSidebar({
                                               <PopoverTrigger asChild>
                                                 <button
                                                   type="button"
+                                                  draggable={true}
+                                                  onDragStart={(e) => {
+                                                    e.stopPropagation();
+                                                    e.dataTransfer.setData(
+                                                      "application/x-echo-voice-member",
+                                                      JSON.stringify({ userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe }),
+                                                    );
+                                                    e.dataTransfer.setData("text/plain", effectiveUserId || p.userId || "me");
+                                                    e.dataTransfer.effectAllowed = "move";
+                                                  }}
                                                   aria-label={`Perfil de ${effectiveNick}`}
-                                                  className={`cursor-pointer flex w-full items-center gap-2 py-1 px-2 rounded-xl text-xs transition-all active:scale-[0.98] group ${
+                                                  className={`cursor-pointer flex w-full items-center gap-1.5 py-1 px-2 rounded-xl text-xs transition-all active:scale-[0.98] group ${
                                                     openVoiceMemberId === p.userId
                                                       ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
                                                       : participantSpeaking
@@ -1419,6 +1457,10 @@ export default function ChannelSidebar({
                                                         : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
                                                   }`}
                                                 >
+                                                  <DotsSixVertical
+                                                    size={11}
+                                                    className="opacity-0 group-hover:opacity-60 cursor-grab active:cursor-grabbing text-mut shrink-0 -ml-1 mr-0.5"
+                                                  />
                                                   <div className="relative h-5 w-5 shrink-0">
                                                     {effectiveAvatar ? (
                                                       <MxcImage

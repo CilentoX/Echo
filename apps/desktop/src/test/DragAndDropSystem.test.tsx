@@ -218,6 +218,46 @@ describe("Sistema Completo de Drag and Drop (Categorias, Canais, Membros e Arqui
         expect(currentParticipants.find((p) => p.userId === "@alice:echo.litteris.online")).toBeUndefined();
       });
     });
+
+    it("soltar a si mesmo (isMe) sobre outro canal de voz transfere a chamada e atualiza a sala ativa", async () => {
+      useVoiceStore.setState({
+        activeVoiceChannelId: "c-voice-1",
+        activeVoiceChannelName: "Voz Geral",
+        isConnected: true,
+        participants: [
+          {
+            userId: "me",
+            username: "Você",
+            isMuted: false,
+            isDeafened: false,
+            isSpeaking: false,
+            volume: 100,
+          },
+        ],
+      });
+
+      render(<ChannelSidebar />);
+
+      const targetVoiceChannel = screen.getByText("Sala de Reunião").closest("li");
+      expect(targetVoiceChannel).not.toBeNull();
+
+      // Simula drop do próprio usuário no canal Sala de Reunião
+      fireEvent.drop(targetVoiceChannel!, {
+        dataTransfer: {
+          types: ["application/x-echo-voice-member"],
+          getData: (type: string) =>
+            type === "application/x-echo-voice-member"
+              ? JSON.stringify({ userId: "me", username: "Você", isMe: true })
+              : "",
+        },
+      });
+
+      await waitFor(() => {
+        expect(useVoiceStore.getState().activeVoiceChannelId).toBe("c-voice-2");
+        expect(useVoiceStore.getState().activeVoiceChannelName).toBe("Sala de Reunião");
+        expect(useUiStore.getState().activeChannelId).toBe("c-voice-2");
+      });
+    });
   });
 
   describe("4. Drag and Drop de Arquivos na Timeline (ChatPane)", () => {
