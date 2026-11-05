@@ -37,6 +37,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const setHeadphonesEnabled = useSettingsStore((s) => s.setHeadphonesEnabled);
 
   const setSpeaking = useVoiceStore((s) => s.setSpeaking);
+  const isSpeaking = useVoiceStore((s) => s.isSpeaking);
   const setParticipantMuted = useVoiceStore((s) => s.setParticipantMuted);
   const setParticipantDeafened = useVoiceStore((s) => s.setParticipantDeafened);
 
@@ -94,18 +95,28 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
             title="Abrir perfil"
             className="cursor-pointer group flex h-10 w-full items-center gap-2.5 px-2 rounded-xl text-left transition-all dark:hover:bg-white/[0.05] hover:bg-black/[0.05] active:scale-[0.98]"
           >
-            {/* Foto / Avatar do usuário com anel de presença */}
+            {/* Foto / Avatar do usuário com anel de presença e anel de fala */}
             <div className="relative shrink-0">
               {effectiveAvatar ? (
                 <MxcImage
                   mxcUrl={effectiveAvatar}
                   alt={effectiveName}
-                  className="h-8 w-8 rounded-full object-cover ring-1 ring-bd-subtle group-hover:ring-acc/60 transition-all shadow-sm"
+                  className={`h-8 w-8 rounded-full object-cover transition-all shadow-sm ${
+                    isSpeaking
+                      ? "ring-2 ring-online shadow-sm shadow-online/50 animate-pulse"
+                      : "ring-1 ring-bd-subtle group-hover:ring-acc/60"
+                  }`}
                   width={32}
                   height={32}
                 />
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc font-display text-xs font-bold text-bg shadow-sm">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full bg-acc font-display text-xs font-bold text-bg shadow-sm transition-all ${
+                    isSpeaking
+                      ? "ring-2 ring-online shadow-sm shadow-online/50 animate-pulse"
+                      : ""
+                  }`}
+                >
                   {initial}
                 </div>
               )}

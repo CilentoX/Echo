@@ -55,6 +55,7 @@ export default function VoiceStage({
   guildName,
 }: VoiceStageProps) {
   const activeVoiceChannelId = useVoiceStore((s) => s.activeVoiceChannelId);
+  const isConnected = useVoiceStore((s) => s.isConnected);
   const isConnecting = useVoiceStore((s) => s.isConnecting);
   const pingMs = useVoiceStore((s) => s.pingMs);
   const participants = useVoiceStore((s) => s.participants);
@@ -454,7 +455,7 @@ export default function VoiceStage({
   );
 
   useVoiceActivity({
-    enabled: Boolean(canConnectVoice && canSpeak && !isMyMuted && !isMyDeafened),
+    enabled: Boolean(isConnected && canConnectVoice && canSpeak && !isMyMuted && !isMyDeafened),
     isMuted: isMyMuted || isMyDeafened,
     onSpeakingChange: (speaking) => {
       setSpeaking(speaking);

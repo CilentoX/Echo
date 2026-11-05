@@ -6,6 +6,7 @@ import { useSyncStore } from "@/stores/syncStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { PhoneDisconnect, Broadcast, SpeakerHigh } from "@phosphor-icons/react";
 import { useVoiceActivity } from "@/features/voice/useVoiceActivity";
+import { matrixService } from "@/lib/matrix/instance";
 
 export interface VoiceConnectionBarProps {
   onOpenVoiceSettings?: () => void;
@@ -21,6 +22,8 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
   const setSpeaking = useVoiceStore((s) => s.setSpeaking);
   const setParticipantSpeaking = useVoiceStore((s) => s.setParticipantSpeaking);
   const myUserId = useUiStore((s) => s.myUserId);
+  const effectiveUserId =
+    myUserId || (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : "") || "me";
   const activeVoiceChannelName = useVoiceStore((s) => s.activeVoiceChannelName);
   const activeVoiceGuildName = useVoiceStore((s) => s.activeVoiceGuildName);
   const pingMs = useVoiceStore((s) => s.pingMs);
@@ -31,8 +34,8 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
     isMuted: isMuted || isDeafened,
     onSpeakingChange: (speaking) => {
       setSpeaking(speaking);
-      if (myUserId) {
-        setParticipantSpeaking(myUserId, speaking);
+      if (effectiveUserId) {
+        setParticipantSpeaking(effectiveUserId, speaking);
       }
       setParticipantSpeaking("me", speaking);
     },
