@@ -75,9 +75,27 @@ fn register_custom_scheme() {
 #[cfg(target_os = "windows")]
 fn setup_webview2_flags() {
     let current_args = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
-    let echo_args = "--disable-infobars --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,PreloadMediaEngagementData --enable-usermedia-screen-capturing";
+
+    // Detecta o idioma nativo do sistema para casar o monitor sem abrir o diálogo nativo do Chromium
+    unsafe extern "system" {
+        fn GetUserDefaultUILanguage() -> u16;
+    }
+    let lang_id = unsafe { GetUserDefaultUILanguage() } & 0x03ff;
+    let auto_source = match lang_id {
+        0x16 => "Tela",       // Português (Brasil / Portugal) -> Casa "Tela Inteira" / "Tela 1"
+        0x0a => "Pantalla",   // Espanhol
+        0x07 => "Bildschirm", // Alemão
+        0x0c => "Écran",      // Francês
+        0x10 => "Schermo",    // Italiano
+        _ => "Screen",        // Inglês (0x09) e fallback padrão -> Casa "Entire Screen" / "Screen 1"
+    };
+
+    let echo_args = format!(
+        "--disable-infobars --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,PreloadMediaEngagementData --enable-usermedia-screen-capturing --use-fake-ui-for-media-stream --auto-select-desktop-capture-source=\"{}\"",
+        auto_source
+    );
     let combined = if current_args.is_empty() {
-        echo_args.to_string()
+        echo_args
     } else {
         format!("{} {}", current_args, echo_args)
     };
