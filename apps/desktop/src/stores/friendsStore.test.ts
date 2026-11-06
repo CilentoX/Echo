@@ -99,7 +99,7 @@ describe("useFriendsStore", () => {
     const roomId = await useFriendsStore.getState().openDirectMessage("@amigo:litteris.online");
 
     expect(roomId).toBe("!dm_amigo:litteris.online");
-    expect(useUiStore.getState().activeGuildId).toBeNull();
+    expect(useUiStore.getState().activeGuildId).toBe("home");
     expect(useUiStore.getState().activeChannelId).toBe("!dm_amigo:litteris.online");
     expect(useFriendsStore.getState().selectedFriendId).toBe("@amigo:litteris.online");
   });

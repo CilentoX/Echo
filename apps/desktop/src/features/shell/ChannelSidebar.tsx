@@ -1520,6 +1520,8 @@ export default function ChannelSidebar({
                                               >
                                                 <MemberDropdownContent
                                                   userId={effectiveUserId || (myUserId ?? "")}
+                                                  initialDisplayName={effectiveNick}
+                                                  initialAvatarUrl={effectiveAvatar}
                                                   onClose={() => setOpenVoiceMemberId(null)}
                                                 />
                                               </PopoverContent>

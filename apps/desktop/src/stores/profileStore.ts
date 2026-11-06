@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { matrixService } from "@/lib/matrix/instance";
 import { loadSession } from "@/lib/storage/keyring";
 import { desktopCache } from "@/lib/storage/desktopConfig";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface ProfileLink {
   label: string;
@@ -50,7 +51,7 @@ export interface ProfileState {
 }
 
 /** Dados de perfil do usuário logado. Não vem do sync loop (Fase 2: server). */
-export const useProfileStore = create<ProfileState>()((set) => ({
+export const useProfileStore = create<ProfileState>()((set, get) => ({
   displayName: "",
   username: "",
   matrixUserId: "",
@@ -80,7 +81,18 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   setRole: (role) => set({ role }),
   setAvatarUrl: (url) => set({ avatarUrl: url }),
   setBannerUrl: (url) => set({ bannerUrl: url }),
-  setPresence: (presence) => set({ presence }),
+  setPresence: (presence) => {
+    set({ presence });
+    if (presence) {
+      const mapped: "online" | "offline" | "unavailable" =
+        presence === "offline" ? "offline" : presence === "online" ? "online" : "unavailable";
+      void matrixService.setPresence?.(mapped).catch(() => {});
+      const myId = get().matrixUserId || useUiStore.getState().myUserId;
+      if (myId) {
+        useUiStore.getState().setPresence(myId, mapped);
+      }
+    }
+  },
   setCustomStatus: (status) => {
     set({ customStatus: status });
     if (status) {

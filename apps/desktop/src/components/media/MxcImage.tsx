@@ -63,6 +63,17 @@ export default function MxcImage({
     [mxcUrl, width, height, useAuth],
   );
   const [httpUrl, setHttpUrl] = useState<string | null>(initialUrl);
+  const [prevMxcUrl, setPrevMxcUrl] = useState<string | null | undefined>(mxcUrl);
+
+  // Sincronização imediata na fase de render quando a prop da imagem mudar,
+  // impedindo qualquer vazamento visual da foto de outro usuário entre renders.
+  if (prevMxcUrl !== mxcUrl) {
+    setPrevMxcUrl(mxcUrl);
+    setHttpUrl(initialUrl);
+    setError(false);
+    setRetryCount(0);
+    setUseThumbnail(false);
+  }
 
   useEffect(() => {
     if (!mxcUrl) {

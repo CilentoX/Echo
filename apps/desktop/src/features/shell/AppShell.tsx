@@ -172,7 +172,7 @@ export default function AppShell({ children }: AppShellProps) {
   const setGuilds = useSyncStore((s) => s.setGuilds);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const activeChannelId = useUiStore((s) => s.activeChannelId);
-  const isHome = activeGuildId === "home";
+  const isHome = activeGuildId === "home" || !activeGuildId;
   const showEmptyState = guilds.length === 0 && !isHome;
 
   const handleOpenCreateGuild = () => setCreateGuildOpen(true);

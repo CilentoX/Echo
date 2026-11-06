@@ -822,6 +822,25 @@ export class EchoApi {
     return data.eventId || data.event_id || "";
   }
 
+  // ── Presence ────────────────────────────────────────────────────
+
+  /** Define a presença do próprio usuário (online, offline, unavailable) no Synapse via Echo API. */
+  async setPresence(presence: "online" | "offline" | "unavailable", statusMsg?: string): Promise<void> {
+    if (!this.accessToken) return;
+    try {
+      await this.put("/api/users/me/presence", { presence, statusMsg });
+    } catch {
+      // best-effort
+    }
+  }
+
+  /** Obtém a presença atual de um usuário em tempo real. */
+  async getUserPresence(userId: string): Promise<{ presence: "online" | "offline" | "unavailable" }> {
+    const res = await this.get(`/api/users/${encodeURIComponent(userId)}/presence`);
+    if (!res.ok) return { presence: "offline" };
+    return res.json();
+  }
+
   // ── Avatar/Media ────────────────────────────────────────────────
 
   /** Upload chat media (file). */

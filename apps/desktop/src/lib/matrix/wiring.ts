@@ -1,5 +1,6 @@
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useProfileStore } from "@/stores/profileStore";
 import { loadSession, useKeyring } from "@/lib/storage/keyring";
 import { matrixService } from "./instance";
 import { desktopCache, desktopConfig } from "@/lib/storage/desktopConfig";
@@ -48,6 +49,12 @@ async function loadMembersFor(roomId: string): Promise<void> {
   try {
     const members = await matrixService.listMembers(roomId);
     useSyncStore.getState().setMembers(roomId, members);
+    const ui = useUiStore.getState();
+    for (const m of members) {
+      if (m.userId && m.presence) {
+        ui.setPresence(m.userId, mapPresence(m.presence));
+      }
+    }
   } catch {
     // best-effort: se falhar, a lista de membros fica vazia até o próximo evento
   }
@@ -108,12 +115,27 @@ async function handleStatus(status: string, error?: { errcode: string }): Promis
   }
 }
 
+let pollingTick = 0;
+
 function startPollingLoop(): void {
   if (pollingTimer) return;
+  pollingTick = 0;
   pollingTimer = setInterval(async () => {
     if (!started) return;
+    pollingTick++;
     const ui = useUiStore.getState();
     const activeChannelId = ui.activeChannelId;
+
+    // Heartbeat de presença em tempo real a cada ~28 segundos (7 ticks * 4s)
+    if (pollingTick % 7 === 0) {
+      try {
+        const myPresence = useProfileStore.getState().presence ?? "online";
+        const mapped: "online" | "offline" | "unavailable" =
+          myPresence === "offline" ? "offline" : myPresence === "online" ? "online" : "unavailable";
+        void matrixService.setPresence?.(mapped)?.catch(() => {});
+      } catch {}
+    }
+
     if (activeChannelId) {
       try {
         const events = await matrixService.loadOlder(activeChannelId, 20);
@@ -128,6 +150,17 @@ function startPollingLoop(): void {
           authFailureCallback?.();
         }
       }
+
+      // Sincroniza presença e membros do canal em tempo real a cada ~8 segundos (2 ticks)
+      if (pollingTick % 2 === 0) {
+        void loadMembersFor(activeChannelId);
+      }
+    } else if (ui.activeGuildId && ui.activeGuildId !== "home" && pollingTick % 2 === 0) {
+      const channels = useSyncStore.getState().channelsByGuild[ui.activeGuildId] ?? [];
+      const firstChannel = channels[0]?.channelId;
+      if (firstChannel) {
+        void loadMembersFor(firstChannel);
+      }
     }
   }, 4000);
 }
@@ -136,6 +169,7 @@ function stopPollingLoop(): void {
   if (pollingTimer) {
     clearInterval(pollingTimer);
     pollingTimer = null;
+    pollingTick = 0;
   }
 }
 
@@ -247,6 +281,10 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
   if (sessionToken) {
     // Sincronização e polling em segundo plano via EchoApi HTTP REST
     startPollingLoop();
+    const initialPresence = useProfileStore.getState().presence ?? "online";
+    const mapped: "online" | "offline" | "unavailable" =
+      initialPresence === "offline" ? "offline" : initialPresence === "online" ? "online" : "unavailable";
+    void matrixService.setPresence?.(mapped)?.catch(() => {});
   } else {
     console.warn("[wiring] Nenhum token de sessão disponível para sync");
   }
@@ -263,10 +301,18 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
     }
 
     if (state.activeGuildId && state.activeGuildId !== prev.activeGuildId) {
-      // Fix B7-relacionado: não deixa mensagens vazar entre guildas.
-      state.setActiveChannel(null);
       if (state.activeGuildId !== "home") {
+        // Fix B7-relacionado: não deixa mensagens vazar entre guildas.
+        state.setActiveChannel(null);
         void loadChannelsFor(state.activeGuildId);
+      } else {
+        // Ao mudar para Home: só limpa o canal se ele pertencia à guilda anterior
+        if (prev.activeGuildId && prev.activeGuildId !== "home") {
+          const prevChannels = useSyncStore.getState().channelsByGuild[prev.activeGuildId] ?? [];
+          if (prevChannels.some((c) => c.channelId === state.activeChannelId)) {
+            state.setActiveChannel(null);
+          }
+        }
       }
     }
   });
@@ -275,6 +321,7 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
 /** Desliga o sync, limpa flags internas e reseta os stores (logout). */
 export function stopSyncWiring(): void {
   stopPollingLoop();
+  void matrixService.setPresence?.("offline")?.catch(() => {});
   if (syncWs) {
     try {
       syncWs.close();
@@ -299,6 +346,13 @@ export function stopSyncWiring(): void {
   ui.setMyUserId(null);
   ui.setActiveGuild(null);
   ui.setActiveChannel(null);
+}
+
+// Avisa o servidor ao fechar a janela do app (best-effort)
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    void matrixService.setPresence?.("offline")?.catch(() => {});
+  });
 }
 
 /** Carrega histórico antigo de um canal e insere no topo da timeline. */

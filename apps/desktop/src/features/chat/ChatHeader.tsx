@@ -9,6 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useSyncStore } from "@/stores/syncStore";
 import MxcImage from "@/components/media/MxcImage";
 import PinnedMessagesPopover from "./PinnedMessagesPopover";
 
@@ -32,17 +33,45 @@ export default function ChatHeader({
   onToggleMembers,
 }: ChatHeaderProps) {
   const friends = useFriendsStore((s) => s.friends);
+  const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
+  const myUserId = useUiStore((s) => s.myUserId);
   const uiPresence = useUiStore((s) => s.presence);
+  const roomMembers = useSyncStore((s) => (roomId ? s.membersByRoom[roomId] : undefined));
 
-  // Identifica se a sala atual é uma DM com um amigo (apenas quando fora de guildas)
+  // Identifica se a sala atual é uma DM (apenas quando fora de guildas)
   const isGuild = Boolean(activeGuildId && activeGuildId !== "home");
   const activeFriend = useMemo(() => {
     if (isGuild) return null;
-    return friends.find((f) => f.directRoomId === roomId);
-  }, [friends, roomId, isGuild]);
+    const byRoom = friends.find((f) => f.directRoomId === roomId);
+    if (byRoom) return byRoom;
 
-  const isDm = !isGuild && Boolean(activeFriend);
+    if (selectedFriendId) {
+      const bySelected = friends.find((f) => f.userId === selectedFriendId);
+      if (bySelected) return bySelected;
+    }
+
+    if (roomMembers) {
+      const other = roomMembers.find((m) => m.userId && m.userId !== myUserId);
+      if (other) {
+        return {
+          friendshipId: other.userId,
+          userId: other.userId,
+          displayName: other.displayName || other.userId.replace(/^@/, "").split(":")[0],
+          nickname: null,
+          avatarUrl: other.avatarUrl ?? null,
+          status: "accepted" as const,
+          directRoomId: roomId,
+          presence: other.presence,
+        };
+      }
+    }
+
+    return null;
+  }, [friends, roomId, isGuild, selectedFriendId, roomMembers, myUserId]);
+
+  const isExplicitDmRoom = roomId.startsWith("!dm_");
+  const isDm = !isGuild && (Boolean(activeFriend) || isExplicitDmRoom);
 
   const presence = activeFriend
     ? uiPresence[activeFriend.userId] || activeFriend.presence || "offline"
@@ -77,37 +106,51 @@ export default function ChatHeader({
           </button>
         )}
 
-        {isDm && activeFriend ? (
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="relative shrink-0">
-              {activeFriend.avatarUrl ? (
-                <MxcImage
-                  mxcUrl={activeFriend.avatarUrl}
-                  alt={activeFriend.displayName}
-                  className="h-8 w-8 rounded-full object-cover shadow-sm"
-                  width={32}
-                  height={32}
+        {isDm ? (
+          activeFriend ? (
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative shrink-0">
+                {activeFriend.avatarUrl ? (
+                  <MxcImage
+                    mxcUrl={activeFriend.avatarUrl}
+                    alt={activeFriend.displayName}
+                    className="h-8 w-8 rounded-full object-cover shadow-sm"
+                    width={32}
+                    height={32}
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/20 font-display text-xs font-bold text-acc shadow-sm">
+                    {activeFriend.displayName.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg ${presenceColor}`}
+                  aria-hidden="true"
                 />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/20 font-display text-xs font-bold text-acc shadow-sm">
-                  {activeFriend.displayName.slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <span
-                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg ${presenceColor}`}
-                aria-hidden="true"
-              />
-            </div>
+              </div>
 
-            <div className="min-w-0 leading-tight">
-              <h1 className="truncate font-display text-sm font-bold text-txt">
-                {activeFriend.displayName}
-              </h1>
-              <p className="truncate text-[10px] text-mut font-mono">
-                {presenceLabel} {activeFriend.nickname ? `• @${activeFriend.nickname}` : ""}
-              </p>
+              <div className="min-w-0 leading-tight">
+                <h1 className="truncate font-display text-sm font-bold text-txt">
+                  {activeFriend.displayName}
+                </h1>
+                <p className="truncate text-[10px] text-mut font-mono">
+                  {presenceLabel} {activeFriend.nickname ? `• @${activeFriend.nickname}` : `@${activeFriend.userId.replace(/^@/, "").split(":")[0]}`}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/20 font-display text-xs font-bold text-acc shadow-sm">
+                @
+              </div>
+              <div className="min-w-0 leading-tight">
+                <h1 className="truncate font-display text-sm font-bold text-txt">
+                  {channelName || "Conversa Direta"}
+                </h1>
+                <p className="truncate text-[10px] text-mut font-mono">Mensagem direta</p>
+              </div>
+            </div>
+          )
         ) : (
           <div className="flex items-center gap-2 min-w-0">
             <Hash size={20} className="text-mut shrink-0" weight="bold" />

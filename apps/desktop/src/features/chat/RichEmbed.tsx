@@ -187,7 +187,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   if (embed.type === "steam" && embed.id) {
     const steamClientUrl = `steam://store/${embed.id}`;
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
+      <div className="mt-2 max-w-[650px] w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
         <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06] bg-white/[0.03]">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#1b2838] text-acc border border-acc/20 shadow-xs">

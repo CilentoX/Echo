@@ -102,12 +102,39 @@ export default function ChatPane({
 
   const groups = useMemo(() => groupMessages(timeline), [timeline]);
 
+  const roomMembers = useSyncStore((s) => (activeChannelId ? s.membersByRoom[activeChannelId] : undefined));
+  const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
+
   // Identifica se a sala é DM com um amigo (apenas quando fora de guildas)
   const isGuild = Boolean(activeGuildId && activeGuildId !== "home");
   const activeFriend = useMemo(() => {
     if (isGuild) return null;
-    return friends.find((f) => f.directRoomId === activeChannelId);
-  }, [friends, activeChannelId, isGuild]);
+    const byRoom = friends.find((f) => f.directRoomId === activeChannelId);
+    if (byRoom) return byRoom;
+
+    if (selectedFriendId) {
+      const bySelected = friends.find((f) => f.userId === selectedFriendId);
+      if (bySelected) return bySelected;
+    }
+
+    if (roomMembers) {
+      const other = roomMembers.find((m) => m.userId && m.userId !== myUserId);
+      if (other) {
+        return {
+          friendshipId: other.userId,
+          userId: other.userId,
+          displayName: other.displayName || other.userId.replace(/^@/, "").split(":")[0],
+          nickname: null,
+          avatarUrl: other.avatarUrl ?? null,
+          status: "accepted" as const,
+          directRoomId: activeChannelId,
+          presence: other.presence,
+        };
+      }
+    }
+
+    return null;
+  }, [friends, activeChannelId, isGuild, selectedFriendId, roomMembers, myUserId]);
 
   const activeChannelData = useMemo(() => {
     if (!activeChannelId) return null;

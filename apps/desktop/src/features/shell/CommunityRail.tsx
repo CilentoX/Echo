@@ -173,7 +173,7 @@ export default function CommunityRail({
       <div className="relative group flex items-center justify-center w-full">
         <span
           className={`absolute left-0 w-1 rounded-r-full bg-txt transition-all duration-200 ${
-            activeGuildId === "home"
+            activeGuildId === "home" || !activeGuildId
               ? "h-10 opacity-100"
               : "h-0 opacity-0 group-hover:h-5 group-hover:opacity-100"
           }`}
@@ -188,7 +188,7 @@ export default function CommunityRail({
             useFriendsStore.getState().setSelectedFriendId(null);
           }}
           className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 ${
-            activeGuildId === "home"
+            activeGuildId === "home" || !activeGuildId
               ? "rounded-2xl bg-acc text-bg shadow-md shadow-acc/20"
               : "rounded-full dark:bg-white/[0.04] bg-black/[0.05] text-mut hover:rounded-2xl dark:hover:bg-white/[0.08] hover:bg-black/[0.08] hover:text-txt"
           }`}

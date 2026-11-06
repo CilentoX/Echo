@@ -634,6 +634,8 @@ export default function VoiceStage({
             >
               <MemberDropdownContent
                 userId={memberUserId}
+                initialDisplayName={memberNick}
+                initialAvatarUrl={memberAvatar}
                 onClose={() => setOpenMemberId(null)}
               />
             </PopoverContent>

@@ -43,6 +43,27 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
     (_match, code) => `<code class="bg-surf2 px-1 py-0.5 rounded text-sm font-mono">${escapeHtml(code)}</code>`,
   );
 
+  // Protege links markdown [texto](url) e URLs cruas de colisões com itálicos/negritos
+  const urlTokens: Array<{ type: "md" | "raw"; text?: string; url: string }> = [];
+
+  html = html.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_match, textPart, url) => {
+      const idx = urlTokens.length;
+      urlTokens.push({ type: "md", text: textPart, url });
+      return `%%URL_TOKEN_${idx}%%`;
+    },
+  );
+
+  html = html.replace(
+    /(https?:\/\/[^\s<)]+)/g,
+    (_match, url) => {
+      const idx = urlTokens.length;
+      urlTokens.push({ type: "raw", url });
+      return `%%URL_TOKEN_${idx}%%`;
+    },
+  );
+
   // Negrito: **texto** ou __texto__
   html = html.replace(
     /\*\*(.+?)\*\*/g,
@@ -54,14 +75,16 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
   html = html.replace(/\*(.+?)\*/g, (_match, inner) => `<em>${inner}</em>`);
   html = html.replace(/_(.+?)_/g, (_match, inner) => `<em>${inner}</em>`);
 
-  // Links: [texto](url)
-  html = html.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    (_match, textPart, url) =>
-      `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press">${escapeHtml(
-        textPart,
-      )}</a>`,
-  );
+  // Restaura links protegidos
+  html = html.replace(/%%URL_TOKEN_(\d+)%%/g, (_match, idxStr) => {
+    const item = urlTokens[Number(idxStr)];
+    if (!item) return "";
+    const cleanUrl = item.url;
+    if (item.type === "md" && item.text) {
+      return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${item.text}</a>`;
+    }
+    return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${cleanUrl}</a>`;
+  });
 
   // Citações: > texto
   html = html.replace(

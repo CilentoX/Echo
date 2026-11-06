@@ -231,9 +231,53 @@ export const useFriendsStore = create<FriendsState>()((set, get) => ({
     try {
       const { roomId } = await echoApi.getOrCreateDirectRoom(targetUserId);
       const ui = useUiStore.getState();
-      ui.setActiveGuild(null);
+      ui.setActiveGuild("home");
       ui.setActiveChannel(roomId);
       set({ selectedFriendId: targetUserId, loading: false });
+
+      // Garante que o usuário apareça imediatamente na lista de DMs da HomeSidebar
+      const currentFriends = get().friends;
+      const existing = currentFriends.find((f) => f.userId === targetUserId);
+      if (existing) {
+        set({
+          friends: currentFriends.map((f) =>
+            f.userId === targetUserId ? { ...f, directRoomId: roomId } : f
+          ),
+        });
+      } else {
+        try {
+          const profile = await echoApi.getUserProfile(targetUserId);
+          const newFriend: FriendItem = {
+            friendshipId: `dm_${targetUserId}`,
+            userId: targetUserId,
+            displayName: profile.displayName || targetUserId.replace(/^@/, "").split(":")[0],
+            nickname: profile.nickname || null,
+            avatarUrl: profile.avatarUrl || null,
+            bio: profile.bio || null,
+            status: "accepted",
+            directRoomId: roomId,
+            presence: useUiStore.getState().presence[targetUserId] || "offline",
+          };
+          set({
+            friends: [newFriend, ...currentFriends],
+          });
+        } catch {
+          const newFriend: FriendItem = {
+            friendshipId: `dm_${targetUserId}`,
+            userId: targetUserId,
+            displayName: targetUserId.replace(/^@/, "").split(":")[0],
+            nickname: null,
+            avatarUrl: null,
+            status: "accepted",
+            directRoomId: roomId,
+            presence: "offline",
+          };
+          set({
+            friends: [newFriend, ...currentFriends],
+          });
+        }
+      }
+
       return roomId;
     } catch (err: any) {
       set({ loading: false, error: err.message || "Erro ao abrir conversa direta" });

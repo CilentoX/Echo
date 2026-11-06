@@ -13,16 +13,22 @@ import MxcImage from "@/components/media/MxcImage"
 
 export interface MemberDropdownContentProps {
   userId: string
+  initialDisplayName?: string
+  initialAvatarUrl?: string | null
+  initialPresence?: PresenceState
   onClose?: () => void
 }
 
 export default function MemberDropdownContent({
   userId,
+  initialDisplayName,
+  initialAvatarUrl,
+  initialPresence,
   onClose,
 }: MemberDropdownContentProps) {
   const myUserId = useUiStore((state) => state.myUserId ?? "")
   const activeGuildId = useUiStore((state) => state.activeGuildId)
-  const isMyUser = userId === myUserId
+  const isMyUser = Boolean(myUserId && (userId === myUserId || userId.toLowerCase() === myUserId.toLowerCase()))
   const livePresence = useUiStore((state) => state.presence[userId])
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -121,7 +127,7 @@ export default function MemberDropdownContent({
   }, [userId, activeGuildId, echoApi])
 
   const effectiveHandle = profile?.username || cleanUserId(userId)
-  const globalDisplayName = profile?.displayName || effectiveHandle
+  const globalDisplayName = profile?.displayName || initialDisplayName || effectiveHandle
   const primaryName = guildNickname || globalDisplayName
   const hasCustomGuildNick = Boolean(guildNickname && guildNickname !== globalDisplayName)
 
@@ -187,14 +193,15 @@ export default function MemberDropdownContent({
     }
   }, [activeGuildId, echoApi, showToast, userId])
 
-  // Presença do usuário
+  // Presença do usuário (em tempo real > inicial recebida > offline)
+  const myPresence = useProfileStore((state) => state.presence)
   const effectivePresence: PresenceState = (
     isMyUser
-      ? "online"
-      : livePresence || "offline"
+      ? (myPresence === "dnd" ? "unavailable" : myPresence ?? "online")
+      : livePresence || initialPresence || "offline"
   ) as PresenceState
 
-  if (loading) {
+  if (loading && !initialDisplayName && !initialAvatarUrl) {
     return (
       <div
         role="menu"
@@ -220,9 +227,9 @@ export default function MemberDropdownContent({
 
   const initial = (primaryName || "U").charAt(0).toUpperCase()
 
-  // Fallback chain para avatar
+  // Fallback chain para avatar: perfil carregado > avatar inicial do membro/canal > appwrite (se eu mesmo)
   const effectiveAvatarUrl =
-    profile?.avatarUrl ?? (isMyUser ? myAppwriteAvatarUrl : null) ?? null
+    profile?.avatarUrl ?? initialAvatarUrl ?? (isMyUser ? myAppwriteAvatarUrl : null) ?? null
 
   // Banner
   const effectiveBannerUrl =
@@ -258,6 +265,7 @@ export default function MemberDropdownContent({
           <div className="w-20 h-20 rounded-full border-4 border-card-bg bg-surf2 shadow-xl overflow-hidden ring-1 ring-bd-subtle">
             {effectiveAvatarUrl ? (
               <MxcImage
+                key={`${userId}-${effectiveAvatarUrl}`}
                 mxcUrl={effectiveAvatarUrl}
                 alt={primaryName}
                 className="w-full h-full object-cover object-center"

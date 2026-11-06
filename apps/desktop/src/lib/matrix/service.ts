@@ -481,6 +481,21 @@ export class MatrixService {
     await this.echoApi.setPowerLevel(roomId, userId, level);
     return `${roomId}:${userId}:${level}`;
   }
+
+  /**
+   * Define a presença do usuário conectado no Synapse / EchoApi.
+   */
+  async setPresence(presence: "online" | "offline" | "unavailable", statusMsg?: string): Promise<void> {
+    await this.echoApi.setPresence(presence, statusMsg);
+  }
+
+  /**
+   * Obtém a presença atual de um usuário.
+   */
+  async getPresence(userId: string): Promise<"online" | "offline" | "unavailable"> {
+    const res = await this.echoApi.getUserPresence(userId);
+    return res.presence;
+  }
 }
 
 /** Singleton do MatrixService (agora wrapping EchoApi) para todo o app. */

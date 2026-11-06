@@ -36,12 +36,17 @@ export default function MemberList({
   const myAvatarUrl = useProfileStore((state) => state.avatarUrl);
   const myDisplayName = useProfileStore((state) => state.displayName);
   const myCustomStatus = useProfileStore((state) => state.customStatus);
+  const myPresence = useProfileStore((state) => state.presence);
   const speakingMembers = useVoiceStore((state) => state.speakingMembers);
 
   const getMemberPresence = (m: MemberSummary): "online" | "offline" | "unavailable" => {
-    if (m.userId === myUserId) return "online";
+    if (m.userId === myUserId) {
+      if (myPresence === "offline") return "offline";
+      if (myPresence === "unavailable" || myPresence === "dnd" || myPresence === "idle") return "unavailable";
+      return "online";
+    }
     const live = presenceMap[m.userId];
-    if (live) return live;
+    if (live !== undefined) return live;
     if (m.presence === "online" || m.presence === "unavailable") return m.presence;
     return "offline";
   };
@@ -83,10 +88,31 @@ export default function MemberList({
     return merged;
   }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId, myAppwriteAvatarUrl, myAvatarUrl]);
 
-  // Usa membros do canal ativo, ou agregados da guilda, ou vazio.
-  const members: MemberSummary[] = activeChannelId
-    ? [...channelMembers]
-    : guildMembers;
+  // Usa membros do canal ativo, ou agregados da guilda, deduplicados e garantindo usuário atual.
+  const members: MemberSummary[] = useMemo(() => {
+    const raw = activeChannelId ? [...channelMembers] : guildMembers;
+    const seen = new Set<string>();
+    const deduplicated: MemberSummary[] = [];
+
+    for (const m of raw) {
+      const normalizedId = m.userId?.toLowerCase();
+      if (normalizedId && !seen.has(normalizedId)) {
+        seen.add(normalizedId);
+        deduplicated.push(m);
+      }
+    }
+
+    if (myUserId && !seen.has(myUserId.toLowerCase())) {
+      deduplicated.push({
+        userId: myUserId,
+        displayName: myDisplayName || myUserId.replace(/^@/, "").split(":")[0],
+        presence: "online",
+        avatarUrl: myAppwriteAvatarUrl ?? myAvatarUrl ?? null,
+      });
+    }
+
+    return deduplicated;
+  }, [activeChannelId, channelMembers, guildMembers, myUserId, myDisplayName, myAppwriteAvatarUrl, myAvatarUrl]);
 
   const [search, setSearch] = useState("");
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
@@ -112,7 +138,7 @@ export default function MemberList({
       groups[key].push(m);
     }
     return groups;
-  }, [members, search, presenceMap, myUserId]);
+  }, [members, search, presenceMap, myUserId, myPresence]);
 
   const statusOrder: Array<[string, string]> = [
     ["online", "Online"],
@@ -244,6 +270,7 @@ export default function MemberList({
                               <div className="relative w-8 h-8 shrink-0">
                                 {effectiveAvatarUrl ? (
                                   <MxcImage
+                                    key={`${member.userId}-${effectiveAvatarUrl}`}
                                     mxcUrl={effectiveAvatarUrl}
                                     alt="Avatar"
                                     className={`w-8 h-8 rounded-full object-cover border border-bd-subtle bg-surf2 ring-1 transition-all ${
@@ -305,6 +332,9 @@ export default function MemberList({
                           >
                             <MemberDropdownContent
                               userId={member.userId}
+                              initialDisplayName={cleanDisplayName}
+                              initialAvatarUrl={effectiveAvatarUrl}
+                              initialPresence={effectivePresence}
                               onClose={() => setOpenMemberId(null)}
                             />
                           </PopoverContent>

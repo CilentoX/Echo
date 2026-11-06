@@ -142,11 +142,9 @@ export default function MessageBubble({
           data-event-id={event.eventId}
           data-pending={pending || undefined}
           data-is-sender={isSender || undefined}
-          className={`group relative flex gap-3 px-4 transition-colors ${
-            isCompact ? "py-0.5" : "py-1"
-          } ${
-            isSender ? "justify-end" : "justify-start"
-          } hover:bg-surf/40`}
+          className={`group relative flex gap-3.5 px-4 transition-colors w-full hover:bg-white/[0.03] ${
+            isCompact ? "py-0.5" : showHeader ? "pt-2.5 pb-0.5" : "py-0.5"
+          }`}
         >
           {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
       {!pending && (
@@ -208,23 +206,23 @@ export default function MessageBubble({
         </div>
       )}
 
-      {/* Avatar do remetente (à esquerda para outros membros) */}
-      {!isSender && (
-        showHeader ? (
-          <div className={`shrink-0 mt-0.5 relative ${isCompact ? "w-7 h-7" : "w-9 h-9"}`}>
+      {/* Avatar do remetente (sempre à esquerda, ergonomia Discord) */}
+      <div className="shrink-0 pt-0.5">
+        {showHeader ? (
+          <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
             <MxcImage
               mxcUrl={senderAvatar}
-              width={isCompact ? 28 : 36}
-              height={isCompact ? 28 : 36}
+              width={isCompact ? 28 : 40}
+              height={isCompact ? 28 : 40}
               alt={`Avatar de ${name}`}
-              className={`rounded-full object-cover border border-bd shadow-sm ${
-                isCompact ? "h-7 w-7" : "h-9 w-9"
+              className={`rounded-full object-cover border border-white/[0.08] shadow-sm ${
+                isCompact ? "h-7 w-7" : "h-10 w-10"
               }`}
               fallback={
                 <span
                   aria-hidden="true"
-                  className={`flex items-center justify-center rounded-full bg-surf2 font-display font-semibold text-txt ${
-                    isCompact ? "h-7 w-7 text-[10px]" : "h-9 w-9 text-xs"
+                  className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
+                    isCompact ? "text-[10px]" : "text-xs font-bold"
                   }`}
                 >
                   {name.slice(0, 1).toUpperCase()}
@@ -233,25 +231,23 @@ export default function MessageBubble({
             />
           </div>
         ) : (
-          <div className={isCompact ? "w-7 shrink-0" : "w-9 shrink-0"} aria-hidden="true" />
-        )
-      )}
+          <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
+            <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
+              {time.slice(0, 5)}
+            </span>
+          </div>
+        )}
+      </div>
 
-      {/* Bolha da mensagem */}
-      <div
-        className={`max-w-[75%] rounded-lg p-2 border border-bd-subtle shadow-xs ${
-          isSender
-            ? "ml-auto text-txt bg-bubble-sender"
-            : "text-txt bg-bubble-receiver"
-        }`}
-      >
+      {/* Conteúdo da mensagem (Full width, estilo Discord) */}
+      <div className="flex-1 min-w-0">
         {/* Chip de reply-to (citação) */}
         {event.replyTo && <ReplyChip replyTo={event.replyTo} />}
 
         {/* Cabeçalho: nome, hora, selos (apenas primeiro do grupo) */}
         {showHeader && (
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="truncate font-display text-xs font-semibold text-txt">
+          <div className="flex items-baseline gap-2 mb-0.5">
+            <span className="truncate font-display text-sm font-semibold text-txt hover:underline cursor-pointer">
               {name}
             </span>
             {isBot && (
@@ -260,7 +256,7 @@ export default function MessageBubble({
               </span>
             )}
             {event.editedAt && <EditedBadge editedAt={event.editedAt} />}
-            <time className="shrink-0 text-[10px] text-mut">{time}</time>
+            <time className="shrink-0 text-[11px] text-mut/70 font-sans">{time}</time>
             {isPinned && (
               <span title="Mensagem fixada" className="text-acc inline-flex items-center">
                 <PushPin size={11} weight="fill" />
@@ -271,7 +267,7 @@ export default function MessageBubble({
 
         {/* Áudio / Mensagem de Voz */}
         {isAudio && mediaUrl ? (
-          <div className="my-1">
+          <div className="my-1 max-w-md">
             <AudioPlayer
               src={mediaUrl}
               duration={event.info?.duration}
@@ -310,10 +306,10 @@ export default function MessageBubble({
           </div>
         ) : (
           /* Corpo da mensagem (markdown) */
-          <>
+          <div className="text-sm text-txt/90 leading-relaxed break-words">
             <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
             {!event.redacted && <RichEmbed content={event.body} />}
-          </>
+          </div>
         )}
 
         {pending && (
@@ -349,31 +345,6 @@ export default function MessageBubble({
           </div>
         )}
       </div>
-
-      {/* Avatar do remetente (à direita para o próprio usuário) */}
-      {isSender && (
-        showHeader ? (
-          <div className="shrink-0 w-9 h-9 mt-0.5 relative order-last">
-            <MxcImage
-              mxcUrl={senderAvatar}
-              width={36}
-              height={36}
-              alt={`Avatar de ${name}`}
-              className="h-9 w-9 rounded-full object-cover border border-bd shadow-sm"
-              fallback={
-                <span
-                  aria-hidden="true"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-acc text-bg font-display text-xs font-semibold shadow-sm"
-                >
-                  {name.slice(0, 1).toUpperCase()}
-                </span>
-              }
-            />
-          </div>
-        ) : (
-          <div className="w-9 shrink-0 order-last" aria-hidden="true" />
-        )
-      )}
     </article>
   </ContextMenuTrigger>
 
