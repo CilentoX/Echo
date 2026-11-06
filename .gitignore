@@ -1,4 +1,4 @@
-﻿# SDD planning artifacts
+# SDD planning artifacts
 .superpowers/
 
 # Dependencies
@@ -21,6 +21,9 @@ Thumbs.db
 
 # Tauri generated
 apps/desktop/src-tauri/gen/
+apps/desktop/release/*.exe
+apps/desktop/release/*.sig
+*.tsbuildinfo
 minisign-secret.key
 
 # Echo API uploads (local dev files)
