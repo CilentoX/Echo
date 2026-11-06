@@ -57,7 +57,16 @@ class WebRtcVoiceManager {
     isDeafened: boolean,
     callbacks: WebRtcCallbacks = {},
   ) {
-    await this.leave();
+    const isSwitching = Boolean(this.currentChannelId && this.currentChannelId !== channelId);
+    const hasLiveStream = Boolean(
+      this.localStream && this.localStream.getAudioTracks().some((t) => t.readyState === "live"),
+    );
+
+    if (isSwitching && hasLiveStream) {
+      await this.leaveOldChannelOnly();
+    } else {
+      await this.leave();
+    }
 
     this.currentGuildId = guildId;
     this.currentChannelId = channelId;
@@ -66,9 +75,11 @@ class WebRtcVoiceManager {
     this.isDeafened = isDeafened;
     this.callbacks = callbacks;
 
-    // 1. Captura de microfone local
+    // 1. Captura de microfone local (reutiliza stream existente para troca instantânea)
     try {
-      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      const streamLive =
+        this.localStream && this.localStream.getAudioTracks().some((t) => t.readyState === "live");
+      if (!streamLive && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
         this.localStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
@@ -80,6 +91,11 @@ class WebRtcVoiceManager {
 
         this.setMicrophoneMuted(isMuted);
         this.startVad();
+      } else if (streamLive) {
+        this.setMicrophoneMuted(isMuted);
+        if (!this.vadInterval) {
+          this.startVad();
+        }
       }
     } catch (err: any) {
       console.warn("[WebRtcVoice] Erro ao obter microfone:", err);
@@ -113,6 +129,45 @@ class WebRtcVoiceManager {
 
     // 3. Inicia loop de Heartbeat e Sinalização
     this.startHeartbeatAndSignalingLoop();
+  }
+
+  public async leaveOldChannelOnly() {
+    this.stopVad();
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    if (this.currentChannelId) {
+      try {
+        const api = useEchoApi();
+        if (typeof api?.leaveVoiceChannel === "function") {
+          void api.leaveVoiceChannel(this.currentChannelId).catch(() => {});
+        }
+      } catch {}
+    }
+
+    for (const item of this.remoteAnalysers.values()) {
+      clearInterval(item.interval);
+    }
+    this.remoteAnalysers.clear();
+
+    for (const pc of this.peers.values()) {
+      try {
+        pc.close();
+      } catch {}
+    }
+    this.peers.clear();
+
+    for (const audio of this.audioElements.values()) {
+      try {
+        audio.pause();
+        audio.srcObject = null;
+        audio.remove();
+      } catch {}
+    }
+    this.audioElements.clear();
+    this.candidateQueues.clear();
   }
 
   public async leave() {

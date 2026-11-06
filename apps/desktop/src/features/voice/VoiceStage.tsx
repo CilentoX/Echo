@@ -396,13 +396,13 @@ export default function VoiceStage({
     myAppwriteAvatarUrl ||
     null;
 
-  const hasConnectedRef = useRef(false);
+  const lastConnectedChannelRef = useRef<string | null>(null);
 
   // Canal de áudio é estritamente de áudio: ao abrir o canal, conecta automaticamente à voz (se permitido)
   useEffect(() => {
     if (!canConnectVoice) return;
-    if (!hasConnectedRef.current && activeVoiceChannelId !== channelId) {
-      hasConnectedRef.current = true;
+    if (lastConnectedChannelRef.current !== channelId && activeVoiceChannelId !== channelId) {
+      lastConnectedChannelRef.current = channelId;
       connectVoice(
         guildId ?? activeGuildId ?? "",
         guildName ?? "Comunidade Echo",
@@ -425,7 +425,7 @@ export default function VoiceStage({
 
   // Ao sair/desconectar do canal de voz, volta imediatamente para o canal de texto da guilda
   const handleDisconnect = () => {
-    hasConnectedRef.current = true;
+    lastConnectedChannelRef.current = channelId;
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach((t) => t.stop());
       screenStreamRef.current = null;

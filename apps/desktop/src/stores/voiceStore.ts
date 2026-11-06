@@ -108,13 +108,15 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     const isMuted = Boolean(firstP?.isMuted);
     const isDeafened = Boolean(firstP?.isDeafened);
 
+    const wasConnected = get().isConnected;
+
     set({
       activeVoiceGuildId: guildId,
       activeVoiceGuildName: guildName,
       activeVoiceChannelId: channelId,
       activeVoiceChannelName: channelName,
-      isConnecting: true,
-      isConnected: false,
+      isConnecting: !wasConnected,
+      isConnected: true,
       pingMs: Math.floor(18 + Math.random() * 12),
       participants: initialParticipants ?? [
         {
