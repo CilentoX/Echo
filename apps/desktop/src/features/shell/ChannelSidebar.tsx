@@ -491,24 +491,29 @@ export default function ChannelSidebar({
       .catch(() => {});
   };
 
-  // Busca canais da guilda e garante seleção automática do primeiro canal
+  // Busca canais da guilda e garante seleção automática do primeiro canal (com atualização periódica)
   useEffect(() => {
     if (!activeGuildId || activeGuildId === "home") return;
 
     let isMounted = true;
-    void matrixService
-      .listChannels(activeGuildId)
-      .then((channelList) => {
-        if (!isMounted) return;
-        useSyncStore.getState().setChannels(activeGuildId, channelList);
+    const fetchChannels = () => {
+      void matrixService
+        .listChannels(activeGuildId)
+        .then((channelList) => {
+          if (!isMounted) return;
+          useSyncStore.getState().setChannels(activeGuildId, channelList);
 
-        const curActive = useUiStore.getState().activeChannelId;
-        const exists = channelList.some((c) => c.channelId === curActive);
-        if ((!curActive || !exists) && channelList.length > 0) {
-          useUiStore.getState().setActiveChannel(channelList[0].channelId);
-        }
-      })
-      .catch(() => {});
+          const curActive = useUiStore.getState().activeChannelId;
+          const exists = channelList.some((c) => c.channelId === curActive);
+          if ((!curActive || !exists) && channelList.length > 0) {
+            useUiStore.getState().setActiveChannel(channelList[0].channelId);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchChannels();
+    const interval = setInterval(fetchChannels, 8000);
 
     // Carrega dados e apelidos dos membros da guilda em cache
     if (typeof matrixService.getGuildMembersData === "function") {
@@ -531,6 +536,7 @@ export default function ChannelSidebar({
 
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, [activeGuildId]);
 
@@ -657,20 +663,6 @@ export default function ChannelSidebar({
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {isGuildOwner && !overlay && (
-                  <button
-                    type="button"
-                    aria-label="Criar categoria"
-                    title="Criar categoria"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCreateCategoryOpen(true);
-                    }}
-                    className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                  >
-                    <FolderSimplePlus size={15} aria-hidden />
-                  </button>
-                )}
                 {!overlay && (
                   <button
                     type="button"

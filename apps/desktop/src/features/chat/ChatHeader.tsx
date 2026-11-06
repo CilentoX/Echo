@@ -10,6 +10,9 @@ import {
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSyncStore } from "@/stores/syncStore";
+import { useVoiceStore } from "@/stores/voiceStore";
+import { useProfileStore } from "@/stores/profileStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import MxcImage from "@/components/media/MxcImage";
 import PinnedMessagesPopover from "./PinnedMessagesPopover";
 
@@ -90,6 +93,44 @@ export default function ChatHeader({
       : presence === "unavailable"
       ? "Ausente"
       : "Offline";
+
+  const activeVoiceChannelId = useVoiceStore((s) => s.activeVoiceChannelId);
+  const connectVoice = useVoiceStore((s) => s.connectVoice);
+  const disconnectVoice = useVoiceStore((s) => s.disconnectVoice);
+  const isVoiceActive = isDm && activeVoiceChannelId === roomId;
+
+  const profileDisplayName = useProfileStore((s) => s.displayName);
+  const profileAvatarUrl = useProfileStore((s) => s.avatarUrl);
+  const myAppwriteAvatarUrl = useProfileStore((s) => s.appwriteAvatarUrl);
+  const microphoneEnabled = useSettingsStore((s) => s.microphoneEnabled);
+  const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
+
+  const handleToggleDmVoice = () => {
+    if (isVoiceActive) {
+      disconnectVoice();
+    } else {
+      const myEffectiveName =
+        profileDisplayName || myUserId?.split(":")[0].replace("@", "") || "Você";
+      const myEffectiveAvatar = profileAvatarUrl || myAppwriteAvatarUrl || null;
+      connectVoice(
+        "home",
+        "Mensagens Diretas",
+        roomId,
+        channelName || activeFriend?.displayName || "Conversa Direta",
+        [
+          {
+            userId: myUserId || "me",
+            username: myEffectiveName,
+            avatarUrl: myEffectiveAvatar,
+            isMuted: !microphoneEnabled,
+            isDeafened: !headphonesEnabled,
+            isSpeaking: false,
+            volume: 100,
+          },
+        ],
+      );
+    }
+  };
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-bd px-4 bg-bg select-none z-10">
@@ -175,11 +216,16 @@ export default function ChatHeader({
           <>
             <button
               type="button"
-              title="Iniciar chamada de voz"
-              aria-label="Iniciar chamada de voz"
-              className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-mut hover:bg-surf2 hover:text-txt transition-colors"
+              onClick={handleToggleDmVoice}
+              title={isVoiceActive ? "Desconectar chamada de voz" : "Iniciar chamada de voz"}
+              aria-label={isVoiceActive ? "Desconectar chamada de voz" : "Iniciar chamada de voz"}
+              className={`cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                isVoiceActive
+                  ? "bg-acc/15 text-acc hover:bg-acc/25 shadow-xs"
+                  : "text-mut hover:bg-surf2 hover:text-txt"
+              }`}
             >
-              <Phone size={18} />
+              <Phone size={18} weight={isVoiceActive ? "fill" : "regular"} />
             </button>
 
             <button

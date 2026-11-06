@@ -63,7 +63,7 @@ describe("AppShell", () => {
     render(<AppShell />);
 
     const chat = column("chat") as HTMLElement;
-    expect(within(chat).getByText("#geral")).toBeTruthy();
+    expect(within(chat).getByText("geral")).toBeTruthy();
     // Sem dados reais, nenhum conteúdo falso de scaffold aparece.
     expect(screen.queryByText("Bem-vinda, galera!")).toBeNull();
     expect(screen.queryByText("Os membros aparecem aqui quando o canal carrega.")).toBeNull();
@@ -77,7 +77,7 @@ describe("AppShell", () => {
     render(<AppShell />);
 
     const chat = column("chat") as HTMLElement;
-    expect(within(chat).queryByText("#geral")).toBeNull();
+    expect(within(chat).queryByText("geral")).toBeNull();
   });
 
   it("hides the member list and shows a members toggle at 1000px", () => {

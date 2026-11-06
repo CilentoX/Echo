@@ -23,6 +23,16 @@ vi.mock("@/lib/api/echoApi", () => ({
       displayName: "Nina Silva",
       avatarUrl: "https://echo.litteris.online/avatar.png",
     }),
+    joinVoiceChannel: vi.fn().mockResolvedValue({
+      success: true,
+      channelId: "ch-voice-1",
+      myUserId: "@nina:echo.litteris.online",
+      participants: [],
+    }),
+    leaveVoiceChannel: vi.fn().mockResolvedValue({ success: true }),
+    voiceHeartbeat: vi.fn().mockResolvedValue({ channelId: "ch-voice-1", participants: [] }),
+    sendVoiceSignal: vi.fn().mockResolvedValue({ success: true }),
+    getVoiceSignals: vi.fn().mockResolvedValue({ signals: [] }),
   }),
 }));
 

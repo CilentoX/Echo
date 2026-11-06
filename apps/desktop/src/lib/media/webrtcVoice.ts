@@ -24,12 +24,18 @@ class WebRtcVoiceManager {
   private peers: Map<string, RTCPeerConnection> = new Map();
   private audioElements: Map<string, HTMLAudioElement> = new Map();
   private candidateQueues: Map<string, RTCIceCandidateInit[]> = new Map();
+  private remoteAnalysers: Map<string, { analyser: AnalyserNode; interval: any }> = new Map();
   private callbacks: WebRtcCallbacks = {};
 
   private rtcConfig: RTCConfiguration = {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:19302" },
+      { urls: "stun:stun.cloudflare.com:3478" },
+      { urls: "stun:stun.services.mozilla.com" },
     ],
   };
 
@@ -81,19 +87,25 @@ class WebRtcVoiceManager {
     }
 
     // 2. Registra presença no echo-api
-    const api = useEchoApi();
     try {
-      const res = await api.joinVoiceChannel(channelId, {
-        guildId,
-        username,
-        avatarUrl,
-        isMuted,
-        isDeafened,
-      });
+      const api = useEchoApi();
+      if (typeof api?.joinVoiceChannel === "function") {
+        const res = await api.joinVoiceChannel(channelId, {
+          guildId,
+          username,
+          avatarUrl,
+          isMuted,
+          isDeafened,
+        });
 
-      if (res.participants) {
-        this.callbacks.onParticipantsUpdate?.(res.participants);
-        this.syncPeers(res.participants);
+        if ((res as any)?.myUserId) {
+          this.myUserId = (res as any).myUserId;
+        }
+
+        if (res.participants) {
+          this.callbacks.onParticipantsUpdate?.(res.participants);
+          this.syncPeers(res.participants);
+        }
       }
     } catch (err: any) {
       console.warn("[WebRtcVoice] Erro ao registrar presença no backend:", err);
@@ -114,9 +126,17 @@ class WebRtcVoiceManager {
     if (this.currentChannelId) {
       try {
         const api = useEchoApi();
-        await api.leaveVoiceChannel(this.currentChannelId);
+        if (typeof api?.leaveVoiceChannel === "function") {
+          await api.leaveVoiceChannel(this.currentChannelId);
+        }
       } catch {}
     }
+
+    // Para analisadores remotos de fala
+    for (const item of this.remoteAnalysers.values()) {
+      clearInterval(item.interval);
+    }
+    this.remoteAnalysers.clear();
 
     // Fecha conexões peer
     for (const pc of this.peers.values()) {
@@ -236,6 +256,7 @@ class WebRtcVoiceManager {
     const tick = async () => {
       if (!this.currentChannelId) return;
       const api = useEchoApi();
+      if (typeof api?.voiceHeartbeat !== "function") return;
 
       try {
         // 1. Heartbeat
@@ -251,10 +272,12 @@ class WebRtcVoiceManager {
         }
 
         // 2. Poll de sinais WebRTC recebidos
-        const sigRes = await api.getVoiceSignals(this.currentChannelId);
-        if (sigRes.signals && sigRes.signals.length > 0) {
-          for (const item of sigRes.signals) {
-            await this.handleIncomingSignal(item.fromUserId, item.signal);
+        if (typeof api?.getVoiceSignals === "function") {
+          const sigRes = await api.getVoiceSignals(this.currentChannelId);
+          if (sigRes.signals && sigRes.signals.length > 0) {
+            for (const item of sigRes.signals) {
+              await this.handleIncomingSignal(item.fromUserId, item.signal);
+            }
           }
         }
       } catch (err) {
@@ -290,6 +313,12 @@ class WebRtcVoiceManager {
           audio.remove();
           this.audioElements.delete(peerId);
         }
+
+        if (this.remoteAnalysers.has(peerId)) {
+          const a = this.remoteAnalysers.get(peerId)!;
+          clearInterval(a.interval);
+          this.remoteAnalysers.delete(peerId);
+        }
       }
     }
 
@@ -302,6 +331,45 @@ class WebRtcVoiceManager {
         }
       }
     }
+  }
+
+  private attachRemoteVad(peerId: string, stream: MediaStream) {
+    if (this.remoteAnalysers.has(peerId)) {
+      const existing = this.remoteAnalysers.get(peerId)!;
+      clearInterval(existing.interval);
+      this.remoteAnalysers.delete(peerId);
+    }
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = this.audioContext || new AudioCtx();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      let wasSpeaking = false;
+
+      const interval = setInterval(() => {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / bufferLength;
+        const isSpeaking = avg > 12;
+
+        if (isSpeaking !== wasSpeaking) {
+          wasSpeaking = isSpeaking;
+          this.callbacks.onParticipantSpeaking?.(peerId, isSpeaking);
+        }
+      }, 100);
+
+      this.remoteAnalysers.set(peerId, { analyser, interval });
+    } catch {}
   }
 
   private createPeerConnection(peerId: string, isInitiator: boolean): RTCPeerConnection {
@@ -323,16 +391,21 @@ class WebRtcVoiceManager {
     pc.onicecandidate = (event) => {
       if (event.candidate && this.currentChannelId) {
         const api = useEchoApi();
-        void api.sendVoiceSignal(this.currentChannelId, peerId, {
-          type: "candidate",
-          candidate: event.candidate.toJSON(),
-        });
+        if (typeof api?.sendVoiceSignal === "function") {
+          void api.sendVoiceSignal(this.currentChannelId, peerId, {
+            type: "candidate",
+            candidate: event.candidate.toJSON(),
+          });
+        }
       }
     };
 
     // Recepção da faixa de áudio remota
     pc.ontrack = (event) => {
-      const stream = event.streams[0];
+      let stream = event.streams?.[0];
+      if (!stream && event.track) {
+        stream = new MediaStream([event.track]);
+      }
       if (!stream) return;
 
       let audio = this.audioElements.get(peerId);
@@ -340,11 +413,17 @@ class WebRtcVoiceManager {
         audio = document.createElement("audio");
         audio.autoplay = true;
         audio.muted = this.isDeafened;
+        audio.volume = 1.0;
         document.body.appendChild(audio);
         this.audioElements.set(peerId, audio);
       }
       audio.srcObject = stream;
+      audio.muted = this.isDeafened;
+      audio.volume = 1.0;
       void audio.play().catch(() => {});
+
+      // Detecção de fala remota em tempo real
+      this.attachRemoteVad(peerId, stream);
     };
 
     // Se formos o iniciador da conexão, cria a oferta SDP
@@ -359,10 +438,12 @@ class WebRtcVoiceManager {
 
           if (this.currentChannelId) {
             const api = useEchoApi();
-            await api.sendVoiceSignal(this.currentChannelId, peerId, {
-              type: "offer",
-              sdp: offer,
-            });
+            if (typeof api?.sendVoiceSignal === "function") {
+              await api.sendVoiceSignal(this.currentChannelId, peerId, {
+                type: "offer",
+                sdp: offer,
+              });
+            }
           }
         } catch (err) {
           console.warn("[WebRtcVoice] Erro ao criar oferta:", err);
@@ -397,10 +478,12 @@ class WebRtcVoiceManager {
       await pc.setLocalDescription(answer);
 
       const api = useEchoApi();
-      await api.sendVoiceSignal(this.currentChannelId, fromUserId, {
-        type: "answer",
-        sdp: answer,
-      });
+      if (typeof api?.sendVoiceSignal === "function") {
+        await api.sendVoiceSignal(this.currentChannelId, fromUserId, {
+          type: "answer",
+          sdp: answer,
+        });
+      }
     } else if (signal.type === "answer") {
       const pc = this.peers.get(fromUserId);
       if (pc) {
