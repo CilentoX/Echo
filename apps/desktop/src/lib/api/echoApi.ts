@@ -1242,6 +1242,68 @@ export class EchoApi {
   async listMembers(roomId: string) {
     return this.getMembers(roomId);
   }
+
+  // ── Voice & WebRTC Signaling ──────────────────────────────────
+
+  /** Join a voice channel. */
+  async joinVoiceChannel(
+    channelId: string,
+    data: {
+      guildId?: string;
+      username?: string;
+      avatarUrl?: string | null;
+      isMuted?: boolean;
+      isDeafened?: boolean;
+    },
+  ): Promise<{ success: boolean; channelId: string; participants: any[] }> {
+    const encoded = encodeURIComponent(channelId);
+    const res = await this.post(`/api/channels/${encoded}/voice/join`, data);
+    if (!res.ok) throw new Error(`Failed to join voice channel: ${res.status}`);
+    return res.json();
+  }
+
+  /** Heartbeat for active voice session. */
+  async voiceHeartbeat(
+    channelId: string,
+    data: { isSpeaking?: boolean; isMuted?: boolean; isDeafened?: boolean },
+  ): Promise<{ channelId: string; participants: any[] }> {
+    const encoded = encodeURIComponent(channelId);
+    const res = await this.post(`/api/channels/${encoded}/voice/heartbeat`, data);
+    if (!res.ok) throw new Error(`Voice heartbeat failed: ${res.status}`);
+    return res.json();
+  }
+
+  /** Leave a voice channel. */
+  async leaveVoiceChannel(channelId?: string): Promise<{ success: boolean }> {
+    const encoded = channelId ? encodeURIComponent(channelId) : "current";
+    const res = await this.post(`/api/channels/${encoded}/voice/leave`, {});
+    if (!res.ok) throw new Error(`Failed to leave voice channel: ${res.status}`);
+    return res.json();
+  }
+
+  /** Get active voice participants in all channels of a guild. */
+  async getGuildVoiceState(guildId: string): Promise<{ guildId: string; channels: Record<string, any[]> }> {
+    const encoded = encodeURIComponent(guildId);
+    const res = await this.get(`/api/guilds/${encoded}/voice/state`);
+    if (!res.ok) throw new Error(`Failed to get guild voice state: ${res.status}`);
+    return res.json();
+  }
+
+  /** Send WebRTC signaling payload (offer/answer/candidate) to a peer. */
+  async sendVoiceSignal(channelId: string, targetUserId: string, signal: any): Promise<{ success: boolean }> {
+    const encoded = encodeURIComponent(channelId);
+    const res = await this.post(`/api/channels/${encoded}/voice/signal`, { targetUserId, signal });
+    if (!res.ok) throw new Error(`Failed to send voice signal: ${res.status}`);
+    return res.json();
+  }
+
+  /** Retrieve queued WebRTC signaling payloads for current user. */
+  async getVoiceSignals(channelId: string): Promise<{ signals: Array<{ fromUserId: string; channelId: string; signal: any }> }> {
+    const encoded = encodeURIComponent(channelId);
+    const res = await this.get(`/api/channels/${encoded}/voice/signals`);
+    if (!res.ok) throw new Error(`Failed to get voice signals: ${res.status}`);
+    return res.json();
+  }
 }
 
 /** Singleton instance for use throughout the app. */

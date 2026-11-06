@@ -15,7 +15,6 @@ import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
 import ChannelSettingsModal from "@/features/guild/ChannelSettingsModal";
 import InviteModal from "@/features/guild/InviteModal";
 import ChannelMutePopover from "@/features/channels/ChannelMutePopover";
-import GuildMutePopover from "@/features/guild/GuildMutePopover";
 import MxcImage from "@/components/media/MxcImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -33,6 +32,7 @@ import MemberDropdownContent from "./MemberDropdownContent";
 import MemberContextMenu from "./MemberContextMenu";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import type { ChannelSummary } from "@/lib/matrix/types";
+import { useEchoApi } from "@/lib/api/echoApi";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
@@ -67,6 +67,7 @@ export default function ChannelSidebar({
   const [channelSearch, setChannelSearch] = useState("");
   const [openVoiceMemberId, setOpenVoiceMemberId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [guildVoiceState, setGuildVoiceState] = useState<Record<string, any[]>>({});
 
   const guildCategories = useSyncStore(
     useMemo(() => selectGuildCategories(activeGuildId ?? ""), [activeGuildId]),
@@ -465,6 +466,29 @@ export default function ChannelSidebar({
       ],
     );
     setActiveChannel(tempId);
+
+    // Persiste a sala de voz no servidor em segundo plano para que todos os membros a vejam
+    void matrixService
+      .createChannel(activeGuildId, {
+        name: tempName,
+        type: "voice",
+        category: "Canais de voz",
+      })
+      .then((created) => {
+        if (created?.channelId) {
+          const latest = useSyncStore.getState().channelsByGuild[activeGuildId] || [];
+          useSyncStore.getState().setChannels(
+            activeGuildId,
+            latest.map((c) =>
+              c.channelId === tempId ? { ...c, channelId: created.channelId, isTemporary: true } : c,
+            ),
+          );
+          if (useUiStore.getState().activeChannelId === tempId) {
+            useUiStore.getState().setActiveChannel(created.channelId);
+          }
+        }
+      })
+      .catch(() => {});
   };
 
   // Busca canais da guilda e garante seleção automática do primeiro canal
@@ -507,6 +531,30 @@ export default function ChannelSidebar({
 
     return () => {
       isMounted = false;
+    };
+  }, [activeGuildId]);
+
+  // Sincroniza participantes de salas de voz da guilda em tempo real
+  useEffect(() => {
+    if (!activeGuildId || activeGuildId === "home") return;
+    let isMounted = true;
+
+    const pollVoice = async () => {
+      try {
+        const api = useEchoApi();
+        const res = await api.getGuildVoiceState(activeGuildId);
+        if (isMounted && res?.channels) {
+          setGuildVoiceState(res.channels);
+        }
+      } catch {}
+    };
+
+    void pollVoice();
+    const interval = setInterval(pollVoice, 3500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
     };
   }, [activeGuildId]);
 
@@ -608,32 +656,16 @@ export default function ChannelSidebar({
                 )}
               </div>
 
-              <div className="flex items-center gap-0.5 shrink-0">
-                <GuildMutePopover guildId={activeGuild.guildId} guildName={activeGuild.name} />
-                <button
-                  type="button"
-                  aria-label="Convidar pessoas"
-                  title="Convidar pessoas"
-                  onClick={() => setInviteOpen(true)}
-                  className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                >
-                  <UserPlus size={15} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Configurações do servidor"
-                  title="Configurações do servidor"
-                  onClick={() => setEditGuildOpen(true)}
-                  className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                >
-                  <Gear size={15} aria-hidden />
-                </button>
+              <div className="flex items-center gap-1 shrink-0">
                 {isGuildOwner && !overlay && (
                   <button
                     type="button"
                     aria-label="Criar categoria"
                     title="Criar categoria"
-                    onClick={() => setCreateCategoryOpen(true)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCreateCategoryOpen(true);
+                    }}
                     className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
                   >
                     <FolderSimplePlus size={15} aria-hidden />
@@ -644,7 +676,8 @@ export default function ChannelSidebar({
                     type="button"
                     aria-label="Criar canal"
                     title="Criar canal"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setTargetCategoryForChannel(undefined);
                       setTargetTypeForChannel("text");
                       setCreateChannelOpen(true);
@@ -654,11 +687,23 @@ export default function ChannelSidebar({
                     <Plus size={15} aria-hidden />
                   </button>
                 )}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Opções do servidor"
+                  title="Opções do servidor"
+                  className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
+                >
+                  <CaretDown size={14} weight="bold" />
+                </div>
                 {overlay && (
                   <button
                     type="button"
                     aria-label="Fechar canais"
-                    onClick={onClose}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose?.();
+                    }}
                     className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
                   >
                     <X size={15} />
@@ -1389,9 +1434,12 @@ export default function ChannelSidebar({
                                 </div>
 
                                 {/* Participantes conectados na chamada */}
-                                {connected && voiceParticipants.length > 0 && (
-                                  <ul className="ml-4 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
-                                    {voiceParticipants.map((p) => {
+                                {(() => {
+                                  const channelParticipants = connected ? voiceParticipants : (guildVoiceState[channel.channelId] ?? []);
+                                  if (!channelParticipants || channelParticipants.length === 0) return null;
+                                  return (
+                                    <ul className="ml-4 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
+                                      {channelParticipants.map((p) => {
                                       const isMe =
                                         p.userId === "me" ||
                                         p.userId === myUserId ||
@@ -1531,7 +1579,8 @@ export default function ChannelSidebar({
                                       );
                                     })}
                                   </ul>
-                                )}
+                                  );
+                                })()}
                               </li>
                             </ContextMenuTrigger>
                             <ContextMenuContent className="w-56">

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useUiStore } from "./uiStore";
+import { webrtcVoice } from "@/lib/media/webrtcVoice";
 
 export interface ScreenShareConfig {
   sourceId: string;
@@ -100,6 +101,13 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     // Se já estiver conectado no mesmo canal, não faz nada
     if (get().activeVoiceChannelId === channelId && get().isConnected) return;
 
+    const myUserId = useUiStore.getState().myUserId || "me";
+    const firstP = initialParticipants?.[0];
+    const username = firstP?.username || "Você";
+    const avatarUrl = firstP?.avatarUrl || null;
+    const isMuted = Boolean(firstP?.isMuted);
+    const isDeafened = Boolean(firstP?.isDeafened);
+
     set({
       activeVoiceGuildId: guildId,
       activeVoiceGuildName: guildName,
@@ -110,26 +118,80 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       pingMs: Math.floor(18 + Math.random() * 12),
       participants: initialParticipants ?? [
         {
-          userId: "me",
-          username: "Você",
-          isMuted: false,
-          isDeafened: false,
+          userId: myUserId,
+          username,
+          avatarUrl,
+          isMuted,
+          isDeafened,
           isSpeaking: false,
           volume: 100,
         },
       ],
     });
 
-    // Simulação síncrona / imediata de handshake WebRTC
-    setTimeout(() => {
+    // Inicia conexão WebRTC real e presença em rede
+    void webrtcVoice.join(
+      guildId,
+      channelId,
+      myUserId,
+      username,
+      avatarUrl,
+      isMuted,
+      isDeafened,
+      {
+        onParticipantsUpdate: (serverParticipants) => {
+          set((state) => {
+            const currentMyUser = state.participants.find(
+              (p) => p.userId === myUserId || p.userId === "me",
+            );
+            const myId = myUserId || "me";
+
+            // Garante que o próprio usuário sempre esteja na lista
+            const others = serverParticipants.filter(
+              (p) => p.userId !== myId && p.userId !== "me",
+            );
+
+            const merged = [
+              currentMyUser || {
+                userId: myId,
+                username,
+                avatarUrl,
+                isMuted: state.participants[0]?.isMuted ?? isMuted,
+                isDeafened: state.participants[0]?.isDeafened ?? isDeafened,
+                isSpeaking: state.isSpeaking,
+                volume: 100,
+              },
+              ...others.map((o) => ({
+                userId: o.userId,
+                username: o.username || o.userId.replace(/^@/, "").split(":")[0],
+                avatarUrl: o.avatarUrl ?? null,
+                isMuted: Boolean(o.isMuted),
+                isDeafened: Boolean(o.isDeafened),
+                isSpeaking: Boolean(o.isSpeaking),
+                volume: 100,
+              })),
+            ];
+
+            return { participants: merged };
+          });
+        },
+        onSpeakingChange: (speaking) => {
+          get().setSpeaking(speaking);
+        },
+        onParticipantSpeaking: (userId, speaking) => {
+          get().setParticipantSpeaking(userId, speaking);
+        },
+      },
+    ).finally(() => {
       set({
         isConnected: true,
         isConnecting: false,
       });
-    }, 120);
+    });
   },
 
   disconnectVoice: () => {
+    void webrtcVoice.leave();
     set({
       activeVoiceGuildId: null,
       activeVoiceGuildName: null,
@@ -189,6 +251,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   setPing: (pingMs) => set({ pingMs }),
 
   setParticipantVolume: (userId, volume) => {
+    webrtcVoice.setParticipantVolume(userId, volume);
     set((state) => ({
       participants: state.participants.map((p) =>
         p.userId === userId ? { ...p, volume } : p,
@@ -252,10 +315,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   toggleMute: (userId) => {
     set((state) => {
       const targetId = userId ?? state.participants[0]?.userId ?? "me";
+      const myId = useUiStore.getState().myUserId || "me";
+      const isMe = targetId === "me" || targetId === myId || targetId === state.participants[0]?.userId;
+
       return {
         participants: state.participants.map((p) => {
           if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
             const nextMuted = !p.isMuted;
+            if (isMe) webrtcVoice.setMicrophoneMuted(nextMuted);
             return {
               ...p,
               isMuted: nextMuted,
@@ -271,10 +338,17 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   toggleDeafen: (userId) => {
     set((state) => {
       const targetId = userId ?? state.participants[0]?.userId ?? "me";
+      const myId = useUiStore.getState().myUserId || "me";
+      const isMe = targetId === "me" || targetId === myId || targetId === state.participants[0]?.userId;
+
       return {
         participants: state.participants.map((p) => {
           if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
             const nextDeafened = !p.isDeafened;
+            if (isMe) {
+              webrtcVoice.setDeafened(nextDeafened);
+              if (nextDeafened) webrtcVoice.setMicrophoneMuted(true);
+            }
             return {
               ...p,
               isDeafened: nextDeafened,

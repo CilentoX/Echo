@@ -154,9 +154,11 @@ export default function ChatHeader({
         ) : (
           <div className="flex items-center gap-2 min-w-0">
             <Hash size={20} className="text-mut shrink-0" weight="bold" />
-            <h1 className="truncate font-display text-sm font-bold text-txt">
-              {channelName ?? "geral"}
-            </h1>
+            {channelName && (
+              <h1 className="truncate font-display text-sm font-bold text-txt">
+                #{channelName}
+              </h1>
+            )}
             {topic && (
               <>
                 <div className="h-4 w-[1px] bg-bd/60 mx-1 shrink-0 hidden sm:block" />
@@ -206,8 +208,8 @@ export default function ChatHeader({
           <button
             type="button"
             onClick={onToggleMembers}
-            title="Membros do canal"
-            aria-label="Membros do canal"
+            title="Membros"
+            aria-label="Membros"
             className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-mut hover:bg-surf2 hover:text-txt transition-colors"
           >
             <Users size={18} />

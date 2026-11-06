@@ -142,211 +142,268 @@ export default function MessageBubble({
           data-event-id={event.eventId}
           data-pending={pending || undefined}
           data-is-sender={isSender || undefined}
-          className={`group relative flex gap-3.5 px-4 transition-colors w-full hover:bg-white/[0.03] ${
-            isCompact ? "py-0.5" : showHeader ? "pt-2.5 pb-0.5" : "py-0.5"
-          }`}
+          className={`group relative flex gap-3 px-4 transition-colors w-full hover:bg-white/[0.03] ${
+            isSender ? "justify-end" : "justify-start"
+          } ${isCompact ? "py-0.5" : showHeader ? "pt-2.5 pb-0.5" : "py-0.5"}`}
         >
           {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
-      {!pending && (
-        <div
-          data-testid="message-hover-bar"
-          className="absolute right-4 -top-3.5 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-card-bg/95 px-1 py-0.5 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur z-10 transition-all"
-        >
-          <button
-            type="button"
-            title="Curtir"
-            aria-label="Reagir com coração"
-            onClick={() => onToggleReaction?.(event.eventId, "❤️")}
-            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
-          >
-            ❤️
-          </button>
-          <button
-            type="button"
-            title="Joinha"
-            aria-label="Reagir com joinha"
-            onClick={() => onToggleReaction?.(event.eventId, "👍")}
-            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
-          >
-            👍
-          </button>
-          <button
-            type="button"
-            title="Risada"
-            aria-label="Reagir com risada"
-            onClick={() => onToggleReaction?.(event.eventId, "😂")}
-            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
-          >
-            😂
-          </button>
-          <div className="w-[1px] h-3.5 bg-bd mx-0.5" />
-          <button
-            type="button"
-            title={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
-            aria-label={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
-            onClick={() => {
-              if (isPinned) unpinMessage(event.roomId, event.eventId);
-              else pinMessage(event.roomId, event.eventId);
-            }}
-            className={`cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 transition-colors active:scale-95 ${
-              isPinned ? "text-acc font-bold" : "text-mut hover:text-txt"
-            }`}
-          >
-            <PushPin size={13} weight={isPinned ? "fill" : "regular"} />
-          </button>
-          <button
-            type="button"
-            title="Copiar texto"
-            aria-label="Copiar texto"
-            onClick={() => navigator.clipboard.writeText(event.body)}
-            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-mut hover:text-txt transition-colors active:scale-95"
-          >
-            <Copy size={13} />
-          </button>
-        </div>
-      )}
-
-      {/* Avatar do remetente (sempre à esquerda, ergonomia Discord) */}
-      <div className="shrink-0 pt-0.5">
-        {showHeader ? (
-          <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
-            <MxcImage
-              mxcUrl={senderAvatar}
-              width={isCompact ? 28 : 40}
-              height={isCompact ? 28 : 40}
-              alt={`Avatar de ${name}`}
-              className={`rounded-full object-cover border border-white/[0.08] shadow-sm ${
-                isCompact ? "h-7 w-7" : "h-10 w-10"
-              }`}
-              fallback={
-                <span
-                  aria-hidden="true"
-                  className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
-                    isCompact ? "text-[10px]" : "text-xs font-bold"
-                  }`}
-                >
-                  {name.slice(0, 1).toUpperCase()}
-                </span>
-              }
-            />
-          </div>
-        ) : (
-          <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
-            <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
-              {time.slice(0, 5)}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Conteúdo da mensagem (Full width, estilo Discord) */}
-      <div className="flex-1 min-w-0">
-        {/* Chip de reply-to (citação) */}
-        {event.replyTo && <ReplyChip replyTo={event.replyTo} />}
-
-        {/* Cabeçalho: nome, hora, selos (apenas primeiro do grupo) */}
-        {showHeader && (
-          <div className="flex items-baseline gap-2 mb-0.5">
-            <span className="truncate font-display text-sm font-semibold text-txt hover:underline cursor-pointer">
-              {name}
-            </span>
-            {isBot && (
-              <span className="rounded border border-acc/40 bg-acc/10 px-1 text-[10px] font-bold uppercase tracking-wide text-acc">
-                BOT
-              </span>
-            )}
-            {event.editedAt && <EditedBadge editedAt={event.editedAt} />}
-            <time className="shrink-0 text-[11px] text-mut/70 font-sans">{time}</time>
-            {isPinned && (
-              <span title="Mensagem fixada" className="text-acc inline-flex items-center">
-                <PushPin size={11} weight="fill" />
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Áudio / Mensagem de Voz */}
-        {isAudio && mediaUrl ? (
-          <div className="my-1 max-w-md">
-            <AudioPlayer
-              src={mediaUrl}
-              duration={event.info?.duration}
-              waveform={event.info?.waveform}
-              isSender={isSender}
-            />
-          </div>
-        ) : isImage && mediaUrl ? (
-          /* Imagem com prévia ampliada e Lightbox */
-          <div className="my-1 space-y-1">
+          {!pending && (
             <div
-              className="relative group/img cursor-pointer overflow-hidden rounded-xl border border-bd-subtle max-w-sm inline-block shadow-sm"
-              onClick={() => setLightboxOpen(true)}
+              data-testid="message-hover-bar"
+              className={`absolute -top-3.5 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-card-bg/95 px-1 py-0.5 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur z-20 transition-all ${
+                isSender ? "right-14" : "right-4"
+              }`}
             >
-              <MxcImage
-                mxcUrl={mediaUrl}
-                alt={event.body || "Imagem"}
-                className="max-h-64 max-w-full rounded-xl object-cover hover:scale-[1.02] transition-transform duration-200"
-              />
-              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-xs font-semibold">
-                  <ArrowsOutSimple size={14} />
-                  <span>Ampliar</span>
-                </span>
-              </div>
-            </div>
-            {event.body && !event.body.startsWith("[Imagem]") && (
-              <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
-            )}
-            <MediaLightbox
-              src={mediaUrl}
-              alt={event.body || "Imagem"}
-              open={lightboxOpen}
-              onClose={() => setLightboxOpen(false)}
-            />
-          </div>
-        ) : (
-          /* Corpo da mensagem (markdown) */
-          <div className="text-sm text-txt/90 leading-relaxed break-words">
-            <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
-            {!event.redacted && <RichEmbed content={event.body} />}
-          </div>
-        )}
-
-        {pending && (
-          <p className="mt-0.5 text-[10px] text-mut" aria-label="Enviando">
-            Enviando…
-          </p>
-        )}
-
-        {/* Reações empilhadas */}
-        {((reactions?.length ?? 0) > 0 || (threadReplies ?? 0) > 0) && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <ReactionStack
-              reactions={reactions ?? []}
-              myUserId={myUserId}
-              onToggleReaction={onToggleReaction}
-              eventId={event.eventId}
-            />
-            {(threadReplies ?? 0) > 0 && (
               <button
                 type="button"
-                aria-label="Abrir tópico"
-                className="cursor-pointer flex items-center gap-1 rounded-full border border-bd bg-surf2 px-1.5 py-0.5 text-[11px] text-mut hover:border-acc/40 hover:text-txt active:scale-95"
-                onClick={() => {
-                  // Fase D: abrir tópico de respostas
-                }}
+                title="Curtir"
+                aria-label="Reagir com coração"
+                onClick={() => onToggleReaction?.(event.eventId, "❤️")}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
               >
-                <Chats size={12} aria-hidden />
-                <span>
-                  {threadReplies} {threadReplies === 1 ? "resposta" : "respostas"}
-                </span>
+                ❤️
               </button>
+              <button
+                type="button"
+                title="Joinha"
+                aria-label="Reagir com joinha"
+                onClick={() => onToggleReaction?.(event.eventId, "👍")}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
+              >
+                👍
+              </button>
+              <button
+                type="button"
+                title="Risada"
+                aria-label="Reagir com risada"
+                onClick={() => onToggleReaction?.(event.eventId, "😂")}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-xs transition-transform hover:scale-110 active:scale-95"
+              >
+                😂
+              </button>
+              <div className="w-[1px] h-3.5 bg-bd mx-0.5" />
+              <button
+                type="button"
+                title={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
+                aria-label={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
+                onClick={() => {
+                  if (isPinned) unpinMessage(event.roomId, event.eventId);
+                  else pinMessage(event.roomId, event.eventId);
+                }}
+                className={`cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 transition-colors active:scale-95 ${
+                  isPinned ? "text-acc font-bold" : "text-mut hover:text-txt"
+                }`}
+              >
+                <PushPin size={13} weight={isPinned ? "fill" : "regular"} />
+              </button>
+              <button
+                type="button"
+                title="Copiar texto"
+                aria-label="Copiar texto"
+                onClick={() => navigator.clipboard.writeText(event.body)}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-mut hover:text-txt transition-colors active:scale-95"
+              >
+                <Copy size={13} />
+              </button>
+            </div>
+          )}
+
+          {/* Avatar do remetente (à esquerda quando !isSender) */}
+          {!isSender && (
+            <div className="shrink-0 pt-0.5">
+              {showHeader ? (
+                <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
+                  <MxcImage
+                    mxcUrl={senderAvatar}
+                    width={isCompact ? 28 : 40}
+                    height={isCompact ? 28 : 40}
+                    alt={`Avatar de ${name}`}
+                    className={`rounded-full object-cover border border-white/[0.08] shadow-sm ${
+                      isCompact ? "h-7 w-7" : "h-10 w-10"
+                    }`}
+                    fallback={
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
+                          isCompact ? "text-[10px]" : "text-xs font-bold"
+                        }`}
+                      >
+                        {name.slice(0, 1).toUpperCase()}
+                      </span>
+                    }
+                  />
+                </div>
+              ) : (
+                <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
+                  <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
+                    {time.slice(0, 5)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Conteúdo da mensagem (Alinhado à direita para o remetente, à esquerda para os outros) */}
+          <div className={`flex flex-col min-w-0 max-w-[85%] sm:max-w-[75%] ${isSender ? "items-end" : "items-start"}`}>
+            {/* Chip de reply-to (citação) */}
+            {event.replyTo && <ReplyChip replyTo={event.replyTo} />}
+
+            {/* Cabeçalho: nome, hora, selos (apenas no primeiro do grupo) */}
+            {showHeader && (
+              <div className={`flex items-baseline gap-2 mb-1 ${isSender ? "flex-row-reverse" : "flex-row"}`}>
+                <span className={`truncate font-display text-sm font-semibold hover:underline cursor-pointer ${
+                  isSender ? "text-acc" : "text-txt"
+                }`}>
+                  {name}
+                </span>
+                {isBot && (
+                  <span className="rounded border border-acc/40 bg-acc/10 px-1 text-[10px] font-bold uppercase tracking-wide text-acc">
+                    BOT
+                  </span>
+                )}
+                {event.editedAt && <EditedBadge editedAt={event.editedAt} />}
+                <time className="shrink-0 text-[11px] text-mut/70 font-sans">{time}</time>
+                {isPinned && (
+                  <span title="Mensagem fixada" className="text-acc inline-flex items-center">
+                    <PushPin size={11} weight="fill" />
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Áudio / Mensagem de Voz */}
+            {isAudio && mediaUrl ? (
+              <div className="my-1 max-w-md w-full">
+                <AudioPlayer
+                  src={mediaUrl}
+                  duration={event.info?.duration}
+                  waveform={event.info?.waveform}
+                  isSender={isSender}
+                />
+              </div>
+            ) : isImage && mediaUrl ? (
+              /* Imagem com prévia ampliada e Lightbox */
+              <div className={`my-1 space-y-1 ${isSender ? "flex flex-col items-end" : ""}`}>
+                <div
+                  className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-bd-subtle max-w-sm inline-block shadow-sm"
+                  onClick={() => setLightboxOpen(true)}
+                >
+                  <MxcImage
+                    mxcUrl={mediaUrl}
+                    alt={event.body || "Imagem"}
+                    className="max-h-64 max-w-full rounded-2xl object-cover hover:scale-[1.02] transition-transform duration-200"
+                  />
+                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-xs font-semibold">
+                      <ArrowsOutSimple size={14} />
+                      <span>Ampliar</span>
+                    </span>
+                  </div>
+                </div>
+                {event.body && !event.body.startsWith("[Imagem]") && (
+                  <div className={`text-sm leading-relaxed break-words px-4 py-2.5 rounded-2xl shadow-sm ${
+                    isSender
+                      ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm text-left"
+                      : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm text-left"
+                  }`}>
+                    <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+                  </div>
+                )}
+                <MediaLightbox
+                  src={mediaUrl}
+                  alt={event.body || "Imagem"}
+                  open={lightboxOpen}
+                  onClose={() => setLightboxOpen(false)}
+                />
+              </div>
+            ) : (
+              /* Corpo da mensagem em bolha estilizada */
+              <div className="flex flex-col gap-1 w-full">
+                <div className={`text-sm leading-relaxed break-words px-4 py-2.5 rounded-2xl shadow-sm text-left inline-block max-w-full ${
+                  isSender
+                    ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm self-end"
+                    : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm self-start"
+                }`}>
+                  <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+                </div>
+                {!event.redacted && (
+                  <div className={`w-full max-w-[650px] ${isSender ? "self-end" : "self-start"}`}>
+                    <RichEmbed content={event.body} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {pending && (
+              <p className="mt-0.5 text-[10px] text-mut" aria-label="Enviando">
+                Enviando…
+              </p>
+            )}
+
+            {/* Reações empilhadas */}
+            {((reactions?.length ?? 0) > 0 || (threadReplies ?? 0) > 0) && (
+              <div className={`mt-1.5 flex flex-wrap items-center gap-1.5 ${isSender ? "justify-end" : "justify-start"}`}>
+                <ReactionStack
+                  reactions={reactions ?? []}
+                  myUserId={myUserId}
+                  onToggleReaction={onToggleReaction}
+                  eventId={event.eventId}
+                />
+                {(threadReplies ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    aria-label="Abrir tópico"
+                    className="cursor-pointer flex items-center gap-1 rounded-full border border-bd bg-surf2 px-1.5 py-0.5 text-[11px] text-mut hover:border-acc/40 hover:text-txt active:scale-95"
+                    onClick={() => {
+                      // Fase D: abrir tópico de respostas
+                    }}
+                  >
+                    <Chats size={12} aria-hidden />
+                    <span>
+                      {threadReplies} {threadReplies === 1 ? "resposta" : "respostas"}
+                    </span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
-    </article>
-  </ContextMenuTrigger>
+
+          {/* Avatar do remetente (à direita quando isSender) */}
+          {isSender && (
+            <div className="shrink-0 pt-0.5 order-last">
+              {showHeader ? (
+                <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
+                  <MxcImage
+                    mxcUrl={senderAvatar}
+                    width={isCompact ? 28 : 40}
+                    height={isCompact ? 28 : 40}
+                    alt={`Avatar de ${name}`}
+                    className={`rounded-full object-cover border border-acc/30 shadow-sm ${
+                      isCompact ? "h-7 w-7" : "h-10 w-10"
+                    }`}
+                    fallback={
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
+                          isCompact ? "text-[10px]" : "text-xs font-bold"
+                        }`}
+                      >
+                        {name.slice(0, 1).toUpperCase()}
+                      </span>
+                    }
+                  />
+                </div>
+              ) : (
+                <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
+                  <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
+                    {time.slice(0, 5)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </article>
+      </ContextMenuTrigger>
 
   <ContextMenuContent className="w-56">
     <ContextMenuLabel className="truncate text-txt font-semibold flex items-center justify-between">

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useBreakpoints } from "./useBreakpoints";
 import CommunityRail from "./CommunityRail";
 import ChannelSidebar from "./ChannelSidebar";
-import ChatPane from "./ChatPane";
+import ChatPane from "@/features/chat/ChatPane";
 import MemberList from "./MemberList";
 import UserBar from "./UserBar";
 import VoiceConnectionBar from "./VoiceConnectionBar";
@@ -22,10 +22,14 @@ import { useVoiceStore } from "@/stores/voiceStore";
 import { isTauri } from "@/lib/updater";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { SendMessageFn, SendFileFn } from "@/features/chat/Composer";
 
 export interface AppShellProps {
   /** Chat area content; placeholder messages are shown when omitted. */
   children?: ReactNode;
+  sendMessage?: SendMessageFn;
+  sendFile?: SendFileFn;
+  botSenders?: string[];
 }
 
 /**
@@ -37,7 +41,12 @@ export interface AppShellProps {
  * - Below 1150px the member list is hidden (toggleable as an overlay).
  * - Profile and Settings are right-edge sheets opened from the rail.
  */
-export default function AppShell({ children }: AppShellProps) {
+export default function AppShell({
+  children,
+  sendMessage,
+  sendFile,
+  botSenders,
+}: AppShellProps) {
   const { membersVisible, sidebarOverlay } = useBreakpoints();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
@@ -259,24 +268,48 @@ export default function AppShell({ children }: AppShellProps) {
           )
         )}
 
-        <ChatPane
-          showSidebarToggle={sidebarOverlay}
-          showMembersToggle={!isHome && !membersVisible}
-          onToggleSidebar={() => setSidebarOpen((open) => !open)}
-          onToggleMembers={() => setMembersOpen((open) => !open)}
-        >
-          {isHome ? (
-            activeChannelId ? (
-              children
-            ) : (
-              <FriendsDashboard />
+        {isHome ? (
+          activeChannelId ? (
+            children ?? (
+              <ChatPane
+                sendMessage={sendMessage}
+                sendFile={sendFile}
+                botSenders={botSenders}
+                showSidebarToggle={sidebarOverlay}
+                showMembersToggle={false}
+                onToggleSidebar={() => setSidebarOpen((open) => !open)}
+              />
             )
-          ) : showEmptyState ? (
-            <EmptyState onCreateGuild={handleOpenCreateGuild} />
           ) : (
-            children
-          )}
-        </ChatPane>
+            <section
+              data-column="chat"
+              aria-label="Amigos"
+              className="flex min-w-0 flex-1 flex-col bg-bg font-ui overflow-hidden"
+            >
+              <FriendsDashboard />
+            </section>
+          )
+        ) : showEmptyState ? (
+          <section
+            data-column="chat"
+            aria-label="Conteúdo Principal"
+            className="flex min-w-0 flex-1 flex-col bg-bg font-ui overflow-hidden"
+          >
+            <EmptyState onCreateGuild={handleOpenCreateGuild} />
+          </section>
+        ) : (
+          children ?? (
+            <ChatPane
+              sendMessage={sendMessage}
+              sendFile={sendFile}
+              botSenders={botSenders}
+              showSidebarToggle={sidebarOverlay}
+              showMembersToggle={!isHome && !membersVisible}
+              onToggleSidebar={() => setSidebarOpen((open) => !open)}
+              onToggleMembers={() => setMembersOpen((open) => !open)}
+            />
+          )
+        )}
 
         {!isHome && (
           membersVisible ? (

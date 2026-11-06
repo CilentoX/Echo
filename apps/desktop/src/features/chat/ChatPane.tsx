@@ -290,7 +290,7 @@ export default function ChatPane({
           );
         }
       }}
-      className="relative flex min-w-0 flex-1 flex-col bg-bg font-ui"
+      className="relative flex min-w-0 flex-1 min-h-0 flex-col bg-bg font-ui overflow-hidden"
     >
       {/* Overlay de Drag and Drop de Arquivos na Timeline */}
       {isDraggingFiles && (
@@ -321,7 +321,7 @@ export default function ChatPane({
         onToggleMembers={onToggleMembers}
       />
 
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-4">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto py-4">
         {/* Hero Banner: Amigo (DM) vs Canal de Guilda */}
         {activeFriend ? (
           <div className="px-6 pt-6 pb-4 mb-3">

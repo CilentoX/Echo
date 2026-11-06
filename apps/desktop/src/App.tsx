@@ -1,6 +1,5 @@
 import SessionGate from "@/features/auth/SessionGate";
 import AppShell from "@/features/shell/AppShell";
-import ChatPane from "@/features/chat/ChatPane";
 import UpdateBanner from "@/features/shell/UpdateBanner";
 import { matrixService } from "@/lib/matrix/instance";
 import { useProfileStore } from "@/stores/profileStore";
@@ -27,9 +26,11 @@ function Shell() {
   }, [loadProfile]);
 
   return (
-    <AppShell>
-      <ChatPane sendMessage={sendMessage} sendFile={sendFile} botSenders={BOT_SENDERS} />
-    </AppShell>
+    <AppShell
+      sendMessage={sendMessage}
+      sendFile={sendFile}
+      botSenders={BOT_SENDERS}
+    />
   );
 }
 
