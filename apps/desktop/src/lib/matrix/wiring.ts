@@ -141,7 +141,8 @@ function startPollingLoop(): void {
         const events = await matrixService.loadOlder(activeChannelId, 20);
         if (events && events.length > 0) {
           const store = useSyncStore.getState();
-          for (const ev of events) {
+          const chronological = [...events].reverse();
+          for (const ev of chronological) {
             store.applyEvent(ev);
           }
         }

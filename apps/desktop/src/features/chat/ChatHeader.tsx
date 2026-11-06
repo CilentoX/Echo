@@ -156,7 +156,7 @@ export default function ChatHeader({
             <Hash size={20} className="text-mut shrink-0" weight="bold" />
             {channelName && (
               <h1 className="truncate font-display text-sm font-bold text-txt">
-                #{channelName}
+                {channelName}
               </h1>
             )}
             {topic && (
