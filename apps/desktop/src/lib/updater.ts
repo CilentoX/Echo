@@ -60,22 +60,26 @@ export async function downloadAndInstall(): Promise<boolean> {
     let contentLength = 0;
 
     // Baixa o instalador assinado
-    await update.download((event: any) => {
-      if (!event) return;
-      if (event.event === "Started") {
-        contentLength = event.data?.contentLength ?? 0;
-        console.log(`[updater] Download iniciado: ${contentLength} bytes.`);
-      } else if (event.event === "Progress") {
-        downloaded += event.data?.chunkLength ?? 0;
-        if (contentLength > 0) {
-          const pct = Math.min(100, Math.round((downloaded / contentLength) * 100));
-          useUpdateStore.getState().setProgress(pct);
+    if (typeof update.download === "function") {
+      await update.download((event: any) => {
+        if (!event) return;
+        if (event.event === "Started") {
+          contentLength = event.data?.contentLength ?? 0;
+          console.log(`[updater] Download iniciado: ${contentLength} bytes.`);
+        } else if (event.event === "Progress") {
+          downloaded += event.data?.chunkLength ?? 0;
+          if (contentLength > 0) {
+            const pct = Math.min(100, Math.round((downloaded / contentLength) * 100));
+            useUpdateStore.getState().setProgress(pct);
+          }
+        } else if (event.event === "Finished") {
+          console.log("[updater] Download concluído com sucesso.");
+          useUpdateStore.getState().setProgress(100);
         }
-      } else if (event.event === "Finished") {
-        console.log("[updater] Download concluído com sucesso.");
-        useUpdateStore.getState().setProgress(100);
-      }
-    });
+      });
+    } else if (typeof update.downloadAndInstall === "function") {
+      await update.downloadAndInstall();
+    }
 
     console.log("[updater] Atualização pronta. Marcando status para reinicialização.");
     useUpdateStore.getState().markReady();

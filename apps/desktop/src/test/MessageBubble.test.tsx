@@ -33,18 +33,19 @@ function articleEl() {
 }
 
 describe("MessageBubble v2", () => {
-  it("renderiza bolha de receiver alinhada à esquerda (não é o próprio usuário)", () => {
+  it("renderiza mensagem em largura total com ergonomia Discord", () => {
     renderBubble();
     const el = articleEl();
-    expect(el.className).toContain("justify-start");
-    expect(el.className).not.toContain("justify-end");
+    expect(el.className).toContain("w-full");
+    expect(el.className).toContain("flex");
   });
 
-  it("renderiza bolha de sender alinhada à direita (próprio usuário)", () => {
+  it("renderiza mensagem do próprio usuário em linha completa com hover", () => {
     const senderEvent: NormalizedEvent = { ...baseEvent, sender: MY_USER };
     renderBubble(senderEvent);
     const el = articleEl();
-    expect(el.className).toContain("justify-end");
+    expect(el.className).toContain("w-full");
+    expect(el.className).toContain("hover:bg-white/[0.03]");
   });
 
   it("mostra avatar inicial, nome e hora quando showHeader é true", () => {

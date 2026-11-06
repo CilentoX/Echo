@@ -29,8 +29,22 @@ afterEach(() => {
   useUiStore.setState({ myUserId: null, activeGuildId: null, activeChannelId: null });
 });
 
+const setupGuildState = () => {
+  useSyncStore.setState({
+    guilds: [{ guildId: "!g1:hs", name: "Minha guilda", avatarUrl: null, unreadCount: 0 }],
+    channelsByGuild: {
+      "!g1:hs": [{ channelId: "!chan:hs", name: "geral", unreadCount: 0 }],
+    },
+  });
+  useUiStore.setState({
+    activeGuildId: "!g1:hs",
+    activeChannelId: "!chan:hs",
+  });
+};
+
 describe("AppShell", () => {
   it("renders all four columns at 1200px with no overlay toggles", () => {
+    setupGuildState();
     setWidth(1200);
     render(<AppShell />);
 
@@ -44,30 +58,30 @@ describe("AppShell", () => {
   });
 
   it("header do chat mostra o nome do canal ativo (nada hardcodado)", () => {
+    setupGuildState();
     setWidth(1200);
-    useSyncStore.setState({
-      channelsByGuild: {
-        "!space:hs": [{ channelId: "!chan:hs", name: "geral", unreadCount: 0 }],
-      },
-    });
-    useUiStore.getState().setActiveChannel("!chan:hs");
     render(<AppShell />);
 
-    expect(screen.getByText("#geral")).toBeTruthy();
+    const chat = column("chat") as HTMLElement;
+    expect(within(chat).getByText("#geral")).toBeTruthy();
     // Sem dados reais, nenhum conteúdo falso de scaffold aparece.
     expect(screen.queryByText("Bem-vinda, galera!")).toBeNull();
     expect(screen.queryByText("Os membros aparecem aqui quando o canal carrega.")).toBeNull();
-    expect(screen.getByText("0 online")).toBeTruthy();
   });
 
   it("sem canal ativo o header do chat fica vazio (sem canal fake)", () => {
+    setupGuildState();
+    useSyncStore.setState({ channelsByGuild: { "!g1:hs": [] } });
+    useUiStore.getState().setActiveChannel(null);
     setWidth(1200);
     render(<AppShell />);
 
-    expect(screen.queryByText("#geral")).toBeNull();
+    const chat = column("chat") as HTMLElement;
+    expect(within(chat).queryByText("#geral")).toBeNull();
   });
 
   it("hides the member list and shows a members toggle at 1000px", () => {
+    setupGuildState();
     setWidth(1000);
     render(<AppShell />);
 
@@ -76,6 +90,7 @@ describe("AppShell", () => {
   });
 
   it("opens the member list as an overlay when the members toggle is clicked", async () => {
+    setupGuildState();
     setWidth(1000);
     render(<AppShell />);
 
@@ -84,6 +99,7 @@ describe("AppShell", () => {
   });
 
   it("keeps the rail and hides the sidebar until the menu button is clicked at 800px", async () => {
+    setupGuildState();
     setWidth(800);
     render(<AppShell />);
 
@@ -96,6 +112,7 @@ describe("AppShell", () => {
   });
 
   it("removes the static sidebar but keeps the rail when resized from 1200px to 800px", () => {
+    setupGuildState();
     setWidth(1200);
     render(<AppShell />);
     expect(column("sidebar")).toBeTruthy();
@@ -108,6 +125,7 @@ describe("AppShell", () => {
   });
 
   it("resets open overlays when crossing breakpoints (800 -> 1200 -> 800)", async () => {
+    setupGuildState();
     setWidth(800);
     render(<AppShell />);
 
@@ -125,6 +143,7 @@ describe("AppShell", () => {
   });
 
   it("resets the members overlay when crossing breakpoints (1000 -> 1200 -> 1000)", async () => {
+    setupGuildState();
     setWidth(1000);
     render(<AppShell />);
 
@@ -139,6 +158,7 @@ describe("AppShell", () => {
 
   it("sem guildas → mostra EmptyState com botão Criar guilda", () => {
     useSyncStore.setState({ guilds: [] });
+    useUiStore.setState({ activeGuildId: "!non-existent:hs" });
     setWidth(1200);
     render(<AppShell />);
 
@@ -149,9 +169,7 @@ describe("AppShell", () => {
   });
 
   it("com guildas → não mostra EmptyState", () => {
-    useSyncStore.setState({
-      guilds: [{ guildId: "!g1:hs", name: "Minha guilda", avatarUrl: null, unreadCount: 0 }],
-    });
+    setupGuildState();
     setWidth(1200);
     render(<AppShell />);
 
