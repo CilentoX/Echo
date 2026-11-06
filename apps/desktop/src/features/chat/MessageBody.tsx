@@ -47,12 +47,17 @@ export default function MessageBody({
 
   // Sanitiza caso um evento antigo contenha resíduo corrompido de token
   const trimmed = (body ?? "").trim();
-  const isOrphanToken = /^%%URL(?:_TOKEN_?|<em>TOKEN<\/em>|&lt;em&gt;TOKEN&lt;\/em&gt;|TOKEN_?)\d+%%$/i.test(trimmed);
+  const isOrphanToken =
+    /^%%URL[\s_]*(?:TOKEN|<em>TOKEN<\/em>|&lt;em&gt;TOKEN&lt;\/em&gt;)?[\s_]*\d*%%$/i.test(trimmed) ||
+    /^@@URLTOKEN\d*@@$/i.test(trimmed);
   if (isOrphanToken) {
     return null;
   }
 
   const html = renderMarkdown(body, customEmojiMap);
+  if (!html.trim()) {
+    return null;
+  }
 
   return (
     <p

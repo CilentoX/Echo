@@ -475,7 +475,7 @@ export default function ChannelSidebar({
     });
 
     return entries.map(([name, groupChannels]) => ({ name, channels: groupChannels }));
-  }, [visibleTextChannels, visibleVoiceChannels, guildCategories]);
+  }, [allChannels, channelSearch, visibleTextChannels, visibleVoiceChannels, guildCategories]);
 
   const settingsGuildData = useMemo(
     () => ({
@@ -1209,21 +1209,16 @@ export default function ChannelSidebar({
                 <section
                   key={group.name}
                   onDragOver={(e) => {
-                    const isChannel =
-                      activeDragRef.current?.type === "channel" ||
-                      e.dataTransfer.types.includes("application/x-echo-channel") ||
-                      e.dataTransfer.types.includes("text/plain");
                     const isCat =
                       activeDragRef.current?.type === "category" ||
                       e.dataTransfer.types.includes("application/x-echo-category");
+                    const isChannel =
+                      !isCat &&
+                      (activeDragRef.current?.type === "channel" ||
+                        e.dataTransfer.types.includes("application/x-echo-channel") ||
+                        e.dataTransfer.types.includes("text/plain"));
 
-                    if (isChannel) {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                      if (dragOverCategoryForChannel !== group.name) {
-                        setDragOverCategoryForChannel(group.name);
-                      }
-                    } else if (isCat) {
+                    if (isCat) {
                       if (activeDragRef.current?.id === group.name) return;
                       e.preventDefault();
                       e.dataTransfer.dropEffect = "move";
@@ -1233,6 +1228,12 @@ export default function ChannelSidebar({
                       if (dragOverCategory !== group.name || dragOverCategoryPosition !== pos) {
                         setDragOverCategory(group.name);
                         setDragOverCategoryPosition(pos);
+                      }
+                    } else if (isChannel) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dragOverCategoryForChannel !== group.name) {
+                        setDragOverCategoryForChannel(group.name);
                       }
                     }
                   }}
@@ -1251,9 +1252,24 @@ export default function ChannelSidebar({
                     setDragOverCategory(null);
                     setDragOverCategoryPosition(null);
                     const catData =
+                      (activeDragRef.current?.type === "category" ? activeDragRef.current.id : "") ||
                       e.dataTransfer.getData("application/x-echo-category") ||
-                      (activeDragRef.current?.type === "category" ? activeDragRef.current.id : "");
+                      (() => {
+                        try {
+                          const plain = e.dataTransfer.getData("text/plain");
+                          const parsed = plain ? JSON.parse(plain) : null;
+                          return parsed?.type === "category" ? parsed.id : "";
+                        } catch {
+                          return "";
+                        }
+                      })();
                     const chanData =
+                      (activeDragRef.current?.type === "channel"
+                        ? JSON.stringify({
+                            channelId: activeDragRef.current.id,
+                            sourceCategory: activeDragRef.current.category,
+                          })
+                        : "") ||
                       e.dataTransfer.getData("application/x-echo-channel") ||
                       e.dataTransfer.getData("text/plain");
                     activeDragRef.current = null;
@@ -1290,8 +1306,9 @@ export default function ChannelSidebar({
 
                   <ContextMenu>
                     <ContextMenuTrigger asChild>
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         draggable={true}
                         onDragStart={(e) => {
                           e.dataTransfer.setData("application/x-echo-category", group.name);
@@ -1307,6 +1324,12 @@ export default function ChannelSidebar({
                           setDragOverCategoryPosition(null);
                         }}
                         onClick={() => toggleCategory(group.name)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleCategory(group.name);
+                          }
+                        }}
                         className="cursor-pointer group flex w-full items-center justify-between px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mut/60 hover:text-txt transition-colors select-none"
                         aria-expanded={!isCollapsed}
                         aria-label={`${group.name} ${isCollapsed ? "recolhido" : "expandido"}`}
@@ -1378,7 +1401,7 @@ export default function ChannelSidebar({
                             </span>
                           )}
                         </div>
-                      </button>
+                      </div>
                     </ContextMenuTrigger>
                     <ContextMenuContent className="w-56">
                       <ContextMenuLabel className="truncate text-txt font-semibold">
@@ -1487,8 +1510,10 @@ export default function ChannelSidebar({
                                   onDragOver={(e) => {
                                     const isChannelDrag =
                                       activeDragRef.current?.type === "channel" ||
-                                      e.dataTransfer.types.includes("application/x-echo-channel") ||
-                                      e.dataTransfer.types.includes("text/plain");
+                                      (!activeDragRef.current && (
+                                        e.dataTransfer.types.includes("application/x-echo-channel") ||
+                                        e.dataTransfer.types.includes("text/plain")
+                                      ));
 
                                     if (!isChannelDrag) return;
                                     if (activeDragRef.current?.id === channel.channelId) return;
@@ -1515,6 +1540,12 @@ export default function ChannelSidebar({
                                     e.preventDefault();
                                     e.stopPropagation();
                                     const raw =
+                                      (activeDragRef.current?.type === "channel"
+                                        ? JSON.stringify({
+                                            channelId: activeDragRef.current.id,
+                                            sourceCategory: activeDragRef.current.category,
+                                          })
+                                        : "") ||
                                       e.dataTransfer.getData("application/x-echo-channel") ||
                                       e.dataTransfer.getData("text/plain");
                                     const pos = dragOverChannelPosition ?? "after";
@@ -1551,10 +1582,17 @@ export default function ChannelSidebar({
                                       <div className="w-2.5 h-2.5 -ml-1 rounded-full bg-acc shadow-[0_0_6px_#0fb9a8]" />
                                     </div>
                                   )}
-                                  <button
-                                    type="button"
+                                  <div
+                                    role="button"
+                                    tabIndex={0}
                                     aria-current={active ? "true" : undefined}
                                     onClick={() => setActiveChannel(channel.channelId)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setActiveChannel(channel.channelId);
+                                      }
+                                    }}
                                     className={`cursor-pointer flex flex-1 min-w-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
                                       active
                                         ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
@@ -1584,7 +1622,7 @@ export default function ChannelSidebar({
                                         {channel.unreadCount}
                                       </span>
                                     )}
-                                  </button>
+                                  </div>
                                   <div className="flex items-center gap-0.5 ml-1 shrink-0">
                                     <ChannelMutePopover
                                       channelId={channel.channelId}
@@ -1724,8 +1762,10 @@ export default function ChannelSidebar({
 
                                   const isChannelDrag =
                                     activeDragRef.current?.type === "channel" ||
-                                    e.dataTransfer.types.includes("application/x-echo-channel") ||
-                                    e.dataTransfer.types.includes("text/plain");
+                                    (!activeDragRef.current && (
+                                      e.dataTransfer.types.includes("application/x-echo-channel") ||
+                                      e.dataTransfer.types.includes("text/plain")
+                                    ));
 
                                   if (!isChannelDrag) return;
                                   if (activeDragRef.current?.id === channel.channelId) return;
@@ -1784,6 +1824,12 @@ export default function ChannelSidebar({
                                   }
 
                                   const chanRaw =
+                                    (activeDragRef.current?.type === "channel"
+                                      ? JSON.stringify({
+                                          channelId: activeDragRef.current.id,
+                                          sourceCategory: activeDragRef.current.category,
+                                        })
+                                      : "") ||
                                     e.dataTransfer.getData("application/x-echo-channel") ||
                                     e.dataTransfer.getData("text/plain");
                                   activeDragRef.current = null;
@@ -1821,10 +1867,17 @@ export default function ChannelSidebar({
                                   </div>
                                 )}
                                 <div className="flex items-center">
-                                  <button
-                                    type="button"
+                                  <div
+                                    role="button"
+                                    tabIndex={0}
                                     aria-current={connected ? "true" : undefined}
                                     onClick={() => handleConnectVoice(channel)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        handleConnectVoice(channel);
+                                      }
+                                    }}
                                     className={`cursor-pointer flex flex-1 min-w-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
                                       dragOverVoiceChannelId === channel.channelId
                                         ? "ring-2 ring-online bg-online/20 text-online font-bold shadow-md shadow-online/20 scale-[1.02]"
@@ -1861,7 +1914,7 @@ export default function ChannelSidebar({
                                     ) : connected ? (
                                       <span className="flex h-2 w-2 rounded-full bg-online animate-ping shrink-0 ml-auto" />
                                     ) : null}
-                                  </button>
+                                  </div>
                                   <div className="flex items-center gap-0.5 ml-1 shrink-0">
                                     <ChannelMutePopover
                                       channelId={channel.channelId}

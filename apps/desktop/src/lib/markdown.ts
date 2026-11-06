@@ -107,6 +107,7 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
     const item = urlTokens[Number(idxStr)];
     return item ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${item.url}</a>` : "";
   });
+  html = html.replace(/%%URL[\s_]*(?:TOKEN|<em>TOKEN<\/em>|&lt;em&gt;TOKEN&lt;\/em&gt;)?[\s_]*\d*%%/gi, "");
   html = html.replace(/@@URLTOKEN\d+@@/g, "");
 
   // Restaura código inline e blocos de código
