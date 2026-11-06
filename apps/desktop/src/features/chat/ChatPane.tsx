@@ -187,6 +187,23 @@ export default function ChatPane({
     prevTimelineLenRef.current = timeline.length;
   }, [timeline, hasNewMessagesBelow]);
 
+  // Mantém a rolagem no fundo quando embeds (Steam/iframes/imagens) expandem dinamicamente
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (atBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    ro.observe(el);
+    const child = el.firstElementChild;
+    if (child) {
+      ro.observe(child);
+    }
+    return () => ro.disconnect();
+  }, []);
+
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;

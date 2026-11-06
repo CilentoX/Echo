@@ -185,7 +185,6 @@ export default function RichEmbed({ content }: RichEmbedProps) {
 
   // --- STEAM STORE EMBED ---
   if (embed.type === "steam" && embed.id) {
-    const steamClientUrl = `steam://store/${embed.id}`;
     return (
       <div className="mt-2 max-w-[650px] w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
         <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/[0.06] bg-white/[0.03]">
@@ -200,7 +199,9 @@ export default function RichEmbed({ content }: RichEmbedProps) {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <a
-              href={steamClientUrl}
+              href={embed.url}
+              target="_blank"
+              rel="noopener noreferrer"
               className="cursor-pointer text-[11px] font-semibold text-acc hover:text-acc-press bg-acc/10 hover:bg-acc/20 border border-acc/30 px-2 py-0.5 rounded-lg transition-all"
               title="Abrir no aplicativo Steam instalado"
             >
@@ -236,7 +237,6 @@ export default function RichEmbed({ content }: RichEmbedProps) {
 
   // --- EPIC GAMES STORE EMBED ---
   if (embed.type === "epic" && embed.id) {
-    const epicLauncherUrl = `com.epicgames.launcher://apps/${embed.id}?action=launch`;
     return (
       <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
         <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06] bg-white/[0.03]">
@@ -253,7 +253,9 @@ export default function RichEmbed({ content }: RichEmbedProps) {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <a
-              href={epicLauncherUrl}
+              href={embed.url}
+              target="_blank"
+              rel="noopener noreferrer"
               className="cursor-pointer text-[11px] font-semibold text-txt hover:bg-white/[0.1] bg-white/[0.05] border border-white/[0.15] px-2 py-0.5 rounded-lg transition-all"
               title="Abrir no Launcher da Epic Games"
             >

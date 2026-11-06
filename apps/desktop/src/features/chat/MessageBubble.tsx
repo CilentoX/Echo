@@ -301,7 +301,7 @@ export default function MessageBubble({
                   </div>
                 </div>
                 {event.body && !event.body.startsWith("[Imagem]") && (
-                  <div className={`text-sm leading-relaxed break-words px-4 py-2.5 rounded-2xl shadow-sm ${
+                  <div className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2.5 rounded-2xl shadow-sm ${
                     isSender
                       ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm text-left"
                       : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm text-left"
@@ -319,7 +319,7 @@ export default function MessageBubble({
             ) : (
               /* Corpo da mensagem em bolha estilizada */
               <div className="flex flex-col gap-1 w-full">
-                <div className={`text-sm leading-relaxed break-words px-4 py-2.5 rounded-2xl shadow-sm text-left inline-block max-w-full ${
+                <div className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2.5 rounded-2xl shadow-sm text-left inline-block max-w-full ${
                   isSender
                     ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm self-end"
                     : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm self-start"

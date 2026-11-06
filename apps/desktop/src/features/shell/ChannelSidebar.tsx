@@ -663,6 +663,20 @@ export default function ChannelSidebar({
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
+                {isGuildOwner && !overlay && (
+                  <button
+                    type="button"
+                    aria-label="Criar categoria"
+                    title="Criar categoria"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCreateCategoryOpen(true);
+                    }}
+                    className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
+                  >
+                    <FolderSimplePlus size={15} aria-hidden />
+                  </button>
+                )}
                 {!overlay && (
                   <button
                     type="button"
