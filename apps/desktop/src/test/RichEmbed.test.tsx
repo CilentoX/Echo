@@ -64,6 +64,32 @@ describe("RichEmbed", () => {
     expect(iframe.getAttribute("src")).toContain("open.spotify.com/embed/track/4cOdK2wGLETKBW3PvgPWqT");
   });
 
+  it("renderiza player do Spotify com locale intl-pt e playlists", () => {
+    render(<RichEmbed content="Olha essa: https://open.spotify.com/intl-pt/track/4cOdK2wGLETKBW3PvgPWqT?si=abc" />);
+
+    expect(screen.getByText("Spotify Player")).toBeTruthy();
+    const iframe = screen.getByTitle("Spotify Player");
+    expect(iframe).toBeTruthy();
+    expect(iframe.getAttribute("src")).toContain("open.spotify.com/embed/track/4cOdK2wGLETKBW3PvgPWqT");
+  });
+
+  it("renderiza player do SoundCloud para faixas musicais", () => {
+    render(<RichEmbed content="Música: https://soundcloud.com/chillhopdotcom/limes-ho-hum" />);
+
+    expect(screen.getByText("SoundCloud")).toBeTruthy();
+    const iframe = document.querySelector('iframe[src*="soundcloud.com"]');
+    expect(iframe).toBeTruthy();
+  });
+
+  it("renderiza player de vídeo direto para arquivos .mp4", () => {
+    render(<RichEmbed content="Veja o clipe https://example.com/videos/gameplay.mp4" />);
+
+    expect(screen.getByText("Vídeo")).toBeTruthy();
+    const video = document.querySelector("video");
+    expect(video).toBeTruthy();
+    expect(video?.getAttribute("src")).toBe("https://example.com/videos/gameplay.mp4");
+  });
+
   it("renderiza preview genérico para links comuns", () => {
     render(<RichEmbed content="Acesse https://example.com/artigo-novo" />);
 

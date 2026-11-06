@@ -28,22 +28,30 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
 
   let html = escapeHtml(text);
 
-  // Blocos de código (triple backticks) primeiro, para proteger o conteúdo.
-  html = html.replace(
-    /```([\s\S]*?)```/g,
-    (_match, code) =>
+  // Blocos de código (triple backticks) primeiro, protegidos com token seguro
+  const codeBlocks: string[] = [];
+  html = html.replace(/```([\s\S]*?)```/g, (_match, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(
       `<pre class="bg-surf2 border border-bd rounded-md p-2 text-sm font-mono overflow-x-auto"><code>${escapeHtml(
         code.trim(),
       )}</code></pre>`,
-  );
+    );
+    return `@@CODEBLOCK${idx}@@`;
+  });
 
-  // Código inline (backticks simples)
-  html = html.replace(
-    /`([^`]+)`/g,
-    (_match, code) => `<code class="bg-surf2 px-1 py-0.5 rounded text-sm font-mono">${escapeHtml(code)}</code>`,
-  );
+  // Código inline (backticks simples) protegido com token seguro
+  const inlineCodes: string[] = [];
+  html = html.replace(/`([^`]+)`/g, (_match, code) => {
+    const idx = inlineCodes.length;
+    inlineCodes.push(
+      `<code class="bg-surf2 px-1 py-0.5 rounded text-sm font-mono">${escapeHtml(code)}</code>`,
+    );
+    return `@@INLINECODE${idx}@@`;
+  });
 
   // Protege links markdown [texto](url) e URLs cruas de colisões com itálicos/negritos
+  // O formato @@URLTOKEN...@@ NÃO contém underscores nem asteriscos, prevenindo corrupção por formatações
   const urlTokens: Array<{ type: "md" | "raw"; text?: string; url: string }> = [];
 
   html = html.replace(
@@ -51,7 +59,7 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
     (_match, textPart, url) => {
       const idx = urlTokens.length;
       urlTokens.push({ type: "md", text: textPart, url });
-      return `%%URL_TOKEN_${idx}%%`;
+      return `@@URLTOKEN${idx}@@`;
     },
   );
 
@@ -60,7 +68,7 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
     (_match, url) => {
       const idx = urlTokens.length;
       urlTokens.push({ type: "raw", url });
-      return `%%URL_TOKEN_${idx}%%`;
+      return `@@URLTOKEN${idx}@@`;
     },
   );
 
@@ -76,7 +84,7 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
   html = html.replace(/_(.+?)_/g, (_match, inner) => `<em>${inner}</em>`);
 
   // Restaura links protegidos
-  html = html.replace(/%%URL_TOKEN_(\d+)%%/g, (_match, idxStr) => {
+  html = html.replace(/@@URLTOKEN(\d+)@@/g, (_match, idxStr) => {
     const item = urlTokens[Number(idxStr)];
     if (!item) return "";
     const cleanUrl = item.url;
@@ -85,6 +93,10 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
     }
     return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${cleanUrl}</a>`;
   });
+
+  // Restaura código inline e blocos de código
+  html = html.replace(/@@INLINECODE(\d+)@@/g, (_match, idxStr) => inlineCodes[Number(idxStr)] ?? "");
+  html = html.replace(/@@CODEBLOCK(\d+)@@/g, (_match, idxStr) => codeBlocks[Number(idxStr)] ?? "");
 
   // Citações: > texto
   html = html.replace(

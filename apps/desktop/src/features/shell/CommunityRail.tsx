@@ -5,8 +5,7 @@ import { useFriendsStore } from "@/stores/friendsStore";
 import { Compass, Plus, SignIn } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
-import GuildDropdownContent from "@/features/guild/GuildDropdownContent";
-import { Popover, PopoverContent } from "@/components/ui/popover";
+import GuildContextMenu from "@/features/guild/GuildContextMenu";
 import { matrixService } from "@/lib/matrix/instance";
 import MxcImage from "@/components/media/MxcImage";
 
@@ -21,7 +20,7 @@ function initials(name: string): string {
   );
 }
 
-/** Botão de guilda individual com dropdown próprio (estilo Discord: clique direito abre). */
+/** Botão de guilda individual com Context Menu completo (clique direito estilo Discord). */
 function GuildButton({
   guild,
   active,
@@ -31,15 +30,8 @@ function GuildButton({
   active: boolean;
   onSelect: (guildId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setOpen(true);
-  };
-
   const handleClick = () => {
-    // Left-click: apenas seleciona a guilda, NÃO abre o dropdown
+    // Left-click: apenas seleciona a guilda
     onSelect(guild.guildId);
     useFriendsStore.getState().setSelectedFriendId(null);
     const existing = useSyncStore.getState().channelsByGuild[guild.guildId] ?? [];
@@ -61,15 +53,13 @@ function GuildButton({
         }`}
       />
 
-      <Popover open={open} onOpenChange={setOpen}>
-        {/* Botão SEM PopoverTrigger — clique esquerdo só seleciona, clique direito abre dropdown */}
+      <GuildContextMenu guild={guild}>
         <button
           type="button"
           title={guild.name}
           aria-label={guild.name}
           aria-current={active ? "true" : undefined}
           onClick={handleClick}
-          onContextMenu={handleContextMenu}
           className={`cursor-pointer flex h-12 w-12 items-center justify-center font-display text-sm transition-all duration-200 overflow-hidden ${
             active
               ? "rounded-2xl bg-acc text-bg shadow-md shadow-acc/20"
@@ -88,27 +78,12 @@ function GuildButton({
             <span>{initials(guild.name)}</span>
           )}
         </button>
-
-        <PopoverContent
-          side="right"
-          align="start"
-          sideOffset={12}
-          className="w-64 p-2 bg-surf2 border border-bd text-txt shadow-2xl rounded-xl z-50 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-        >
-          <GuildDropdownContent
-            guildId={guild.guildId}
-            guildName={guild.name}
-            avatarUrl={guild.avatarUrl}
-            unreadCount={guild.unreadCount}
-            onClose={() => setOpen(false)}
-          />
-        </PopoverContent>
-      </Popover>
+      </GuildContextMenu>
 
       {guild.unreadCount > 0 && (
         <span
           aria-label={`${guild.unreadCount} não lidas em ${guild.name}`}
-          className="absolute right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-err px-1 text-[11px] font-bold text-bg shadow-sm"
+          className="absolute right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-err px-1 text-[11px] font-bold text-bg shadow-sm pointer-events-none"
         >
           {guild.unreadCount}
         </span>

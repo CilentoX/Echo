@@ -122,12 +122,12 @@ class WebRtcVoiceManager {
       this.heartbeatInterval = null;
     }
 
-    // Notifica backend
+    // Notifica backend de forma não-bloqueante para troca instantânea de canais
     if (this.currentChannelId) {
       try {
         const api = useEchoApi();
         if (typeof api?.leaveVoiceChannel === "function") {
-          await api.leaveVoiceChannel(this.currentChannelId);
+          void api.leaveVoiceChannel(this.currentChannelId).catch(() => {});
         }
       } catch {}
     }

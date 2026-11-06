@@ -1,4 +1,27 @@
-import { Camera, Hash, MagnifyingGlass, Gear, Plus, Sparkle, SpeakerHigh, UserPlus, X, Lock, CaretDown, CaretRight, BellSlash, FolderSimplePlus, Trash, Copy, BellSimple, DotsSixVertical } from "@phosphor-icons/react";
+import {
+  Camera,
+  Hash,
+  MagnifyingGlass,
+  Gear,
+  Plus,
+  Sparkle,
+  SpeakerHigh,
+  UserPlus,
+  X,
+  Lock,
+  CaretDown,
+  CaretRight,
+  Bell,
+  BellSlash,
+  FolderSimplePlus,
+  Trash,
+  Copy,
+  Check,
+  Pencil,
+  SignOut,
+  BellSimple,
+  DotsSixVertical,
+} from "@phosphor-icons/react";
 import { useMemo, useState, useEffect } from "react";
 import EmptyState from "./EmptyState";
 import { useSyncStore, selectChannels, selectGuilds, selectGuildRoles, selectUserGuildRoles, selectGuildCategories } from "@/stores/syncStore";
@@ -55,6 +78,7 @@ export default function ChannelSidebar({
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const activeChannelId = useUiStore((state) => state.activeChannelId);
   const setActiveChannel = useUiStore((state) => state.setActiveChannel);
+  const setActiveGuild = useUiStore((state) => state.setActiveGuild);
   const setChannels = useSyncStore((state) => state.setChannels);
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
@@ -68,6 +92,8 @@ export default function ChannelSidebar({
   const [openVoiceMemberId, setOpenVoiceMemberId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [guildVoiceState, setGuildVoiceState] = useState<Record<string, any[]>>({});
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [headerCopied, setHeaderCopied] = useState(false);
 
   const guildCategories = useSyncStore(
     useMemo(() => selectGuildCategories(activeGuildId ?? ""), [activeGuildId]),
@@ -78,6 +104,8 @@ export default function ChannelSidebar({
   const moveChannelCategory = useSyncStore((state) => state.moveChannelCategory);
   const muteChannel = useSyncStore((state) => state.muteChannel);
   const unmuteChannel = useSyncStore((state) => state.unmuteChannel);
+  const muteGuild = useSyncStore((state) => state.muteGuild);
+  const unmuteGuild = useSyncStore((state) => state.unmuteGuild);
   const moveParticipantToChannel = useVoiceStore((state) => state.moveParticipantToChannel);
   const addParticipant = useVoiceStore((state) => state.addParticipant);
 
@@ -218,6 +246,31 @@ export default function ChannelSidebar({
       myAppwriteAvatarUrl ||
       null;
 
+    // Atualização otimista imediata para transição instantânea de canais de voz sem lag
+    setGuildVoiceState((prev) => {
+      const next: Record<string, any[]> = {};
+      const myId = effId;
+      for (const [cid, list] of Object.entries(prev)) {
+        next[cid] = Array.isArray(list)
+          ? list.filter((p) => p.userId !== myId && p.userId !== "me" && p.userId !== myUserId)
+          : [];
+      }
+      const targetList = next[channel.channelId] ? [...next[channel.channelId]] : [];
+      if (!targetList.some((p) => p.userId === myId)) {
+        targetList.push({
+          userId: myId,
+          username: myEffectiveName,
+          avatarUrl: myEffectiveAvatar,
+          isMuted: !microphoneEnabled,
+          isDeafened: !headphonesEnabled,
+          isSpeaking: false,
+          volume: 100,
+        });
+      }
+      next[channel.channelId] = targetList;
+      return next;
+    });
+
     connectVoice(
       activeGuild?.guildId ?? "",
       activeGuild?.name ?? "",
@@ -242,6 +295,7 @@ export default function ChannelSidebar({
   // Drag and drop states
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+  const [dragOverCategoryPosition, setDragOverCategoryPosition] = useState<"before" | "after" | null>(null);
 
   const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
   const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(null);
@@ -556,7 +610,7 @@ export default function ChannelSidebar({
     };
 
     void pollVoice();
-    const interval = setInterval(pollVoice, 3500);
+    const interval = setInterval(pollVoice, 1500);
 
     return () => {
       isMounted = false;
@@ -693,15 +747,195 @@ export default function ChannelSidebar({
                     <Plus size={15} aria-hidden />
                   </button>
                 )}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Opções do servidor"
-                  title="Opções do servidor"
-                  className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                >
-                  <CaretDown size={14} weight="bold" />
-                </div>
+                <Popover open={headerMenuOpen} onOpenChange={setHeaderMenuOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Opções do servidor"
+                      title="Opções do servidor"
+                      className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
+                    >
+                      <CaretDown
+                        size={14}
+                        weight="bold"
+                        className={`transition-transform duration-200 ${
+                          headerMenuOpen ? "rotate-180 text-txt" : ""
+                        }`}
+                      />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    sideOffset={8}
+                    className="w-56 p-1.5 rounded-2xl border border-white/[0.08] bg-[#12161f]/95 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 z-50"
+                  >
+                    <div className="px-2.5 py-1.5 font-semibold text-xs text-txt truncate border-b border-white/[0.06] mb-1">
+                      {activeGuild.name}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeaderMenuOpen(false);
+                        setInviteOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-acc font-semibold hover:bg-acc/10 hover:text-acc-press transition-all cursor-pointer text-left"
+                    >
+                      <UserPlus size={15} weight="bold" />
+                      <span>Convidar Pessoas</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeaderMenuOpen(false);
+                        setEditGuildOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                    >
+                      <Gear size={15} weight="bold" />
+                      <span>Configurações do Servidor</span>
+                    </button>
+
+                    {isGuildOwner && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderMenuOpen(false);
+                            setCreateCategoryOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                        >
+                          <FolderSimplePlus size={15} weight="bold" />
+                          <span>Criar Categoria</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderMenuOpen(false);
+                            setTargetCategoryForChannel(undefined);
+                            setTargetTypeForChannel("text");
+                            setCreateChannelOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                        >
+                          <Plus size={15} weight="bold" />
+                          <span>Criar Canal</span>
+                        </button>
+                      </>
+                    )}
+
+                    <div className="h-[1px] bg-white/[0.06] my-1" />
+
+                    {/* Silenciar Servidor */}
+                    {isGuildMuted(activeGuild.guildId) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeaderMenuOpen(false);
+                          unmuteGuild(activeGuild.guildId);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-online hover:bg-online/10 transition-all cursor-pointer text-left"
+                      >
+                        <Bell size={15} weight="bold" />
+                        <span>Reativar Notificações</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeaderMenuOpen(false);
+                          muteGuild(activeGuild.guildId);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                      >
+                        <BellSlash size={15} weight="bold" />
+                        <span>Silenciar Servidor</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeaderMenuOpen(false);
+                        useUiStore.getState().setProfileOpen(true, "profile");
+                      }}
+                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                    >
+                      <Pencil size={15} weight="bold" />
+                      <span>Editar Perfil no Servidor</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(activeGuild.guildId);
+                          setHeaderCopied(true);
+                          setTimeout(() => setHeaderCopied(false), 2000);
+                        } catch {}
+                      }}
+                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                    >
+                      {headerCopied ? (
+                        <>
+                          <Check size={15} weight="bold" className="text-online" />
+                          <span className="text-online font-medium">ID Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={15} weight="bold" />
+                          <span>Copiar ID do Servidor</span>
+                        </>
+                      )}
+                    </button>
+
+                    <div className="h-[1px] bg-white/[0.06] my-1" />
+
+                    {isGuildOwner ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setHeaderMenuOpen(false);
+                          if (!window.confirm(`Atenção: Tem certeza absoluta que deseja excluir o servidor "${activeGuild.name}"?`)) return;
+                          try {
+                            await matrixService.deleteGuild(activeGuild.guildId);
+                            useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
+                            setActiveGuild("home");
+                            setActiveChannel(null);
+                          } catch (err) {
+                            console.error("Falha ao excluir o servidor:", err);
+                          }
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-err hover:bg-err/10 transition-all cursor-pointer font-medium text-left"
+                      >
+                        <Trash size={15} weight="bold" />
+                        <span>Excluir Servidor</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setHeaderMenuOpen(false);
+                          if (!window.confirm(`Tem certeza que deseja sair do servidor "${activeGuild.name}"?`)) return;
+                          try {
+                            await matrixService.leaveGuild(activeGuild.guildId);
+                            useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
+                            setActiveGuild("home");
+                            setActiveChannel(null);
+                          } catch (err) {
+                            console.error("Falha ao sair do servidor:", err);
+                          }
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-err hover:bg-err/10 transition-all cursor-pointer font-medium text-left"
+                      >
+                        <SignOut size={15} weight="bold" />
+                        <span>Sair do Servidor</span>
+                      </button>
+                    )}
+                  </PopoverContent>
+                </Popover>
                 {overlay && (
                   <button
                     type="button"
@@ -748,10 +982,78 @@ export default function ChannelSidebar({
               </>
             )}
             <ContextMenuSeparator />
+            {isGuildMuted(activeGuild.guildId) ? (
+              <ContextMenuItem
+                onClick={() => unmuteGuild(activeGuild.guildId)}
+                className="flex items-center gap-2 cursor-pointer text-online focus:text-online"
+              >
+                <Bell size={15} weight="bold" />
+                <span>Reativar Notificações</span>
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuSub>
+                <ContextMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                  <BellSlash size={15} weight="bold" className="text-mut" />
+                  <span>Silenciar Servidor</span>
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-44">
+                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 15)}>Por 15 minutos</ContextMenuItem>
+                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 60)}>Por 1 hora</ContextMenuItem>
+                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 480)}>Por 8 horas</ContextMenuItem>
+                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 1440)}>Por 24 horas</ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId)}>Até eu reativar</ContextMenuItem>
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+            )}
+            <ContextMenuItem onClick={() => useUiStore.getState().setProfileOpen(true, "profile")}>
+              <Pencil size={15} weight="bold" />
+              <span>Editar Perfil no Servidor</span>
+            </ContextMenuItem>
             <ContextMenuItem onClick={() => navigator.clipboard.writeText(activeGuild.guildId)}>
               <Copy size={15} weight="bold" />
               <span>Copiar ID do Servidor</span>
             </ContextMenuItem>
+            <ContextMenuSeparator />
+            {isGuildOwner ? (
+              <ContextMenuItem
+                destructive
+                onClick={async () => {
+                  if (!window.confirm(`Atenção: Tem certeza absoluta que deseja excluir o servidor "${activeGuild.name}"?`)) return;
+                  try {
+                    await matrixService.deleteGuild(activeGuild.guildId);
+                    useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
+                    setActiveGuild("home");
+                    setActiveChannel(null);
+                  } catch (err) {
+                    console.error("Falha ao excluir o servidor:", err);
+                  }
+                }}
+                className="flex items-center gap-2 cursor-pointer text-err focus:text-err"
+              >
+                <Trash size={15} weight="bold" />
+                <span>Excluir Servidor</span>
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                destructive
+                onClick={async () => {
+                  if (!window.confirm(`Tem certeza que deseja sair do servidor "${activeGuild.name}"?`)) return;
+                  try {
+                    await matrixService.leaveGuild(activeGuild.guildId);
+                    useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
+                    setActiveGuild("home");
+                    setActiveChannel(null);
+                  } catch (err) {
+                    console.error("Falha ao sair do servidor:", err);
+                  }
+                }}
+                className="flex items-center gap-2 cursor-pointer text-err focus:text-err"
+              >
+                <SignOut size={15} weight="bold" />
+                <span>Sair do Servidor</span>
+              </ContextMenuItem>
+            )}
           </ContextMenuContent>
         </ContextMenu>
       ) : (
@@ -857,20 +1159,28 @@ export default function ChannelSidebar({
                     } else if (e.dataTransfer.types.includes("application/x-echo-category")) {
                       e.preventDefault();
                       e.dataTransfer.dropEffect = "move";
-                      if (dragOverCategory !== group.name) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const midY = rect.top + rect.height / 2;
+                      const pos = e.clientY < midY ? "before" : "after";
+                      if (dragOverCategory !== group.name || dragOverCategoryPosition !== pos) {
                         setDragOverCategory(group.name);
+                        setDragOverCategoryPosition(pos);
                       }
                     }
                   }}
                   onDragLeave={(e) => {
                     if (e.currentTarget.contains(e.relatedTarget as Node)) return;
                     if (dragOverCategoryForChannel === group.name) setDragOverCategoryForChannel(null);
-                    if (dragOverCategory === group.name) setDragOverCategory(null);
+                    if (dragOverCategory === group.name) {
+                      setDragOverCategory(null);
+                      setDragOverCategoryPosition(null);
+                    }
                   }}
                   onDrop={(e) => {
                     e.preventDefault();
                     setDragOverCategoryForChannel(null);
                     setDragOverCategory(null);
+                    setDragOverCategoryPosition(null);
                     const catData = e.dataTransfer.getData("application/x-echo-category");
                     const chanData = e.dataTransfer.getData("application/x-echo-channel");
                     if (catData && catData !== group.name) {
@@ -882,12 +1192,16 @@ export default function ChannelSidebar({
                       } catch {}
                     }
                   }}
-                  className={`transition-all rounded-xl ${
-                    draggedCategory === group.name ? "opacity-30" : ""
+                  className={`transition-all rounded-xl relative ${
+                    draggedCategory === group.name ? "opacity-30 scale-[0.98]" : ""
                   } ${
-                    dragOverCategory === group.name ? "border-t-2 border-acc shadow-[0_-2px_12px_rgba(15,185,168,0.5)]" : ""
+                    dragOverCategory === group.name
+                      ? dragOverCategoryPosition === "before"
+                        ? "border-t-2 border-acc shadow-[0_-2px_12px_rgba(15,185,168,0.5)] before:content-[''] before:absolute before:-left-1 before:-top-[5px] before:w-2.5 before:h-2.5 before:rounded-full before:bg-acc before:shadow-[0_0_8px_#0fb9a8]"
+                        : "border-b-2 border-acc shadow-[0_2px_12px_rgba(15,185,168,0.5)] after:content-[''] after:absolute after:-left-1 after:-bottom-[5px] after:w-2.5 after:h-2.5 after:rounded-full after:bg-acc after:shadow-[0_0_8px_#0fb9a8]"
+                      : ""
                   } ${
-                    dragOverCategoryForChannel === group.name ? "bg-acc/[0.04] ring-1 ring-acc/30" : ""
+                    dragOverCategoryForChannel === group.name ? "bg-acc/[0.06] ring-1 ring-acc/40" : ""
                   }`}
                 >
                   <ContextMenu>
@@ -1056,7 +1370,7 @@ export default function ChannelSidebar({
                         )}
                       </div>
                     ) : (
-                      <ul className="space-y-0.5 mt-1">
+                      <ul className={`space-y-0.5 mt-1 ${draggedCategory ? "pointer-events-none" : ""}`}>
                       {group.channels.map((channel) => {
                         const isVoice = channel.type === "voice";
                         const active = channel.channelId === activeChannelId;
@@ -1074,8 +1388,8 @@ export default function ChannelSidebar({
                                   } ${
                                     dragOverChannelId === channel.channelId
                                       ? dragOverChannelPosition === "before"
-                                        ? "border-t-2 border-acc shadow-[0_-2px_8px_rgba(15,185,168,0.4)]"
-                                        : "border-b-2 border-acc shadow-[0_2px_8px_rgba(15,185,168,0.4)]"
+                                        ? "relative border-t-2 border-acc shadow-[0_-2px_8px_rgba(15,185,168,0.5)] before:content-[''] before:absolute before:-left-1.5 before:-top-[5px] before:w-2 before:h-2 before:rounded-full before:bg-acc before:shadow-[0_0_8px_#0fb9a8]"
+                                        : "relative border-b-2 border-acc shadow-[0_2px_8px_rgba(15,185,168,0.5)] after:content-[''] after:absolute after:-left-1.5 after:-bottom-[5px] after:w-2 after:h-2 after:rounded-full after:bg-acc after:shadow-[0_0_8px_#0fb9a8]"
                                       : ""
                                   }`}
                                   draggable={true}
@@ -1096,8 +1410,10 @@ export default function ChannelSidebar({
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     const midY = rect.top + rect.height / 2;
                                     const pos = e.clientY < midY ? "before" : "after";
-                                    setDragOverChannelId(channel.channelId);
-                                    setDragOverChannelPosition(pos);
+                                    if (dragOverChannelId !== channel.channelId || dragOverChannelPosition !== pos) {
+                                      setDragOverChannelId(channel.channelId);
+                                      setDragOverChannelPosition(pos);
+                                    }
                                   }}
                                   onDragLeave={(e) => {
                                     if (e.currentTarget.contains(e.relatedTarget as Node)) return;
@@ -1274,8 +1590,8 @@ export default function ChannelSidebar({
                                 } ${
                                   dragOverChannelId === channel.channelId
                                     ? dragOverChannelPosition === "before"
-                                      ? "border-t-2 border-acc shadow-[0_-2px_8px_rgba(15,185,168,0.4)]"
-                                      : "border-b-2 border-acc shadow-[0_2px_8px_rgba(15,185,168,0.4)]"
+                                      ? "relative border-t-2 border-acc shadow-[0_-2px_8px_rgba(15,185,168,0.5)] before:content-[''] before:absolute before:-left-1.5 before:-top-[5px] before:w-2 before:h-2 before:rounded-full before:bg-acc before:shadow-[0_0_8px_#0fb9a8]"
+                                      : "relative border-b-2 border-acc shadow-[0_2px_8px_rgba(15,185,168,0.5)] after:content-[''] after:absolute after:-left-1.5 after:-bottom-[5px] after:w-2 after:h-2 after:rounded-full after:bg-acc after:shadow-[0_0_8px_#0fb9a8]"
                                     : ""
                                 }`}
                                 draggable={true}
@@ -1310,8 +1626,10 @@ export default function ChannelSidebar({
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   const midY = rect.top + rect.height / 2;
                                   const pos = e.clientY < midY ? "before" : "after";
-                                  setDragOverChannelId(channel.channelId);
-                                  setDragOverChannelPosition(pos);
+                                  if (dragOverChannelId !== channel.channelId || dragOverChannelPosition !== pos) {
+                                    setDragOverChannelId(channel.channelId);
+                                    setDragOverChannelPosition(pos);
+                                  }
                                 }}
                                 onDragLeave={(e) => {
                                   if (e.currentTarget.contains(e.relatedTarget as Node)) return;
