@@ -11,16 +11,17 @@ if (!fs.existsSync(sigPath)) {
   process.exit(1);
 }
 
-const sigContent = fs.readFileSync(sigPath);
-const signatureB64 = sigContent.toString('base64');
+// O arquivo .sig gerado pelo Tauri/Minisign já é a assinatura base64 oficial.
+// NÃO deve ser codificado em base64 novamente!
+const signature = fs.readFileSync(sigPath, 'utf8').trim();
 
 const latest = {
   version,
-  notes: `Echo v${version}: Correção do listener SSO no login Google (resolvido ERR_SOCKET_NOT_CONNECTED), suporte robusto a leituras assíncronas no loopback e auto-updater.`,
+  notes: `Echo v${version}: Executável nativo renomeado para Echo.exe, atalhos corrigidos, limpeza de arquivos legados e auto-updater funcional.`,
   pub_date: new Date().toISOString(),
   platforms: {
     'windows-x86_64': {
-      signature: signatureB64,
+      signature: signature,
       url: `https://github.com/CilentoX/Echo/releases/download/v${version}/Echo_${version}_x64-setup.exe`
     }
   }
@@ -31,9 +32,9 @@ fs.writeFileSync(path.join(releaseDir, `latest-${version}.json`), JSON.stringify
 fs.writeFileSync(path.join(releaseDir, 'latest.json'), JSON.stringify(latest, null, 2), 'utf8');
 
 console.log(`[latest.json] Gerado com sucesso para v${version}`);
-console.log('Signature length:', signatureB64.length);
+console.log('Signature snippet:', signature.slice(0, 40) + '...');
 
-// Se o repositório echo-site existir localmente, atualiza também
+// Se o repositório echo-site existir localmente, sincroniza automaticamente
 const echoSiteLatest = path.resolve(__dirname, '..', '..', '..', 'echo-site', 'latest.json');
 if (fs.existsSync(echoSiteLatest)) {
   fs.writeFileSync(echoSiteLatest, JSON.stringify(latest, null, 2), 'utf8');

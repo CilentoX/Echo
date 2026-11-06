@@ -16,6 +16,8 @@ import { useVoiceStore } from "@/stores/voiceStore";
  * e banner visual — o boot nunca quebra, falhas são silenciosas.
  */
 
+let activeUpdate: any = null;
+
 export function isTauri(): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -26,25 +28,22 @@ export function isTauri(): boolean {
 }
 
 /** Verifica se há atualização disponível via plugin-updater.
- * Retorna o objeto de update ou null/undefined se não houver.
- * Fora do runtime Tauri, retorna null (sem rede/plugin). */
-export async function checkForUpdates(): Promise<{
-  version: string;
-  downloadAndInstall: (onEvent?: (event: { event: string; data?: any }) => void) => Promise<void>;
-} | null> {
+ * Retorna o objeto de update ou null se não houver. */
+export async function checkForUpdates(): Promise<any | null> {
   if (!isTauri()) return null;
   try {
     console.log("[updater] Verificando endpoint de releases...");
     const res = await checkPluginUpdate();
-    return res as any;
+    activeUpdate = res;
+    return res;
   } catch (err) {
     console.warn("[updater] Falha ao consultar endpoint de atualização:", err);
     return null;
   }
 }
 
-/** Baixa e instala a atualização, anunciando o progresso ao store.
- * Retorna true se instalou, false se não havia update ou falhou — nunca lança. */
+/** Baixa a atualização em segundo plano e prepara para instalação.
+ * Retorna true se baixou e validou, false se não havia update ou falhou. */
 export async function downloadAndInstall(): Promise<boolean> {
   try {
     const update = await checkForUpdates();
@@ -54,13 +53,14 @@ export async function downloadAndInstall(): Promise<boolean> {
       useUpdateStore.getState().setStatusText("SISTEMA ATUALIZADO");
       return false;
     }
-    console.log(`[updater] Atualização encontrada: versão ${update.version}. Baixando...`);
+    console.log(`[updater] Atualização encontrada: versão ${update.version}. Baixando pacote...`);
     useUpdateStore.getState().beginDownload(update.version);
 
     let downloaded = 0;
     let contentLength = 0;
 
-    await update.downloadAndInstall((event) => {
+    // Baixa o instalador assinado
+    await update.download((event: any) => {
       if (!event) return;
       if (event.event === "Started") {
         contentLength = event.data?.contentLength ?? 0;
@@ -72,28 +72,24 @@ export async function downloadAndInstall(): Promise<boolean> {
           useUpdateStore.getState().setProgress(pct);
         }
       } else if (event.event === "Finished") {
-        console.log("[updater] Download e instalação concluídos.");
+        console.log("[updater] Download concluído com sucesso.");
         useUpdateStore.getState().setProgress(100);
       }
     });
 
-    console.log("[updater] Atualização pronta. Marcando para reinicialização.");
+    console.log("[updater] Atualização pronta. Marcando status para reinicialização.");
     useUpdateStore.getState().markReady();
     return true;
   } catch (error: unknown) {
-    console.warn("[updater] Download da atualização falhou (seguindo boot normal):", error);
+    console.warn("[updater] Falha ao baixar ou validar assinatura da atualização:", error);
     useUpdateStore.getState().reset();
     return false;
   }
 }
 
-/** Hook de boot do App: checa e instala silenciosamente, sem jamais quebrar o boot.
- * Anuncia o estado "checking" no store para a splash do updater.
- *
- * `timeoutMs` evita a splash infinita: se o endpoint demorar (rede lenta,
- * Cloudflare fora), o boot segue e o download continua em background —
- * quando terminar, o banner assume ("Reiniciar agora"). */
-export async function runStartupUpdateCheck(timeoutMs = 10_000): Promise<void> {
+/** Hook de boot do App: checa e baixa silenciosamente, sem jamais quebrar o boot.
+ * Anuncia o estado "checking" no store para a splash do updater. */
+export async function runStartupUpdateCheck(timeoutMs = 12_000): Promise<void> {
   if (!isTauri()) {
     console.log("[updater] Fora do runtime Tauri. Pulando verificação de atualizações.");
     return;
@@ -101,18 +97,26 @@ export async function runStartupUpdateCheck(timeoutMs = 10_000): Promise<void> {
   console.log("[updater] Iniciando checagem de atualizações no startup...");
   useUpdateStore.getState().beginCheck();
   await Promise.race([
-    downloadAndInstall(), // nunca lança
+    downloadAndInstall(),
     new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
   ]);
   console.log("[updater] Checagem de startup finalizada.");
 }
 
-/** Reinicia o app já atualizado (botão "Reiniciar agora" do banner).
- * Fora do runtime Tauri é um no-op silencioso. */
+/** Aplica a atualização baixada executando o instalador e reiniciando o app. */
 export async function restartApp(): Promise<void> {
   if (!isTauri()) return;
-  console.log("[updater] Relaunching Echo...");
-  await relaunch();
+  console.log("[updater] Aplicando atualização e reiniciando aplicativo...");
+  try {
+    if (activeUpdate) {
+      await activeUpdate.install();
+    } else {
+      await relaunch();
+    }
+  } catch (err) {
+    console.warn("[updater] Falha no install(), executando relaunch padrão:", err);
+    await relaunch();
+  }
 }
 
 /** Ajusta a janela nativa para o modo splash do updater (312x380, centralizado, sem bordas). */

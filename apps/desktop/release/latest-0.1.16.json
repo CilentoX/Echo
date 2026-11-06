@@ -1,0 +1,11 @@
+{
+  "version": "0.1.16",
+  "notes": "Echo v0.1.16: Executável nativo renomeado para Echo.exe, atalhos corrigidos, limpeza de arquivos legados e auto-updater funcional.",
+  "pub_date": "2026-11-06T13:23:20.900Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVFMQVpQS1JqSnhNUVpub241a2VEUXZkamljWEVMbTI5OERMNzJ6MzIweVZwdnVTVXNnWTJENUVndXh3MlNwaW5udlFKWXQvYlZvZ2tHZVB4N1BKa0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzOTcxMzk5CWZpbGU6RWNob18wLjEuMTZfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4xNgp6cnc0cFM1eVFMbGVrUVNYTWFOVVFqQTNkQzFLdW1Id2EySE1XK2RwNE9GaFZGS0VmQVZPc1d2K0NMNHJXWG5vQk5aR3VYOSsvSDc3KzBrUlN2Q2dBUT09Cg==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.16/Echo_0.1.16_x64-setup.exe"
+    }
+  }
+}

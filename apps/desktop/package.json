@@ -1,14 +1,16 @@
 {
   "name": "echo-desktop",
   "private": true,
-  "version": "0.1.15",
+  "version": "0.1.16",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:release": "node scripts/build-release.cjs",
+    "release:manifest": "node scripts/gen-latest-json.cjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
