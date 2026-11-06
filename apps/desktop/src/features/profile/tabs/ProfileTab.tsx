@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
 import { useEchoApi } from "@/lib/api/echoApi";
+import { matrixService } from "@/lib/matrix/instance";
 
 interface ProfileTabProps {
   onClose: () => void;
@@ -129,18 +130,36 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
         const appwriteUrl = await uploadAvatar(file);
         setEditAvatarUrl(appwriteUrl);
         setAppwriteAvatarUrl(appwriteUrl);
+        if (!isEditing) {
+          try {
+            await matrixService.setAvatarUrl(appwriteUrl);
+            await matrixService.patchGlobalProfile({ avatarUrl: appwriteUrl });
+            useProfileStore.getState().setAvatarUrl(appwriteUrl);
+          } catch (e) {
+            console.warn("[ProfileTab] Falha ao persistir avatar diretamente:", e);
+          }
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Falha no upload do avatar";
         setAvatarError(msg);
       }
     },
-    [uploadAvatar, setEditAvatarUrl, setAppwriteAvatarUrl]
+    [uploadAvatar, setEditAvatarUrl, setAppwriteAvatarUrl, isEditing]
   );
 
-  const handleAvatarRemove = useCallback(() => {
+  const handleAvatarRemove = useCallback(async () => {
     setEditAvatarUrl(null);
     setAppwriteAvatarUrl(null);
-  }, [setEditAvatarUrl, setAppwriteAvatarUrl]);
+    if (!isEditing) {
+      try {
+        await matrixService.setAvatarUrl("");
+        await matrixService.patchGlobalProfile({ avatarUrl: "" });
+        useProfileStore.getState().setAvatarUrl(null);
+      } catch (e) {
+        console.warn("[ProfileTab] Falha ao remover avatar diretamente:", e);
+      }
+    }
+  }, [setEditAvatarUrl, setAppwriteAvatarUrl, isEditing]);
 
   const handleBannerChange = useCallback(
     async (file: File) => {
@@ -149,18 +168,34 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
         const appwriteUrl = await uploadBanner(file);
         setEditBannerUrl(appwriteUrl);
         setAppwriteBannerUrl(appwriteUrl);
+        if (!isEditing) {
+          try {
+            await matrixService.patchGlobalProfile({ bannerUrl: appwriteUrl });
+            useProfileStore.getState().setBannerUrl(appwriteUrl);
+          } catch (e) {
+            console.warn("[ProfileTab] Falha ao persistir banner diretamente:", e);
+          }
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Falha no upload do banner";
         setBannerError(msg);
       }
     },
-    [uploadBanner, setEditBannerUrl, setAppwriteBannerUrl]
+    [uploadBanner, setEditBannerUrl, setAppwriteBannerUrl, isEditing]
   );
 
-  const handleBannerRemove = useCallback(() => {
+  const handleBannerRemove = useCallback(async () => {
     setEditBannerUrl(null);
     setAppwriteBannerUrl(null);
-  }, [setEditBannerUrl, setAppwriteBannerUrl]);
+    if (!isEditing) {
+      try {
+        await matrixService.patchGlobalProfile({ bannerUrl: "" });
+        useProfileStore.getState().setBannerUrl(null);
+      } catch (e) {
+        console.warn("[ProfileTab] Falha ao remover banner diretamente:", e);
+      }
+    }
+  }, [setEditBannerUrl, setAppwriteBannerUrl, isEditing]);
 
   const isOwnProfile = true;
 
@@ -181,10 +216,10 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           onChange={handleBannerChange}
           onRemove={handleBannerRemove}
           type="banner"
-          preset="medium"
+          preset="large"
           previewHeight="h-40"
           editTitle="Editar banner do perfil"
-          editable={isEditing && !isSaving}
+          editable={isOwnProfile && !isSaving}
           maxSizeMB={5}
           appwriteUrl={currentBannerUrl}
           uploadError={bannerError}
@@ -197,7 +232,7 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           <ImageUploadWithEdit
             value={currentAvatarUrl}
             label=""
-            placeholder="Foto do perfil (PNG/JPG, até 2 MB)"
+            placeholder="Foto do perfil (PNG/JPG, até 5 MB)"
             onChange={handleAvatarChange}
             onRemove={handleAvatarRemove}
             type="avatar"
@@ -205,8 +240,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             previewHeight="h-24 rounded-full"
             previewW="w-24"
             editTitle="Editar foto do perfil"
-            editable={isEditing && !isSaving}
-            maxSizeMB={2}
+            editable={isOwnProfile && !isSaving}
+            maxSizeMB={5}
             appwriteUrl={currentAvatarUrl}
             initials={initials}
             uploadError={avatarError}

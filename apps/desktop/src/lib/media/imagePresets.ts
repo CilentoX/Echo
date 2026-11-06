@@ -10,35 +10,36 @@
  */
 
 export const IMAGE_PRESETS = {
-  /** Avatar de usuário/guilda - quadrado 1:1 */
+  /** Avatar de usuário/guilda - quadrado 1:1 de alta fidelidade (Discord padrão 512/1024) */
   avatar: {
-    small:   { width: 32,  height: 32  },   // 32px - lista de membros compacta
-    medium:  { width: 48,  height: 48  },   // 48px - lista de membros padrão
-    large:   { width: 64,  height: 64  },   // 64px - dropdown de membro
-    xlarge:  { width: 128, height: 128 },   // 128px - perfil, modal
-    xxlarge: { width: 256, height: 256 },   // 256px - alta resolução
-    max:     { width: 512, height: 512 },   // 512px - máximo recomendado
+    small:   { width: 64,   height: 64   },
+    medium:  { width: 128,  height: 128  },
+    large:   { width: 512,  height: 512  },
+    xlarge:  { width: 512,  height: 512  },
+    xxlarge: { width: 1024, height: 1024 },
+    max:     { width: 1024, height: 1024 },
   } as const,
 
   /** Banner de perfil - 16:9 (flexível) ou 5:2 (Discord-style) */
   banner: {
-    // 16:9 - mais flexível para diferentes proporções de tela
-    small:   { width: 320, height: 180 },   // 320x180  - preview pequeno
-    medium:  { width: 640, height: 360 },   // 640x360  - dropdown/profile
-    large:   { width: 960, height: 540 },   // 960x540  - alta qualidade
-    max:     { width: 1280, height: 720 },  // 1280x720 - máximo (Discord usa 960x240 mas 16:9 é melhor)
+    // 16:9 - alta qualidade para diferentes proporções de tela
+    small:   { width: 480,  height: 270 },
+    medium:  { width: 960,  height: 540 },
+    large:   { width: 1280, height: 720 },
+    max:     { width: 1920, height: 1080 },
     
-    // Discord-style 5:2 (960x240) - mais largo
-    discord: { width: 960, height: 240 },
+    // Discord-style 5:2 (960x240 / 1920x480)
+    discord: { width: 1920, height: 480 },
   } as const,
 
-  /** Ícone de guilda/servidor - quadrado 1:1 (mesmo que avatar) */
+  /** Ícone de guilda/servidor - quadrado 1:1 em alta resolução */
   guild: {
-    small:   { width: 32,  height: 32  },
-    medium:  { width: 48,  height: 48  },
-    large:   { width: 64,  height: 64  },
-    xlarge:  { width: 128, height: 128 },
-    xxlarge: { width: 256, height: 256 },
+    small:   { width: 64,   height: 64   },
+    medium:  { width: 128,  height: 128  },
+    large:   { width: 512,  height: 512  },
+    xlarge:  { width: 512,  height: 512  },
+    xxlarge: { width: 1024, height: 1024 },
+    max:     { width: 1024, height: 1024 },
   } as const,
 
   /** Mensagem/attach - variável, mas thumbnails úteis */

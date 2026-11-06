@@ -16,6 +16,7 @@ export interface ImageEditorProps {
   onConfirm: (croppedFile: File) => void
   onClose: () => void
   userId?: string
+  onSelectNewImage?: (file: File) => void
 }
 
 interface CropBox {
@@ -51,6 +52,7 @@ const ImageEditor = memo(function ImageEditor({
   onConfirm,
   onClose,
   userId,
+  onSelectNewImage,
 }: ImageEditorProps) {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -65,6 +67,7 @@ const ImageEditor = memo(function ImageEditor({
 
   const imgRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Tamanho da área do container
   const frameSize = useMemo(() => {
@@ -388,9 +391,13 @@ const ImageEditor = memo(function ImageEditor({
       const container = containerRef.current
       if (!container) throw new Error("Container não encontrado")
 
-      // Cria canvas com resolução do tamanho final
-      const outW = outputWidth ?? Math.round(cropBox.width)
-      const outH = outputHeight ?? Math.round(cropBox.height)
+      // Cria canvas com resolução do tamanho final com garantia de alta qualidade
+      let outW = outputWidth ?? (isAvatar ? 512 : Math.round(cropBox.width * 2))
+      let outH = outputHeight ?? (isAvatar ? 512 : Math.round(cropBox.height * 2))
+      if (isAvatar && (outW < 512 || outH < 512)) {
+        outW = 512
+        outH = 512
+      }
 
       const canvas = document.createElement("canvas")
       canvas.width = outW
@@ -398,6 +405,9 @@ const ImageEditor = memo(function ImageEditor({
       const ctx = canvas.getContext("2d")
 
       if (!ctx) throw new Error("Não foi possível criar contexto 2D")
+
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = "high"
 
       ctx.save()
 
@@ -476,6 +486,31 @@ const ImageEditor = memo(function ImageEditor({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {onSelectNewImage && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      onSelectNewImage(file)
+                    }
+                    e.target.value = ""
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2.5 py-1 rounded-lg bg-[#0FB9A8]/15 border border-[#0FB9A8]/30 text-xs font-medium text-[#0FB9A8] hover:bg-[#0FB9A8]/25 transition-colors cursor-pointer"
+                  title="Selecionar outra imagem do computador"
+                >
+                  Trocar imagem
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={resetTransform}

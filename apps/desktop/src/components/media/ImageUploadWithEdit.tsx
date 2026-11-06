@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Trash } from "@phosphor-icons/react"
+import { Trash, Camera, Crop } from "@phosphor-icons/react"
 import ImageEditor from "@/components/media/ImageEditor"
 import { useUiStore } from "@/stores/uiStore"
 import { mxcToHttp } from "@/lib/media/mxc"
@@ -65,10 +65,11 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewObjUrl, setPreviewObjUrl] = useState<string | null>(null)
+  const [rawOriginalUrl, setRawOriginalUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Resolve aspect ratio e tamanho de saída baseado no tipo/preset
+  // Resolve aspect ratio e tamanho de saída baseado no tipo/preset (garante resolução mínima de 512px)
   const outputSize = useMemo(() => {
     const size = getImageSize(type, preset ?? "large")
     return size ?? { width: 512, height: 512 }
@@ -80,11 +81,14 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
 
   useEffect(() => {
     return () => {
-      if (previewObjUrl) {
+      if (previewObjUrl && previewObjUrl !== rawOriginalUrl) {
         URL.revokeObjectURL(previewObjUrl)
       }
+      if (rawOriginalUrl) {
+        URL.revokeObjectURL(rawOriginalUrl)
+      }
     }
-  }, [previewObjUrl])
+  }, [previewObjUrl, rawOriginalUrl])
 
   const maxSizeBytes = maxSizeMB * 1024 * 1024
 
@@ -123,11 +127,12 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
 
   const hasImage = useMemo(() => Boolean(displaySrc), [displaySrc])
 
-  // Força reset do preview quando a URL do Appwrite muda (novo upload)
+  // Força reset do preview quando a URL do Appwrite muda (novo upload externo)
   useEffect(() => {
     if (appwriteUrl && !previewObjUrl) {
       setSelectedFile(null)
       setPreviewObjUrl(null)
+      setRawOriginalUrl(null)
       setEditorOpen(false)
     }
   }, [appwriteUrl, previewObjUrl])
@@ -145,24 +150,51 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
         return
       }
 
-      if (previewObjUrl) {
+      if (previewObjUrl && previewObjUrl !== rawOriginalUrl) {
         URL.revokeObjectURL(previewObjUrl)
+      }
+      if (rawOriginalUrl) {
+        URL.revokeObjectURL(rawOriginalUrl)
       }
 
       setSelectedFile(file)
       setError(null)
 
       const url = URL.createObjectURL(file)
+      // Mantém a imagem original de alta resolução para qualquer re-corte
+      setRawOriginalUrl(url)
       setPreviewObjUrl(url)
       // Abre o editor automaticamente após selecionar o arquivo
       setEditorOpen(true)
+      e.target.value = ""
     },
-    [maxSizeBytes, maxSizeMB, previewObjUrl],
+    [maxSizeBytes, maxSizeMB, previewObjUrl, rawOriginalUrl],
+  )
+
+  const handleSelectNewImage = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        setError("Selecione um arquivo de imagem válido.")
+        return
+      }
+      if (file.size > maxSizeBytes) {
+        setError(`Arquivo muito grande (máximo ${maxSizeMB} MB).`)
+        return
+      }
+      if (rawOriginalUrl) {
+        URL.revokeObjectURL(rawOriginalUrl)
+      }
+      const url = URL.createObjectURL(file)
+      setRawOriginalUrl(url)
+      setSelectedFile(file)
+      setError(null)
+    },
+    [maxSizeBytes, maxSizeMB, rawOriginalUrl],
   )
 
   const handleEditorConfirm = useCallback(
     (croppedFile: File) => {
-      if (previewObjUrl) {
+      if (previewObjUrl && previewObjUrl !== rawOriginalUrl) {
         URL.revokeObjectURL(previewObjUrl)
       }
       const newUrl = URL.createObjectURL(croppedFile)
@@ -171,7 +203,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
       onChange(croppedFile)
       setEditorOpen(false)
     },
-    [onChange, previewObjUrl],
+    [onChange, previewObjUrl, rawOriginalUrl],
   )
 
   const handleEditorClose = useCallback(() => {
@@ -179,13 +211,21 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   }, [])
 
   const handleRemove = useCallback(() => {
+    if (previewObjUrl && previewObjUrl !== rawOriginalUrl) {
+      URL.revokeObjectURL(previewObjUrl)
+    }
+    if (rawOriginalUrl) {
+      URL.revokeObjectURL(rawOriginalUrl)
+    }
+    setRawOriginalUrl(null)
     setSelectedFile(null)
     setPreviewObjUrl(null)
     if (onRemove) onRemove()
-  }, [onRemove])
+  }, [onRemove, previewObjUrl, rawOriginalUrl])
 
-  // Quando editable=true: click abre crop editor
-  // Quando editable=false e não tem imagem: click abre file picker
+  // Quando clicado no container da imagem:
+  // Se não tem imagem, abre seletor de arquivo direto
+  // Se tem imagem e editable=true, abre o editor de corte (usando original de alta resolução)
   const handleClick = useCallback(() => {
     if (!editable) {
       if (!hasImage) {
@@ -193,13 +233,12 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
       }
       return
     }
-    // Em modo editável, se tem imagem ou arquivo selecionado, abre crop editor
-    if (hasImage || selectedFile || previewObjUrl) {
+    if (hasImage || selectedFile || previewObjUrl || rawOriginalUrl) {
       setEditorOpen(true)
     } else {
       inputRef.current?.click()
     }
-  }, [editable, hasImage, selectedFile, previewObjUrl])
+  }, [editable, hasImage, selectedFile, previewObjUrl, rawOriginalUrl])
 
   return (
     <div className="flex flex-col gap-2">
@@ -239,11 +278,36 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                 console.warn("[ImageUploadWithEdit] Falha ao carregar imagem:", e.currentTarget.src)
               }}
             />
-            {/* Hover overlay - apenas escurece a imagem quando editable */}
+            {/* Hover overlay com ações explícitas de troca e corte */}
             {editable && !uploading && (
-              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-colors duration-200" />
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 transition-opacity z-10 p-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    inputRef.current?.click()
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 text-white text-[11px] font-medium flex items-center gap-1.5 border border-white/20 transition-all cursor-pointer shadow-md"
+                  title="Escolher outro arquivo"
+                >
+                  <Camera size={14} weight="bold" />
+                  <span>Trocar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditorOpen(true)
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 text-white text-[11px] font-medium flex items-center gap-1.5 border border-white/20 transition-all cursor-pointer shadow-md"
+                  title="Ajustar enquadramento e corte"
+                >
+                  <Crop size={14} weight="bold" />
+                  <span>Recortar</span>
+                </button>
+              </div>
             )}
-            {/* Botão remover - sempre no canto quando editable e tem imagem */}
+            {/* Botão remover - no canto superior */}
             {editable && onRemove && hasImage && !uploading && (
               <button
                 type="button"
@@ -252,24 +316,23 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                   handleRemove()
                 }}
                 disabled={uploading || disabled}
-                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-err/90 flex items-center justify-center text-sm text-bg hover:bg-err transition-colors z-20 disabled:opacity-50 disabled:pointer-events-none drop-shadow-lg"
+                className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-600/80 hover:bg-red-600 flex items-center justify-center text-xs text-white transition-colors z-20 disabled:opacity-50 disabled:pointer-events-none drop-shadow-md cursor-pointer"
+                title="Remover imagem"
                 aria-label="Remover imagem"
               >
-                <Trash size={14} weight="bold" />
+                <Trash size={13} weight="bold" />
               </button>
             )}
             {uploading && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 z-20">
-                <span className="text-xs text-txt animate-pulse drop-shadow-lg">Enviando…</span>
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 z-20">
+                <span className="text-xs text-white animate-pulse font-medium drop-shadow-lg">Enviando…</span>
               </div>
             )}
           </>
         ) : (
-          // Sem imagem - área de drop/upload + file input
+          // Sem imagem - área de drop/upload + fallback de iniciais
           <>
             {initials && type === "avatar" && (
-              // Círculo de fallback com iniciais: tamanho fixo em px, sempre visível para avatar.
-              // Usa absolute inset-0 para preencher o container, e font-size fixo em pixels.
               <span
                 className={`absolute inset-0 flex items-center justify-center ${fallbackColorClass} text-txt font-bold uppercase tracking-tighter leading-none select-none drop-shadow-lg`}
                 style={{ fontSize: 24 }}
@@ -301,28 +364,65 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                 )}
               </>
             )}
-            {/* File input oculto - só usado quando NÃO tem imagem */}
-            <input
-              ref={inputRef}
-              type="file"
-              accept={accept}
-              className="hidden"
-              disabled={uploading || disabled}
-              onChange={handleFileSelect}
-            />
           </>
         )}
       </div>
 
+      {/* Input de arquivo sempre montado no DOM para garantir que click() funcione em qualquer estado */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        disabled={uploading || disabled}
+        onChange={handleFileSelect}
+      />
+
+      {/* Ações auxiliares diretas abaixo do preview quando editável e com imagem */}
+      {editable && hasImage && !uploading && (
+        <div className="flex items-center justify-center gap-3 text-[11px] text-mut pt-0.5">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="text-acc hover:underline flex items-center gap-1 cursor-pointer font-medium"
+          >
+            <Camera size={13} weight="bold" />
+            <span>Trocar foto</span>
+          </button>
+          <span className="text-mut/40">·</span>
+          <button
+            type="button"
+            onClick={() => setEditorOpen(true)}
+            className="text-mut hover:text-txt hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <Crop size={13} weight="bold" />
+            <span>Ajustar corte</span>
+          </button>
+          {onRemove && (
+            <>
+              <span className="text-mut/40">·</span>
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="text-red-400 hover:text-red-300 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Trash size={13} weight="bold" />
+                <span>Remover</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {error || uploadError ? (
-        <p className="text-xs text-err">{error || uploadError}</p>
+        <p className="text-xs text-err text-center">{error || uploadError}</p>
       ) : null}
 
-      {uploading && <p className="text-xs text-mut italic animate-pulse">Processando…</p>}
+      {uploading && <p className="text-xs text-mut italic animate-pulse text-center">Processando…</p>}
 
       <ImageEditor
         open={editorOpen}
-        imageSrc={displaySrc || null}
+        imageSrc={rawOriginalUrl || displaySrc || null}
         title={editTitle || `Editar ${label}`}
         aspect={resolvedAspect}
         outputWidth={outputSize.width}
@@ -330,6 +430,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
         onConfirm={handleEditorConfirm}
         onClose={handleEditorClose}
         userId={myUserId}
+        onSelectNewImage={handleSelectNewImage}
       />
     </div>
   )
