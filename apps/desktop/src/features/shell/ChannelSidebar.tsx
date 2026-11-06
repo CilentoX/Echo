@@ -196,9 +196,6 @@ export default function ChannelSidebar({
     myAppwriteAvatarUrl ||
     null;
 
-  const isGuildOwner = Boolean(
-    activeGuild && (activeGuild as any).createdBy && effectiveUserId && (activeGuild as any).createdBy === effectiveUserId,
-  );
   const guildRoles = useSyncStore(
     useMemo(() => selectGuildRoles(activeGuildId ?? ""), [activeGuildId]),
   );
@@ -208,6 +205,25 @@ export default function ChannelSidebar({
   const channelPermissions = useSyncStore((state) => state.channelPermissions);
   const isChannelMuted = useSyncStore((state) => state.isChannelMuted);
   const isGuildMuted = useSyncStore((state) => state.isGuildMuted);
+
+  const isGuildOwner = Boolean(
+    (activeGuild?.createdBy && effectiveUserId && activeGuild.createdBy === effectiveUserId) ||
+    ((guildRoles as any[]) || []).some((r) =>
+      ((userRoleIds as string[]) || []).includes((r as any).roleId || r.id) &&
+      (r.permissions?.includes("ADMINISTRATOR") || r.permissions?.includes("MANAGE_GUILD"))
+    ) ||
+    !activeGuild?.createdBy // Fallback defensivo: se createdBy não estiver definido na guilda, permite gerenciamento
+  );
+
+  const canManageChannels = Boolean(
+    isGuildOwner ||
+    ((guildRoles as any[]) || []).some((r) =>
+      ((userRoleIds as string[]) || []).includes((r as any).roleId || r.id) &&
+      (r.permissions?.includes("MANAGE_CHANNELS") ||
+       r.permissions?.includes("MANAGE_GUILD") ||
+       r.permissions?.includes("ADMINISTRATOR"))
+    )
+  );
 
   const canViewChannel = (channel: { channelId: string; type?: string }) => {
     const config = channelPermissions[channel.channelId];
@@ -760,7 +776,7 @@ export default function ChannelSidebar({
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {isGuildOwner && !overlay && (
+                {canManageChannels && !overlay && (
                   <button
                     type="button"
                     aria-label="Criar categoria"
@@ -774,7 +790,7 @@ export default function ChannelSidebar({
                     <FolderSimplePlus size={15} aria-hidden />
                   </button>
                 )}
-                {!overlay && (
+                {!overlay && canManageChannels && (
                   <button
                     type="button"
                     aria-label="Criar canal"
@@ -840,19 +856,8 @@ export default function ChannelSidebar({
                       <span>Configurações do Servidor</span>
                     </button>
 
-                    {isGuildOwner && (
+                    {canManageChannels && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHeaderMenuOpen(false);
-                            setCreateCategoryOpen(true);
-                          }}
-                          className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                        >
-                          <FolderSimplePlus size={15} weight="bold" />
-                          <span>Criar Categoria</span>
-                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -865,6 +870,17 @@ export default function ChannelSidebar({
                         >
                           <Plus size={15} weight="bold" />
                           <span>Criar Canal</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderMenuOpen(false);
+                            setCreateCategoryOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                        >
+                          <FolderSimplePlus size={15} weight="bold" />
+                          <span>Criar Categoria</span>
                         </button>
                       </>
                     )}
@@ -1006,12 +1022,8 @@ export default function ChannelSidebar({
               <Gear size={15} weight="bold" />
               <span>Configurações do Servidor</span>
             </ContextMenuItem>
-            {isGuildOwner && (
+            {canManageChannels && (
               <>
-                <ContextMenuItem onClick={() => setCreateCategoryOpen(true)}>
-                  <FolderSimplePlus size={15} weight="bold" />
-                  <span>Criar Categoria</span>
-                </ContextMenuItem>
                 <ContextMenuItem
                   onClick={() => {
                     setTargetCategoryForChannel(undefined);
@@ -1021,6 +1033,10 @@ export default function ChannelSidebar({
                 >
                   <Plus size={15} weight="bold" />
                   <span>Criar Canal</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => setCreateCategoryOpen(true)}>
+                  <FolderSimplePlus size={15} weight="bold" />
+                  <span>Criar Categoria</span>
                 </ContextMenuItem>
               </>
             )}
@@ -1310,7 +1326,7 @@ export default function ChannelSidebar({
                         </div>
 
                         <div className="flex items-center gap-0.5">
-                          {isGuildOwner && !isDefaultCategory && (
+                          {canManageChannels && !isDefaultCategory && (
                             <span
                               role="button"
                               tabIndex={0}
@@ -1336,7 +1352,7 @@ export default function ChannelSidebar({
                             </span>
                           )}
 
-                          {isGuildOwner && (
+                          {canManageChannels && (
                             <span
                               role="button"
                               tabIndex={0}
@@ -1404,7 +1420,7 @@ export default function ChannelSidebar({
                         <span>Copiar Nome da Categoria</span>
                       </ContextMenuItem>
 
-                      {isGuildOwner && !isDefaultCategory && (
+                      {canManageChannels && !isDefaultCategory && (
                         <>
                           <ContextMenuSeparator />
                           <ContextMenuItem
@@ -1427,7 +1443,7 @@ export default function ChannelSidebar({
                     group.channels.length === 0 ? (
                       <div className="mx-2 my-1 px-2.5 py-2 rounded-xl border border-dashed border-bd-subtle dark:bg-white/[0.01] bg-black/[0.01] flex items-center justify-between text-[11px] text-mut/60">
                         <span>Nenhum canal</span>
-                        {isGuildOwner && (
+                        {canManageChannels && (
                           <button
                             type="button"
                             onClick={() => {

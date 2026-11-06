@@ -72,6 +72,7 @@ export interface GuildSummary {
   bannerUrl?: string | null;
   description?: string | null;
   unreadCount: number;
+  createdBy?: string | null;
 }
 
 export interface ChannelSummary {

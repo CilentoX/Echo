@@ -103,3 +103,4 @@ describe("AppLauncher and AppNotInstalledModal", () => {
     expect(preventDefault).not.toHaveBeenCalled();
   });
 });
+

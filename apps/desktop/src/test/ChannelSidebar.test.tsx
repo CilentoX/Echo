@@ -178,7 +178,7 @@ describe("ChannelSidebar", () => {
 
     expect(screen.getByText("anúncios")).toBeTruthy();
 
-    const categoryHeader = screen.getByRole("button", { name: /INFORMAÇÕES/i });
+    const categoryHeader = screen.getByRole("button", { name: /^INFORMAÇÕES expandido/i });
     await userEvent.click(categoryHeader);
 
     // Canal deve ficar oculto quando categoria for recolhida

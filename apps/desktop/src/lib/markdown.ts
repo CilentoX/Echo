@@ -55,7 +55,7 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
   const urlTokens: Array<{ type: "md" | "raw"; text?: string; url: string }> = [];
 
   html = html.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    /\[([^\]]+)\]\(((?:https?:\/\/|spotify:|steam:\/\/)[^\s)]+)\)/g,
     (_match, textPart, url) => {
       const idx = urlTokens.length;
       urlTokens.push({ type: "md", text: textPart, url });
@@ -64,11 +64,19 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
   );
 
   html = html.replace(
-    /(https?:\/\/[^\s<)]+)/g,
-    (_match, url) => {
+    /((?:https?:\/\/|spotify:|steam:\/\/)[^\s<)]+)/g,
+    (_match, rawUrl) => {
+      // Separa pontuação final comum (. , ! ? ; :) para não quebrar a URL
+      let url = rawUrl;
+      let trailing = "";
+      const trailMatch = url.match(/[.,!?:;]+$/);
+      if (trailMatch) {
+        trailing = trailMatch[0];
+        url = url.slice(0, -trailing.length);
+      }
       const idx = urlTokens.length;
       urlTokens.push({ type: "raw", url });
-      return `@@URLTOKEN${idx}@@`;
+      return `@@URLTOKEN${idx}@@${trailing}`;
     },
   );
 
@@ -93,6 +101,13 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
     }
     return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${cleanUrl}</a>`;
   });
+
+  // Limpeza defensiva contra qualquer token residual de versões legadas ou corrupção
+  html = html.replace(/%%URL(?:_TOKEN_?|<em>TOKEN<\/em>|&lt;em&gt;TOKEN&lt;\/em&gt;|TOKEN_?)(\d+)%%/gi, (_match, idxStr) => {
+    const item = urlTokens[Number(idxStr)];
+    return item ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${item.url}</a>` : "";
+  });
+  html = html.replace(/@@URLTOKEN\d+@@/g, "");
 
   // Restaura código inline e blocos de código
   html = html.replace(/@@INLINECODE(\d+)@@/g, (_match, idxStr) => inlineCodes[Number(idxStr)] ?? "");

@@ -50,5 +50,21 @@ describe("renderMarkdown", () => {
     expect(html).toContain("<a href=\"https://echo.litteris.online/docs\"");
     expect(html).not.toContain("URLTOKEN");
   });
+
+  it("não inclui pontuação final na URL clicável", () => {
+    const text = "Acesse https://echo.litteris.online/docs. Depois me avise!";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain('<a href="https://echo.litteris.online/docs"');
+    expect(html).toContain(">https://echo.litteris.online/docs</a>.");
+  });
+
+  it("remove com segurança qualquer token residual ou corrompido", () => {
+    const text = "Mensagem com resíduo %%URL_TOKEN0%% e %%URL<em>TOKEN</em>1%%";
+    const html = renderMarkdown(text);
+
+    expect(html).not.toContain("%%URL_TOKEN0%%");
+    expect(html).not.toContain("TOKEN");
+  });
 });
 

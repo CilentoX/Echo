@@ -95,4 +95,39 @@ describe("RichEmbed", () => {
 
     expect(screen.getByText("example.com")).toBeTruthy();
   });
+
+  it("renderiza player da Twitch para canais", () => {
+    render(<RichEmbed content="Live agora: https://twitch.tv/gaules" />);
+
+    expect(screen.getByText("Twitch / gaules")).toBeTruthy();
+    const iframe = document.querySelector('iframe[src*="player.twitch.tv"]');
+    expect(iframe).toBeTruthy();
+  });
+
+  it("renderiza convite do Discord para links discord.gg", () => {
+    render(<RichEmbed content="Entre na comunidade https://discord.gg/echoapp" />);
+
+    expect(screen.getByText("Discord Server")).toBeTruthy();
+    expect(screen.getByText("Entrar")).toBeTruthy();
+  });
+
+  it("renderiza card do Reddit para links de subreddit", () => {
+    render(<RichEmbed content="Olha essa thread https://reddit.com/r/gaming/comments/12345/top_game" />);
+
+    expect(screen.getByText("r/gaming")).toBeTruthy();
+  });
+
+  it("renderiza player de áudio direto para arquivos .mp3", () => {
+    render(<RichEmbed content="Escute https://example.com/podcast/ep1.mp3" />);
+
+    expect(screen.getByText("Arquivo de Áudio")).toBeTruthy();
+    const audio = document.querySelector("audio");
+    expect(audio).toBeTruthy();
+    expect(audio?.getAttribute("src")).toBe("https://example.com/podcast/ep1.mp3");
+  });
+
+  it("suporta URIs nativas spotify: e steam://", () => {
+    render(<RichEmbed content="spotify:track:4cOdK2wGLETKBW3PvgPWqT" />);
+    expect(screen.getByText("Spotify Player")).toBeTruthy();
+  });
 });
