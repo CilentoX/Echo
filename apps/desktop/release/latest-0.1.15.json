@@ -1,0 +1,11 @@
+{
+  "version": "0.1.15",
+  "notes": "Echo v0.1.15: Correção do listener SSO no login Google (resolvido ERR_SOCKET_NOT_CONNECTED), suporte robusto a leituras assíncronas no loopback e auto-updater.",
+  "pub_date": "2026-11-06T01:50:37.228Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhOcFoyNWhkSFZ5WlNCbWNtOXRJSFJoZFhKcElITmxZM0psZENCclpYa0tVbFZVVkVKeFdHOTZkbmhRV1Zkb1VHVmtlbk5QTmtOcGVIQlhWRXBFVnl0bWNVaHJPRXBvZEdJclQwVnJSbEl2Wmk4MGRreFRTbVZaYkRGdmFIbzBUa2R5ZGpCM1lraEpORGN2VFVOcVdGWkdkMjlvWlZrM09HeFZVREYwUjBJM1ZrRkpQUXAwY25WemRHVmtJR052YlcxbGJuUTZJSFJwYldWemRHRnRjRG94Tnprek9USTVPREUxQ1dacGJHVTZSV05vYjE4d0xqRXVNVFZmZURZMExYTmxkSFZ3TG1WNFpRbDJaWEp6YVc5dU9qQXVNUzR4TlFwS2FtZHhlbFZxYzJkd1ZIRmtZVGwwUm1keGMweHlhVmhXUzBGa2FEZFJkSHBtWVhkeFVERkpSUzlIYzAxeFMycEZMMGhLVWpGTFdWSmpaVzF2U1VKQmVtc3ZhM2xzY1hOUFQzRkVkalJMVkhJelMxRkVVVDA5Q2c9PQ==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.15/Echo_0.1.15_x64-setup.exe"
+    }
+  }
+}
