@@ -15,6 +15,8 @@ import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import Profile from "@/features/profile/Profile";
 import Settings from "@/features/settings/Settings";
 import QuickSwitcherModal from "./QuickSwitcherModal";
+import AppNotInstalledModal from "@/components/modals/AppNotInstalledModal";
+import { handleProtocolLinkClick } from "@/lib/appLauncher";
 import { matrixService } from "@/lib/matrix/instance";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -228,6 +230,25 @@ export default function AppShell({
     setJoinGuildOpen(false);
   };
 
+  // Intercepta cliques globais em links de aplicativos (steam://, spotify:, etc)
+  useEffect(() => {
+    const handleGlobalLinkClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+      if (handleProtocolLinkClick(href, e)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener("click", handleGlobalLinkClick, { capture: true });
+    return () => {
+      document.removeEventListener("click", handleGlobalLinkClick, { capture: true });
+    };
+  }, []);
+
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-bg font-ui text-txt">
       {/* Área Principal de Navegação e Conteúdo ("|") */}
@@ -367,6 +388,8 @@ export default function AppShell({
         open={quickSwitcherOpen}
         onClose={() => setQuickSwitcherOpen(false)}
       />
+
+      <AppNotInstalledModal />
     </div>
   );
 }

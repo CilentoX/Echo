@@ -17,6 +17,7 @@ import {
   TikTokEmbed,
   InstagramEmbed,
 } from "react-social-media-embed";
+import { launchAppProtocol } from "@/lib/appLauncher";
 
 export interface RichEmbedProps {
   content: string;
@@ -336,20 +337,26 @@ export default function RichEmbed({ content }: RichEmbedProps) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <a
-              href={embed.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cursor-pointer text-[11px] font-semibold text-acc hover:text-acc-press bg-acc/10 hover:bg-acc/20 border border-acc/30 px-2.5 py-0.5 rounded-lg transition-all"
+            <button
+              type="button"
+              onClick={() => {
+                void launchAppProtocol({
+                  appName: "Steam",
+                  protocolUrl: `steam://store/${embed.id}`,
+                  webUrl: embed.url,
+                });
+              }}
+              className="cursor-pointer text-[11px] font-semibold text-acc hover:text-acc-press bg-acc/10 hover:bg-acc/20 border border-acc/30 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5"
               title="Abrir no aplicativo Steam instalado"
             >
-              Abrir na Steam
-            </a>
+              <GameController size={13} weight="bold" />
+              <span>Abrir na Steam</span>
+            </button>
             <a
               href={embed.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="cursor-pointer text-mut hover:text-txt p-1 rounded-lg hover:bg-white/[0.06] transition-colors"
+              className="cursor-pointer text-mut hover:text-txt p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
               title="Abrir no navegador"
               aria-label="Abrir no navegador"
             >
@@ -368,6 +375,20 @@ export default function RichEmbed({ content }: RichEmbedProps) {
             className="w-full border-0 block"
             loading="lazy"
           />
+        </div>
+
+        {/* Rodapé com atalho de fallback amigável */}
+        <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#171a21]/80 border-t border-white/[0.04] text-[11px] text-mut/70">
+          <span>Não tem a Steam instalada no PC?</span>
+          <a
+            href={embed.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-acc hover:underline flex items-center gap-1 font-medium"
+          >
+            <span>Acessar pelo navegador</span>
+            <ArrowSquareOut size={11} />
+          </a>
         </div>
       </div>
     );
@@ -390,16 +411,21 @@ export default function RichEmbed({ content }: RichEmbedProps) {
               <span className="text-[10px] text-mut/80 font-medium">{embed.title}</span>
             </div>
           </div>
-          <a
-            href={embed.url}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => {
+              void launchAppProtocol({
+                appName: "Spotify",
+                protocolUrl: `spotify:${embed.extraType}:${embed.id}`,
+                webUrl: embed.url,
+              });
+            }}
             className="cursor-pointer text-mut hover:text-txt p-1 rounded-lg hover:bg-white/[0.06] transition-colors"
             title="Abrir no aplicativo do Spotify"
             aria-label="Abrir no aplicativo do Spotify"
           >
             <ArrowSquareOut size={14} />
-          </a>
+          </button>
         </div>
         <div className="w-full bg-[#121212] p-1">
           <iframe
