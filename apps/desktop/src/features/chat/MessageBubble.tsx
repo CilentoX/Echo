@@ -318,7 +318,7 @@ export default function MessageBubble({
               </div>
             ) : (
               /* Corpo da mensagem em bolha estilizada */
-              <div className="flex flex-col gap-1 w-full">
+              <div className={`flex flex-col gap-1 w-full ${isSender ? "items-end" : "items-start"}`}>
                 <div className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2.5 rounded-2xl shadow-sm text-left inline-block max-w-full ${
                   isSender
                     ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm self-end"
@@ -327,8 +327,8 @@ export default function MessageBubble({
                   <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
                 </div>
                 {!event.redacted && (
-                  <div className={`w-full max-w-[650px] ${isSender ? "self-end" : "self-start"}`}>
-                    <RichEmbed content={event.body} />
+                  <div className={`w-full max-w-[650px] flex flex-col ${isSender ? "items-end self-end ml-auto" : "items-start self-start mr-auto"}`}>
+                    <RichEmbed content={event.body} align={isSender ? "right" : "left"} />
                   </div>
                 )}
               </div>

@@ -26,6 +26,7 @@ import { launchAppProtocol } from "@/lib/appLauncher";
 
 export interface RichEmbedProps {
   content: string;
+  align?: "left" | "right";
 }
 
 interface EmbedData {
@@ -93,7 +94,8 @@ function cleanSlug(slug: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export default function RichEmbed({ content }: RichEmbedProps) {
+export default function RichEmbed({ content, align = "left" }: RichEmbedProps) {
+  const alignClass = align === "right" ? "ml-auto" : "mr-auto";
   const [ogData, setOgData] = useState<OpenGraphMeta | null>(null);
   const [, setLoadingOg] = useState(false);
   const [spotifyMeta, setSpotifyMeta] = useState<SpotifyOEmbedData | null>(null);
@@ -497,7 +499,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
     const gameName = steamDetails?.name || embed.title || "Steam Game";
 
     return (
-      <div className="mt-2.5 max-w-[650px] w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-2xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-[650px] w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-2xl animate-in fade-in-0 duration-150 text-left`}>
         {/* Cabeçalho do Card */}
         <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06] bg-[#171a21]/90">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -610,7 +612,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
     const typeLabel = cleanSlug(embed.extraType);
 
     return (
-      <div className="mt-2.5 max-w-[500px] w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-2xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-[500px] w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-2xl animate-in fade-in-0 duration-150 text-left`}>
         {/* Cabeçalho do Card com Branding Spotify */}
         <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06] bg-[#12161f]">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -689,7 +691,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── SOUNDCLOUD EMBED ──
   if (embed.type === "soundcloud") {
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left`}>
         <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/[0.06] bg-white/[0.03]">
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 shrink-0">
@@ -733,7 +735,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
     const thumbnailUrl = `https://img.youtube.com/vi/${embed.id}/hqdefault.jpg`;
 
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left`}>
         <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/[0.06] bg-white/[0.02]">
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-600/15 text-red-500 border border-red-500/30 shrink-0">
@@ -793,7 +795,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
         : `https://player.twitch.tv/?channel=${embed.id}&parent=${parentHost}&muted=false`;
 
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left`}>
         <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/[0.06] bg-[#9146FF]/10">
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/30 shrink-0">
@@ -827,7 +829,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── DIRECT VIDEO EMBED (.mp4, .webm, .mov) ──
   if (embed.type === "direct_video") {
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left`}>
         <div className="flex items-center justify-between px-3.5 py-1.5 border-b border-white/[0.06] bg-white/[0.02]">
           <div className="flex items-center gap-1.5 text-xs text-mut font-medium">
             <FilmStrip size={14} />
@@ -855,7 +857,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── DIRECT AUDIO EMBED (.mp3, .wav, .ogg, .m4a) ──
   if (embed.type === "direct_audio") {
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3 text-left`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5 text-xs text-acc font-medium">
             <MusicNotes size={15} weight="bold" />
@@ -878,7 +880,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── DIRECT IMAGE EMBED (.png, .jpg, .gif, .webp, .svg) ──
   if (embed.type === "direct_image") {
     return (
-      <div className="mt-2 max-w-md rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
+      <div className={`mt-2 max-w-md ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150`}>
         <a href={embed.url} target="_blank" rel="noopener noreferrer" className="block cursor-pointer">
           <img
             src={embed.url}
@@ -894,7 +896,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── EPIC GAMES STORE EMBED ──
   if (embed.type === "epic" && embed.id) {
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left`}>
         <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06] bg-white/[0.03]">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-black text-txt border border-white/[0.1] shadow-xs font-bold text-xs shrink-0">
@@ -947,7 +949,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── DISCORD INVITE CARD ──
   if (embed.type === "discord" && embed.id) {
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 text-left`}>
         <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06] bg-[#5865F2]/10">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-xs shrink-0">
@@ -975,7 +977,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── REDDIT CARD ──
   if (embed.type === "reddit" && embed.id) {
     return (
-      <div className="mt-2.5 max-w-md w-full rounded-2xl border-l-4 border-l-[#FF4500] border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3.5 space-y-2 text-left">
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border-l-4 border-l-[#FF4500] border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3.5 space-y-2 text-left`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#FF4500]/20 text-[#FF4500]">
@@ -1002,7 +1004,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── TWITTER / X EMBED ──
   if (embed.type === "twitter") {
     return (
-      <div className="mt-2.5 max-w-md rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
+      <div className={`mt-2.5 max-w-md ${alignClass} rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150`}>
         <TwitterEmbed url={embed.url} width={380} />
       </div>
     );
@@ -1011,7 +1013,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── TIKTOK EMBED ──
   if (embed.type === "tiktok") {
     return (
-      <div className="mt-2.5 max-w-sm rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
+      <div className={`mt-2.5 max-w-sm ${alignClass} rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150`}>
         <TikTokEmbed url={embed.url} width={325} />
       </div>
     );
@@ -1020,7 +1022,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   // ── INSTAGRAM EMBED ──
   if (embed.type === "instagram") {
     return (
-      <div className="mt-2.5 max-w-sm rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150">
+      <div className={`mt-2.5 max-w-sm ${alignClass} rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150`}>
         <InstagramEmbed url={embed.url} width={328} />
       </div>
     );
@@ -1036,7 +1038,7 @@ export default function RichEmbed({ content }: RichEmbedProps) {
   const displayLogo = ogData?.logoUrl;
 
   return (
-    <div className="mt-2 max-w-[520px] w-full rounded-2xl border-l-4 border-l-acc border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl hover:border-white/[0.15] transition-all group animate-in fade-in-0 duration-150 text-left">
+    <div className={`mt-2 max-w-[520px] w-full ${alignClass} rounded-2xl border-l-4 border-l-acc border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl hover:border-white/[0.15] transition-all group animate-in fade-in-0 duration-150 text-left`}>
       <div className="p-3.5 space-y-2">
         {/* Cabeçalho do Card: Favicon / Logo + Nome do Site */}
         <div className="flex items-center justify-between gap-2">
