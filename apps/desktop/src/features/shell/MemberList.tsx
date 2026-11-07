@@ -238,11 +238,18 @@ export default function MemberList({
                       className="relative cursor-grab active:cursor-grabbing"
                       draggable={true}
                       onDragStart={(e) => {
-                        e.dataTransfer.setData(
-                          "application/x-echo-member",
-                          JSON.stringify({ userId: member.userId, username: cleanDisplayName }),
-                        );
-                        e.dataTransfer.effectAllowed = "copyMove";
+                        const payload = JSON.stringify({ userId: member.userId, username: cleanDisplayName });
+                        e.dataTransfer.setData("application/x-echo-member", payload);
+                        e.dataTransfer.setData("text/plain", payload);
+                        e.dataTransfer.effectAllowed = "move";
+                        (window as any).__ECHO_ACTIVE_DRAG__ = {
+                          type: "member",
+                          id: member.userId,
+                          data: { userId: member.userId, username: cleanDisplayName },
+                        };
+                      }}
+                      onDragEnd={() => {
+                        (window as any).__ECHO_ACTIVE_DRAG__ = null;
                       }}
                     >
                       <MemberContextMenu
@@ -256,9 +263,16 @@ export default function MemberList({
                           onOpenChange={(open) => setOpenMemberId(open ? member.userId : null)}
                         >
                           <PopoverTrigger asChild>
-                            <button
-                              type="button"
+                            <div
+                              role="button"
+                              tabIndex={0}
                               aria-label={cleanDisplayName}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setOpenMemberId(openMemberId === member.userId ? null : member.userId);
+                                }
+                              }}
                               className={`cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-sm transition-all active:scale-[0.99] group ${
                                 openMemberId === member.userId
                                   ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
@@ -321,7 +335,7 @@ export default function MemberList({
                                   (você)
                                 </span>
                               )}
-                            </button>
+                            </div>
                           </PopoverTrigger>
                           <PopoverContent
                             side="left"

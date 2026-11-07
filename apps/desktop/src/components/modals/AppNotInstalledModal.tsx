@@ -49,7 +49,7 @@ export default function AppNotInstalledModal() {
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeAlert()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+        className="w-full sm:max-w-[460px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-white/[0.08] bg-[#12161f] p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0 flex flex-col"
       >
         {/* Cabeçalho */}
         <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-5 py-4">

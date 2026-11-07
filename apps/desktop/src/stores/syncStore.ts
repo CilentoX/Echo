@@ -135,7 +135,8 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     pinnedByRoom: (() => {
       try {
         const raw = localStorage.getItem("echo:pinnedMessages");
-        return raw ? JSON.parse(raw) : {};
+        if (!raw) return {};
+        try { return JSON.parse(raw); } catch { console.warn('[syncStore] Failed to parse echo:pinnedMessages, resetting'); return {}; }
       } catch {
         return {};
       }
@@ -143,7 +144,8 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     mutedChannels: (() => {
       try {
         const raw = localStorage.getItem("echo:mutedChannels");
-        return raw ? JSON.parse(raw) : {};
+        if (!raw) return {};
+        try { return JSON.parse(raw); } catch { console.warn('[syncStore] Failed to parse echo:mutedChannels, resetting'); return {}; }
       } catch {
         return {};
       }
@@ -151,7 +153,8 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     mutedGuilds: (() => {
       try {
         const raw = localStorage.getItem("echo:mutedGuilds");
-        return raw ? JSON.parse(raw) : {};
+        if (!raw) return {};
+        try { return JSON.parse(raw); } catch { console.warn('[syncStore] Failed to parse echo:mutedGuilds, resetting'); return {}; }
       } catch {
         return {};
       }
@@ -159,7 +162,8 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     guildEmojis: (() => {
       try {
         const raw = localStorage.getItem("echo:guildEmojis");
-        return raw ? JSON.parse(raw) : {};
+        if (!raw) return {};
+        try { return JSON.parse(raw); } catch { console.warn('[syncStore] Failed to parse echo:guildEmojis, resetting'); return {}; }
       } catch {
         return {};
       }
@@ -167,7 +171,8 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     guildCategories: (() => {
       try {
         const raw = localStorage.getItem("echo:guildCategories");
-        return raw ? JSON.parse(raw) : {};
+        if (!raw) return {};
+        try { return JSON.parse(raw); } catch { console.warn('[syncStore] Failed to parse echo:guildCategories, resetting'); return {}; }
       } catch {
         return {};
       }

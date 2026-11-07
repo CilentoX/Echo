@@ -215,3 +215,33 @@ pub fn get_app_storage_info(app: AppHandle) -> Result<StorageInfo, String> {
     })
 }
 
+
+/// Flush de todos os caches em memória para disco (usado no graceful shutdown).
+/// Garante que config.json e cache.json sejam escritos atomicamente antes do exit.
+pub fn flush_all() -> Result<(), String> {
+    // Flush config cache
+    if let Ok(guard) = CONFIG_CACHE.read() {
+        if let Some(ref value) = *guard {
+            #[cfg(target_os = "windows")]
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let dir = PathBuf::from(appdata).join("Echo");
+                let config_p = dir.join("config.json");
+                let _ = atomic_write_json(&config_p, value);
+            }
+        }
+    }
+
+    // Flush data/cache cache
+    if let Ok(guard) = DATA_CACHE.read() {
+        if let Some(ref value) = *guard {
+            #[cfg(target_os = "windows")]
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let dir = PathBuf::from(appdata).join("Echo");
+                let cache_p = dir.join("cache.json");
+                let _ = atomic_write_json(&cache_p, value);
+            }
+        }
+    }
+
+    Ok(())
+}

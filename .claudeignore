@@ -1,0 +1,38 @@
+# Git internals & cache
+.git/
+.github/
+.gitignore
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts
+dist/
+build/
+target/
+src-tauri/target/
+src-tauri/gen/
+coverage/
+
+# IDE & system cache
+.gemini/
+.system_generated/
+*.log
+*.tmp
+*.lock
+pnpm-lock.yaml
+Cargo.lock
+
+# Media and binaries
+*.exe
+*.msi
+*.zip
+*.tar.gz
+*.png
+*.jpg
+*.jpeg
+*.ico
+*.mp4
+*.webm
+

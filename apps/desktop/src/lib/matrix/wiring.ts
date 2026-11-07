@@ -2,6 +2,7 @@ import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { loadSession, useKeyring } from "@/lib/storage/keyring";
+import { notifyNewMessage } from "@/lib/notifications/nativeNotify";
 import { matrixService } from "./instance";
 import { desktopCache, desktopConfig } from "@/lib/storage/desktopConfig";
 
@@ -117,6 +118,19 @@ async function handleStatus(status: string, error?: { errcode: string }): Promis
 
 let pollingTick = 0;
 
+let presenceDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function debouncedSetPresence(status: "online" | "offline" | "unavailable"): Promise<void> {
+  if (presenceDebounceTimer) clearTimeout(presenceDebounceTimer);
+  presenceDebounceTimer = setTimeout(async () => {
+    try {
+      await matrixService.setPresence?.(status)?.catch(() => {});
+    } catch {}
+    presenceDebounceTimer = null;
+  }, 2000);
+}
+
+
 function startPollingLoop(): void {
   if (pollingTimer) return;
   pollingTick = 0;
@@ -132,7 +146,7 @@ function startPollingLoop(): void {
         const myPresence = useProfileStore.getState().presence ?? "online";
         const mapped: "online" | "offline" | "unavailable" =
           myPresence === "offline" ? "offline" : myPresence === "online" ? "online" : "unavailable";
-        void matrixService.setPresence?.(mapped)?.catch(() => {});
+        void debouncedSetPresence(mapped);
       } catch {}
     }
 
@@ -144,6 +158,9 @@ function startPollingLoop(): void {
           const chronological = [...events].reverse();
           for (const ev of chronological) {
             store.applyEvent(ev);
+            if (ev.body && ev.sender) {
+              void notifyNewMessage(ev.roomId, ev.sender, ev.body);
+            }
           }
         }
       } catch (err: any) {
@@ -285,7 +302,7 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
     const initialPresence = useProfileStore.getState().presence ?? "online";
     const mapped: "online" | "offline" | "unavailable" =
       initialPresence === "offline" ? "offline" : initialPresence === "online" ? "online" : "unavailable";
-    void matrixService.setPresence?.(mapped)?.catch(() => {});
+    void debouncedSetPresence(mapped);
   } else {
     console.warn("[wiring] Nenhum token de sessão disponível para sync");
   }
@@ -400,4 +417,12 @@ export function __resetWiringState(): void {
   ui.setMyUserId(null);
   ui.setActiveGuild(null);
   ui.setActiveChannel(null);
+}
+
+
+// Cleanup de timers em HMR/dev mode para evitar acumulação de pollingTimers
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    stopPollingLoop();
+  });
 }

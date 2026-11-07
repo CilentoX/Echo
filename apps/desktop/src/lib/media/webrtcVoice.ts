@@ -4,6 +4,7 @@ export interface WebRtcCallbacks {
   onParticipantsUpdate?: (participants: any[]) => void;
   onSpeakingChange?: (isSpeaking: boolean) => void;
   onParticipantSpeaking?: (userId: string, isSpeaking: boolean) => void;
+  onRttUpdate?: (rttMs: number) => void;
   onError?: (err: Error) => void;
 }
 
@@ -28,16 +29,26 @@ class WebRtcVoiceManager {
   private callbacks: WebRtcCallbacks = {};
 
   private rtcConfig: RTCConfiguration = {
-    iceServers: [
+    iceServers: this.getIceServers(),
+  };
+
+
+  /** Retorna ICE servers configurados ou defaults. Suporta STUN/TURN customizados via localStorage/config. */
+  private getIceServers(): RTCIceServer[] {
+    try {
+      const raw = localStorage.getItem("echo:iceServers");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
-      { urls: "stun:stun3.l.google.com:19302" },
-      { urls: "stun:stun4.l.google.com:19302" },
       { urls: "stun:stun.cloudflare.com:3478" },
       { urls: "stun:stun.services.mozilla.com" },
-    ],
-  };
+    ];
+  }
 
   public getCurrentGuildId() {
     return this.currentGuildId;
@@ -305,6 +316,25 @@ class WebRtcVoiceManager {
     this.isSpeaking = false;
   }
 
+
+  /** Mede RTT real via getStats() de todos os peers conectados. Retorna média em ms ou null se sem peers. */
+  private async measureRtt(): Promise<number | null> {
+    if (this.peers.size === 0) return null;
+    const rtts: number[] = [];
+    for (const pc of this.peers.values()) {
+      try {
+        const stats = await pc.getStats();
+        stats.forEach((report: any) => {
+          if (report.type === 'candidate-pair' && report.state === 'succeeded' && typeof report.currentRoundTripTime === 'number') {
+            rtts.push(Math.round(report.currentRoundTripTime * 1000));
+          }
+        });
+      } catch {}
+    }
+    if (rtts.length === 0) return null;
+    return Math.round(rtts.reduce((a, b) => a + b, 0) / rtts.length);
+  }
+
   private startHeartbeatAndSignalingLoop() {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
 
@@ -325,6 +355,14 @@ class WebRtcVoiceManager {
           this.callbacks.onParticipantsUpdate?.(hbRes.participants);
           this.syncPeers(hbRes.participants);
         }
+
+        // 1.5. Medir RTT real e notificar store
+        try {
+          const rtt = await this.measureRtt();
+          if (rtt !== null && typeof this.callbacks.onRttUpdate === 'function') {
+            this.callbacks.onRttUpdate(rtt);
+          }
+        } catch {}
 
         // 2. Poll de sinais WebRTC recebidos
         if (typeof api?.getVoiceSignals === "function") {
@@ -528,6 +566,10 @@ class WebRtcVoiceManager {
         } catch {}
       }
       this.candidateQueues.delete(fromUserId);
+      // Libera memória se todas as filas foram processadas
+      if (this.candidateQueues.size === 0) {
+        this.candidateQueues.clear();
+      }
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -551,6 +593,10 @@ class WebRtcVoiceManager {
           } catch {}
         }
         this.candidateQueues.delete(fromUserId);
+      // Libera memória se todas as filas foram processadas
+      if (this.candidateQueues.size === 0) {
+        this.candidateQueues.clear();
+      }
       }
     } else if (signal.type === "candidate") {
       const pc = this.peers.get(fromUserId);

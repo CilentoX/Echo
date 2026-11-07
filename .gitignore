@@ -25,6 +25,7 @@ apps/desktop/release/*.exe
 apps/desktop/release/*.sig
 *.tsbuildinfo
 minisign-secret.key
+**/minisign-secret.key
 
 # Echo API uploads (local dev files)
 echo-api/uploads/

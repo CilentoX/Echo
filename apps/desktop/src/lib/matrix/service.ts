@@ -92,18 +92,18 @@ export class MatrixService {
   }
 
   /** Remove a própria reação de um evento (redige o evento de reação). */
-  async removeReaction(_roomId: string, _reactionEventId: string): Promise<void> {
-    // Reactions are handled via sendReaction toggle; no-op if using Echo API's built-in reaction handling
+  async removeReaction(roomId: string, reactionEventId: string): Promise<void> {
+    await this.echoApi.redact(roomId, reactionEventId);
   }
 
   /** Marca o canal como lido até o evento dado (recibo de leitura real no server). */
-  async markAsRead(_roomId: string, _eventId: string): Promise<void> {
-    // Read receipts are handled by the Echo API sync protocol
+  async markAsRead(roomId: string, eventId: string): Promise<void> {
+    await this.echoApi.markAsRead(roomId, eventId);
   }
 
   /** Redige (exclui) um evento próprio. */
-  async redact(_roomId: string, _eventId: string): Promise<void> {
-    // Redaction is handled server-side via Echo API
+  async redact(roomId: string, eventId: string): Promise<void> {
+    await this.echoApi.redact(roomId, eventId);
   }
 
   /** Define o estado de digitação em uma sala (m.typing ephemeral). */
@@ -118,8 +118,8 @@ export class MatrixService {
   }
 
   /** Carrega histórico antigo de uma sala (scrollback) e retorna os eventos. */
-  async loadOlder(roomId: string, limit = 20): Promise<any[]> {
-    return this.echoApi.loadOlder(roomId, limit);
+  async loadOlder(roomId: string, limit = 20, from?: string): Promise<any[]> {
+    return this.echoApi.loadOlder(roomId, limit, from);
   }
 
   /** Perfil de um usuário (sem args = próprio usuário). */

@@ -117,7 +117,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       activeVoiceChannelName: channelName,
       isConnecting: !wasConnected,
       isConnected: true,
-      pingMs: Math.floor(18 + Math.random() * 12),
+      pingMs: 0,
       participants: initialParticipants ?? [
         {
           userId: myUserId,
@@ -182,6 +182,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         },
         onParticipantSpeaking: (userId, speaking) => {
           get().setParticipantSpeaking(userId, speaking);
+        },
+        onRttUpdate: (rttMs) => {
+          get().setPing(rttMs);
         },
       },
     ).finally(() => {

@@ -691,7 +691,7 @@ export class EchoApi {
   }
 
   /** Load older history for a channel. */
-  async loadOlder(roomId: string, limit = 20): Promise<{
+  async loadOlder(roomId: string, limit = 20, from?: string): Promise<{
     eventId: string;
     roomId: string;
     sender: string;
@@ -704,7 +704,10 @@ export class EchoApi {
   }[]> {
     try {
       const encodedId = encodeURIComponent(roomId);
-      const res = await this.get(`/api/rooms/${encodedId}/messages/older?limit=${limit}`);
+      const query = from
+        ? `limit=${limit}&from=${encodeURIComponent(from)}`
+        : `limit=${limit}`;
+      const res = await this.get(`/api/rooms/${encodedId}/messages/older?${query}`);
       if (!res.ok) {
         if (res.status === 401 || res.status === 403 || res.status === 404 || res.status === 502) {
           return [];
@@ -1004,6 +1007,14 @@ export class EchoApi {
   }
 
   /** Mark a room as read up to the given event. */
+  /** Redact (delete) a message or event in a room. */
+  async redact(roomId: string, eventId: string): Promise<void> {
+    const encodedRoom = encodeURIComponent(roomId);
+    const encodedEvent = encodeURIComponent(eventId);
+    const res = await this.delete(`/api/rooms/${encodedRoom}/messages/${encodedEvent}`);
+    if (!res.ok) throw new Error(`Failed to redact event: ${res.status}`);
+  }
+
   async markAsRead(roomId: string, eventId: string): Promise<void> {
     await this.put(`/api/rooms/${roomId}/receipt`, { roomId, eventId }).then(
       async (res) => {

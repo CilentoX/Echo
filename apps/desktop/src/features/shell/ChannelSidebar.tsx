@@ -262,6 +262,27 @@ export default function ChannelSidebar({
   const handleConnectVoice = (channel: ChannelSummary) => {
     const effId = effectiveUserId || "me";
 
+    // Pega participantes que já estavam na sala destino para conexão instantânea sem sumir ninguém
+    const existingInTarget = Array.isArray(guildVoiceState[channel.channelId])
+      ? guildVoiceState[channel.channelId]
+      : [];
+    const othersInTarget = existingInTarget.filter(
+      (p) => p.userId !== effId && p.userId !== "me" && p.userId !== myUserId,
+    );
+
+    const initialParticipants = [
+      {
+        userId: effId,
+        username: myEffectiveName,
+        avatarUrl: myEffectiveAvatar,
+        isMuted: !microphoneEnabled,
+        isDeafened: !headphonesEnabled,
+        isSpeaking: false,
+        volume: 100,
+      },
+      ...othersInTarget,
+    ];
+
     // Atualização otimista imediata para transição instantânea de canais de voz sem lag
     setGuildVoiceState((prev) => {
       const next: Record<string, any[]> = {};
@@ -271,19 +292,7 @@ export default function ChannelSidebar({
           ? list.filter((p) => p.userId !== myId && p.userId !== "me" && p.userId !== myUserId)
           : [];
       }
-      const targetList = next[channel.channelId] ? [...next[channel.channelId]] : [];
-      if (!targetList.some((p) => p.userId === myId)) {
-        targetList.push({
-          userId: myId,
-          username: myEffectiveName,
-          avatarUrl: myEffectiveAvatar,
-          isMuted: !microphoneEnabled,
-          isDeafened: !headphonesEnabled,
-          isSpeaking: false,
-          volume: 100,
-        });
-      }
-      next[channel.channelId] = targetList;
+      next[channel.channelId] = initialParticipants;
       return next;
     });
 
@@ -292,17 +301,7 @@ export default function ChannelSidebar({
       activeGuild?.name ?? "",
       channel.channelId,
       channel.name,
-      [
-        {
-          userId: effId,
-          username: myEffectiveName,
-          avatarUrl: myEffectiveAvatar,
-          isMuted: !microphoneEnabled,
-          isDeafened: !headphonesEnabled,
-          isSpeaking: false,
-          volume: 100,
-        },
-      ],
+      initialParticipants,
     );
     setActiveChannel(channel.channelId);
     useFriendsStore.getState().setSelectedFriendId(null);
@@ -1200,7 +1199,15 @@ export default function ChannelSidebar({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+          <div
+            className="flex-1 overflow-y-auto px-2 py-3 space-y-4"
+            onDragOver={(e) => {
+              if (activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }
+            }}
+          >
             {channelGroups.map((group) => {
               const isCollapsed = Boolean(collapsedCategories[group.name]);
               const isDefaultCategory = group.name === "Canais de texto" || group.name === "Canais de voz";
@@ -1209,19 +1216,23 @@ export default function ChannelSidebar({
                 <section
                   key={group.name}
                   onDragOver={(e) => {
+                    const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
+                    if (activeDrag) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                    }
+
                     const isCat =
-                      activeDragRef.current?.type === "category" ||
+                      activeDrag?.type === "category" ||
                       e.dataTransfer.types.includes("application/x-echo-category");
                     const isChannel =
                       !isCat &&
-                      (activeDragRef.current?.type === "channel" ||
+                      (activeDrag?.type === "channel" ||
                         e.dataTransfer.types.includes("application/x-echo-channel") ||
                         e.dataTransfer.types.includes("text/plain"));
 
                     if (isCat) {
-                      if (activeDragRef.current?.id === group.name) return;
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
+                      if (activeDrag?.id === group.name) return;
                       const rect = e.currentTarget.getBoundingClientRect();
                       const midY = rect.top + rect.height / 2;
                       const pos = e.clientY < midY ? "before" : "after";
@@ -1230,8 +1241,6 @@ export default function ChannelSidebar({
                         setDragOverCategoryPosition(pos);
                       }
                     } else if (isChannel) {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
                       if (dragOverCategoryForChannel !== group.name) {
                         setDragOverCategoryForChannel(group.name);
                       }
@@ -1315,13 +1324,22 @@ export default function ChannelSidebar({
                           e.dataTransfer.setData("text/plain", JSON.stringify({ type: "category", id: group.name }));
                           e.dataTransfer.effectAllowed = "move";
                           activeDragRef.current = { type: "category", id: group.name };
+                          (window as any).__ECHO_ACTIVE_DRAG__ = { type: "category", id: group.name };
                           setDraggedCategory(group.name);
                         }}
                         onDragEnd={() => {
                           activeDragRef.current = null;
+                          (window as any).__ECHO_ACTIVE_DRAG__ = null;
                           setDraggedCategory(null);
                           setDragOverCategory(null);
                           setDragOverCategoryPosition(null);
+                        }}
+                        onDragOver={(e) => {
+                          const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
+                          if (activeDrag) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                          }
                         }}
                         onClick={() => toggleCategory(group.name)}
                         onKeyDown={(e) => {
@@ -1505,22 +1523,27 @@ export default function ChannelSidebar({
                                     e.dataTransfer.setData("text/plain", payload);
                                     e.dataTransfer.effectAllowed = "move";
                                     activeDragRef.current = { type: "channel", id: channel.channelId, category: group.name };
+                                    (window as any).__ECHO_ACTIVE_DRAG__ = { type: "channel", id: channel.channelId, category: group.name };
                                     setDraggedChannelId(channel.channelId);
                                   }}
                                   onDragOver={(e) => {
+                                    const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
+                                    if (activeDrag) {
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = "move";
+                                    }
+
                                     const isChannelDrag =
-                                      activeDragRef.current?.type === "channel" ||
-                                      (!activeDragRef.current && (
+                                      activeDrag?.type === "channel" ||
+                                      (!activeDrag && (
                                         e.dataTransfer.types.includes("application/x-echo-channel") ||
                                         e.dataTransfer.types.includes("text/plain")
                                       ));
 
                                     if (!isChannelDrag) return;
-                                    if (activeDragRef.current?.id === channel.channelId) return;
-
-                                    e.preventDefault();
                                     e.stopPropagation();
-                                    e.dataTransfer.dropEffect = "move";
+                                    if (activeDrag?.id === channel.channelId) return;
+
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     const midY = rect.top + rect.height / 2;
                                     const pos = e.clientY < midY ? "before" : "after";
@@ -1550,6 +1573,7 @@ export default function ChannelSidebar({
                                       e.dataTransfer.getData("text/plain");
                                     const pos = dragOverChannelPosition ?? "after";
                                     activeDragRef.current = null;
+                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
                                     setDraggedChannelId(null);
                                     setDragOverChannelId(null);
                                     setDragOverChannelPosition(null);
@@ -1566,6 +1590,7 @@ export default function ChannelSidebar({
                                   }}
                                   onDragEnd={() => {
                                     activeDragRef.current = null;
+                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
                                     setDraggedChannelId(null);
                                     setDragOverChannelId(null);
                                     setDragOverChannelPosition(null);
@@ -1743,17 +1768,24 @@ export default function ChannelSidebar({
                                   e.dataTransfer.setData("text/plain", payload);
                                   e.dataTransfer.effectAllowed = "move";
                                   activeDragRef.current = { type: "channel", id: channel.channelId, category: group.name };
+                                  (window as any).__ECHO_ACTIVE_DRAG__ = { type: "channel", id: channel.channelId, category: group.name };
                                   setDraggedChannelId(channel.channelId);
                                 }}
                                 onDragOver={(e) => {
+                                  const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
+                                  if (activeDrag) {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = "move";
+                                  }
+
                                   const isMemberDrag =
+                                    activeDrag?.type === "member" ||
+                                    activeDrag?.type === "voice-member" ||
                                     e.dataTransfer.types.includes("application/x-echo-voice-member") ||
                                     e.dataTransfer.types.includes("application/x-echo-member");
 
                                   if (isMemberDrag) {
-                                    e.preventDefault();
                                     e.stopPropagation();
-                                    e.dataTransfer.dropEffect = "move";
                                     if (dragOverVoiceChannelId !== channel.channelId) {
                                       setDragOverVoiceChannelId(channel.channelId);
                                     }
@@ -1761,18 +1793,16 @@ export default function ChannelSidebar({
                                   }
 
                                   const isChannelDrag =
-                                    activeDragRef.current?.type === "channel" ||
-                                    (!activeDragRef.current && (
+                                    activeDrag?.type === "channel" ||
+                                    (!activeDrag && (
                                       e.dataTransfer.types.includes("application/x-echo-channel") ||
                                       e.dataTransfer.types.includes("text/plain")
                                     ));
 
                                   if (!isChannelDrag) return;
-                                  if (activeDragRef.current?.id === channel.channelId) return;
-
-                                  e.preventDefault();
                                   e.stopPropagation();
-                                  e.dataTransfer.dropEffect = "move";
+                                  if (activeDrag?.id === channel.channelId) return;
+
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   const midY = rect.top + rect.height / 2;
                                   const pos = e.clientY < midY ? "before" : "after";
@@ -1797,6 +1827,25 @@ export default function ChannelSidebar({
                                   const pos = dragOverChannelPosition ?? "after";
                                   if (dragOverVoiceChannelId === channel.channelId) {
                                     setDragOverVoiceChannelId(null);
+                                  }
+
+                                  const activeDrag = (window as any).__ECHO_ACTIVE_DRAG__;
+                                  if (activeDrag?.type === "member") {
+                                    const { userId, username } = activeDrag.data;
+                                    const isMe = userId === "me" || userId === effectiveUserId || (myUserId ? userId === myUserId : false);
+                                    if (isMe) {
+                                      handleConnectVoice(channel);
+                                    } else {
+                                      handleAddMemberToVoiceChannel(userId, username, channel);
+                                    }
+                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
+                                    return;
+                                  }
+                                  if (activeDrag?.type === "voice-member") {
+                                    const { userId, username, isMe } = activeDrag.data;
+                                    handleMoveVoiceMemberToChannel(userId, username, channel, isMe);
+                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
+                                    return;
                                   }
 
                                   const voiceMemberRaw = e.dataTransfer.getData("application/x-echo-voice-member");
@@ -1833,6 +1882,7 @@ export default function ChannelSidebar({
                                     e.dataTransfer.getData("application/x-echo-channel") ||
                                     e.dataTransfer.getData("text/plain");
                                   activeDragRef.current = null;
+                                  (window as any).__ECHO_ACTIVE_DRAG__ = null;
                                   setDraggedChannelId(null);
                                   setDragOverChannelId(null);
                                   setDragOverChannelPosition(null);
@@ -1849,6 +1899,7 @@ export default function ChannelSidebar({
                                 }}
                                 onDragEnd={() => {
                                   activeDragRef.current = null;
+                                  (window as any).__ECHO_ACTIVE_DRAG__ = null;
                                   setDraggedChannelId(null);
                                   setDragOverChannelId(null);
                                   setDragOverChannelPosition(null);
@@ -1942,7 +1993,23 @@ export default function ChannelSidebar({
 
                                 {/* Participantes conectados na chamada */}
                                 {(() => {
-                                  const channelParticipants = connected ? voiceParticipants : (guildVoiceState[channel.channelId] ?? []);
+                                  const channelParticipants = connected
+                                    ? (() => {
+                                        const fromServer = Array.isArray(guildVoiceState[channel.channelId])
+                                          ? guildVoiceState[channel.channelId]
+                                          : [];
+                                        const map = new Map<string, any>();
+                                        for (const p of fromServer) {
+                                          const id = p.userId === "me" ? (myUserId || "me") : p.userId;
+                                          map.set(id, p);
+                                        }
+                                        for (const p of voiceParticipants) {
+                                          const id = p.userId === "me" ? (myUserId || "me") : p.userId;
+                                          map.set(id, p);
+                                        }
+                                        return Array.from(map.values());
+                                      })()
+                                    : (guildVoiceState[channel.channelId] ?? []);
                                   if (!channelParticipants || channelParticipants.length === 0) return null;
                                   return (
                                     <ul className="ml-4 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
@@ -1978,12 +2045,18 @@ export default function ChannelSidebar({
                                             draggable={true}
                                             onDragStart={(e) => {
                                               e.stopPropagation();
-                                              e.dataTransfer.setData(
-                                                "application/x-echo-voice-member",
-                                                JSON.stringify({ userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe }),
-                                              );
+                                              const payload = JSON.stringify({ userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe });
+                                              e.dataTransfer.setData("application/x-echo-voice-member", payload);
                                               e.dataTransfer.setData("text/plain", effectiveUserId || p.userId || "me");
                                               e.dataTransfer.effectAllowed = "move";
+                                              (window as any).__ECHO_ACTIVE_DRAG__ = {
+                                                type: "voice-member",
+                                                id: effectiveUserId || p.userId || "me",
+                                                data: { userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe },
+                                              };
+                                            }}
+                                            onDragEnd={() => {
+                                              (window as any).__ECHO_ACTIVE_DRAG__ = null;
                                             }}
                                           >
                                             <Popover
@@ -1991,17 +2064,14 @@ export default function ChannelSidebar({
                                               onOpenChange={(open) => setOpenVoiceMemberId(open ? p.userId : null)}
                                             >
                                               <PopoverTrigger asChild>
-                                                <button
-                                                  type="button"
-                                                  draggable={true}
-                                                  onDragStart={(e) => {
-                                                    e.stopPropagation();
-                                                    e.dataTransfer.setData(
-                                                      "application/x-echo-voice-member",
-                                                      JSON.stringify({ userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe }),
-                                                    );
-                                                    e.dataTransfer.setData("text/plain", effectiveUserId || p.userId || "me");
-                                                    e.dataTransfer.effectAllowed = "move";
+                                                <div
+                                                  role="button"
+                                                  tabIndex={0}
+                                                  onKeyDown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                      e.preventDefault();
+                                                      setOpenVoiceMemberId(openVoiceMemberId === p.userId ? null : p.userId);
+                                                    }
                                                   }}
                                                   aria-label={`Perfil de ${effectiveNick}`}
                                                   className={`cursor-pointer flex w-full items-center gap-1.5 py-1 px-2 rounded-xl text-xs transition-all active:scale-[0.98] group ${
@@ -2064,7 +2134,7 @@ export default function ChannelSidebar({
                                                       <span className="h-1.5 w-0.5 rounded-full bg-online animate-[pulse_0.5s_ease-in-out_infinite_300ms]" />
                                                     </div>
                                                   )}
-                                                </button>
+                                                </div>
                                               </PopoverTrigger>
                                               <PopoverContent
                                                 side="right"

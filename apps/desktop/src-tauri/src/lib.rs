@@ -130,19 +130,33 @@ async fn finish_spotify_listener(port: u16) -> Result<String, String> {
     sso::finish_spotify_listener(port).await
 }
 
-/// Stores the session token in the OS keyring (service "eco", entry = userId).
+/// Stores the full session in the OS keyring (service "eco", entry = userId).
 #[tauri::command]
-fn store_token(user_id: String, token: String) -> Result<(), String> {
-    keyring_cmds::store_token(&user_id, &token)
+fn store_token(
+    user_id: String,
+    token: String,
+    refresh_token: Option<String>,
+    device_id: Option<String>,
+    api_base_url: Option<String>,
+    expires_at: Option<u64>,
+) -> Result<(), String> {
+    keyring_cmds::store_token(
+        &user_id,
+        &token,
+        refresh_token.as_deref(),
+        device_id.as_deref(),
+        api_base_url.as_deref(),
+        expires_at,
+    )
 }
 
-/// Loads the persisted session token, if any.
+/// Loads the persisted session, if any.
 #[tauri::command]
 fn load_token() -> Result<Option<keyring_cmds::StoredToken>, String> {
     keyring_cmds::load_token()
 }
 
-/// Removes the persisted session token from the keyring (idempotent).
+/// Removes the persisted session from the keyring (idempotent).
 #[tauri::command]
 fn clear_token() -> Result<(), String> {
     keyring_cmds::clear_token()
@@ -192,11 +206,35 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .on_window_event(|_window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                // Ao fechar a janela, encerra o processo do aplicativo imediatamente,
-                // garantindo que WebView2, WebRTC, microfone e chamadas de voz sejam 100% desligados.
-                std::process::exit(0);
+        .plugin(tauri_plugin_notification::init())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // Previne fechamento imediato para permitir cleanup graceful
+                api.prevent_close();
+
+                // Notifica o frontend para fechar WebRTC e parar syncs
+                let _ = window.emit("echo://close-requested", ());
+
+                let window_clone = window.clone();
+                std::thread::spawn(move || {
+                    // Timeout de 3s para cleanup; se exceder, força exit
+                    let start = std::time::Instant::now();
+                    let timeout = std::time::Duration::from_secs(3);
+
+                    // Flush config store (escrita atômica de config.json/cache.json)
+                    let _ = config_store::flush_all();
+
+                    // Pausa defensiva para o frontend liberar recursos de rede
+                    std::thread::sleep(std::time::Duration::from_millis(250));
+
+                    // Se ainda dentro do timeout, fecha janela normalmente
+                    if start.elapsed() < timeout {
+                        let _ = window_clone.close();
+                    } else {
+                        // Timeout excedido — força encerramento
+                        std::process::exit(0);
+                    }
+                });
             }
         })
         .invoke_handler(tauri::generate_handler![
