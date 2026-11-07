@@ -15,9 +15,11 @@ if (!fs.existsSync(sigPath)) {
 // NÃO deve ser codificado em base64 novamente!
 const signature = fs.readFileSync(sigPath, 'utf8').trim();
 
+const notes = process.argv[3] || `Echo v${version}: Edição e exclusão persistente de canais, reforço de segurança e bloqueio em DMs, sincronização de avatar no Synapse e otimizações de performance.`;
+
 const latest = {
   version,
-  notes: `Echo v${version}: Executável nativo renomeado para Echo.exe, atalhos corrigidos, limpeza de arquivos legados e auto-updater funcional.`,
+  notes,
   pub_date: new Date().toISOString(),
   platforms: {
     'windows-x86_64': {
@@ -35,7 +37,7 @@ console.log(`[latest.json] Gerado com sucesso para v${version}`);
 console.log('Signature snippet:', signature.slice(0, 40) + '...');
 
 // Se o repositório echo-site existir localmente, sincroniza automaticamente
-const echoSiteLatest = path.resolve(__dirname, '..', '..', '..', 'echo-site', 'latest.json');
+const echoSiteLatest = path.resolve(__dirname, '..', '..', '..', '..', 'echo-site', 'latest.json');
 if (fs.existsSync(echoSiteLatest)) {
   fs.writeFileSync(echoSiteLatest, JSON.stringify(latest, null, 2), 'utf8');
   console.log(`[echo-site] Atualizado: ${echoSiteLatest}`);
