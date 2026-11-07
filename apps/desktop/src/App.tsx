@@ -27,17 +27,26 @@ function Shell() {
     void initNotifications();
     loadProfile();
 
-    const unlistenPromise = listen("echo://close-requested", () => {
-      try {
-        void webrtcVoice.leave();
-      } catch {}
-      try {
-        stopSyncWiring();
-      } catch {}
-    });
+    const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+    let unlistenFn: (() => void) | null = null;
+
+    if (isTauri) {
+      listen("echo://close-requested", () => {
+        try {
+          void webrtcVoice.leave();
+        } catch {}
+        try {
+          stopSyncWiring();
+        } catch {}
+      })
+        .then((fn) => {
+          unlistenFn = fn;
+        })
+        .catch(() => {});
+    }
 
     return () => {
-      unlistenPromise.then((unlisten) => unlisten()).catch(() => {});
+      unlistenFn?.();
     };
   }, [loadProfile]);
 

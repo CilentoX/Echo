@@ -249,8 +249,13 @@ export default function ChannelSidebar({
     });
   };
 
-  const handleDeleteChannel = (channel: ChannelSummary) => {
+  const handleDeleteChannel = async (channel: ChannelSummary) => {
     if (!activeGuildId) return;
+    try {
+      await matrixService.deleteChannel(channel.channelId);
+    } catch (err) {
+      console.error("Erro ao deletar canal:", err);
+    }
     const updated = allChannels.filter((c) => c.channelId !== channel.channelId);
     setChannels(activeGuildId, updated);
     if (activeChannelId === channel.channelId) {
@@ -2282,6 +2287,14 @@ export default function ChannelSidebar({
           channel={channelSettingsTarget}
           guildId={activeGuildId ?? ""}
           onSave={async (updates) => {
+            try {
+              await matrixService.editChannel(channelSettingsTarget.channelId, {
+                name: updates.name,
+                topic: updates.topic,
+              });
+            } catch (err) {
+              console.error("Erro ao salvar canal:", err);
+            }
             const currentList = allChannels.map((c) =>
               c.channelId === channelSettingsTarget.channelId
                 ? { ...c, name: updates.name, topic: updates.topic ?? c.topic }
@@ -2290,6 +2303,11 @@ export default function ChannelSidebar({
             useSyncStore.getState().setChannels(activeGuildId ?? "", currentList);
           }}
           onDelete={async (deletedId) => {
+            try {
+              await matrixService.deleteChannel(deletedId);
+            } catch (err) {
+              console.error("Erro ao deletar canal:", err);
+            }
             const nextList = allChannels.filter((c) => c.channelId !== deletedId);
             useSyncStore.getState().setChannels(activeGuildId ?? "", nextList);
             if (activeChannelId === deletedId && nextList.length > 0) {

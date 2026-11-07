@@ -658,6 +658,51 @@ export class EchoApi {
     );
   }
 
+  /** Update channel metadata (name, topic, category). */
+  async editChannel(
+    channelId: string,
+    data: {
+      name?: string;
+      topic?: string | null;
+      category?: string | null;
+      type?: string;
+    },
+  ): Promise<{
+    channelId: string;
+    name: string;
+    topic?: string;
+    type?: string;
+    category?: string;
+    unreadCount: number;
+  }> {
+    const encoded = encodeURIComponent(channelId);
+    return this.patch(`/api/channels/${encoded}`, data).then(
+      async (res) => {
+        if (!res.ok) {
+          const fallbackRes = await this.post("/channels/edit", { channelId, data });
+          if (!fallbackRes.ok) throw new Error(`Failed to edit channel: ${res.status}`);
+          return fallbackRes.json();
+        }
+        return res.json();
+      },
+    );
+  }
+
+  /** Delete a channel from its guild. */
+  async deleteChannel(channelId: string): Promise<{ success: boolean; channelId?: string }> {
+    const encoded = encodeURIComponent(channelId);
+    return this.delete(`/api/channels/${encoded}`).then(
+      async (res) => {
+        if (!res.ok) {
+          const fallbackRes = await this.post("/channels/delete", { channelId });
+          if (!fallbackRes.ok) throw new Error(`Failed to delete channel: ${res.status}`);
+          return fallbackRes.json();
+        }
+        return res.json();
+      },
+    );
+  }
+
   // ── Messages ────────────────────────────────────────────────────
 
   /** Send an m.text or multimedia message. */

@@ -440,12 +440,12 @@ export class MatrixService {
       category?: string | null;
     }
   ): Promise<void> {
-    await this.echoApi.post("/channels/edit", { channelId, data });
+    await this.echoApi.editChannel(channelId, data);
   }
 
   /** Sai (deleta) um canal próprio. */
   async deleteChannel(channelId: string): Promise<void> {
-    await this.echoApi.post("/channels/delete", { channelId });
+    await this.echoApi.deleteChannel(channelId);
   }
 
   /** Membros com membership "join" de uma sala, com presença e avatar. */
