@@ -1,11 +1,11 @@
 {
-  "version": "0.1.17",
-  "notes": "Echo v0.1.17: Edição e exclusão persistente de canais, reforço de segurança e bloqueio em DMs, sincronização de avatar no Synapse e otimizações de performance.",
-  "pub_date": "2026-11-07T22:14:07.518Z",
+  "version": "0.1.18",
+  "notes": "Echo v0.1.18: Correções no sistema de voz em guildas, desconexão limpa ao fechar o app, visibilidade de companheiros no VoiceStage e lista de membros.",
+  "pub_date": "2026-11-07T23:07:21.803Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVRHOUFOWWFtTDdGei9wMHE3NGd1YTUxNFh5bFJNWWdFd1pkQU42T2VtRWJTclFOUHdYdlYwMEhDMFhqU0g0OVFpditDNlVxWnQ1RFR1dVhDcW50OEFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MDg5NTY5CWZpbGU6RWNob18wLjEuMTdfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4xNwpYZ3pTWnFhSlFXS05FVm0vVEVLbklLby9jRmk4L3dmMHVZb3BPSWZTdmxEZTRDT1VCcmpZOTFHaldRZmg3VWx6MklDcytnc3JMUzRmREhGeThPbUdBQT09Cg==",
-      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.17/Echo_0.1.17_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWWVXekU0MXdkNHFGbTBwVDBMdEVFblhmTUdleDRmZ2Vvb0x5NnQ2NXBXeTd3OEFsTGx0SFpVZWhaRjNPQkhsNTJ6Z0RsRXdTTkg3TlFBbXNaRDNuRGdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MDkyODMwCWZpbGU6RWNob18wLjEuMThfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4xOAphQ1B5ZnRWaU96eHpmSm12Y3IxK3pYOHI4enR0d3JYMHVlcFdMWXhGSEtNZXBnV3JYV2dmY0tzVDNYZWtKMVNBZ3doZnJEZmRSdnRPMUgwUDBWNGlBQT09Cg==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.18/Echo_0.1.18_x64-setup.exe"
     }
   }
 }

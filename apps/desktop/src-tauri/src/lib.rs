@@ -184,6 +184,15 @@ async fn set_main_mode(window: tauri::Window) -> Result<(), String> {
     Ok(())
 }
 
+/// Chamado pelo frontend assim que o cleanup assíncrono (WebRTC leave, sync stop) for concluído.
+/// Fecha a janela imediatamente sem esperar o timeout de segurança.
+#[tauri::command]
+fn ack_close_and_exit(window: tauri::Window) -> Result<(), String> {
+    let _ = config_store::flush_all();
+    let _ = window.close();
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "windows")]
@@ -217,27 +226,18 @@ pub fn run() {
 
                 let window_clone = window.clone();
                 std::thread::spawn(move || {
-                    // Timeout de 3s para cleanup; se exceder, força exit
-                    let start = std::time::Instant::now();
-                    let timeout = std::time::Duration::from_secs(3);
-
                     // Flush config store (escrita atômica de config.json/cache.json)
                     let _ = config_store::flush_all();
 
-                    // Pausa defensiva para o frontend liberar recursos de rede
-                    std::thread::sleep(std::time::Duration::from_millis(250));
-
-                    // Se ainda dentro do timeout, fecha janela normalmente
-                    if start.elapsed() < timeout {
-                        let _ = window_clone.close();
-                    } else {
-                        // Timeout excedido — força encerramento
-                        std::process::exit(0);
-                    }
+                    // Timeout defensivo de 1.5s para cleanup; se o frontend chamar ack_close_and_exit,
+                    // a janela já fecha antes. Caso contrário, fecha ao fim deste período.
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    let _ = window_clone.close();
                 });
             }
         })
         .invoke_handler(tauri::generate_handler![
+            ack_close_and_exit,
             begin_sso_listener,
             finish_sso_listener,
             begin_spotify_sso_listener,

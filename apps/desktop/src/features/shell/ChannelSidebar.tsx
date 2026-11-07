@@ -664,6 +664,20 @@ export default function ChannelSidebar({
                 );
               }
             }
+            // Se o canal atual não constar no snapshot do backend (ex: recém-conectado), garante presença local
+            if (!merged[currentVoiceChannelId]) {
+              merged[currentVoiceChannelId] = [
+                {
+                  userId: myId,
+                  username: myEffectiveName,
+                  avatarUrl: myEffectiveAvatar,
+                  isMuted: !microphoneEnabled,
+                  isDeafened: !headphonesEnabled,
+                  isSpeaking: false,
+                  volume: 100,
+                },
+              ];
+            }
             setGuildVoiceState(merged);
           } else {
             setGuildVoiceState(res.channels);

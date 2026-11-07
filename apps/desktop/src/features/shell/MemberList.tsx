@@ -88,9 +88,22 @@ export default function MemberList({
     return merged;
   }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId, myAppwriteAvatarUrl, myAvatarUrl]);
 
-  // Usa membros do canal ativo, ou agregados da guilda, deduplicados e garantindo usuário atual.
+  // Em guildas, exibe os membros da guilda inteira (ergonomia Discord); combina com channelMembers defensivamente.
   const members: MemberSummary[] = useMemo(() => {
-    const raw = activeChannelId ? [...channelMembers] : guildMembers;
+    const raw = (() => {
+      if (activeGuildId && activeGuildId !== "home") {
+        if (channelMembers.length > 0 && guildMembers.length > 0) {
+          const map = new Map<string, MemberSummary>();
+          for (const m of guildMembers) map.set(m.userId.toLowerCase(), m);
+          for (const m of channelMembers) map.set(m.userId.toLowerCase(), m);
+          return Array.from(map.values());
+        }
+        if (guildMembers.length > 0) return guildMembers;
+        if (channelMembers.length > 0) return [...channelMembers];
+        return guildMembers;
+      }
+      return activeChannelId ? [...channelMembers] : guildMembers;
+    })();
     const seen = new Set<string>();
     const deduplicated: MemberSummary[] = [];
 

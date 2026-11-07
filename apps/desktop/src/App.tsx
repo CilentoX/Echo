@@ -7,6 +7,7 @@ import { useProfileStore } from "@/stores/profileStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
 import { stopSyncWiring } from "@/lib/matrix/wiring";
 
@@ -31,12 +32,15 @@ function Shell() {
     let unlistenFn: (() => void) | null = null;
 
     if (isTauri) {
-      listen("echo://close-requested", () => {
+      listen("echo://close-requested", async () => {
         try {
-          void webrtcVoice.leave();
+          await webrtcVoice.leave();
         } catch {}
         try {
           stopSyncWiring();
+        } catch {}
+        try {
+          await invoke("ack_close_and_exit");
         } catch {}
       })
         .then((fn) => {
@@ -45,8 +49,16 @@ function Shell() {
         .catch(() => {});
     }
 
+    const handleBeforeUnload = () => {
+      try {
+        webrtcVoice.leaveSyncOrKeepalive();
+      } catch {}
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
       unlistenFn?.();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [loadProfile]);
 

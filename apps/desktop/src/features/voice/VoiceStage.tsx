@@ -403,6 +403,10 @@ export default function VoiceStage({
     if (!canConnectVoice) return;
     if (lastConnectedChannelRef.current !== channelId && activeVoiceChannelId !== channelId) {
       lastConnectedChannelRef.current = channelId;
+      // Preserva participantes remotos já conhecidos caso existentes
+      const existingOthers = useVoiceStore.getState().participants.filter(
+        (p) => p.userId !== effectiveUserId && p.userId !== "me" && p.userId !== myUserId,
+      );
       connectVoice(
         guildId ?? activeGuildId ?? "",
         guildName ?? "Comunidade Echo",
@@ -418,6 +422,7 @@ export default function VoiceStage({
             isSpeaking: false,
             volume: 100,
           },
+          ...existingOthers,
         ],
       );
     }

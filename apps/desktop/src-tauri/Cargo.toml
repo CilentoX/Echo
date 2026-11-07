@@ -1,6 +1,6 @@
 [package]
 name = "echo-desktop"
-version = "0.1.17"
+version = "0.1.18"
 description = "Echo desktop client"
 authors = ["Echo"]
 edition = "2024"

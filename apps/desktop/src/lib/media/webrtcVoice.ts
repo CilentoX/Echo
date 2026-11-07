@@ -1,4 +1,5 @@
 import { useEchoApi } from "@/lib/api/echoApi";
+import { ECHO_API_CONFIG } from "@/lib/api/config";
 
 export interface WebRtcCallbacks {
   onParticipantsUpdate?: (participants: any[]) => void;
@@ -18,6 +19,8 @@ class WebRtcVoiceManager {
   private currentGuildId: string | null = null;
   private currentChannelId: string | null = null;
   private myUserId: string = "";
+  private myUsername: string = "";
+  private myAvatarUrl: string | null = null;
   private isMuted: boolean = false;
   private isDeafened: boolean = false;
   private isSpeaking: boolean = false;
@@ -58,6 +61,10 @@ class WebRtcVoiceManager {
     return this.currentChannelId;
   }
 
+  public getMyUserId() {
+    return this.myUserId;
+  }
+
   public async join(
     guildId: string,
     channelId: string,
@@ -75,13 +82,15 @@ class WebRtcVoiceManager {
 
     if (isSwitching && hasLiveStream) {
       await this.leaveOldChannelOnly();
-    } else {
+    } else if (this.currentChannelId !== channelId) {
       await this.leave();
     }
 
     this.currentGuildId = guildId;
     this.currentChannelId = channelId;
     this.myUserId = myUserId;
+    this.myUsername = username;
+    this.myAvatarUrl = avatarUrl;
     this.isMuted = isMuted;
     this.isDeafened = isDeafened;
     this.callbacks = callbacks;
@@ -153,7 +162,7 @@ class WebRtcVoiceManager {
       try {
         const api = useEchoApi();
         if (typeof api?.leaveVoiceChannel === "function") {
-          void api.leaveVoiceChannel(this.currentChannelId).catch(() => {});
+          await api.leaveVoiceChannel(this.currentChannelId).catch(() => {});
         }
       } catch {}
     }
@@ -188,12 +197,12 @@ class WebRtcVoiceManager {
       this.heartbeatInterval = null;
     }
 
-    // Notifica backend de forma não-bloqueante para troca instantânea de canais
+    // Notifica backend e aguarda conclusão para evitar race condition
     if (this.currentChannelId) {
       try {
         const api = useEchoApi();
         if (typeof api?.leaveVoiceChannel === "function") {
-          void api.leaveVoiceChannel(this.currentChannelId).catch(() => {});
+          await api.leaveVoiceChannel(this.currentChannelId).catch(() => {});
         }
       } catch {}
     }
@@ -241,6 +250,48 @@ class WebRtcVoiceManager {
 
     this.currentGuildId = null;
     this.currentChannelId = null;
+  }
+
+  /**
+   * Envia sinal síncrono/keepalive de saída ao fechar janela/processo
+   * garantindo que o servidor remova o usuário mesmo se o runtime fechar antes.
+   */
+  public leaveSyncOrKeepalive() {
+    if (!this.currentChannelId) return;
+    const chId = this.currentChannelId;
+    this.currentChannelId = null;
+    this.currentGuildId = null;
+
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    try {
+      const api = useEchoApi();
+      const token = typeof api?.getAccessToken === "function" ? api.getAccessToken() : "";
+      const baseUrl = typeof api?.getBaseUrl === "function" ? api.getBaseUrl() : ECHO_API_CONFIG.baseUrl;
+      const url = `${baseUrl}/api/channels/${encodeURIComponent(chId)}/voice/leave`;
+
+      // 1. sendBeacon se disponível (garantido durante unload do browser)
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        const blob = new Blob([JSON.stringify({ token })], { type: "application/json" });
+        navigator.sendBeacon(url, blob);
+      }
+
+      // 2. Fetch com keepalive: true (sobrevive ao encerramento da página/webview)
+      if (typeof fetch === "function") {
+        void fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({}),
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch {}
   }
 
   public setMicrophoneMuted(muted: boolean) {
@@ -344,16 +395,25 @@ class WebRtcVoiceManager {
       if (typeof api?.voiceHeartbeat !== "function") return;
 
       try {
-        // 1. Heartbeat
+        // 1. Heartbeat com identificação e status atualizados
         const hbRes = await api.voiceHeartbeat(this.currentChannelId, {
+          guildId: this.currentGuildId ?? undefined,
+          username: this.myUsername || undefined,
+          avatarUrl: this.myAvatarUrl,
           isSpeaking: this.isSpeaking,
           isMuted: this.isMuted,
           isDeafened: this.isDeafened,
         });
 
-        if (hbRes.participants) {
-          this.callbacks.onParticipantsUpdate?.(hbRes.participants);
-          this.syncPeers(hbRes.participants);
+        if (hbRes) {
+          if ((hbRes as any).myUserId) {
+            this.myUserId = (hbRes as any).myUserId;
+          }
+
+          if (hbRes.participants) {
+            this.callbacks.onParticipantsUpdate?.(hbRes.participants);
+            this.syncPeers(hbRes.participants);
+          }
         }
 
         // 1.5. Medir RTT real e notificar store
@@ -385,10 +445,14 @@ class WebRtcVoiceManager {
   }
 
   private syncPeers(participants: Array<{ userId: string }>) {
+    const myNorm = (this.myUserId || "").toLowerCase();
     const activePeerIds = new Set(
       participants
         .map((p) => p.userId)
-        .filter((id) => id && id !== this.myUserId && id !== "me"),
+        .filter((id) => {
+          if (!id || id === "me") return false;
+          return id.toLowerCase() !== myNorm && id.toLowerCase() !== "me";
+        }),
     );
 
     // Remove desconectados

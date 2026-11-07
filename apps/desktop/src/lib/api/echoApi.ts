@@ -234,6 +234,11 @@ export class EchoApi {
     this.apiKey = apiKey;
   }
 
+  /** Retorna a base URL da API. */
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   /** Retorna o token de acesso ativo. */
   getAccessToken(): string {
     return this.accessToken;
@@ -1321,8 +1326,15 @@ export class EchoApi {
   /** Heartbeat for active voice session. */
   async voiceHeartbeat(
     channelId: string,
-    data: { isSpeaking?: boolean; isMuted?: boolean; isDeafened?: boolean },
-  ): Promise<{ channelId: string; participants: any[] }> {
+    data: {
+      guildId?: string;
+      username?: string;
+      avatarUrl?: string | null;
+      isSpeaking?: boolean;
+      isMuted?: boolean;
+      isDeafened?: boolean;
+    },
+  ): Promise<{ channelId: string; participants: any[]; myUserId?: string }> {
     const encoded = encodeURIComponent(channelId);
     const res = await this.post(`/api/channels/${encoded}/voice/heartbeat`, data);
     if (!res.ok) throw new Error(`Voice heartbeat failed: ${res.status}`);

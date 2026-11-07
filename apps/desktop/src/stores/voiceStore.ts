@@ -143,19 +143,24 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       {
         onParticipantsUpdate: (serverParticipants) => {
           set((state) => {
-            const currentMyUser = state.participants.find(
-              (p) => p.userId === myUserId || p.userId === "me",
-            );
-            const myId = myUserId || "me";
+            const currentUiId = useUiStore.getState().myUserId;
+            const currentRealId = currentUiId || webrtcVoice.getMyUserId() || myUserId || "me";
+            const myNorm = currentRealId.toLowerCase();
 
-            // Garante que o próprio usuário sempre esteja na lista
-            const others = serverParticipants.filter(
-              (p) => p.userId !== myId && p.userId !== "me",
-            );
+            const currentMyUser = state.participants.find((p) => {
+              const pNorm = (p.userId || "").toLowerCase();
+              return pNorm === myNorm || pNorm === "me" || pNorm === (myUserId || "").toLowerCase();
+            });
+
+            // Filtra os outros participantes de forma defensiva para que o próprio usuário nunca seja duplicado
+            const others = serverParticipants.filter((p) => {
+              const pNorm = (p.userId || "").toLowerCase();
+              return pNorm && pNorm !== "me" && pNorm !== myNorm && pNorm !== (myUserId || "").toLowerCase();
+            });
 
             const merged = [
               currentMyUser || {
-                userId: myId,
+                userId: currentRealId,
                 username,
                 avatarUrl,
                 isMuted: state.participants[0]?.isMuted ?? isMuted,
