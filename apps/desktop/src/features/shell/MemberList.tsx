@@ -4,6 +4,7 @@ import type { MemberSummary } from "@/lib/matrix/types";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useVoiceStore } from "@/stores/voiceStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import MemberDropdownContent from "./MemberDropdownContent";
@@ -38,6 +39,12 @@ export default function MemberList({
   const myCustomStatus = useProfileStore((state) => state.customStatus);
   const myPresence = useProfileStore((state) => state.presence);
   const speakingMembers = useVoiceStore((state) => state.speakingMembers);
+  const isVoiceConnected = useVoiceStore((state) => state.isConnected);
+  const activeVoiceGuildId = useVoiceStore((state) => state.activeVoiceGuildId);
+  const voiceParticipants = useVoiceStore((state) => state.participants);
+  const isMeSpeaking = useVoiceStore((state) => state.isSpeaking);
+  const microphoneEnabled = useSettingsStore((state) => state.microphoneEnabled);
+  const headphonesEnabled = useSettingsStore((state) => state.headphonesEnabled);
 
   const getMemberPresence = (m: MemberSummary): "online" | "offline" | "unavailable" => {
     if (m.userId === myUserId) {
@@ -243,7 +250,27 @@ export default function MemberList({
                     ? (guildProfile?.avatarUrl ?? member.avatarUrl ?? myAppwriteAvatarUrl ?? myAvatarUrl ?? null)
                     : (guildProfile?.avatarUrl ?? member.avatarUrl ?? null);
 
-                  const isSpeaking = speakingMembers.includes(member.userId) || (isMe && speakingMembers.includes("me"));
+                  const isSpeaking = (() => {
+                    if (isMe) {
+                      return Boolean(
+                        isVoiceConnected &&
+                        activeVoiceGuildId === activeGuildId &&
+                        microphoneEnabled &&
+                        headphonesEnabled &&
+                        isMeSpeaking
+                      );
+                    }
+
+                    if (isVoiceConnected && activeVoiceGuildId === activeGuildId) {
+                      const part = voiceParticipants.find((p) => p.userId === member.userId);
+                      if (part) {
+                        if (part.isMuted || part.isDeafened) return false;
+                        return Boolean(part.isSpeaking || speakingMembers.includes(member.userId));
+                      }
+                    }
+
+                    return false;
+                  })();
 
                   return (
                     <li

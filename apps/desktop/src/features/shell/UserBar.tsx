@@ -36,10 +36,14 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
   const setHeadphonesEnabled = useSettingsStore((s) => s.setHeadphonesEnabled);
 
+  const isConnected = useVoiceStore((s) => s.isConnected);
   const setSpeaking = useVoiceStore((s) => s.setSpeaking);
   const isSpeaking = useVoiceStore((s) => s.isSpeaking);
   const setParticipantMuted = useVoiceStore((s) => s.setParticipantMuted);
   const setParticipantDeafened = useVoiceStore((s) => s.setParticipantDeafened);
+
+  // Usuário só é considerado falando se estiver conectado na call, com mic ativo e sem ensurdecimento
+  const isUserSpeaking = isConnected && microphoneEnabled && headphonesEnabled && isSpeaking;
 
   const [audioQuickOpen, setAudioQuickOpen] = useState(false);
 
@@ -102,7 +106,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
                   mxcUrl={effectiveAvatar}
                   alt={effectiveName}
                   className={`h-8 w-8 rounded-full object-cover transition-all shadow-sm ${
-                    isSpeaking
+                    isUserSpeaking
                       ? "ring-2 ring-online shadow-sm shadow-online/50 animate-pulse"
                       : "ring-1 ring-bd-subtle group-hover:ring-acc/60"
                   }`}
@@ -112,7 +116,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               ) : (
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-full bg-acc font-display text-xs font-bold text-bg shadow-sm transition-all ${
-                    isSpeaking
+                    isUserSpeaking
                       ? "ring-2 ring-online shadow-sm shadow-online/50 animate-pulse"
                       : ""
                   }`}
@@ -180,11 +184,11 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               onClick={() => {
                 const next = !microphoneEnabled;
                 setMicrophoneEnabled(next);
-                if (!next) setSpeaking(false);
                 if (myUserId) {
                   setParticipantMuted(myUserId, !next);
-                  setParticipantMuted("me", !next);
                 }
+                setParticipantMuted("me", !next);
+                if (!next) setSpeaking(false);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -192,7 +196,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               }}
               className={`cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl transition-all ${
                 microphoneEnabled
-                  ? isSpeaking
+                  ? isUserSpeaking
                     ? "text-online bg-online/20 ring-1 ring-online/50 shadow-sm shadow-online/30 animate-pulse"
                     : "text-online bg-online/10 hover:bg-online/20"
                   : "text-err bg-err/10 hover:bg-err/20"
@@ -208,11 +212,11 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               onClick={() => {
                 const next = !headphonesEnabled;
                 setHeadphonesEnabled(next);
-                if (!next) setSpeaking(false);
                 if (myUserId) {
                   setParticipantDeafened(myUserId, !next);
-                  setParticipantDeafened("me", !next);
                 }
+                setParticipantDeafened("me", !next);
+                if (!next) setSpeaking(false);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();

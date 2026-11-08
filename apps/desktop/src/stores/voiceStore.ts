@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useUiStore } from "./uiStore";
+import { useSettingsStore } from "./settingsStore";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
 import { audioEngine } from "@/lib/media/audioEngine";
 
@@ -77,6 +78,7 @@ export interface VoiceState {
   ) => void;
   toggleMute: (userId?: string) => void;
   toggleDeafen: (userId?: string) => void;
+  updateParticipant: (userId: string, partial: Partial<VoiceParticipant>) => void;
   setParticipantMuted: (userId: string, isMuted: boolean) => void;
   setParticipantDeafened: (userId: string, isDeafened: boolean) => void;
   setRemoteVideoStream: (userId: string, stream: MediaStream | null) => void;
@@ -192,8 +194,28 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
               })),
             ];
 
-            // Se alguém estiver compartilhando tela e não tivermos ninguém focado, foca automaticamente
+            // Limpa remoteVideoStreams para participantes que saíram ou pararam de transmitir tela/câmera
+            const nextStreams = { ...state.remoteVideoStreams };
+            for (const streamUserId of Object.keys(nextStreams)) {
+              const part = merged.find((p) => p.userId === streamUserId);
+              if (!part || (!part.isScreenSharing && !part.hasCamera)) {
+                delete nextStreams[streamUserId];
+              }
+            }
+
+            // Se o usuário focado não estiver mais na sala ou não estiver mais transmitindo tela, reseta activeStreamUserId
             let activeStreamUserId = state.activeStreamUserId;
+            if (activeStreamUserId) {
+              const focusedPart = merged.find((p) => p.userId === activeStreamUserId);
+              const stillSharing = focusedPart && (
+                (focusedPart.userId === currentRealId ? state.isScreenSharing : (focusedPart.isScreenSharing || Boolean(nextStreams[activeStreamUserId])))
+              );
+              if (!stillSharing) {
+                activeStreamUserId = null;
+              }
+            }
+
+            // Se ninguém estiver focado, mas houver alguém transmitindo, foca automaticamente
             if (!activeStreamUserId) {
               const remoteSharing = merged.find(
                 (p) => p.isScreenSharing && p.userId !== currentRealId && p.userId !== "me"
@@ -205,7 +227,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
               }
             }
 
-            return { participants: merged, activeStreamUserId };
+            return { participants: merged, remoteVideoStreams: nextStreams, activeStreamUserId };
           });
         },
         onRemoteVideoStream: (userId, stream) => {
@@ -216,6 +238,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         },
         onParticipantSpeaking: (userId, speaking) => {
           get().setParticipantSpeaking(userId, speaking);
+        },
+        onParticipantUpdated: (userId, data) => {
+          get().updateParticipant(userId, data);
         },
         onRttUpdate: (rttMs) => {
           get().setPing(rttMs);
@@ -298,17 +323,27 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   setScreenDetached: (isScreenDetached) => set({ isScreenDetached }),
 
   setSpeaking: (isSpeaking) => {
+    const isConnected = get().isConnected;
+    const isMicEnabled = useSettingsStore.getState().microphoneEnabled;
+    const myParticipant = get().participants.find(
+      (p) => p.userId === "me" || p.userId === (useUiStore.getState().myUserId || "me")
+    );
+    const isUserMuted = !isMicEnabled || Boolean(myParticipant?.isMuted) || Boolean(myParticipant?.isDeafened);
+
+    // Se desconectado ou mutado, a fala é estritamente false
+    const effectiveSpeaking = (isConnected && !isUserMuted) ? Boolean(isSpeaking) : false;
+
     set((state) => {
       const myId = state.participants[0]?.userId ?? "me";
-      const speaking = isSpeaking
+      const speaking = effectiveSpeaking
         ? Array.from(new Set([...state.speakingMembers, "me", myId]))
         : state.speakingMembers.filter((id) => id !== "me" && id !== myId);
 
       return {
-        isSpeaking,
+        isSpeaking: effectiveSpeaking,
         speakingMembers: speaking,
         participants: state.participants.map((p) =>
-          p.userId === "me" || p.userId === myId ? { ...p, isSpeaking } : p,
+          p.userId === "me" || p.userId === myId ? { ...p, isSpeaking: effectiveSpeaking } : p,
         ),
       };
     });
@@ -316,15 +351,60 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   setParticipantSpeaking: (userId, isSpeaking) => {
     set((state) => {
-      const speaking = isSpeaking
+      const target = state.participants.find((p) => p.userId === userId);
+      const isTargetMuted = Boolean(target?.isMuted || target?.isDeafened);
+      const effectiveSpeaking = isTargetMuted ? false : Boolean(isSpeaking);
+
+      const speaking = effectiveSpeaking
         ? Array.from(new Set([...state.speakingMembers, userId]))
         : state.speakingMembers.filter((id) => id !== userId);
 
       return {
         speakingMembers: speaking,
         participants: state.participants.map((p) =>
-          p.userId === userId ? { ...p, isSpeaking } : p,
+          p.userId === userId ? { ...p, isSpeaking: effectiveSpeaking } : p,
         ),
+      };
+    });
+  },
+
+  updateParticipant: (userId, partial) => {
+    set((state) => {
+      const myId = useUiStore.getState().myUserId || "me";
+      const isMe = userId === "me" || userId === myId || userId === state.participants[0]?.userId;
+
+      const nextParticipants = state.participants.map((p) => {
+        if (p.userId === userId || (isMe && (p.userId === "me" || p.userId === state.participants[0]?.userId))) {
+          const next = { ...p, ...partial };
+          if (next.isMuted || next.isDeafened) {
+            next.isSpeaking = false;
+          }
+          return next;
+        }
+        return p;
+      });
+
+      const nextStreams = { ...state.remoteVideoStreams };
+      if (partial.isScreenSharing === false && nextStreams[userId]) {
+        delete nextStreams[userId];
+      }
+
+      let activeStreamUserId = state.activeStreamUserId;
+      if (activeStreamUserId === userId && partial.isScreenSharing === false) {
+        activeStreamUserId = null;
+      }
+
+      const isMutedNow = Boolean(partial.isMuted || partial.isDeafened);
+      const speaking = isMutedNow
+        ? state.speakingMembers.filter((id) => id !== userId && (isMe ? (id !== "me" && id !== myId) : true))
+        : state.speakingMembers;
+
+      return {
+        participants: nextParticipants,
+        remoteVideoStreams: nextStreams,
+        activeStreamUserId,
+        speakingMembers: speaking,
+        ...(isMe && isMutedNow ? { isSpeaking: false } : {}),
       };
     });
   },
@@ -405,19 +485,36 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       const myId = useUiStore.getState().myUserId || "me";
       const isMe = targetId === "me" || targetId === myId || targetId === state.participants[0]?.userId;
 
-      return {
-        participants: state.participants.map((p) => {
-          if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
-            const nextMuted = !p.isMuted;
-            if (isMe) webrtcVoice.setMicrophoneMuted(nextMuted);
-            return {
-              ...p,
-              isMuted: nextMuted,
-              isSpeaking: nextMuted ? false : p.isSpeaking,
-            };
+      let nextIsSpeaking = state.isSpeaking;
+      let nextSpeakingMembers = state.speakingMembers;
+
+      const nextParticipants = state.participants.map((p) => {
+        if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
+          const nextMuted = !p.isMuted;
+          if (isMe) {
+            webrtcVoice.setMicrophoneMuted(nextMuted);
+            useSettingsStore.getState().setMicrophoneEnabled(!nextMuted);
+            void webrtcVoice.tickHeartbeat();
           }
-          return p;
-        }),
+          if (nextMuted) {
+            nextIsSpeaking = false;
+            nextSpeakingMembers = nextSpeakingMembers.filter(
+              (id) => id !== targetId && (isMe ? (id !== "me" && id !== myId) : true)
+            );
+          }
+          return {
+            ...p,
+            isMuted: nextMuted,
+            isSpeaking: nextMuted ? false : p.isSpeaking,
+          };
+        }
+        return p;
+      });
+
+      return {
+        isSpeaking: isMe ? nextIsSpeaking : state.isSpeaking,
+        speakingMembers: nextSpeakingMembers,
+        participants: nextParticipants,
       };
     });
   },
@@ -428,54 +525,108 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       const myId = useUiStore.getState().myUserId || "me";
       const isMe = targetId === "me" || targetId === myId || targetId === state.participants[0]?.userId;
 
-      return {
-        participants: state.participants.map((p) => {
-          if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
-            const nextDeafened = !p.isDeafened;
-            if (isMe) {
-              webrtcVoice.setDeafened(nextDeafened);
-              if (nextDeafened) webrtcVoice.setMicrophoneMuted(true);
+      let nextIsSpeaking = state.isSpeaking;
+      let nextSpeakingMembers = state.speakingMembers;
+
+      const nextParticipants = state.participants.map((p) => {
+        if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
+          const nextDeafened = !p.isDeafened;
+          if (isMe) {
+            webrtcVoice.setDeafened(nextDeafened);
+            if (nextDeafened) {
+              webrtcVoice.setMicrophoneMuted(true);
+              useSettingsStore.getState().setMicrophoneEnabled(false);
             }
-            return {
-              ...p,
-              isDeafened: nextDeafened,
-              isMuted: nextDeafened ? true : p.isMuted,
-              isSpeaking: nextDeafened ? false : p.isSpeaking,
-            };
+            useSettingsStore.getState().setHeadphonesEnabled(!nextDeafened);
+            void webrtcVoice.tickHeartbeat();
           }
-          return p;
-        }),
+          if (nextDeafened) {
+            nextIsSpeaking = false;
+            nextSpeakingMembers = nextSpeakingMembers.filter(
+              (id) => id !== targetId && (isMe ? (id !== "me" && id !== myId) : true)
+            );
+          }
+          return {
+            ...p,
+            isDeafened: nextDeafened,
+            isMuted: nextDeafened ? true : p.isMuted,
+            isSpeaking: nextDeafened ? false : p.isSpeaking,
+          };
+        }
+        return p;
+      });
+
+      return {
+        isSpeaking: isMe ? nextIsSpeaking : state.isSpeaking,
+        speakingMembers: nextSpeakingMembers,
+        participants: nextParticipants,
       };
     });
   },
 
   setParticipantMuted: (userId, isMuted) => {
-    set((state) => ({
-      participants: state.participants.map((p) =>
-        p.userId === userId
-          ? {
-              ...p,
-              isMuted,
-              isSpeaking: isMuted ? false : p.isSpeaking,
-            }
-          : p,
-      ),
-    }));
+    set((state) => {
+      const myId = useUiStore.getState().myUserId || "me";
+      const isMe = userId === "me" || userId === myId || userId === state.participants[0]?.userId;
+      if (isMe) {
+        webrtcVoice.setMicrophoneMuted(isMuted);
+        useSettingsStore.getState().setMicrophoneEnabled(!isMuted);
+        void webrtcVoice.tickHeartbeat();
+      }
+
+      const nextSpeakingMembers = isMuted
+        ? state.speakingMembers.filter((id) => id !== userId && (isMe ? (id !== "me" && id !== myId) : true))
+        : state.speakingMembers;
+
+      return {
+        isSpeaking: isMe && isMuted ? false : state.isSpeaking,
+        speakingMembers: nextSpeakingMembers,
+        participants: state.participants.map((p) =>
+          p.userId === userId || (isMe && (p.userId === "me" || p.userId === state.participants[0]?.userId))
+            ? {
+                ...p,
+                isMuted,
+                isSpeaking: isMuted ? false : p.isSpeaking,
+              }
+            : p,
+        ),
+      };
+    });
   },
 
   setParticipantDeafened: (userId, isDeafened) => {
-    set((state) => ({
-      participants: state.participants.map((p) =>
-        p.userId === userId
-          ? {
-              ...p,
-              isDeafened,
-              isMuted: isDeafened ? true : p.isMuted,
-              isSpeaking: isDeafened ? false : p.isSpeaking,
-            }
-          : p,
-      ),
-    }));
+    set((state) => {
+      const myId = useUiStore.getState().myUserId || "me";
+      const isMe = userId === "me" || userId === myId || userId === state.participants[0]?.userId;
+      if (isMe) {
+        webrtcVoice.setDeafened(isDeafened);
+        if (isDeafened) {
+          webrtcVoice.setMicrophoneMuted(true);
+          useSettingsStore.getState().setMicrophoneEnabled(false);
+        }
+        useSettingsStore.getState().setHeadphonesEnabled(!isDeafened);
+        void webrtcVoice.tickHeartbeat();
+      }
+
+      const nextSpeakingMembers = isDeafened
+        ? state.speakingMembers.filter((id) => id !== userId && (isMe ? (id !== "me" && id !== myId) : true))
+        : state.speakingMembers;
+
+      return {
+        isSpeaking: isMe && isDeafened ? false : state.isSpeaking,
+        speakingMembers: nextSpeakingMembers,
+        participants: state.participants.map((p) =>
+          p.userId === userId || (isMe && (p.userId === "me" || p.userId === state.participants[0]?.userId))
+            ? {
+                ...p,
+                isDeafened,
+                isMuted: isDeafened ? true : p.isMuted,
+                isSpeaking: isDeafened ? false : p.isSpeaking,
+              }
+            : p,
+        ),
+      };
+    });
   },
 }));
 

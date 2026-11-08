@@ -23,6 +23,7 @@ Thumbs.db
 apps/desktop/src-tauri/gen/
 apps/desktop/release/*.exe
 apps/desktop/release/*.sig
+apps/desktop/release/*.json
 *.tsbuildinfo
 minisign-secret.key
 **/minisign-secret.key

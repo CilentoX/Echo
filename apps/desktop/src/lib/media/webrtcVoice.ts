@@ -3,6 +3,7 @@ import { ECHO_API_CONFIG } from "@/lib/api/config";
 
 export interface WebRtcCallbacks {
   onParticipantsUpdate?: (participants: any[]) => void;
+  onParticipantUpdated?: (userId: string, data: Partial<any>) => void;
   onSpeakingChange?: (isSpeaking: boolean) => void;
   onParticipantSpeaking?: (userId: string, isSpeaking: boolean) => void;
   onRemoteVideoStream?: (userId: string, stream: MediaStream | null, kind: "screen" | "camera") => void;
@@ -216,8 +217,22 @@ class WebRtcVoiceManager {
       sse.addEventListener("participant_updated", (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
-          if (data?.userId && typeof data.isSpeaking === "boolean") {
-            this.callbacks.onParticipantSpeaking?.(data.userId, data.isSpeaking);
+          if (data?.userId) {
+            this.callbacks.onParticipantUpdated?.(data.userId, {
+              isSpeaking: data.isSpeaking,
+              isMuted: data.isMuted,
+              isDeafened: data.isDeafened,
+              isScreenSharing: data.isScreenSharing,
+              hasCamera: data.hasCamera,
+            });
+            if (typeof data.isSpeaking === "boolean") {
+              const speaking = (data.isMuted || data.isDeafened) ? false : data.isSpeaking;
+              this.callbacks.onParticipantSpeaking?.(data.userId, speaking);
+            }
+            if (data.isScreenSharing === false) {
+              this.remoteVideoStreams.delete(data.userId);
+              this.callbacks.onRemoteVideoStream?.(data.userId, null, "screen");
+            }
           }
         } catch {}
       });
@@ -305,13 +320,37 @@ class WebRtcVoiceManager {
       this.cleanupPeer(peerId);
     }
 
-    // Para faixas locais
+    // Para faixas locais de áudio
     if (this.localStream) {
       for (const track of this.localStream.getTracks()) {
         track.stop();
       }
       this.localStream = null;
     }
+
+    // Para faixas locais de transmissão de tela
+    if (this.localScreenStream) {
+      for (const track of this.localScreenStream.getTracks()) {
+        track.stop();
+      }
+      this.localScreenStream = null;
+    }
+
+    // Para faixas locais de câmera
+    if (this.localCameraStream) {
+      for (const track of this.localCameraStream.getTracks()) {
+        track.stop();
+      }
+      this.localCameraStream = null;
+    }
+
+    this.isScreenSharing = false;
+    this.isCameraOn = false;
+    this.isSpeaking = false;
+    this.screenSenders.clear();
+    this.screenAudioSenders.clear();
+    this.cameraSenders.clear();
+    this.remoteVideoStreams.clear();
 
     if (this.audioContext) {
       try {
@@ -376,6 +415,10 @@ class WebRtcVoiceManager {
         track.enabled = !muted;
       }
     }
+    if (muted) {
+      this.isSpeaking = false;
+      this.callbacks.onSpeakingChange?.(false);
+    }
   }
 
   public setDeafened(deafened: boolean) {
@@ -386,6 +429,9 @@ class WebRtcVoiceManager {
     for (const [peerId, node] of this.peerAudioNodes.entries()) {
       const userVol = this.peerVolumes.get(peerId) ?? 100;
       node.gain.gain.value = deafened ? 0 : userVol / 100;
+    }
+    if (deafened) {
+      this.setMicrophoneMuted(true);
     }
   }
 
@@ -432,6 +478,8 @@ class WebRtcVoiceManager {
     this.screenAudioSenders.delete(peerId);
     this.cameraSenders.delete(peerId);
     this.candidateQueues.delete(peerId);
+    this.remoteVideoStreams.delete(peerId);
+    this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
 
     if (this.remoteVideoStreams.has(peerId)) {
       this.remoteVideoStreams.delete(peerId);
@@ -948,6 +996,15 @@ class WebRtcVoiceManager {
           this.remoteVideoStreams.set(peerId, videoStream);
           this.callbacks.onRemoteVideoStream?.(peerId, videoStream, "screen");
         };
+
+        track.onmute = () => {
+          setTimeout(() => {
+            if (track.muted || track.readyState === "ended") {
+              this.remoteVideoStreams.delete(peerId);
+              this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+            }
+          }, 800);
+        };
       }
     };
 
@@ -1002,15 +1059,34 @@ class WebRtcVoiceManager {
         if (videoTrack) {
           if (existingVideoSender) {
             await existingVideoSender.replaceTrack(videoTrack);
-            this.tuneSender(existingVideoSender, 4_500_000);
+            const tr = pc.getTransceivers().find((t) => t.sender === existingVideoSender);
+            if (tr) tr.direction = "sendrecv";
+            needsRenegotiate = true;
           } else {
-            const sender = pc.addTrack(videoTrack, stream!);
-            this.screenSenders.set(peerId, sender);
-            this.tuneSender(sender, 4_500_000);
+            // Reutiliza transceiver de vídeo existente se houver, ou associa a nova faixa
+            const tr = pc.getTransceivers().find((t) => t.receiver.track?.kind === "video" || t.sender.track === null);
+            if (tr) {
+              tr.direction = "sendrecv";
+              await tr.sender.replaceTrack(videoTrack);
+              this.screenSenders.set(peerId, tr.sender);
+            } else {
+              const sender = pc.addTrack(videoTrack, stream!);
+              this.screenSenders.set(peerId, sender);
+            }
             needsRenegotiate = true;
           }
         } else if (existingVideoSender) {
-          pc.removeTrack(existingVideoSender);
+          const tr = pc.getTransceivers().find((t) => t.sender === existingVideoSender);
+          if (tr) {
+            tr.direction = "recvonly";
+            try {
+              await tr.sender.replaceTrack(null);
+            } catch {}
+          } else {
+            try {
+              pc.removeTrack(existingVideoSender);
+            } catch {}
+          }
           this.screenSenders.delete(peerId);
           needsRenegotiate = true;
         }
@@ -1084,6 +1160,11 @@ class WebRtcVoiceManager {
     if (!pc || !this.currentChannelId) return;
 
     try {
+      const sender = this.screenSenders.get(peerId);
+      if (sender) {
+        this.tuneSender(sender, 4_500_000);
+      }
+
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
@@ -1126,6 +1207,13 @@ class WebRtcVoiceManager {
 
       await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
 
+      // Assegura que transceivers de vídeo estejam prontos para recepção
+      for (const tr of pc.getTransceivers()) {
+        if (tr.receiver.track?.kind === "video" && tr.direction === "inactive") {
+          tr.direction = "recvonly";
+        }
+      }
+
       // Drena candidatos ICE enfileirados
       const queued = this.candidateQueues.get(fromUserId) || [];
       for (const cand of queued) {
@@ -1142,6 +1230,11 @@ class WebRtcVoiceManager {
       const optimizedAnswer = this.optimizeSdp(answer.sdp || "");
       await pc.setLocalDescription({ type: answer.type, sdp: optimizedAnswer });
 
+      const scrSender = this.screenSenders.get(fromUserId);
+      if (scrSender) {
+        this.tuneSender(scrSender, 4_500_000);
+      }
+
       const api = useEchoApi();
       if (typeof api?.sendVoiceSignal === "function") {
         await api.sendVoiceSignal(this.currentChannelId, fromUserId, {
@@ -1154,6 +1247,11 @@ class WebRtcVoiceManager {
       const pc = this.peers.get(fromUserId);
       if (pc && pc.signalingState === "have-local-offer") {
         await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+
+        const scrSender = this.screenSenders.get(fromUserId);
+        if (scrSender) {
+          this.tuneSender(scrSender, 4_500_000);
+        }
 
         const queued = this.candidateQueues.get(fromUserId) || [];
         for (const cand of queued) {

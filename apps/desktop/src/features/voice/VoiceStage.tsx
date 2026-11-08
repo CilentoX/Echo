@@ -26,6 +26,7 @@ import { useVoiceStore } from "@/stores/voiceStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { matrixService } from "@/lib/matrix/instance";
 import MxcImage from "@/components/media/MxcImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,6 +42,7 @@ function RemoteParticipantVideo({ stream }: { stream: MediaStream }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (videoRef.current && stream) {
+      videoRef.current.muted = true;
       if (videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
       }
@@ -84,6 +86,8 @@ export default function VoiceStage({
   const participants = useVoiceStore((s) => s.participants);
   const speakingMembers = useVoiceStore((s) => s.speakingMembers);
   const isSpeaking = useVoiceStore((s) => s.isSpeaking);
+  const microphoneEnabled = useSettingsStore((s) => s.microphoneEnabled);
+  const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
   const connectVoice = useVoiceStore((s) => s.connectVoice);
   const disconnectVoice = useVoiceStore((s) => s.disconnectVoice);
   const setSpeaking = useVoiceStore((s) => s.setSpeaking);
@@ -562,6 +566,7 @@ export default function VoiceStage({
     (node: HTMLVideoElement | null) => {
       screenVideoRef.current = node;
       if (node && displayedStream) {
+        node.muted = true;
         if (node.srcObject !== displayedStream) {
           node.srcObject = displayedStream;
         }
@@ -574,6 +579,7 @@ export default function VoiceStage({
   useEffect(() => {
     if (screenVideoRef.current) {
       if (displayedStream) {
+        screenVideoRef.current.muted = true;
         if (screenVideoRef.current.srcObject !== displayedStream) {
           screenVideoRef.current.srcObject = displayedStream;
         }
@@ -647,10 +653,17 @@ export default function VoiceStage({
       participant.avatarUrl ||
       null;
 
+    const isParticipantMuted = Boolean(
+      participant.isMuted ||
+      participant.isDeafened ||
+      (isMe && (!microphoneEnabled || !headphonesEnabled))
+    );
+
     const participantSpeaking =
-      participant.isSpeaking ||
+      !isParticipantMuted &&
+      (participant.isSpeaking ||
       speakingMembers.includes(participant.userId) ||
-      (isMe && (isSpeaking || speakingMembers.includes("me") || speakingMembers.includes(effectiveUserId)));
+      (isMe && isConnected && (isSpeaking || speakingMembers.includes("me") || (effectiveUserId ? speakingMembers.includes(effectiveUserId) : false))));
 
     const isSharingScreen = isMe
       ? localIsSharing

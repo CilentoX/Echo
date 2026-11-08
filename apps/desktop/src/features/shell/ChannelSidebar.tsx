@@ -21,6 +21,7 @@ import {
   SignOut,
   BellSimple,
   DotsSixVertical,
+  Television,
 } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect, useRef } from "react";
 import EmptyState from "./EmptyState";
@@ -155,6 +156,7 @@ export default function ChannelSidebar({
   }, [mode, themeId]);
 
   const activeVoiceChannelId = useVoiceStore((state) => state.activeVoiceChannelId);
+  const isVoiceConnected = useVoiceStore((state) => state.isConnected);
   const voiceParticipants = useVoiceStore((state) => state.participants);
   const connectVoice = useVoiceStore((state) => state.connectVoice);
   const guildProfiles = useSyncStore((state) =>
@@ -1850,7 +1852,7 @@ export default function ChannelSidebar({
                         }
 
                         // Canal de voz
-                        const connected = channel.channelId === activeVoiceChannelId;
+                        const connected = channel.channelId === activeVoiceChannelId && isVoiceConnected;
 
                         return (
                           <ContextMenu key={channel.channelId}>
@@ -2061,9 +2063,29 @@ export default function ChannelSidebar({
                                       <span className="ml-auto text-[9px] uppercase font-bold text-online bg-online/25 px-1.5 py-0.5 rounded-full animate-pulse">
                                         Mover para cá
                                       </span>
-                                    ) : connected ? (
-                                      <span className="flex h-2 w-2 rounded-full bg-online animate-ping shrink-0 ml-auto" />
-                                    ) : null}
+                                    ) : (
+                                      <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                                        {(() => {
+                                          const channelParts = connected
+                                            ? voiceParticipants
+                                            : (guildVoiceState[channel.channelId] ?? []);
+                                          const hasLive = Array.isArray(channelParts) && channelParts.some((p: any) => p.isScreenSharing);
+                                          if (!hasLive) return null;
+                                          return (
+                                            <span
+                                              className="flex items-center gap-1 rounded bg-err/20 px-1.5 py-0.5 text-[9px] font-bold text-err shrink-0 tracking-wider shadow-xs animate-pulse"
+                                              title="Transmissão ao vivo em andamento"
+                                            >
+                                              <Television size={10} weight="fill" />
+                                              AO VIVO
+                                            </span>
+                                          );
+                                        })()}
+                                        {connected && (
+                                          <span className="flex h-2 w-2 rounded-full bg-online animate-ping shrink-0" />
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-0.5 ml-1 shrink-0">
                                     <ChannelMutePopover
@@ -2123,13 +2145,21 @@ export default function ChannelSidebar({
                                         p.avatarUrl ||
                                         guildProfiles?.[effectiveUserId]?.avatarUrl ||
                                         (isMe ? (myAppwriteAvatarUrl || profileAvatarUrl) : null);
+                                      const isParticipantMuted = Boolean(
+                                        p.isMuted ||
+                                        p.isDeafened ||
+                                        (isMe && (!microphoneEnabled || !headphonesEnabled))
+                                      );
                                       const participantSpeaking =
-                                        p.isSpeaking ||
-                                        speakingMembers.includes(p.userId) ||
-                                        (isMe &&
-                                          (isSpeaking ||
-                                            speakingMembers.includes("me") ||
-                                            (effectiveUserId ? speakingMembers.includes(effectiveUserId) : false)));
+                                        !isParticipantMuted &&
+                                        (p.isSpeaking ||
+                                          speakingMembers.includes(p.userId) ||
+                                          (isMe &&
+                                            connected &&
+                                            isVoiceConnected &&
+                                            (isSpeaking ||
+                                              speakingMembers.includes("me") ||
+                                              (effectiveUserId ? speakingMembers.includes(effectiveUserId) : false))));
 
                                       return (
                                         <MemberContextMenu
@@ -2224,6 +2254,17 @@ export default function ChannelSidebar({
                                                   >
                                                     {effectiveNick}
                                                   </span>
+
+                                                  {/* Badge de Live/Transmissão de Tela */}
+                                                  {p.isScreenSharing && (
+                                                    <span
+                                                      className="flex items-center gap-0.5 rounded bg-err/15 px-1.5 py-0.5 text-[9px] font-bold text-err shrink-0 tracking-wider shadow-xs animate-pulse"
+                                                      title="Transmitindo tela"
+                                                    >
+                                                      <Television size={10} weight="fill" />
+                                                      AO VIVO
+                                                    </span>
+                                                  )}
 
                                                   {/* Equalizer Waveform quando Falando */}
                                                   {participantSpeaking && (

@@ -5,6 +5,7 @@ import UserBar from "@/features/shell/UserBar";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 
 describe("UserBar Component", () => {
   beforeEach(() => {
@@ -65,6 +66,28 @@ describe("UserBar Component", () => {
     const unfoneBtn = screen.getByRole("button", { name: "Ativar áudio" });
     await userEvent.click(unfoneBtn);
     expect(useSettingsStore.getState().headphonesEnabled).toBe(true);
+  });
+
+  it("não exibe anel de fala quando fora da chamada ou mutado, exibindo apenas quando conectado e falando", () => {
+    useVoiceStore.setState({ isConnected: false, isSpeaking: true });
+
+    const { rerender } = render(<UserBar />);
+    // Desconectado: mesmo com isSpeaking=true, não deve ter ring-online nem animate-pulse no avatar
+    let avatarEl = screen.getByText("L");
+    expect(avatarEl.className).not.toContain("ring-online");
+
+    // Conectado mas mutado:
+    useVoiceStore.setState({ isConnected: true, isSpeaking: true });
+    useSettingsStore.setState({ microphoneEnabled: false });
+    rerender(<UserBar />);
+    avatarEl = screen.getByText("L");
+    expect(avatarEl.className).not.toContain("ring-online");
+
+    // Conectado e desmutado:
+    useSettingsStore.setState({ microphoneEnabled: true });
+    rerender(<UserBar />);
+    avatarEl = screen.getByText("L");
+    expect(avatarEl.className).toContain("ring-online");
   });
 });
 

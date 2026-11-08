@@ -140,7 +140,9 @@ describe("WebRtcVoiceManager - SSE, Qualidade de Live e Boost 200%", () => {
     }).not.toThrow();
   });
 
-  it("permite silenciar e ensurdecer o usuário", async () => {
+  it("permite silenciar e ensurdecer o usuário, forçando isSpeaking=false ao mutar", async () => {
+    const onSpeakingChange = vi.fn();
+
     await webrtcVoice.join(
       "guild-1",
       "ch-test-1",
@@ -149,14 +151,54 @@ describe("WebRtcVoiceManager - SSE, Qualidade de Live e Boost 200%", () => {
       null,
       false,
       false,
+      { onSpeakingChange },
     );
 
-    expect(() => {
-      webrtcVoice.setMicrophoneMuted(true);
-      webrtcVoice.setDeafened(true);
-      webrtcVoice.setDeafened(false);
-      webrtcVoice.setMicrophoneMuted(false);
-    }).not.toThrow();
+    webrtcVoice.setMicrophoneMuted(true);
+    expect(onSpeakingChange).toHaveBeenCalledWith(false);
+
+    webrtcVoice.setDeafened(true);
+    // Ensurdecer deve manter microfone mutado
+    webrtcVoice.setDeafened(false);
+    webrtcVoice.setMicrophoneMuted(false);
+  });
+
+  it("despacha participant_updated via SSE para atualizar status remoto e remover stream de tela se parado", async () => {
+    const onParticipantUpdated = vi.fn();
+    const onRemoteVideoStream = vi.fn();
+
+    await webrtcVoice.join(
+      "guild-1",
+      "ch-test-1",
+      "@test:echo.litteris.online",
+      "Tester",
+      null,
+      false,
+      false,
+      { onParticipantUpdated, onRemoteVideoStream },
+    );
+
+    const sse = createdEventSources[0];
+    expect(sse).toBeDefined();
+
+    // Emite participant_updated informando que o usuário parou o compartilhamento de tela
+    sse.emit("participant_updated", {
+      userId: "@peer1:echo.litteris.online",
+      isSpeaking: false,
+      isMuted: true,
+      isDeafened: false,
+      isScreenSharing: false,
+      hasCamera: false,
+    });
+
+    expect(onParticipantUpdated).toHaveBeenCalledWith("@peer1:echo.litteris.online", {
+      isSpeaking: false,
+      isMuted: true,
+      isDeafened: false,
+      isScreenSharing: false,
+      hasCamera: false,
+    });
+    expect(onRemoteVideoStream).toHaveBeenCalledWith("@peer1:echo.litteris.online", null, "screen");
   });
 
   it("fecha SSE e limpa conexões ao sair da sala de voz", async () => {
