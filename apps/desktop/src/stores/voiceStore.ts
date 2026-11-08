@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useUiStore } from "./uiStore";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
+import { audioEngine } from "@/lib/media/audioEngine";
 
 export interface ScreenShareConfig {
   sourceId: string;
@@ -197,11 +198,13 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         isConnected: true,
         isConnecting: false,
       });
+      void audioEngine.playVoiceConnected();
     });
   },
 
   disconnectVoice: () => {
     void webrtcVoice.leave();
+    void audioEngine.playVoiceDisconnected();
     set({
       activeVoiceGuildId: null,
       activeVoiceGuildName: null,

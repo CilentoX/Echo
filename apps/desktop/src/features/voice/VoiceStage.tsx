@@ -918,11 +918,18 @@ export default function VoiceStage({
               <h1 className="font-display text-sm font-bold text-txt truncate">
                 {channelName}
               </h1>
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-online/15 border border-online/30 text-[10px] font-semibold text-online shadow-xs">
-                <span className="h-1.5 w-1.5 rounded-full bg-online animate-pulse" />
-                <span>{isConnecting ? "Conectando..." : "Áudio Conectado"}</span>
-                <span className="font-mono text-[9px] text-online/70 ml-1">({pingMs}ms)</span>
-              </span>
+              {isConnecting ? (
+                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-semibold text-amber-400 shadow-xs animate-pulse">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                  <span>Conectando à voz...</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-online/15 border border-online/30 text-[10px] font-semibold text-online shadow-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-online animate-pulse" />
+                  <span>Voz Conectada</span>
+                  <span className="font-mono text-[9px] text-online/70 ml-1">({pingMs}ms)</span>
+                </span>
+              )}
               {!canSpeak && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-semibold text-amber-400">
                   Modo Ouvinte
@@ -954,6 +961,34 @@ export default function VoiceStage({
 
       {/* Conteúdo Principal: Palco 100% de Áudio com Cards dos Participantes */}
       <div className="flex flex-1 min-h-0 w-full flex-col justify-between overflow-y-auto p-6 scrollbar-thin">
+        {/* Banner de Status de Conectividade de Voz */}
+        {isConnecting ? (
+          <div className="mb-4 flex items-center justify-between px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-300 animate-pulse">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              </span>
+              <span className="font-semibold">Conectando aos servidores de voz...</span>
+              <span className="text-white/60 hidden sm:inline">Sincronizando áudio em tempo real.</span>
+            </div>
+            <span className="text-[11px] font-mono text-amber-400/80 font-medium">Aguarde...</span>
+          </div>
+        ) : isConnected ? (
+          <div className="mb-4 flex items-center justify-between px-4 py-2.5 rounded-xl bg-online/10 border border-online/25 text-xs text-online animate-in fade-in duration-200">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-online" />
+              </span>
+              <span className="font-semibold">Voz conectada!</span>
+              <span className="text-white/70 hidden sm:inline">Você já pode falar e ouvir os participantes da chamada.</span>
+            </div>
+            <span className="text-[11px] font-mono text-online font-bold bg-online/15 px-2 py-0.5 rounded-md border border-online/30">
+              {pingMs > 0 ? `${pingMs}ms` : "Pronto"}
+            </span>
+          </div>
+        ) : null}
+
         {participants.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center text-center max-w-md mx-auto my-auto animate-in fade-in-0 duration-200">
             <div className="relative mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-online/10 text-online border border-online/25 shadow-xl shadow-online/15">

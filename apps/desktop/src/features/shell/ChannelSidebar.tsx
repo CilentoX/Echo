@@ -207,12 +207,11 @@ export default function ChannelSidebar({
   const isGuildMuted = useSyncStore((state) => state.isGuildMuted);
 
   const isGuildOwner = Boolean(
-    (activeGuild?.createdBy && effectiveUserId && activeGuild.createdBy === effectiveUserId) ||
+    (activeGuild?.createdBy && effectiveUserId && activeGuild.createdBy.toLowerCase() === effectiveUserId.toLowerCase()) ||
     ((guildRoles as any[]) || []).some((r) =>
       ((userRoleIds as string[]) || []).includes((r as any).roleId || r.id) &&
       (r.permissions?.includes("ADMINISTRATOR") || r.permissions?.includes("MANAGE_GUILD"))
-    ) ||
-    !activeGuild?.createdBy // Fallback defensivo: se createdBy não estiver definido na guilda, permite gerenciamento
+    )
   );
 
   const canManageChannels = Boolean(
@@ -862,17 +861,19 @@ export default function ChannelSidebar({
                       <span>Convidar Pessoas</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHeaderMenuOpen(false);
-                        setEditGuildOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                    >
-                      <Gear size={15} weight="bold" />
-                      <span>Configurações do Servidor</span>
-                    </button>
+                    {isGuildOwner && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeaderMenuOpen(false);
+                          setEditGuildOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
+                      >
+                        <Gear size={15} weight="bold" />
+                        <span>Configurações do Servidor</span>
+                      </button>
+                    )}
 
                     {canManageChannels && (
                       <>
@@ -1446,29 +1447,33 @@ export default function ChannelSidebar({
                       </ContextMenuLabel>
                       <ContextMenuSeparator />
 
-                      <ContextMenuItem
-                        onClick={() => {
-                          setTargetCategoryForChannel(group.name);
-                          setTargetTypeForChannel("text");
-                          setCreateChannelOpen(true);
-                        }}
-                      >
-                        <Hash size={14} weight="bold" className="text-acc" />
-                        <span>Criar Canal de Texto</span>
-                      </ContextMenuItem>
+                      {canManageChannels && (
+                        <>
+                          <ContextMenuItem
+                            onClick={() => {
+                              setTargetCategoryForChannel(group.name);
+                              setTargetTypeForChannel("text");
+                              setCreateChannelOpen(true);
+                            }}
+                          >
+                            <Hash size={14} weight="bold" className="text-acc" />
+                            <span>Criar Canal de Texto</span>
+                          </ContextMenuItem>
 
-                      <ContextMenuItem
-                        onClick={() => {
-                          setTargetCategoryForChannel(group.name);
-                          setTargetTypeForChannel("voice");
-                          setCreateChannelOpen(true);
-                        }}
-                      >
-                        <SpeakerHigh size={14} weight="bold" className="text-online" />
-                        <span>Criar Canal de Voz</span>
-                      </ContextMenuItem>
+                          <ContextMenuItem
+                            onClick={() => {
+                              setTargetCategoryForChannel(group.name);
+                              setTargetTypeForChannel("voice");
+                              setCreateChannelOpen(true);
+                            }}
+                          >
+                            <SpeakerHigh size={14} weight="bold" className="text-online" />
+                            <span>Criar Canal de Voz</span>
+                          </ContextMenuItem>
 
-                      <ContextMenuSeparator />
+                          <ContextMenuSeparator />
+                        </>
+                      )}
 
                       <ContextMenuItem onClick={() => toggleCategory(group.name)}>
                         {isCollapsed ? <CaretDown size={14} weight="bold" /> : <CaretRight size={14} weight="bold" />}
@@ -2221,7 +2226,7 @@ export default function ChannelSidebar({
                           </ContextMenu>
                         );
                       })}
-                      {group.channels.some((c) => c.type === "voice") && (
+                      {canManageChannels && group.channels.some((c) => c.type === "voice") && (
                         <li className="mt-1">
                           <button
                             type="button"

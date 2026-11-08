@@ -1,0 +1,11 @@
+{
+  "version": "0.1.19",
+  "notes": "Echo v0.1.19: Fechamento instantâneo sem travamento, conexão de voz rápida com aviso sonoro e visual, e controle estrito de permissões de canais por dono e cargos.",
+  "pub_date": "2026-11-08T00:20:35.136Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVhvSGg2cE5YVFg1UmNvVTk5REVidU5TMzRESzlYYlBGQnJBYjRUV0k5WXdxaWl4L3BYK3BsakoyUVRxSG1GS2JrcWpBZlAvWkVRMTNtc1dLNiszTWcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MDk3MjMzCWZpbGU6RWNob18wLjEuMTlfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4xOQoxdlpML3NZeXRjaDJjbDA5UWljUElicFpwY1FtNzh6a25DREx6dEQxNFRBYTRNMU5zTjhXVUxqb0h2aVBPSzFrb1RCZ3NOZVNIekFWdWVQblpCajhDUT09Cg==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.19/Echo_0.1.19_x64-setup.exe"
+    }
+  }
+}

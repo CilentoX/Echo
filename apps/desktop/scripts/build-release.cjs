@@ -93,7 +93,9 @@ if (fs.existsSync(sigSrc)) {
 
 // 6. Gera o manifesto latest.json
 console.log('\n5. Gerando manifesto latest.json e sincronizando com echo-site...');
-execSync(`node "${path.join(__dirname, 'gen-latest-json.cjs')}" "${version}"`, { cwd: rootDir, stdio: 'inherit' });
+const notes = process.argv[3] || '';
+const notesArg = notes ? ` "${notes}"` : '';
+execSync(`node "${path.join(__dirname, 'gen-latest-json.cjs')}" "${version}"${notesArg}`, { cwd: rootDir, stdio: 'inherit' });
 
 console.log(`\n========================================`);
 console.log(`  BUILD v${version} CONCLUÍDO COM SUCESSO!`);

@@ -354,5 +354,35 @@ describe("Sistema Completo de Permissões de Canais (Texto e Áudio)", () => {
       // Elemento com título "Canal Privado" deve estar presente na tela
       expect(screen.getByTitle("Canal Privado")).toBeTruthy();
     });
+
+    it("Membro comum sem permissão de gerenciamento não vê botão de criar canal nem sala temporária", () => {
+      useSyncStore.getState().setGuilds([
+        {
+          guildId: "guild-1",
+          name: "Echo Server",
+          avatarUrl: null,
+          unreadCount: 0,
+          createdBy: "@owner:echo.litteris.online",
+        },
+      ]);
+      useSyncStore.getState().setChannels("guild-1", [
+        {
+          channelId: "c-voice",
+          name: "Voz Geral",
+          type: "voice",
+          unreadCount: 0,
+        },
+      ]);
+      useUiStore.setState({
+        activeGuildId: "guild-1",
+        myUserId: "@regular:echo.litteris.online",
+      });
+
+      render(<ChannelSidebar />);
+
+      // Não deve exibir botão de criar canal nem sala de voz temporária
+      expect(screen.queryByLabelText("Criar canal")).toBeNull();
+      expect(screen.queryByLabelText("Criar sala de voz temporária")).toBeNull();
+    });
   });
 });

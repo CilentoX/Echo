@@ -211,7 +211,13 @@ export default function AppShell({
   const handleGuildCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null }) => {
     setGuilds([
       ...guilds,
-      { guildId: guild.guildId, name: guild.name, avatarUrl: guild.avatarUrl ?? null, unreadCount: 0 },
+      {
+        guildId: guild.guildId,
+        name: guild.name,
+        avatarUrl: guild.avatarUrl ?? null,
+        unreadCount: 0,
+        createdBy: myUserId,
+      },
     ]);
     useUiStore.getState().setActiveGuild(guild.guildId);
     setCreateGuildOpen(false);

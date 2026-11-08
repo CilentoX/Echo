@@ -27,14 +27,32 @@ function Shell() {
   useEffect(() => {
     void initNotifications();
     loadProfile();
+  }, [loadProfile]);
+  
+  const sendMessage = useCallback((roomId: string, body: string): Promise<string> =>
+    matrixService.sendMessage(roomId, body), []);
 
+  const sendFile = useCallback((roomId: string, file: File, body?: string): Promise<string> =>
+    matrixService.sendFile(roomId, file, body), []);
+
+  return (
+    <AppShell
+      sendMessage={sendMessage}
+      sendFile={sendFile}
+      botSenders={BOT_SENDERS}
+    />
+  );
+}
+
+export default function App() {
+  useEffect(() => {
     const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
     let unlistenFn: (() => void) | null = null;
 
     if (isTauri) {
       listen("echo://close-requested", async () => {
         try {
-          await webrtcVoice.leave();
+          webrtcVoice.leaveSyncOrKeepalive();
         } catch {}
         try {
           stopSyncWiring();
@@ -60,25 +78,8 @@ function Shell() {
       unlistenFn?.();
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [loadProfile]);
+  }, []);
 
-  
-  const sendMessage = useCallback((roomId: string, body: string): Promise<string> =>
-    matrixService.sendMessage(roomId, body), []);
-
-  const sendFile = useCallback((roomId: string, file: File, body?: string): Promise<string> =>
-    matrixService.sendFile(roomId, file, body), []);
-
-  return (
-    <AppShell
-      sendMessage={sendMessage}
-      sendFile={sendFile}
-      botSenders={BOT_SENDERS}
-    />
-  );
-}
-
-export default function App() {
   return (
     <TooltipProvider>
       <div className="flex h-full min-h-0 flex-col">

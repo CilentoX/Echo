@@ -184,12 +184,14 @@ async fn set_main_mode(window: tauri::Window) -> Result<(), String> {
     Ok(())
 }
 
+static IS_CLOSING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// Chamado pelo frontend assim que o cleanup assíncrono (WebRTC leave, sync stop) for concluído.
-/// Fecha a janela imediatamente sem esperar o timeout de segurança.
+/// Encerra o processo Tauri de forma limpa e imediata.
 #[tauri::command]
-fn ack_close_and_exit(window: tauri::Window) -> Result<(), String> {
+fn ack_close_and_exit(app: tauri::AppHandle) -> Result<(), String> {
     let _ = config_store::flush_all();
-    let _ = window.close();
+    app.exit(0);
     Ok(())
 }
 
@@ -218,21 +220,24 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Previne fechamento imediato para permitir cleanup graceful
+                if IS_CLOSING.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                    api.prevent_close();
+                    window.app_handle().exit(0);
+                    return;
+                }
                 api.prevent_close();
 
                 // Notifica o frontend para fechar WebRTC e parar syncs
                 let _ = window.emit("echo://close-requested", ());
 
-                let window_clone = window.clone();
+                let app_handle = window.app_handle().clone();
                 std::thread::spawn(move || {
-                    // Flush config store (escrita atômica de config.json/cache.json)
                     let _ = config_store::flush_all();
 
-                    // Timeout defensivo de 1.5s para cleanup; se o frontend chamar ack_close_and_exit,
-                    // a janela já fecha antes. Caso contrário, fecha ao fim deste período.
-                    std::thread::sleep(std::time::Duration::from_millis(1500));
-                    let _ = window_clone.close();
+                    // Timeout defensivo de 400ms para encerramento gracioso do processo;
+                    // se o frontend chamar ack_close_and_exit antes, o app já sai imediatamente.
+                    std::thread::sleep(std::time::Duration::from_millis(400));
+                    app_handle.exit(0);
                 });
             }
         })

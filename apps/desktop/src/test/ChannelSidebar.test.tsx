@@ -190,7 +190,7 @@ describe("ChannelSidebar", () => {
   });
 
   it("permite criar uma sala de voz temporária dinâmica e conectar nela imediatamente", async () => {
-    useSyncStore.getState().setGuilds([GUILD]);
+    useSyncStore.getState().setGuilds([{ ...GUILD, createdBy: "@lucas:hs" }]);
     useSyncStore.getState().setChannels(GUILD.guildId, [
       makeChannel({ channelId: "!v1:hs", name: "Voz Geral", type: "voice", category: "Canais de voz" }),
     ]);

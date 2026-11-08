@@ -227,6 +227,103 @@ export class AudioEngine {
       void ctx.close().catch(() => {});
     }, 900);
   }
+
+  /**
+   * Toca o som agradável e sutil de conexão de voz estabelecida (chime ascendente).
+   * Notifica audivelmente que o usuário já pode falar e ouvir os participantes.
+   */
+  async playVoiceConnected(volume: number = 75): Promise<void> {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") await ctx.resume();
+
+      const masterGain = ctx.createGain();
+      const vol = Math.max(0, Math.min(1, volume / 100));
+      masterGain.gain.setValueAtTime(vol * 0.28, ctx.currentTime);
+      masterGain.connect(ctx.destination);
+
+      const notes = [
+        { freq: 440.00, time: 0.00, dur: 0.12 }, // A4
+        { freq: 659.25, time: 0.07, dur: 0.25 }, // E5
+      ];
+
+      for (const note of notes) {
+        const osc = ctx.createOscillator();
+        const noteGain = ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.time);
+
+        const start = ctx.currentTime + note.time;
+        noteGain.gain.setValueAtTime(0.001, start);
+        noteGain.gain.exponentialRampToValueAtTime(0.7, start + 0.02);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, start + note.dur);
+
+        osc.connect(noteGain);
+        noteGain.connect(masterGain);
+
+        osc.start(start);
+        osc.stop(start + note.dur + 0.03);
+      }
+
+      setTimeout(() => {
+        void ctx.close().catch(() => {});
+      }, 500);
+    } catch {}
+  }
+
+  /**
+   * Toca o som sutil de desconexão de voz (chime descendente).
+   */
+  async playVoiceDisconnected(volume: number = 75): Promise<void> {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") await ctx.resume();
+
+      const masterGain = ctx.createGain();
+      const vol = Math.max(0, Math.min(1, volume / 100));
+      masterGain.gain.setValueAtTime(vol * 0.25, ctx.currentTime);
+      masterGain.connect(ctx.destination);
+
+      const notes = [
+        { freq: 587.33, time: 0.00, dur: 0.10 }, // D5
+        { freq: 392.00, time: 0.06, dur: 0.22 }, // G4
+      ];
+
+      for (const note of notes) {
+        const osc = ctx.createOscillator();
+        const noteGain = ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.time);
+
+        const start = ctx.currentTime + note.time;
+        noteGain.gain.setValueAtTime(0.001, start);
+        noteGain.gain.exponentialRampToValueAtTime(0.6, start + 0.02);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, start + note.dur);
+
+        osc.connect(noteGain);
+        noteGain.connect(masterGain);
+
+        osc.start(start);
+        osc.stop(start + note.dur + 0.03);
+      }
+
+      setTimeout(() => {
+        void ctx.close().catch(() => {});
+      }, 500);
+    } catch {}
+  }
 }
 
 export const audioEngine = new AudioEngine();

@@ -15,6 +15,8 @@ class WebRtcVoiceManager {
   private analyser: AnalyserNode | null = null;
   private vadInterval: any = null;
   private heartbeatInterval: any = null;
+  private burstInterval: any = null;
+  private fastPollTimeout: any = null;
 
   private currentGuildId: string | null = null;
   private currentChannelId: string | null = null;
@@ -195,6 +197,14 @@ class WebRtcVoiceManager {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
+    }
+    if (this.burstInterval) {
+      clearInterval(this.burstInterval);
+      this.burstInterval = null;
+    }
+    if (this.fastPollTimeout) {
+      clearTimeout(this.fastPollTimeout);
+      this.fastPollTimeout = null;
     }
 
     // Notifica backend e aguarda conclusão para evitar race condition
@@ -386,8 +396,31 @@ class WebRtcVoiceManager {
     return Math.round(rtts.reduce((a, b) => a + b, 0) / rtts.length);
   }
 
+  private pulseSignalingFast() {
+    if (this.fastPollTimeout) clearTimeout(this.fastPollTimeout);
+    this.fastPollTimeout = setTimeout(() => {
+      void this.pollSignalsOnly();
+    }, 200);
+  }
+
+  private async pollSignalsOnly() {
+    if (!this.currentChannelId) return;
+    const api = useEchoApi();
+    if (typeof api?.getVoiceSignals !== "function") return;
+    try {
+      const sigRes = await api.getVoiceSignals(this.currentChannelId);
+      if (sigRes?.signals && sigRes.signals.length > 0) {
+        for (const item of sigRes.signals) {
+          await this.handleIncomingSignal(item.fromUserId, item.signal);
+        }
+      }
+    } catch {}
+  }
+
   private startHeartbeatAndSignalingLoop() {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    if (this.burstInterval) clearInterval(this.burstInterval);
+    if (this.fastPollTimeout) clearTimeout(this.fastPollTimeout);
 
     const tick = async () => {
       if (!this.currentChannelId) return;
@@ -425,14 +458,7 @@ class WebRtcVoiceManager {
         } catch {}
 
         // 2. Poll de sinais WebRTC recebidos
-        if (typeof api?.getVoiceSignals === "function") {
-          const sigRes = await api.getVoiceSignals(this.currentChannelId);
-          if (sigRes.signals && sigRes.signals.length > 0) {
-            for (const item of sigRes.signals) {
-              await this.handleIncomingSignal(item.fromUserId, item.signal);
-            }
-          }
-        }
+        await this.pollSignalsOnly();
       } catch (err) {
         // Falha transitória
       }
@@ -440,7 +466,22 @@ class WebRtcVoiceManager {
 
     // Primeiro tick imediato
     void tick();
-    // A cada 2.5s
+
+    // Fast-path burst: nos primeiros 4 segundos, consulta sinais a cada 400ms para conectar WebRTC instantaneamente
+    let burstCount = 10;
+    this.burstInterval = setInterval(() => {
+      if (!this.currentChannelId || burstCount <= 0) {
+        if (this.burstInterval) {
+          clearInterval(this.burstInterval);
+          this.burstInterval = null;
+        }
+        return;
+      }
+      burstCount--;
+      void this.pollSignalsOnly();
+    }, 400);
+
+    // A cada 2.5s para manutenção contínua
     this.heartbeatInterval = setInterval(tick, 2500);
   }
 
@@ -600,6 +641,7 @@ class WebRtcVoiceManager {
                 type: "offer",
                 sdp: offer,
               });
+              this.pulseSignalingFast();
             }
           }
         } catch (err) {
@@ -644,6 +686,7 @@ class WebRtcVoiceManager {
           type: "answer",
           sdp: answer,
         });
+        this.pulseSignalingFast();
       }
     } else if (signal.type === "answer") {
       const pc = this.peers.get(fromUserId);
@@ -657,10 +700,11 @@ class WebRtcVoiceManager {
           } catch {}
         }
         this.candidateQueues.delete(fromUserId);
-      // Libera memória se todas as filas foram processadas
-      if (this.candidateQueues.size === 0) {
-        this.candidateQueues.clear();
-      }
+        // Libera memória se todas as filas foram processadas
+        if (this.candidateQueues.size === 0) {
+          this.candidateQueues.clear();
+        }
+        this.pulseSignalingFast();
       }
     } else if (signal.type === "candidate") {
       const pc = this.peers.get(fromUserId);

@@ -448,6 +448,7 @@ export class EchoApi {
     bannerUrl?: string | null;
     description?: string | null;
     unreadCount: number;
+    createdBy?: string | null;
   }[]> {
     return this.get("/guilds").then(async (res) => {
       if (!res.ok) throw new Error(`Failed to get guilds: ${res.status}`);
