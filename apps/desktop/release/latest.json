@@ -1,11 +1,11 @@
 {
-  "version": "0.1.22",
-  "notes": "Conexão por voz instantânea via Server-Sent Events (<20ms), live streaming nítido em 1080p 60fps com áudio do sistema/aba, auto ICE restart e boost de volume individual de até 200%",
-  "pub_date": "2026-11-08T01:35:53.500Z",
+  "version": "0.1.23",
+  "notes": "Eliminacao de polling HTTP, eventos de voz em tempo real via Server-Sent Events (SSE) para guildas e canais, e otimizacao total",
+  "pub_date": "2026-11-08T02:01:45.109Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVdQc28rdy93N0R0c09QbXhjOXJGcXZWOXE3b0xzNW1YRnc5dHpVY2ZpRkpoYS9ueTFraXF6bGsxNmxOUmticyt0eVJhMEZVczUwR0ZiOTBtV0dsbWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MTAxNzUyCWZpbGU6RWNob18wLjEuMjJfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4yMgpxRFh5SXdnSGVHL3habFJrWTZ4c0tmNGpNS0JXd3QxdXF5Nzhnb2dVSXdGU2V6OHhDcGprVTVld0xTakp4Q3RsVzVJdkV6Q0lvVENMV0dYeWZGb3BEdz09Cg==",
-      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.22/Echo_0.1.22_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVpjNlFIdEJQY01laU1kL2tYeTdyR0dqdEtNZlZJcERnbTlrbStsSWNnSjhQS0l0VzFrZHZDK3cveVdHbzhNWmFlUlVPWjZRMEhMd3lwbEc5ck1BR3dZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MTAzMzAzCWZpbGU6RWNob18wLjEuMjNfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4yMwp6WUFVS1dXOUV6d2MxWWZnY3IxQk51M0E2Tm9WRXhaU2Q3cW1pUmc2ZkU1Y0dEZSs5cElCSFFJTCtqd2twcFBweFNjM0dmejVoYm4yR0tYMDR4T2ZEUT09Cg==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.23/Echo_0.1.23_x64-setup.exe"
     }
   }
 }
