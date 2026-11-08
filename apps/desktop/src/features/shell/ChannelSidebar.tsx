@@ -55,6 +55,7 @@ import MemberDropdownContent from "./MemberDropdownContent";
 import MemberContextMenu from "./MemberContextMenu";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import type { ChannelSummary } from "@/lib/matrix/types";
+import { ECHO_API_CONFIG } from "@/lib/api/config";
 import { useEchoApi } from "@/lib/api/echoApi";
 
 export interface ChannelSidebarProps {
@@ -592,7 +593,10 @@ export default function ChannelSidebar({
     };
 
     fetchChannels();
-    const interval = setInterval(fetchChannels, 8000);
+    // Atualização em segundo plano suave a cada 60s + sincronização imediata no foco da janela
+    const interval = setInterval(fetchChannels, 60000);
+    const onWindowFocus = () => fetchChannels();
+    window.addEventListener("focus", onWindowFocus);
 
     // Carrega dados e apelidos dos membros da guilda em cache
     if (typeof matrixService.getGuildMembersData === "function") {
@@ -616,57 +620,33 @@ export default function ChannelSidebar({
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener("focus", onWindowFocus);
     };
   }, [activeGuildId]);
 
-  // Sincroniza participantes de salas de voz da guilda em tempo real
+  // Sincroniza participantes de salas de voz da guilda em tempo real via SSE (sem polling HTTP!)
   useEffect(() => {
     if (!activeGuildId || activeGuildId === "home") return;
     let isMounted = true;
 
-    const pollVoice = async () => {
-      try {
-        const api = useEchoApi();
-        const res = await api.getGuildVoiceState(activeGuildId);
-        if (isMounted && res?.channels) {
-          const currentVoiceChannelId = useVoiceStore.getState().activeVoiceChannelId;
-          const currentVoiceGuildId = useVoiceStore.getState().activeVoiceGuildId;
-          const myId = effectiveUserId || "me";
+    const handleVoiceChannelsUpdate = (channels: Record<string, any[]>) => {
+      if (!isMounted || !channels) return;
+      const currentVoiceChannelId = useVoiceStore.getState().activeVoiceChannelId;
+      const currentVoiceGuildId = useVoiceStore.getState().activeVoiceGuildId;
+      const myId = effectiveUserId || "me";
 
-          // Preserva a presença otimista do usuário local para evitar atraso ou reversão visual
-          if (currentVoiceChannelId && currentVoiceGuildId === activeGuildId) {
-            const merged: Record<string, any[]> = {};
-            for (const [cid, pList] of Object.entries(res.channels)) {
-              const list = Array.isArray(pList) ? pList : [];
-              if (cid === currentVoiceChannelId) {
-                const hasMe = list.some(
-                  (p) => p.userId === myId || p.userId === "me" || (myUserId ? p.userId === myUserId : false),
-                );
-                if (!hasMe) {
-                  merged[cid] = [
-                    ...list,
-                    {
-                      userId: myId,
-                      username: myEffectiveName,
-                      avatarUrl: myEffectiveAvatar,
-                      isMuted: !microphoneEnabled,
-                      isDeafened: !headphonesEnabled,
-                      isSpeaking: false,
-                      volume: 100,
-                    },
-                  ];
-                } else {
-                  merged[cid] = list;
-                }
-              } else {
-                merged[cid] = list.filter(
-                  (p) => p.userId !== myId && p.userId !== "me" && p.userId !== myUserId,
-                );
-              }
-            }
-            // Se o canal atual não constar no snapshot do backend (ex: recém-conectado), garante presença local
-            if (!merged[currentVoiceChannelId]) {
-              merged[currentVoiceChannelId] = [
+      // Preserva a presença otimista do usuário local para evitar atraso ou reversão visual
+      if (currentVoiceChannelId && currentVoiceGuildId === activeGuildId) {
+        const merged: Record<string, any[]> = {};
+        for (const [cid, pList] of Object.entries(channels)) {
+          const list = Array.isArray(pList) ? pList : [];
+          if (cid === currentVoiceChannelId) {
+            const hasMe = list.some(
+              (p) => p.userId === myId || p.userId === "me" || (myUserId ? p.userId === myUserId : false),
+            );
+            if (!hasMe) {
+              merged[cid] = [
+                ...list,
                 {
                   userId: myId,
                   username: myEffectiveName,
@@ -677,38 +657,114 @@ export default function ChannelSidebar({
                   volume: 100,
                 },
               ];
+            } else {
+              merged[cid] = list;
             }
-            setGuildVoiceState(merged);
           } else {
-            // Se o usuário local NÃO está conectado à voz no app,
-            // remove qualquer vestígio do usuário local dos canais para evitar ghosting visual de sessão anterior
-            const sanitized: Record<string, any[]> = {};
-            let hasStaleSelf = false;
-            for (const [cid, pList] of Object.entries(res.channels)) {
-              const list = Array.isArray(pList) ? pList : [];
-              const withoutMe = list.filter(
-                (p) => p.userId !== myId && p.userId !== "me" && p.userId !== myUserId,
-              );
-              if (withoutMe.length !== list.length) {
-                hasStaleSelf = true;
-              }
-              sanitized[cid] = withoutMe;
-            }
-            if (hasStaleSelf) {
-              void api.leaveVoiceChannel("current").catch(() => {});
-            }
-            setGuildVoiceState(sanitized);
+            merged[cid] = list.filter(
+              (p) => p.userId !== myId && p.userId !== "me" && p.userId !== myUserId,
+            );
           }
+        }
+        // Se o canal atual não constar no snapshot do backend (ex: recém-conectado), garante presença local
+        if (!merged[currentVoiceChannelId]) {
+          merged[currentVoiceChannelId] = [
+            {
+              userId: myId,
+              username: myEffectiveName,
+              avatarUrl: myEffectiveAvatar,
+              isMuted: !microphoneEnabled,
+              isDeafened: !headphonesEnabled,
+              isSpeaking: false,
+              volume: 100,
+            },
+          ];
+        }
+        setGuildVoiceState(merged);
+      } else {
+        // Se o usuário local NÃO está conectado à voz no app,
+        // remove qualquer vestígio do usuário local dos canais para evitar ghosting visual de sessão anterior
+        const sanitized: Record<string, any[]> = {};
+        let hasStaleSelf = false;
+        for (const [cid, pList] of Object.entries(channels)) {
+          const list = Array.isArray(pList) ? pList : [];
+          const withoutMe = list.filter(
+            (p) => p.userId !== myId && p.userId !== "me" && p.userId !== myUserId,
+          );
+          if (withoutMe.length !== list.length) {
+            hasStaleSelf = true;
+          }
+          sanitized[cid] = withoutMe;
+        }
+        if (hasStaleSelf) {
+          const api = useEchoApi();
+          void api.leaveVoiceChannel("current").catch(() => {});
+        }
+        setGuildVoiceState(sanitized);
+      }
+    };
+
+    // 1. Snapshot inicial imediato
+    const fetchVoiceSnapshot = async () => {
+      try {
+        const api = useEchoApi();
+        const res = await api.getGuildVoiceState(activeGuildId);
+        if (isMounted && res?.channels) {
+          handleVoiceChannelsUpdate(res.channels);
         }
       } catch {}
     };
 
-    void pollVoice();
-    const interval = setInterval(pollVoice, 1500);
+    void fetchVoiceSnapshot();
+
+    // 2. Conexão SSE em tempo real: elimina completamente o polling periódico de 1.5s
+    let sseSource: EventSource | null = null;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (typeof window !== "undefined" && typeof EventSource !== "undefined") {
+      try {
+        const api = useEchoApi();
+        const token = typeof api?.getAccessToken === "function" ? api.getAccessToken() : "";
+        const baseUrl = typeof api?.getBaseUrl === "function" ? api.getBaseUrl() : ECHO_API_CONFIG.baseUrl;
+        const url = `${baseUrl}/api/guilds/${encodeURIComponent(activeGuildId)}/voice/events${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+        sseSource = new EventSource(url);
+
+        sseSource.addEventListener("voice_state", (event: MessageEvent) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data?.channels) {
+              handleVoiceChannelsUpdate(data.channels);
+            }
+          } catch {}
+        });
+
+        sseSource.onerror = () => {
+          // Fallback silencioso do SSE se desconectar temporariamente
+        };
+      } catch {
+        // Fallback defensivo com intervalo longo (30s) caso SSE não esteja disponível
+        fallbackInterval = setInterval(fetchVoiceSnapshot, 30000);
+      }
+    } else {
+      fallbackInterval = setInterval(fetchVoiceSnapshot, 30000);
+    }
+
+    // Ao focar a janela, garante sincronização instantânea
+    const onWindowFocusVoice = () => {
+      void fetchVoiceSnapshot();
+    };
+    window.addEventListener("focus", onWindowFocusVoice);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      window.removeEventListener("focus", onWindowFocusVoice);
+      if (sseSource) {
+        sseSource.close();
+        sseSource = null;
+      }
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+      }
     };
   }, [activeGuildId]);
 

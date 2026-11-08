@@ -626,6 +626,10 @@ class WebRtcVoiceManager {
   }
 
   private pulseSignalingFast() {
+    if (this.sseSource && this.sseSource.readyState === EventSource.OPEN) {
+      // SSE ativo: entrega de sinal é instantânea (<20ms), dispensa polling HTTP!
+      return;
+    }
     if (this.fastPollTimeout) clearTimeout(this.fastPollTimeout);
     this.fastPollTimeout = setTimeout(() => {
       void this.pollSignalsOnly();
@@ -717,8 +721,10 @@ class WebRtcVoiceManager {
           }
         } catch {}
 
-        // 2. Poll de sinais WebRTC recebidos
-        await this.pollSignalsOnly();
+        // 2. Poll de sinais WebRTC recebidos: apenas como fallback se SSE estiver desconectado
+        if (!this.sseSource || this.sseSource.readyState !== EventSource.OPEN) {
+          await this.pollSignalsOnly();
+        }
       } catch (err) {
         // Falha transitória
       }
@@ -727,22 +733,31 @@ class WebRtcVoiceManager {
     // Primeiro tick imediato
     void tick();
 
-    // Fast-path burst: nos primeiros 4 segundos, consulta sinais a cada 400ms para conectar WebRTC instantaneamente
-    let burstCount = 10;
-    this.burstInterval = setInterval(() => {
-      if (!this.currentChannelId || burstCount <= 0) {
-        if (this.burstInterval) {
-          clearInterval(this.burstInterval);
-          this.burstInterval = null;
+    // Fast-path burst: apenas se SSE NÃO estiver conectado
+    if (!this.sseSource || this.sseSource.readyState !== EventSource.OPEN) {
+      let burstCount = 10;
+      this.burstInterval = setInterval(() => {
+        if (this.sseSource && this.sseSource.readyState === EventSource.OPEN) {
+          if (this.burstInterval) {
+            clearInterval(this.burstInterval);
+            this.burstInterval = null;
+          }
+          return;
         }
-        return;
-      }
-      burstCount--;
-      void this.pollSignalsOnly();
-    }, 400);
+        if (!this.currentChannelId || burstCount <= 0) {
+          if (this.burstInterval) {
+            clearInterval(this.burstInterval);
+            this.burstInterval = null;
+          }
+          return;
+        }
+        burstCount--;
+        void this.pollSignalsOnly();
+      }, 400);
+    }
 
-    // A cada 2.5s para manutenção contínua
-    this.heartbeatInterval = setInterval(tick, 2500);
+    // Heartbeat a cada 4 segundos (server tem timeout defensivo de 10s)
+    this.heartbeatInterval = setInterval(tick, 4000);
   }
 
   private syncPeers(participants: Array<{ userId: string }>) {

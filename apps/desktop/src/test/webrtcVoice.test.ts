@@ -176,4 +176,24 @@ describe("WebRtcVoiceManager - SSE, Qualidade de Live e Boost 200%", () => {
     expect(sse.close).toHaveBeenCalled();
     expect(webrtcVoice.getCurrentChannelId()).toBeNull();
   });
+
+  it("não dispara polling de sinais HTTP quando conexão SSE está ativa e conectada", async () => {
+    const api = (await import("@/lib/api/echoApi")).useEchoApi();
+    const getSignalsSpy = vi.spyOn(api, "getVoiceSignals");
+
+    await webrtcVoice.join(
+      "guild-1",
+      "ch-test-1",
+      "@test:echo.litteris.online",
+      "Tester",
+      null,
+      false,
+      false,
+    );
+
+    // Fast-path burst e pulseSignalingFast devem ser ignorados porque o mock SSE está com readyState = 1 (OPEN)
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(getSignalsSpy).not.toHaveBeenCalled();
+  });
 });
+

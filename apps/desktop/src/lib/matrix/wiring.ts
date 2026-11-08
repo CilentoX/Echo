@@ -136,11 +136,17 @@ function startPollingLoop(): void {
   pollingTick = 0;
   pollingTimer = setInterval(async () => {
     if (!started) return;
+
+    // Quando janela estiver minimizada/oculta em segundo plano, economiza ciclos de rede e CPU
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return;
+    }
+
     pollingTick++;
     const ui = useUiStore.getState();
     const activeChannelId = ui.activeChannelId;
 
-    // Heartbeat de presença em tempo real a cada ~28 segundos (7 ticks * 4s)
+    // Heartbeat de presença a cada ~28 segundos (7 ticks * 4s)
     if (pollingTick % 7 === 0) {
       try {
         const myPresence = useProfileStore.getState().presence ?? "online";
@@ -169,11 +175,11 @@ function startPollingLoop(): void {
         }
       }
 
-      // Sincroniza presença e membros do canal em tempo real a cada ~8 segundos (2 ticks)
-      if (pollingTick % 2 === 0) {
+      // Sincroniza presença e membros do canal a cada ~24 segundos (6 ticks) em vez de 8s
+      if (pollingTick % 6 === 0) {
         void loadMembersFor(activeChannelId);
       }
-    } else if (ui.activeGuildId && ui.activeGuildId !== "home" && pollingTick % 2 === 0) {
+    } else if (ui.activeGuildId && ui.activeGuildId !== "home" && pollingTick % 6 === 0) {
       const channels = useSyncStore.getState().channelsByGuild[ui.activeGuildId] ?? [];
       const firstChannel = channels[0]?.channelId;
       if (firstChannel) {
