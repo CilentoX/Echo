@@ -1,10 +1,19 @@
 /**
- * Módulo de Notificações Nativas via tauri-plugin-notification.
- * Dispara toast do SO quando mensagem é recebida em canal inativo.
- * Respeita permissão do usuário e estado DND/presence.
+ * Módulo de Notificações Integrado do Echo:
+ * - Notificações nativas do SO via @tauri-apps/plugin-notification (quando em segundo plano).
+ * - Toasts visuais interativos em tempo real dentro do app.
+ * - Alertas sonoros com sintetizador Web Audio harmônico e sem dependência de assets.
+ * - Suporte completo a Novas Mensagens e Pedidos de Amizade.
+ * - Respeita configurações de Notificações Nativas e status "Não Perturbar" (DND).
  */
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { useUiStore } from "@/stores/uiStore";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { useProfileStore } from "@/stores/profileStore";
+import { useFriendsStore } from "@/stores/friendsStore";
+import { useSyncStore } from "@/stores/syncStore";
+import { useNotificationStore } from "@/stores/notificationStore";
+import { playMessageChime, playFriendRequestChime } from "./sound";
 
 let permissionChecked = false;
 let permissionGranted = false;
@@ -27,28 +36,139 @@ export async function initNotifications(): Promise<void> {
   }
 }
 
-/** Dispara notificação nativa se permitido e canal não estiver ativo. */
+/** Dispara notificação de nova mensagem recebida (nativa + in-app toast + áudio). */
 export async function notifyNewMessage(
-  channelId: string,
+  roomId: string,
   senderName: string,
   body: string,
+  roomName?: string,
+  senderAvatarUrl?: string | null,
+  senderUserId?: string,
 ): Promise<void> {
-  if (!permissionChecked || !permissionGranted) return;
+  const myUserId = useUiStore.getState().myUserId;
+  // Não notifica mensagens enviadas pelo próprio usuário local
+  if (senderUserId && myUserId && (senderUserId === myUserId || senderUserId.toLowerCase() === myUserId.toLowerCase())) {
+    return;
+  }
 
-  // Não notificar se o canal já está ativo/focado
+  // Respeita modo Não Perturbar (DND)
+  const presence = useProfileStore.getState().presence;
+  if (presence === "dnd") return;
+
+  // Se o canal já está ativo e a janela do app está focada, dispensa notificação intrusiva
   const ui = useUiStore.getState();
-  if (ui.activeChannelId === channelId) return;
+  const isChannelActive = ui.activeChannelId === roomId;
+  const isWindowFocused = typeof document !== "undefined" && document.hasFocus();
 
-  // Truncar corpo longo
+  if (isChannelActive && isWindowFocused) {
+    return;
+  }
+
+  // Toca chime sonoro suave
+  playMessageChime(0.25);
+
+  const displayTitle = roomName ? `${senderName} (#${roomName})` : senderName;
   const truncatedBody = body.length > 120 ? body.slice(0, 117) + "..." : body;
 
-  try {
-    await sendNotification({
-      title: senderName,
-      body: truncatedBody,
-      sound: "default",
-    });
-  } catch {
-    // Falha silenciosa (SO bloqueou, app minimizado, etc.)
+  // Adiciona toast flutuante no app com ação de navegação
+  useNotificationStore.getState().addNotification({
+    type: "message",
+    title: displayTitle,
+    body: truncatedBody,
+    avatarUrl: senderAvatarUrl ?? null,
+    roomId,
+    onClick: () => {
+      // Localiza guilda dona do canal se aplicável
+      const channelsByGuild = useSyncStore.getState().channelsByGuild;
+      let targetGuildId: string | null = "home";
+      for (const [gId, channels] of Object.entries(channelsByGuild)) {
+        if (channels.some((c) => c.channelId === roomId)) {
+          targetGuildId = gId;
+          break;
+        }
+      }
+      ui.setActiveGuild(targetGuildId);
+      ui.setActiveChannel(roomId);
+    },
+  });
+
+  // Notificação nativa do SO (se habilitada nas configurações)
+  const nativeEnabled = useSettingsStore.getState().nativeNotifications;
+  if (!nativeEnabled) return;
+
+  if (permissionChecked && permissionGranted) {
+    try {
+      await sendNotification({
+        title: displayTitle,
+        body: truncatedBody,
+        sound: "default",
+      });
+    } catch {
+      // Falha silenciosa
+    }
+  }
+}
+
+/** Dispara notificação de solicitação de amizade recebida (nativa + in-app toast + áudio). */
+export async function notifyFriendRequest(
+  senderName: string,
+  senderUserId?: string,
+  avatarUrl?: string | null,
+): Promise<void> {
+  const myUserId = useUiStore.getState().myUserId;
+  // Não notifica pedidos gerados pelo próprio usuário
+  if (senderUserId && myUserId && (senderUserId === myUserId || senderUserId.toLowerCase() === myUserId.toLowerCase())) {
+    return;
+  }
+
+  // Respeita modo Não Perturbar (DND)
+  const presence = useProfileStore.getState().presence;
+  if (presence === "dnd") return;
+
+  // Alerta sonoro amigável
+  playFriendRequestChime(0.3);
+
+  const title = "Novo Pedido de Amizade";
+  const body = `${senderName} quer se conectar com você no Echo!`;
+
+  // Adiciona toast in-app com botão direto para "Ver Pedidos"
+  useNotificationStore.getState().addNotification({
+    type: "friend_request",
+    title,
+    body,
+    avatarUrl: avatarUrl ?? null,
+    actionLabel: "Ver Pedidos",
+    onAction: () => {
+      const ui = useUiStore.getState();
+      ui.setActiveGuild("home");
+      ui.setActiveChannel(null);
+      ui.setHomeTab("friends");
+      useFriendsStore.getState().setActiveTab("pending");
+      void useFriendsStore.getState().loadFriends();
+    },
+    onClick: () => {
+      const ui = useUiStore.getState();
+      ui.setActiveGuild("home");
+      ui.setActiveChannel(null);
+      ui.setHomeTab("friends");
+      useFriendsStore.getState().setActiveTab("pending");
+      void useFriendsStore.getState().loadFriends();
+    },
+  });
+
+  // Notificação nativa do SO
+  const nativeEnabled = useSettingsStore.getState().nativeNotifications;
+  if (!nativeEnabled) return;
+
+  if (permissionChecked && permissionGranted) {
+    try {
+      await sendNotification({
+        title: "Solicitação de Amizade",
+        body,
+        sound: "default",
+      });
+    } catch {
+      // Falha silenciosa
+    }
   }
 }

@@ -1,6 +1,7 @@
 import SessionGate from "@/features/auth/SessionGate";
 import AppShell from "@/features/shell/AppShell";
 import UpdateBanner from "@/features/shell/UpdateBanner";
+import NotificationToastContainer from "@/components/notifications/NotificationToastContainer";
 import { initNotifications } from "@/lib/notifications/nativeNotify";
 import { matrixService } from "@/lib/matrix/instance";
 import { useProfileStore } from "@/stores/profileStore";
@@ -94,6 +95,7 @@ export default function App() {
 
   return (
     <TooltipProvider>
+      <NotificationToastContainer />
       <div className="flex h-full min-h-0 flex-col">
         <UpdateBanner />
         <div className="min-h-0 flex-1">

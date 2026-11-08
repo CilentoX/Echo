@@ -1,8 +1,9 @@
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import { loadSession, useKeyring } from "@/lib/storage/keyring";
-import { notifyNewMessage } from "@/lib/notifications/nativeNotify";
+import { notifyNewMessage, notifyFriendRequest } from "@/lib/notifications/nativeNotify";
 import { matrixService } from "./instance";
 import { desktopCache, desktopConfig } from "@/lib/storage/desktopConfig";
 
@@ -44,6 +45,54 @@ let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
 function isAuthError(error: { errcode: string } | undefined): boolean {
   return error !== undefined && ["M_UNKNOWN_TOKEN", "M_MISSING_TOKEN"].includes(error.errcode);
+}
+
+function findChannelName(roomId: string): string | undefined {
+  const channelsByGuild = useSyncStore.getState().channelsByGuild;
+  for (const channels of Object.values(channelsByGuild)) {
+    const found = channels.find((c) => c.channelId === roomId);
+    if (found) return found.name;
+  }
+  return undefined;
+}
+
+function findSenderDisplayName(roomId: string, senderId: string): string {
+  const members = useSyncStore.getState().membersByRoom[roomId] ?? [];
+  const member = members.find((m) => m.userId === senderId);
+  return member?.displayName || senderId;
+}
+
+const knownIncomingFriendRequests = new Set<string>();
+let friendsInitialFetchDone = false;
+
+async function checkIncomingFriendRequests(): Promise<void> {
+  try {
+    const friendsStore = useFriendsStore.getState();
+    await friendsStore.loadFriends();
+    const pendingIncoming = friendsStore.pendingIncoming ?? [];
+
+    if (!friendsInitialFetchDone) {
+      // Primeira execução da sessão: registra conhecidos para não alarmar solicitações antigas
+      for (const req of pendingIncoming) {
+        if (req?.friendshipId) {
+          knownIncomingFriendRequests.add(req.friendshipId);
+        }
+      }
+      friendsInitialFetchDone = true;
+      return;
+    }
+
+    // Execuções subsequentes: dispara notificação e som para novidades
+    for (const req of pendingIncoming) {
+      if (req?.friendshipId && !knownIncomingFriendRequests.has(req.friendshipId)) {
+        knownIncomingFriendRequests.add(req.friendshipId);
+        const name = req.user?.displayName || req.user?.username || "Novo Usuário";
+        void notifyFriendRequest(name, req.user?.userId, req.user?.avatarUrl);
+      }
+    }
+  } catch {
+    // Best-effort: se falhar a requisição de amigos, tenta na próxima rodada
+  }
 }
 
 async function loadMembersFor(roomId: string): Promise<void> {
@@ -156,6 +205,11 @@ function startPollingLoop(): void {
       } catch {}
     }
 
+    // Sincroniza solicitações de amizade a cada ~16 segundos (4 ticks) ou no primeiro tick
+    if (pollingTick === 1 || pollingTick % 4 === 0) {
+      void checkIncomingFriendRequests();
+    }
+
     if (activeChannelId) {
       try {
         const events = await matrixService.loadOlder(activeChannelId, 20);
@@ -163,9 +217,12 @@ function startPollingLoop(): void {
           const store = useSyncStore.getState();
           const chronological = [...events].reverse();
           for (const ev of chronological) {
+            const isNew = !store.timelineByChannel[ev.roomId]?.some((e) => e.eventId === ev.eventId);
             store.applyEvent(ev);
-            if (ev.body && ev.sender) {
-              void notifyNewMessage(ev.roomId, ev.sender, ev.body);
+            if (isNew && ev.body && ev.sender && (Date.now() - (ev.originServerTs ?? 0) < 30_000)) {
+              const senderName = findSenderDisplayName(ev.roomId, ev.sender);
+              const roomName = findChannelName(ev.roomId);
+              void notifyNewMessage(ev.roomId, senderName, ev.body, roomName, (ev as any).senderAvatarUrl, ev.sender);
             }
           }
         }
@@ -253,7 +310,23 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
     onStatus: (status: any, error?: any) => handleStatus(status, error),
     onEvent: (event: any) => {
       const normalized = normalizeSyncEvent(event);
-      if (normalized) useSyncStore.getState().applyEvent(normalized);
+      if (normalized) {
+        const store = useSyncStore.getState();
+        const isNew = !store.timelineByChannel[normalized.roomId]?.some((e) => e.eventId === normalized.eventId);
+        store.applyEvent(normalized);
+        if (isNew && normalized.body && normalized.sender && (Date.now() - (normalized.originServerTs ?? 0) < 30_000)) {
+          const senderName = findSenderDisplayName(normalized.roomId, normalized.sender);
+          const roomName = findChannelName(normalized.roomId);
+          void notifyNewMessage(
+            normalized.roomId,
+            senderName,
+            normalized.body,
+            roomName,
+            normalized.senderAvatarUrl,
+            normalized.sender,
+          );
+        }
+      }
     },
     onTyping: (roomId: string, userIds: string[]) => {
       useUiStore.getState().setTypingUsers(roomId, userIds);
@@ -369,6 +442,8 @@ export function stopSyncWiring(): void {
   matrixService.stopSync();
   loadedGuilds.clear();
   typingByRoom.clear();
+  knownIncomingFriendRequests.clear();
+  friendsInitialFetchDone = false;
 
   try {
     void desktopCache.clear();
@@ -417,6 +492,8 @@ export function __resetWiringState(): void {
   authFailureCallback = null;
   loadedGuilds.clear();
   typingByRoom.clear();
+  knownIncomingFriendRequests.clear();
+  friendsInitialFetchDone = false;
   unsubscribeUi?.();
   unsubscribeUi = null;
 

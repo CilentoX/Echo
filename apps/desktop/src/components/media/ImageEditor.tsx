@@ -1,51 +1,74 @@
-"use client"
+"use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { createPortal } from "react-dom"
-import { X, ArrowsOutCardinal } from "@phosphor-icons/react"
-import { mxcToHttp } from "@/lib/media/mxc"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, Component, type ErrorInfo, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import Cropper, { type Area, type Point } from "react-easy-crop";
+import { X, Crop, ArrowsClockwise, ArrowCounterClockwise, ArrowsLeftRight, ArrowsDownUp, ArrowsOutSimple, Camera, Check } from "@phosphor-icons/react";
+import { mxcToHttp } from "@/lib/media/mxc";
+import { getCroppedImg } from "@/lib/media/cropHelper";
+import "react-easy-crop/react-easy-crop.css";
 
 export interface ImageEditorProps {
-  open: boolean
-  imageSrc: string | null
-  title?: string
-  aspect?: number
-  /** Tamanho de saída final em pixels */
-  outputWidth?: number
-  outputHeight?: number
-  onConfirm: (croppedFile: File) => void
-  onClose: () => void
-  userId?: string
-  onSelectNewImage?: (file: File) => void
+  open: boolean;
+  imageSrc: string | null;
+  title?: string;
+  aspect?: number;
+  outputWidth?: number;
+  outputHeight?: number;
+  onConfirm: (croppedFile: File) => void;
+  onClose: () => void;
+  userId?: string;
+  onSelectNewImage?: (file: File) => void;
 }
 
-interface CropBox {
-  x: number
-  y: number
-  width: number
-  height: number
+// Error Boundary defensivo para evitar que falhas de imagem crashem o app
+interface ErrorBoundaryProps {
+  fallback: (error: Error, reset: () => void) => ReactNode;
+  children: ReactNode;
 }
 
-type DragMode =
-  | null
-  | { type: "move-box"; startX: number; startY: number; initialBox: CropBox }
-  | { type: "resize"; handle: "nw" | "ne" | "sw" | "se" | "n" | "s" | "w" | "e"; startX: number; startY: number; initialBox: CropBox }
-  | { type: "pan-image"; startX: number; startY: number; initialPan: { x: number; y: number } }
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class CropErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[ImageEditor] Erro capturado pelo ErrorBoundary:", error, errorInfo);
+  }
+
+  reset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError && this.state.error) {
+      return this.props.fallback(this.state.error, this.reset);
+    }
+    return this.props.children;
+  }
+}
 
 /**
- * Editor de imagem profissional com sistema de resize das grades de corte (estilo Discord/WhatsApp):
- * - Grade de corte redimensionável com alças nos 4 cantos e 4 bordas
- * - Mantém aspect ratio configurado (ex: 1:1 para avatar) ou corte livre
- * - Grade interativa de regra dos terços (3x3)
- * - Máscara circular de enquadramento para avatares
- * - Área externa escurecida (dimmed vignette)
- * - Arraste da caixa de corte e pan da imagem
- * - Zoom por scroll e botões, rotação e espelhamento
+ * Editor profissional de recorte de imagens do Echo:
+ * - Baseado no react-easy-crop (suave, sem crash de zoom/resize, sem perda de resolução).
+ * - Suporta avatares (máscara circular 1:1) e banners (16:9, 4:1 panorâmico).
+ * - Recorte realizado diretamente sobre a resolução nativa da imagem, garantindo 100% de nitidez.
+ * - Design alinhado às diretrizes do Echo (Dark Glassmorphism, regra de ouro GEMINI.md).
  */
-const ImageEditor = memo(function ImageEditor({
+const ImageEditorContent = memo(function ImageEditorContent({
   open,
   imageSrc,
-  title = "Editar imagem",
+  title = "Recortar imagem",
   aspect = 1,
   outputWidth,
   outputHeight,
@@ -54,435 +77,128 @@ const ImageEditor = memo(function ImageEditor({
   userId,
   onSelectNewImage,
 }: ImageEditorProps) {
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [rotation, setRotation] = useState(0)
-  const [flipH, setFlipH] = useState(false)
-  const [flipV, setFlipV] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isMaximized, setIsMaximized] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [dragMode, setDragMode] = useState<DragMode>(null)
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [flipH, setFlipH] = useState(false);
+  const [flipV, setFlipV] = useState(false);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentAspect, setCurrentAspect] = useState<number>(aspect);
 
-  const imgRef = useRef<HTMLImageElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Tamanho da área do container
-  const frameSize = useMemo(() => {
-    const maxW = isMaximized ? 850 : 480
-    const maxH = isMaximized ? 650 : 440
-
-    if (aspect && aspect >= 1) {
-      const width = Math.min(maxW, maxH * aspect)
-      const height = width / aspect
-      return { width, height }
-    } else if (aspect && aspect < 1) {
-      const height = Math.min(maxH, maxW / aspect)
-      const width = height * aspect
-      return { width, height }
+  // Converte mxc:// para HTTP se necessário
+  const effectiveSrc = useMemo(() => {
+    if (!imageSrc) return null;
+    if (imageSrc.startsWith("mxc://")) {
+      return mxcToHttp(imageSrc) ?? imageSrc;
     }
-    return { width: Math.min(maxW, 480), height: Math.min(maxH, 440) }
-  }, [aspect, isMaximized])
+    return imageSrc;
+  }, [imageSrc]);
 
-  // Estado do crop box redimensionável
-  const [cropBox, setCropBox] = useState<CropBox>({
-    x: 20,
-    y: 20,
-    width: 260,
-    height: 260,
-  })
+  const isAvatar = currentAspect === 1;
 
-  // URLs mxc:// do Matrix convertidas para HTTP
-  const httpSrc = useMemo(() => {
-    if (!imageSrc) return null
-    if (imageSrc.startsWith("mxc://")) return mxcToHttp(imageSrc) ?? imageSrc
-    return imageSrc
-  }, [imageSrc])
-
-  const isAvatar = aspect === 1
-
-  // Inicializa a caixa de corte centralizada dentro do container
-  const initCropBox = useCallback((containerW: number, containerH: number, targetAspect: number) => {
-    const padding = 24
-    const availW = Math.max(100, containerW - padding * 2)
-    const availH = Math.max(100, containerH - padding * 2)
-
-    let w = availW
-    let h = targetAspect > 0 ? w / targetAspect : availH
-
-    if (h > availH) {
-      h = availH
-      w = targetAspect > 0 ? h * targetAspect : availW
-    }
-
-    // Default: ocupa cerca de 85% do espaço disponível
-    w = Math.round(w * 0.9)
-    h = Math.round(h * 0.9)
-
-    const x = Math.round((containerW - w) / 2)
-    const y = Math.round((containerH - h) / 2)
-
-    setCropBox({ x, y, width: w, height: h })
-  }, [])
+  // Sincroniza aspect inicial quando a propriedade muda
+  useEffect(() => {
+    setCurrentAspect(aspect || 1);
+  }, [aspect]);
 
   const resetTransform = useCallback(() => {
-    setPan({ x: 0, y: 0 })
-    setZoom(1)
-    setRotation(0)
-    setFlipH(false)
-    setFlipV(false)
-    initCropBox(frameSize.width, frameSize.height, aspect)
-  }, [frameSize, aspect, initCropBox])
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setRotation(0);
+    setFlipH(false);
+    setFlipV(false);
+    setError(null);
+  }, []);
 
   useEffect(() => {
-    if (!open || !imageSrc) {
-      resetTransform()
-      setImageLoaded(false)
-      setError(null)
-      setIsLoading(false)
-      setIsMaximized(false)
-    } else {
-      initCropBox(frameSize.width, frameSize.height, aspect)
+    if (open) {
+      resetTransform();
     }
-  }, [open, imageSrc, frameSize, aspect, initCropBox, resetTransform])
+  }, [open, imageSrc, resetTransform]);
 
-  // Centraliza e ajusta imagem ao carregar
+  const onCropComplete = useCallback((_croppedArea: Area, areaPixels: Area) => {
+    setCroppedAreaPixels(areaPixels);
+  }, []);
+
+  // Atalhos de teclado (Esc, R, H, Enter)
   useEffect(() => {
-    if (imageLoaded && imgRef.current) {
-      const img = imgRef.current
-      const imgAspect = img.naturalWidth / img.naturalHeight
-      let initialZoom = 1
-
-      if (aspect > 0) {
-        if (imgAspect > aspect) {
-          initialZoom = frameSize.height / img.naturalHeight
-        } else {
-          initialZoom = frameSize.width / img.naturalWidth
-        }
-      }
-      setZoom(Math.max(1, Number(initialZoom.toFixed(2))))
-      setPan({ x: 0, y: 0 })
-      initCropBox(frameSize.width, frameSize.height, aspect)
-    }
-  }, [imageLoaded, frameSize, aspect, initCropBox])
-
-  // Zoom nativo no container com scroll (sem warning de passive listener)
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-
-    const handleWheelNative = (e: WheelEvent) => {
-      e.preventDefault()
-      const delta = e.deltaY > 0 ? -0.1 : 0.1
-      setZoom((prev) => Math.max(1, Math.min(5, Number((prev + delta).toFixed(2)))))
-    }
-
-    el.addEventListener("wheel", handleWheelNative, { passive: false })
-    return () => {
-      el.removeEventListener("wheel", handleWheelNative)
-    }
-  }, [open, imageSrc])
-
-  // Início de arrasto de alça de resize
-  const handleResizeStart = (
-    handle: "nw" | "ne" | "sw" | "se" | "n" | "s" | "w" | "e",
-    e: React.MouseEvent
-  ) => {
-    e.stopPropagation()
-    e.preventDefault()
-    setDragMode({
-      type: "resize",
-      handle,
-      startX: e.clientX,
-      startY: e.clientY,
-      initialBox: { ...cropBox },
-    })
-  }
-
-  // Início de movimento da caixa de corte
-  const handleBoxMoveStart = (e: React.MouseEvent) => {
-    if (e.button !== 0) return
-    e.stopPropagation()
-    e.preventDefault()
-    setDragMode({
-      type: "move-box",
-      startX: e.clientX,
-      startY: e.clientY,
-      initialBox: { ...cropBox },
-    })
-  }
-
-  // Início de pan da imagem ao clicar fora da caixa
-  const handleImagePanStart = (e: React.MouseEvent) => {
-    if (e.button !== 0) return
-    e.preventDefault()
-    setDragMode({
-      type: "pan-image",
-      startX: e.clientX,
-      startY: e.clientY,
-      initialPan: { ...pan },
-    })
-  }
-
-  // Handler de movimento global (janela) enquanto arrasta
-  useEffect(() => {
-    if (!dragMode) return
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragMode.startX
-      const dy = e.clientY - dragMode.startY
-
-      if (dragMode.type === "pan-image") {
-        setPan({
-          x: dragMode.initialPan.x + dx,
-          y: dragMode.initialPan.y + dy,
-        })
-        return
-      }
-
-      const { initialBox } = dragMode
-      const minSize = 48
-      const maxContainerW = frameSize.width
-      const maxContainerH = frameSize.height
-
-      if (dragMode.type === "move-box") {
-        const newX = Math.max(0, Math.min(maxContainerW - initialBox.width, initialBox.x + dx))
-        const newY = Math.max(0, Math.min(maxContainerH - initialBox.height, initialBox.y + dy))
-        setCropBox((prev) => ({ ...prev, x: newX, y: newY }))
-        return
-      }
-
-      if (dragMode.type === "resize") {
-        const { handle } = dragMode
-
-        if (aspect > 0) {
-          // Redimensionamento proporcional (1:1 ou aspect fixo)
-          let delta = 0
-          if (handle === "se") {
-            delta = Math.max(dx, dy * aspect)
-            const maxW = Math.min(maxContainerW - initialBox.x, (maxContainerH - initialBox.y) * aspect)
-            const newW = Math.max(minSize, Math.min(maxW, initialBox.width + delta))
-            setCropBox({
-              x: initialBox.x,
-              y: initialBox.y,
-              width: newW,
-              height: newW / aspect,
-            })
-          } else if (handle === "nw") {
-            delta = Math.min(dx, dy * aspect)
-            const maxAllowed = Math.min(initialBox.x + initialBox.width, (initialBox.y + initialBox.height) * aspect)
-            const newW = Math.max(minSize, Math.min(maxAllowed, initialBox.width - delta))
-            const newH = newW / aspect
-            setCropBox({
-              x: initialBox.x + (initialBox.width - newW),
-              y: initialBox.y + (initialBox.height - newH),
-              width: newW,
-              height: newH,
-            })
-          } else if (handle === "ne") {
-            delta = dx
-            const maxAllowedW = Math.min(maxContainerW - initialBox.x, (initialBox.y + initialBox.height) * aspect)
-            const newW = Math.max(minSize, Math.min(maxAllowedW, initialBox.width + delta))
-            const newH = newW / aspect
-            setCropBox({
-              x: initialBox.x,
-              y: initialBox.y + (initialBox.height - newH),
-              width: newW,
-              height: newH,
-            })
-          } else if (handle === "sw") {
-            delta = -dx
-            const maxAllowedW = Math.min(initialBox.x + initialBox.width, (maxContainerH - initialBox.y) * aspect)
-            const newW = Math.max(minSize, Math.min(maxAllowedW, initialBox.width + delta))
-            const newH = newW / aspect
-            setCropBox({
-              x: initialBox.x + (initialBox.width - newW),
-              y: initialBox.y,
-              width: newW,
-              height: newH,
-            })
-          } else if (handle === "e" || handle === "s") {
-            const d = handle === "e" ? dx : dy * aspect
-            const maxW = Math.min(maxContainerW - initialBox.x, (maxContainerH - initialBox.y) * aspect)
-            const newW = Math.max(minSize, Math.min(maxW, initialBox.width + d))
-            setCropBox({
-              x: initialBox.x,
-              y: initialBox.y,
-              width: newW,
-              height: newW / aspect,
-            })
-          } else if (handle === "w" || handle === "n") {
-            const d = handle === "w" ? -dx : -dy * aspect
-            const maxAllowed = Math.min(initialBox.x + initialBox.width, (initialBox.y + initialBox.height) * aspect)
-            const newW = Math.max(minSize, Math.min(maxAllowed, initialBox.width + d))
-            const newH = newW / aspect
-            setCropBox({
-              x: initialBox.x + (initialBox.width - newW),
-              y: initialBox.y + (initialBox.height - newH),
-              width: newW,
-              height: newH,
-            })
-          }
-        } else {
-          // Redimensionamento livre
-          let newX = initialBox.x
-          let newY = initialBox.y
-          let newW = initialBox.width
-          let newH = initialBox.height
-
-          if (handle.includes("e")) newW = Math.max(minSize, Math.min(maxContainerW - initialBox.x, initialBox.width + dx))
-          if (handle.includes("s")) newH = Math.max(minSize, Math.min(maxContainerH - initialBox.y, initialBox.height + dy))
-          if (handle.includes("w")) {
-            const candidateW = initialBox.width - dx
-            if (candidateW >= minSize && initialBox.x + dx >= 0) {
-              newW = candidateW
-              newX = initialBox.x + dx
-            }
-          }
-          if (handle.includes("n")) {
-            const candidateH = initialBox.height - dy
-            if (candidateH >= minSize && initialBox.y + dy >= 0) {
-              newH = candidateH
-              newY = initialBox.y + dy
-            }
-          }
-
-          setCropBox({ x: newX, y: newY, width: newW, height: newH })
-        }
-      }
-    }
-
-    const handleMouseUp = () => {
-      setDragMode(null)
-    }
-
-    window.addEventListener("mousemove", handleMouseMove)
-    window.addEventListener("mouseup", handleMouseUp)
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-      window.removeEventListener("mouseup", handleMouseUp)
-    }
-  }, [dragMode, aspect, frameSize])
-
-  // Atalhos de teclado (R: girar, H/V: flip, Esc: fechar, Enter: confirmar)
-  useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
-      else if (e.key === "r" || e.key === "R") setRotation((prev) => (e.shiftKey ? prev - 90 : prev + 90))
-      else if (e.key === "h" || e.key === "H") setFlipH((prev) => !prev)
-      else if (e.key === "v" || e.key === "V") setFlipV((prev) => !prev)
-      else if (e.key === "Enter" && !isLoading) confirmCrop()
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [open, isLoading, onClose])
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "r" || e.key === "R") {
+        setRotation((prev) => (e.shiftKey ? (prev - 90 + 360) % 360 : (prev + 90) % 360));
+      } else if (e.key === "h" || e.key === "H") {
+        setFlipH((prev) => !prev);
+      } else if (e.key === "Enter" && !isLoading) {
+        void handleConfirmCrop();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, isLoading, onClose]);
 
-  const confirmCrop = useCallback(async () => {
-    if (!imageSrc || !imgRef.current) return
+  const handleConfirmCrop = async () => {
+    if (!effectiveSrc || !croppedAreaPixels) return;
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const img = imgRef.current
-      const container = containerRef.current
-      if (!container) throw new Error("Container não encontrado")
+      const croppedFile = await getCroppedImg(
+        effectiveSrc,
+        croppedAreaPixels,
+        rotation,
+        { horizontal: flipH, vertical: flipV },
+        outputWidth || 1920,
+        outputHeight || 1080
+      );
 
-      // Cria canvas com resolução do tamanho final com garantia de alta qualidade
-      let outW = outputWidth ?? (isAvatar ? 512 : Math.round(cropBox.width * 2))
-      let outH = outputHeight ?? (isAvatar ? 512 : Math.round(cropBox.height * 2))
-      if (isAvatar && (outW < 512 || outH < 512)) {
-        outW = 512
-        outH = 512
-      }
+      // Preserva identificador opcional para desambiguação de cache
+      const finalName = userId ? `edited-${userId.replace(/[@:]/g, "")}.webp` : croppedFile.name;
+      const fileWithProperName = new File([croppedFile], finalName, { type: croppedFile.type });
 
-      const canvas = document.createElement("canvas")
-      canvas.width = outW
-      canvas.height = outH
-      const ctx = canvas.getContext("2d")
-
-      if (!ctx) throw new Error("Não foi possível criar contexto 2D")
-
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = "high"
-
-      ctx.save()
-
-      // Escala entre a caixa de corte da tela e o canvas final
-      const scaleX = canvas.width / cropBox.width
-      const scaleY = canvas.height / cropBox.height
-      ctx.scale(scaleX, scaleY)
-
-      // Move o ponto (0, 0) para o canto superior-esquerdo da caixa de corte
-      ctx.translate(-cropBox.x, -cropBox.y)
-
-      // Posiciona o centro da imagem no container
-      const imgCenterX = frameSize.width / 2 + pan.x
-      const imgCenterY = frameSize.height / 2 + pan.y
-      ctx.translate(imgCenterX, imgCenterY)
-
-      // Rotação e flip
-      if (rotation !== 0) {
-        ctx.rotate((rotation * Math.PI) / 180)
-      }
-      if (flipH || flipV) {
-        ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
-      }
-
-      // Renderiza a imagem
-      const displayedW = img.width * zoom
-      const displayedH = img.height * zoom
-      ctx.drawImage(img, -displayedW / 2, -displayedH / 2, displayedW, displayedH)
-
-      ctx.restore()
-
-      canvas.toBlob(
-        async (blob) => {
-          if (!blob) throw new Error("Falha ao gerar arquivo de imagem")
-          const userIdPart = userId ? `-${userId.replace(/[@:]/g, "")}` : ""
-          const file = new File([blob], `edited-image${userIdPart}.png`, { type: "image/png" })
-          onConfirm(file)
-          onClose()
-          setIsLoading(false)
-        },
-        "image/png",
-        0.95
-      )
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Falha ao processar imagem"
-      console.error("[ImageEditor] Erro no confirmCrop:", msg)
-      setError(msg)
-      setIsLoading(false)
+      onConfirm(fileWithProperName);
+      onClose();
+    } catch (err: any) {
+      console.error("[ImageEditor] Erro ao recortar imagem:", err);
+      setError(err?.message || "Ocorreu um erro ao processar a imagem. Tente novamente.");
+    } finally {
+      setIsLoading(false);
     }
-  }, [imageSrc, outputWidth, outputHeight, cropBox, frameSize, pan, zoom, rotation, flipH, flipV, onConfirm, onClose, userId])
+  };
 
-  if (!open || !imageSrc) return null
+  if (!open || !effectiveSrc) return null;
 
-  const modalNode = (
+  return (
     <div
-      className="fixed inset-0 z-[100] grid place-items-center bg-black/80 backdrop-blur-sm select-none"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md select-none animate-in fade-in-0 duration-150"
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      onPointerDown={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isLoading) onClose();
+      }}
     >
       <div
-        className={`w-full max-w-2xl max-h-[88vh] rounded-2xl border border-[#242B3D] bg-[#131722] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.85)] flex flex-col transition-all duration-200 ${
-          isMaximized ? "max-w-full max-h-full h-full rounded-none" : ""
-        }`}
+        className="w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl border border-white/[0.08] bg-[#12161f] shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 text-txt"
       >
-        {/* Cabeçalho */}
-        <header className="flex items-center justify-between pb-3 border-b border-[#242B3D]">
-          <div className="flex items-center gap-2">
-            <h2 className="font-display text-base font-bold text-[#E9EDF2]">{title}</h2>
-            <span className="text-[11px] text-[#0FB9A8] bg-[#0FB9A8]/10 px-2 py-0.5 rounded-full font-medium">
-              {isAvatar ? "Avatar 1:1" : `${Math.round(cropBox.width)} × ${Math.round(cropBox.height)}`}
-            </span>
+        {/* Cabeçalho Superior Fixo (Padrão Guild Modal - Rule 4) */}
+        <header className="flex items-center justify-between p-4 border-b border-white/[0.08] shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-acc text-bg shadow-md shadow-acc/20 flex items-center justify-center font-bold">
+              <Crop size={20} weight="bold" />
+            </div>
+            <div>
+              <h2 className="font-display text-base font-semibold text-txt">{title}</h2>
+              <p className="text-xs text-mut/80">
+                {isAvatar ? "Enquadramento para perfil ou ícone (1:1)" : "Enquadramento para banner panorâmico (16:9)"}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -494,307 +210,284 @@ const ImageEditor = memo(function ImageEditor({
                   accept="image/*"
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0]
+                    const file = e.target.files?.[0];
                     if (file) {
-                      onSelectNewImage(file)
+                      onSelectNewImage(file);
                     }
-                    e.target.value = ""
+                    e.target.value = "";
                   }}
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-2.5 py-1 rounded-lg bg-[#0FB9A8]/15 border border-[#0FB9A8]/30 text-xs font-medium text-[#0FB9A8] hover:bg-[#0FB9A8]/25 transition-colors cursor-pointer"
-                  title="Selecionar outra imagem do computador"
+                  className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-xs font-medium text-txt hover:bg-white/[0.08] hover:border-acc/40 transition-all active:scale-95"
+                  title="Selecionar outro arquivo"
                 >
-                  Trocar imagem
+                  <Camera size={13} weight="bold" />
+                  <span className="hidden sm:inline">Trocar</span>
                 </button>
               </>
             )}
             <button
               type="button"
-              onClick={resetTransform}
-              className="px-2.5 py-1 rounded-lg bg-[#1A202E] border border-[#242B3D] text-xs text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D] transition-colors cursor-pointer"
-              title="Redefinir corte e zoom (R)"
-            >
-              ↺ Redefinir
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsMaximized((prev) => !prev)}
-              className="px-2 py-1 rounded-lg bg-[#1A202E] border border-[#242B3D] text-xs text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D] transition-colors cursor-pointer"
-              title={isMaximized ? "Restaurar tamanho" : "Maximizar"}
-            >
-              {isMaximized ? "⊖" : "⛶"}
-            </button>
-            <button
-              type="button"
               aria-label="Fechar"
               onClick={onClose}
-              className="rounded-lg p-1 text-[#94A3B8] hover:bg-[#242B3D] hover:text-[#E9EDF2] transition-colors cursor-pointer"
+              disabled={isLoading}
+              className="cursor-pointer rounded-xl p-2 text-mut hover:bg-white/[0.06] hover:text-txt active:scale-95 transition-all"
             >
               <X size={18} />
             </button>
           </div>
         </header>
 
-        {/* Viewport de Edição com Grade Interativa de Corte */}
-        <div className="flex-1 flex items-center justify-center bg-[#090C12] rounded-xl border border-[#242B3D]/70 relative overflow-hidden my-3 min-h-[320px]">
-          <div
-            ref={containerRef}
-            className="relative overflow-hidden cursor-crosshair select-none"
-            style={{ width: frameSize.width, height: frameSize.height }}
-            onMouseDown={handleImagePanStart}
-          >
-            {/* Imagem Sendo Editada */}
-            <img
-              ref={imgRef}
-              src={httpSrc ?? ""}
-              alt="Imagem para edição"
-              onLoad={() => setImageLoaded(true)}
-              draggable={false}
-              style={{
-                maxWidth: "100%",
-                maxHeight: "100%",
-                display: "block",
-                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) rotate(${rotation}deg) scaleX(${
-                  flipH ? -1 : 1
-                }) scaleY(${flipV ? -1 : 1})`,
-                transformOrigin: "center",
-                transition: dragMode ? "none" : "transform 0.1s ease-out",
-                userSelect: "none",
-                pointerEvents: "none",
-              }}
-              className="absolute inset-0 m-auto"
-            />
+        {/* Viewport Interativa do react-easy-crop */}
+        <div className="relative w-full h-[360px] sm:h-[420px] bg-[#0b0e14] overflow-hidden flex items-center justify-center echo-cropper">
+          <Cropper
+            image={effectiveSrc}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotation}
+            aspect={currentAspect}
+            cropShape={isAvatar ? "round" : "rect"}
+            showGrid={true}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onRotationChange={setRotation}
+            onCropComplete={onCropComplete}
+            minZoom={1}
+            maxZoom={4}
+            zoomSpeed={0.8}
+            style={{
+              containerStyle: {
+                backgroundColor: "#0b0e14",
+              },
+              cropAreaStyle: {
+                borderColor: "#0FB9A8",
+                borderWidth: 2,
+                boxShadow: "0 0 0 9999px rgba(11, 14, 20, 0.75)",
+              },
+            }}
+          />
 
-            {/* Áreas Escurecidas Fora da Caixa de Corte (Dimmed Vignette) */}
-            <div
-              className="absolute left-0 right-0 top-0 bg-[#090C12]/75 pointer-events-none transition-opacity duration-150"
-              style={{ height: Math.max(0, cropBox.y) }}
-            />
-            <div
-              className="absolute left-0 right-0 bottom-0 bg-[#090C12]/75 pointer-events-none transition-opacity duration-150"
-              style={{ top: Math.max(0, cropBox.y + cropBox.height) }}
-            />
-            <div
-              className="absolute left-0 bg-[#090C12]/75 pointer-events-none transition-opacity duration-150"
-              style={{
-                top: cropBox.y,
-                height: cropBox.height,
-                width: Math.max(0, cropBox.x),
-              }}
-            />
-            <div
-              className="absolute right-0 bg-[#090C12]/75 pointer-events-none transition-opacity duration-150"
-              style={{
-                top: cropBox.y,
-                height: cropBox.height,
-                left: Math.max(0, cropBox.x + cropBox.width),
-              }}
-            />
-
-            {/* Caixa de Corte Interativa (Crop Box) */}
-            <div
-              className="absolute border border-[#0FB9A8] shadow-[0_0_12px_rgba(15,185,168,0.35)] cursor-move group select-none"
-              style={{
-                left: cropBox.x,
-                top: cropBox.y,
-                width: cropBox.width,
-                height: cropBox.height,
-              }}
-              onMouseDown={handleBoxMoveStart}
-            >
-              {/* Máscara Circular para Avatar */}
-              {isAvatar && (
-                <div className="absolute inset-0 rounded-full border-2 border-[#0FB9A8] shadow-[0_0_0_9999px_rgba(9,12,18,0.45)] pointer-events-none z-10" />
-              )}
-
-              {/* Grade de Regra dos Terços (3x3) */}
-              <div
-                className={`absolute inset-0 pointer-events-none transition-opacity duration-200 ${
-                  dragMode ? "opacity-70" : "opacity-35 hover:opacity-60"
+          {/* Seletor Rápido de Proporção para Banners */}
+          {!isAvatar && (
+            <div className="absolute top-3 left-3 z-20 flex items-center gap-1 bg-[#12161f]/80 backdrop-blur-md p-1 rounded-xl border border-white/[0.08] shadow-lg">
+              <button
+                type="button"
+                onClick={() => setCurrentAspect(16 / 9)}
+                className={`cursor-pointer px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${
+                  Math.abs(currentAspect - 16 / 9) < 0.05
+                    ? "bg-acc text-bg shadow-sm"
+                    : "text-mut hover:text-txt"
                 }`}
+                title="Proporção padrão 16:9"
               >
-                {/* Linhas Verticais */}
-                <div className="absolute top-0 bottom-0 left-1/3 w-px border-l border-dashed border-[#0FB9A8]/70" />
-                <div className="absolute top-0 bottom-0 left-2/3 w-px border-l border-dashed border-[#0FB9A8]/70" />
-                {/* Linhas Horizontais */}
-                <div className="absolute left-0 right-0 top-1/3 h-px border-t border-dashed border-[#0FB9A8]/70" />
-                <div className="absolute left-0 right-0 top-2/3 h-px border-t border-dashed border-[#0FB9A8]/70" />
-              </div>
+                16:9
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentAspect(4 / 1)}
+                className={`cursor-pointer px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${
+                  Math.abs(currentAspect - 4 / 1) < 0.05
+                    ? "bg-acc text-bg shadow-sm"
+                    : "text-mut hover:text-txt"
+                }`}
+                title="Panorâmico estilo Discord (4:1)"
+              >
+                4:1
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentAspect(21 / 9)}
+                className={`cursor-pointer px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${
+                  Math.abs(currentAspect - 21 / 9) < 0.05
+                    ? "bg-acc text-bg shadow-sm"
+                    : "text-mut hover:text-txt"
+                }`}
+                title="Ultrawide 21:9"
+              >
+                21:9
+              </button>
+            </div>
+          )}
 
-              {/* Cantoneiras Estilizadas (L-Shaped Brackets) */}
-              {/* Top-Left */}
-              <div className="absolute -top-1 -left-1 w-4 h-4 border-t-3 border-l-3 border-[#0FB9A8] pointer-events-none drop-shadow-[0_0_3px_rgba(0,0,0,0.9)]" />
-              {/* Top-Right */}
-              <div className="absolute -top-1 -right-1 w-4 h-4 border-t-3 border-r-3 border-[#0FB9A8] pointer-events-none drop-shadow-[0_0_3px_rgba(0,0,0,0.9)]" />
-              {/* Bottom-Left */}
-              <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-3 border-l-3 border-[#0FB9A8] pointer-events-none drop-shadow-[0_0_3px_rgba(0,0,0,0.9)]" />
-              {/* Bottom-Right */}
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-3 border-r-3 border-[#0FB9A8] pointer-events-none drop-shadow-[0_0_3px_rgba(0,0,0,0.9)]" />
+          {/* Dica de arraste */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 pointer-events-none px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] text-mut/80 border border-white/[0.05]">
+            Arraste para mover • Scroll para zoom
+          </div>
+        </div>
 
-              {/* Barras Centrais de Borda */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-1.5 bg-[#0FB9A8] rounded-full pointer-events-none shadow-sm" />
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-6 h-1.5 bg-[#0FB9A8] rounded-full pointer-events-none shadow-sm" />
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-6 w-1.5 bg-[#0FB9A8] rounded-full pointer-events-none shadow-sm" />
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-1.5 bg-[#0FB9A8] rounded-full pointer-events-none shadow-sm" />
+        {/* Controles de Transformação e Zoom */}
+        <div className="p-4 border-t border-white/[0.08] bg-white/[0.01] flex flex-col gap-3 shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            {/* Controle de Zoom */}
+            <div className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.08] px-2.5 py-1.5 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.max(1, Number((z - 0.2).toFixed(1))))}
+                disabled={zoom <= 1}
+                className="cursor-pointer text-mut hover:text-txt disabled:opacity-30 disabled:pointer-events-none p-1 rounded-lg transition-colors"
+                title="Diminuir zoom"
+              >
+                −
+              </button>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={4}
+                step={0.05}
+                aria-label="Zoom"
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-24 sm:w-32 h-1.5 bg-white/[0.1] rounded-lg appearance-none cursor-pointer accent-[#0FB9A8]"
+              />
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.min(4, Number((z + 0.2).toFixed(1))))}
+                disabled={zoom >= 4}
+                className="cursor-pointer text-mut hover:text-txt disabled:opacity-30 disabled:pointer-events-none p-1 rounded-lg transition-colors"
+                title="Aumentar zoom"
+              >
+                +
+              </button>
+              <span className="font-mono text-[11px] text-mut w-10 text-right">
+                {Math.round(zoom * 100)}%
+              </span>
+            </div>
 
-              {/* Alças de Redimensionamento Interativas (Hit Targets Ampliados) */}
-              <div
-                onMouseDown={(e) => handleResizeStart("nw", e)}
-                className="absolute -top-3 -left-3 w-6 h-6 cursor-nwse-resize z-20"
-                title="Redimensionar canto superior-esquerdo"
-              />
-              <div
-                onMouseDown={(e) => handleResizeStart("ne", e)}
-                className="absolute -top-3 -right-3 w-6 h-6 cursor-nesw-resize z-20"
-                title="Redimensionar canto superior-direito"
-              />
-              <div
-                onMouseDown={(e) => handleResizeStart("sw", e)}
-                className="absolute -bottom-3 -left-3 w-6 h-6 cursor-nesw-resize z-20"
-                title="Redimensionar canto inferior-esquerdo"
-              />
-              <div
-                onMouseDown={(e) => handleResizeStart("se", e)}
-                className="absolute -bottom-3 -right-3 w-6 h-6 cursor-nwse-resize z-20"
-                title="Redimensionar canto inferior-direito"
-              />
+            {/* Ações de Rotação e Flip */}
+            <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
+                className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.06] transition-all"
+                title="Girar 90° à esquerda (Shift+R)"
+              >
+                <ArrowCounterClockwise size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setRotation((r) => (r + 90) % 360)}
+                className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.06] transition-all"
+                title="Girar 90° à direita (R)"
+              >
+                <ArrowsClockwise size={15} />
+              </button>
+              <div className="w-px h-3.5 bg-white/[0.08] mx-0.5" />
+              <button
+                type="button"
+                onClick={() => setFlipH((f) => !f)}
+                className={`cursor-pointer p-1.5 rounded-lg transition-all ${
+                  flipH ? "bg-acc/20 text-acc font-bold" : "text-mut hover:text-txt hover:bg-white/[0.06]"
+                }`}
+                title="Espelhar horizontal (H)"
+              >
+                <ArrowsLeftRight size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setFlipV((f) => !f)}
+                className={`cursor-pointer p-1.5 rounded-lg transition-all ${
+                  flipV ? "bg-acc/20 text-acc font-bold" : "text-mut hover:text-txt hover:bg-white/[0.06]"
+                }`}
+                title="Espelhar vertical"
+              >
+                <ArrowsDownUp size={15} />
+              </button>
+            </div>
 
-              <div
-                onMouseDown={(e) => handleResizeStart("n", e)}
-                className="absolute -top-2 left-3 right-3 h-4 cursor-ns-resize z-20"
-                title="Redimensionar topo"
-              />
-              <div
-                onMouseDown={(e) => handleResizeStart("s", e)}
-                className="absolute -bottom-2 left-3 right-3 h-4 cursor-ns-resize z-20"
-                title="Redimensionar base"
-              />
-              <div
-                onMouseDown={(e) => handleResizeStart("w", e)}
-                className="absolute -left-2 top-3 bottom-3 w-4 cursor-ew-resize z-20"
-                title="Redimensionar esquerda"
-              />
-              <div
-                onMouseDown={(e) => handleResizeStart("e", e)}
-                className="absolute -right-2 top-3 bottom-3 w-4 cursor-ew-resize z-20"
-                title="Redimensionar direita"
-              />
+            {/* Redefinir */}
+            <button
+              type="button"
+              onClick={resetTransform}
+              className="cursor-pointer px-2.5 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] text-[11px] font-medium text-mut hover:text-txt hover:bg-white/[0.06] transition-all"
+              title="Redefinir enquadramento"
+            >
+              <ArrowsOutSimple size={13} className="inline mr-1" />
+              Redefinir
+            </button>
+          </div>
 
-              {/* Indicador Central de Movimento */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity pointer-events-none">
-                <ArrowsOutCardinal size={24} className="text-[#0FB9A8]" />
-              </div>
+          {error && (
+            <div className="px-3 py-2 rounded-xl bg-err/15 border border-err/30 text-err text-xs font-medium animate-in fade-in-0 duration-150">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Rodapé de Ações (Padrão Guild Modal - Rule 4) */}
+        <footer className="p-4 border-t border-white/[0.08] flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-xs font-semibold text-txt hover:bg-white/[0.08] active:scale-95 transition-all text-center"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmCrop}
+            disabled={isLoading}
+            className="cursor-pointer flex-1 rounded-xl bg-acc py-2.5 text-xs font-semibold text-bg shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <span className="animate-pulse">Processando imagem…</span>
+            ) : (
+              <>
+                <Check size={15} weight="bold" />
+                <span>Confirmar recorte</span>
+              </>
+            )}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+});
+
+/**
+ * ImageEditor com ErrorBoundary embutido para total resiliência contra crashes.
+ */
+const ImageEditor = memo(function ImageEditor(props: ImageEditorProps) {
+  if (!props.open || !props.imageSrc) return null;
+
+  const modalNode = (
+    <CropErrorBoundary
+      fallback={(error, reset) => (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#12161f] p-5 shadow-2xl text-center space-y-4">
+            <h3 className="text-sm font-semibold text-err">Falha ao carregar imagem para recorte</h3>
+            <p className="text-xs text-mut/80 break-words">{error.message || "Formato de arquivo incompatível ou corrompido."}</p>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={props.onClose}
+                className="px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-xs font-semibold text-txt hover:bg-white/[0.08]"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={reset}
+                className="px-4 py-2 rounded-xl bg-acc text-bg text-xs font-semibold hover:bg-acc-press"
+              >
+                Tentar novamente
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Barra de Controles Inferior */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          {/* Zoom */}
-          <div className="flex items-center gap-1.5 bg-[#1A202E] p-1 rounded-xl border border-[#242B3D]">
-            <button
-              type="button"
-              onClick={() => setZoom((prev) => Math.max(1, Number((prev - 0.1).toFixed(2))))}
-              disabled={zoom <= 1}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D] transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-              title="Diminuir zoom (−)"
-            >
-              −
-            </button>
-            <span className="text-xs text-[#E9EDF2] font-semibold w-11 text-center font-mono">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={() => setZoom((prev) => Math.min(5, Number((prev + 0.1).toFixed(2))))}
-              disabled={zoom >= 5}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D] transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
-              title="Aumentar zoom (+)"
-            >
-              +
-            </button>
-          </div>
-
-          {/* Rotação e Espelhamento */}
-          <div className="flex items-center gap-1 bg-[#1A202E] p-1 rounded-xl border border-[#242B3D]">
-            <button
-              type="button"
-              onClick={() => setRotation((prev) => prev - 90)}
-              className="px-2.5 h-7 rounded-lg flex items-center justify-center text-xs text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D] transition-colors cursor-pointer"
-              title="Girar 90° à esquerda (Shift+R)"
-            >
-              ↺ 90°
-            </button>
-            <button
-              type="button"
-              onClick={() => setRotation((prev) => prev + 90)}
-              className="px-2.5 h-7 rounded-lg flex items-center justify-center text-xs text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D] transition-colors cursor-pointer"
-              title="Girar 90° à direita (R)"
-            >
-              ↻ 90°
-            </button>
-            <button
-              type="button"
-              onClick={() => setFlipH((prev) => !prev)}
-              className={`px-2.5 h-7 rounded-lg flex items-center justify-center text-xs transition-colors cursor-pointer ${
-                flipH ? "bg-[#0FB9A8]/20 text-[#0FB9A8]" : "text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D]"
-              }`}
-              title="Espelhar horizontal (H)"
-            >
-              ↔
-            </button>
-            <button
-              type="button"
-              onClick={() => setFlipV((prev) => !prev)}
-              className={`px-2.5 h-7 rounded-lg flex items-center justify-center text-xs transition-colors cursor-pointer ${
-                flipV ? "bg-[#0FB9A8]/20 text-[#0FB9A8]" : "text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#242B3D]"
-              }`}
-              title="Espelhar vertical (V)"
-            >
-              ↕
-            </button>
-          </div>
-
-          <div className="flex-1" />
-
-          {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
-
-          {/* Botões de Ação */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-transparent border border-[#242B3D] text-xs font-semibold text-[#94A3B8] hover:text-[#E9EDF2] hover:bg-[#1A202E] transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={confirmCrop}
-              disabled={isLoading}
-              className="px-5 py-2 rounded-xl bg-[#0FB9A8] text-[#0D1017] text-xs font-bold hover:bg-[#14DAA6] transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-md"
-            >
-              {isLoading ? "Processando…" : "Confirmar recorte"}
-            </button>
-          </div>
-        </div>
-
-        {/* Instruções */}
-        <p className="mt-2.5 text-[11px] text-[#64748B] text-center">
-          Arraste as alças para redimensionar a grade • Arraste o centro para mover • Scroll para zoom
-        </p>
-      </div>
-    </div>
-  )
+      )}
+    >
+      <ImageEditorContent {...props} />
+    </CropErrorBoundary>
+  );
 
   if (typeof document !== "undefined") {
-    return createPortal(modalNode, document.body)
+    return createPortal(modalNode, document.body);
   }
 
-  return modalNode
-})
+  return modalNode;
+});
 
-export default ImageEditor
+export default ImageEditor;
