@@ -32,11 +32,13 @@ export interface ImageUploadWithEditProps {
   uploading?: boolean
   /** Se true, desabilita o componente */
   disabled?: boolean
-  /** Mensagem de erro de upload (ex: falha no Appwrite) */
+  /** Mensagem de erro de upload */
   uploadError?: string | null
   maxSizeMB?: number
   accept?: string
-  /** URL do Appwrite usada como exibição principal (evita requisição ao Matrix) */
+  /** URL remota direta usada como exibição principal (evita requisição ao Matrix) */
+  remoteUrl?: string | null
+  /** Alias legado para compatibilidade */
   appwriteUrl?: string | null
 }
 
@@ -59,8 +61,10 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
   uploadError = null,
   maxSizeMB = 5,
   accept = "image/*",
+  remoteUrl = null,
   appwriteUrl = null,
 }: ImageUploadWithEditProps) {
+  const effectiveRemoteUrl = remoteUrl ?? appwriteUrl;
   const myUserId = useUiStore((state) => state.myUserId ?? "")
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -114,8 +118,8 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
 
   const displaySrc = useMemo(() => {
     if (previewObjUrl) return previewObjUrl
-    // Prioridade: URL do Appwrite (direta, sem requisição ao Matrix)
-    if (appwriteUrl) return appwriteUrl
+    // Prioridade: URL remota direta (sem requisição ao Matrix)
+    if (effectiveRemoteUrl) return effectiveRemoteUrl
     if (value) {
       if (value.startsWith("mxc://")) {
         return mxcToHttp(value) ?? value
@@ -123,19 +127,19 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
       return value
     }
     return null
-  }, [previewObjUrl, value, appwriteUrl])
+  }, [previewObjUrl, value, effectiveRemoteUrl])
 
   const hasImage = useMemo(() => Boolean(displaySrc), [displaySrc])
 
-  // Força reset do preview quando a URL do Appwrite muda (novo upload externo)
+  // Força reset do preview quando a URL remota muda (novo upload externo)
   useEffect(() => {
-    if (appwriteUrl && !previewObjUrl) {
+    if (effectiveRemoteUrl && !previewObjUrl) {
       setSelectedFile(null)
       setPreviewObjUrl(null)
       setRawOriginalUrl(null)
       setEditorOpen(false)
     }
-  }, [appwriteUrl, previewObjUrl])
+  }, [effectiveRemoteUrl, previewObjUrl])
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

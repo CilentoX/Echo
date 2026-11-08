@@ -235,29 +235,6 @@ function startPollingLoop(): void {
     }
 
     if (activeChannelId) {
-      try {
-        const events = await matrixService.loadOlder(activeChannelId, 20);
-        if (events && events.length > 0) {
-          const store = useSyncStore.getState();
-          const chronological = [...events].reverse();
-          for (const ev of chronological) {
-            const isNew = !store.timelineByChannel[ev.roomId]?.some((e) => e.eventId === ev.eventId);
-            store.applyEvent(ev);
-            const isRecent = Date.now() - (ev.originServerTs ?? 0) < 60_000;
-            const isAfterBoot = (ev.originServerTs ?? 0) > sessionBootTimestamp;
-            if (isLiveSyncReady && isNew && ev.body && ev.sender && isAfterBoot && isRecent) {
-              const senderName = findSenderDisplayName(ev.roomId, ev.sender);
-              const roomName = findChannelName(ev.roomId);
-              void notifyNewMessage(ev.roomId, senderName, ev.body, roomName, (ev as any).senderAvatarUrl, ev.sender);
-            }
-          }
-        }
-      } catch (err: any) {
-        if (isAuthError(err)) {
-          authFailureCallback?.();
-        }
-      }
-
       // Sincroniza presença e membros do canal a cada ~24 segundos (6 ticks) em vez de 8s
       if (pollingTick % 6 === 0) {
         void loadMembersFor(activeChannelId);

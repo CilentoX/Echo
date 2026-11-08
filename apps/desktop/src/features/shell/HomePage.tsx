@@ -28,13 +28,12 @@ export default function HomePage({
   const myUserId = useUiStore((s) => s.myUserId);
   const nickname = useProfileStore((s) => s.nickname);
   const displayName = useProfileStore((s) => s.displayName);
-  const avatarUrl = useProfileStore((s) => s.avatarUrl);
-  const appwriteAvatarUrl = useProfileStore((s) => s.appwriteAvatarUrl);
+  const avatarUrl = useProfileStore((s) => s.avatarUrl ?? s.appwriteAvatarUrl);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const setActiveGuild = useUiStore((s) => s.setActiveGuild);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
 
-  const effectiveAvatar = appwriteAvatarUrl ?? avatarUrl;
+  const effectiveAvatar = avatarUrl;
   const effectiveName = nickname || displayName || myUserId?.replace(/^@/, "").split(":")[0] || "Usuário";
 
   return (

@@ -100,8 +100,7 @@ export default function ChatHeader({
   const isVoiceActive = isDm && activeVoiceChannelId === roomId;
 
   const profileDisplayName = useProfileStore((s) => s.displayName);
-  const profileAvatarUrl = useProfileStore((s) => s.avatarUrl);
-  const myAppwriteAvatarUrl = useProfileStore((s) => s.appwriteAvatarUrl);
+  const profileAvatarUrl = useProfileStore((s) => s.avatarUrl ?? s.appwriteAvatarUrl);
   const microphoneEnabled = useSettingsStore((s) => s.microphoneEnabled);
   const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
 
@@ -111,7 +110,7 @@ export default function ChatHeader({
     } else {
       const myEffectiveName =
         profileDisplayName || myUserId?.split(":")[0].replace("@", "") || "Você";
-      const myEffectiveAvatar = profileAvatarUrl || myAppwriteAvatarUrl || null;
+      const myEffectiveAvatar = profileAvatarUrl || null;
       connectVoice(
         "home",
         "Mensagens Diretas",

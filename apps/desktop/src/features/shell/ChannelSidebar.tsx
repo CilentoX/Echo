@@ -65,6 +65,7 @@ export interface ChannelSidebarProps {
   onClose?: () => void;
   onOpenProfile?: () => void;
   onOpenSettings?: () => void;
+  footer?: import("react").ReactNode;
 }
 
 /** Channel sidebar: 232px column listing the active community's text channels. */
@@ -73,6 +74,7 @@ export default function ChannelSidebar({
   onClose,
   onOpenProfile: _onOpenProfile,
   onOpenSettings: _onOpenSettings,
+  footer,
 }: ChannelSidebarProps) {
   const overlay = variant === "overlay";
 
@@ -2467,6 +2469,8 @@ export default function ChannelSidebar({
           onClose={() => setInviteOpen(false)}
         />
       )}
+
+      {footer}
     </aside>
   );
 }

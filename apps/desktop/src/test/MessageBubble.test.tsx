@@ -45,7 +45,59 @@ describe("MessageBubble v2", () => {
     renderBubble(senderEvent);
     const el = articleEl();
     expect(el.className).toContain("w-full");
-    expect(el.className).toContain("hover:bg-white/[0.03]");
+    expect(el.className).toContain("hover:bg-white/[0.02]");
+  });
+
+  it("renderiza player de vídeo inline com controls para eventos de vídeo", () => {
+    const videoEvent: NormalizedEvent = {
+      ...baseEvent,
+      msgtype: "m.video",
+      url: "https://echo.litteris.online/videos/demo.mp4",
+      body: "[Vídeo] Demonstração",
+    };
+    renderBubble(videoEvent);
+    const video = document.querySelector("video");
+    expect(video).not.toBeNull();
+    expect(video?.getAttribute("src")).toBe("https://echo.litteris.online/videos/demo.mp4");
+    expect(video?.getAttribute("controls")).not.toBeNull();
+  });
+
+  it("renderiza player de vídeo inline quando body termina com extensão de vídeo (.mp4)", () => {
+    const fileVideoEvent: NormalizedEvent = {
+      ...baseEvent,
+      msgtype: "m.file",
+      url: "mxc://echo.litteris.online/media123",
+      body: "gravacao-da-partida.mp4",
+    };
+    renderBubble(fileVideoEvent);
+    const video = document.querySelector("video");
+    expect(video).not.toBeNull();
+  });
+
+  it("renderiza ações rápidas no hover incluindo responder, reações e menu", () => {
+    renderBubble();
+    const hoverBar = screen.getByTestId("message-hover-bar");
+    expect(hoverBar).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Responder/ })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Copiar texto/ })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Mais ações/ })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Reagir com coração/ })).not.toBeNull();
+  });
+
+  it("dispara evento echo:insert-mention ao clicar em Responder", () => {
+    let capturedMention: string | null = null;
+    const listener = (e: Event) => {
+      const custom = e as CustomEvent<{ mentionText: string }>;
+      capturedMention = custom.detail.mentionText;
+    };
+    window.addEventListener("echo:insert-mention", listener);
+
+    renderBubble();
+    const replyBtn = screen.getByRole("button", { name: /Responder/ });
+    replyBtn.click();
+
+    expect(capturedMention).toBe("@outro ");
+    window.removeEventListener("echo:insert-mention", listener);
   });
 
   it("mostra avatar inicial, nome e hora quando showHeader é true", () => {

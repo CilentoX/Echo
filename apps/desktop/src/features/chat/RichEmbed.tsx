@@ -23,6 +23,7 @@ import {
   InstagramEmbed,
 } from "react-social-media-embed";
 import { launchAppProtocol } from "@/lib/appLauncher";
+import { ECHO_API_CONFIG } from "@/lib/api/config";
 
 export interface RichEmbedProps {
   content: string;
@@ -439,7 +440,7 @@ export default function RichEmbed({ content, align = "left" }: RichEmbedProps) {
     };
   }, [embed]);
 
-  // Carrega metadados OpenGraph via microlink para links genéricos, Discord e GitHub
+  // Carrega metadados OpenGraph via endpoint interno na echo-api para links genéricos, Discord e GitHub
   useEffect(() => {
     if (!embed || (embed.type !== "generic" && embed.type !== "github" && embed.type !== "discord" && embed.type !== "reddit")) {
       return;
@@ -457,7 +458,7 @@ export default function RichEmbed({ content, align = "left" }: RichEmbedProps) {
     const fetchMeta = async () => {
       try {
         const res = await fetch(
-          `https://api.microlink.io?url=${encodeURIComponent(embed.url)}`,
+          `${ECHO_API_CONFIG.baseUrl}/api/link-preview?url=${encodeURIComponent(embed.url)}`,
           { signal: AbortSignal.timeout(4500) },
         );
         if (!res.ok) throw new Error("Fetch failed");
@@ -467,8 +468,8 @@ export default function RichEmbed({ content, align = "left" }: RichEmbedProps) {
             title: json.data.title || undefined,
             description: json.data.description || undefined,
             publisher: json.data.publisher || undefined,
-            logoUrl: json.data.logo?.url || undefined,
-            imageUrl: json.data.image?.url || undefined,
+            logoUrl: json.data.logoUrl || json.data.logo?.url || undefined,
+            imageUrl: json.data.imageUrl || json.data.image?.url || undefined,
           };
           ogCache.set(embed.url, meta);
           setOgData(meta);

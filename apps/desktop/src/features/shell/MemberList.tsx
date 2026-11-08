@@ -33,8 +33,7 @@ export default function MemberList({
   const activeGuildId = useUiStore((state) => state.activeGuildId);
   const myUserId = useUiStore((state) => state.myUserId);
   const presenceMap = useUiStore((state) => state.presence);
-  const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl);
-  const myAvatarUrl = useProfileStore((state) => state.avatarUrl);
+  const myAvatarUrl = useProfileStore((state) => state.avatarUrl ?? state.appwriteAvatarUrl);
   const myDisplayName = useProfileStore((state) => state.displayName);
   const myCustomStatus = useProfileStore((state) => state.customStatus);
   const myPresence = useProfileStore((state) => state.presence);
@@ -89,11 +88,11 @@ export default function MemberList({
         userId: myUserId,
         displayName: myUserId.replace(/^@/, ''),
         presence: "online",
-        avatarUrl: myAppwriteAvatarUrl ?? myAvatarUrl ?? null,
+        avatarUrl: myAvatarUrl ?? null,
       });
     }
     return merged;
-  }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId, myAppwriteAvatarUrl, myAvatarUrl]);
+  }, [channelsByGuild, activeGuildId, allMembersByRoom, myUserId, myAvatarUrl]);
 
   // Em guildas, exibe os membros da guilda inteira (ergonomia Discord); combina com channelMembers defensivamente.
   const members: MemberSummary[] = useMemo(() => {
@@ -127,12 +126,12 @@ export default function MemberList({
         userId: myUserId,
         displayName: myDisplayName || myUserId.replace(/^@/, "").split(":")[0],
         presence: "online",
-        avatarUrl: myAppwriteAvatarUrl ?? myAvatarUrl ?? null,
+        avatarUrl: myAvatarUrl ?? null,
       });
     }
 
     return deduplicated;
-  }, [activeChannelId, channelMembers, guildMembers, myUserId, myDisplayName, myAppwriteAvatarUrl, myAvatarUrl]);
+  }, [activeChannelId, channelMembers, guildMembers, myUserId, myDisplayName, myAvatarUrl]);
 
   const [search, setSearch] = useState("");
   const [openMemberId, setOpenMemberId] = useState<string | null>(null);
@@ -174,7 +173,7 @@ export default function MemberList({
     <aside
       data-column="members"
       aria-label="Membros"
-      className={`flex w-[224px] shrink-0 flex-col border-l border-bd-subtle bg-surf ${overlay
+      className={`flex w-[320px] shrink-0 flex-col border-l border-bd-subtle bg-surf ${overlay
           ? "fixed inset-y-0 right-0 z-20 shadow-lg shadow-black/60"
           : "h-full"
         }`}
@@ -245,9 +244,9 @@ export default function MemberList({
                   const cleanDisplayName = guildNick || baseDisplayName;
                   const initial = cleanDisplayName.charAt(0).toUpperCase();
 
-                  // Fallback chain: Guild avatar override → Matrix avatar → Appwrite avatar (my user) → local avatarUrl → initials
+                  // Fallback chain: Guild avatar override → Matrix avatar → local avatarUrl → initials
                   const effectiveAvatarUrl = isMe
-                    ? (guildProfile?.avatarUrl ?? member.avatarUrl ?? myAppwriteAvatarUrl ?? myAvatarUrl ?? null)
+                    ? (guildProfile?.avatarUrl ?? member.avatarUrl ?? myAvatarUrl ?? null)
                     : (guildProfile?.avatarUrl ?? member.avatarUrl ?? null);
 
                   const isSpeaking = (() => {

@@ -8,9 +8,10 @@ import MemberContextMenu from "./MemberContextMenu";
 export interface HomeSidebarProps {
   variant?: "static" | "overlay";
   onClose?: () => void;
+  footer?: import("react").ReactNode;
 }
 
-export default function HomeSidebar({ variant = "static", onClose }: HomeSidebarProps) {
+export default function HomeSidebar({ variant = "static", onClose, footer }: HomeSidebarProps) {
   const overlay = variant === "overlay";
   const { friends, pendingIncoming, loadFriends, openDirectMessage } = useFriendsStore();
   const activeChannelId = useUiStore((s) => s.activeChannelId);
@@ -235,6 +236,7 @@ export default function HomeSidebar({ variant = "static", onClose }: HomeSidebar
           })
         )}
       </div>
+      {footer}
     </aside>
   );
 }

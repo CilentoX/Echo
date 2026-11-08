@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowsOutSimple, Chats, Copy, PushPin, Hash, At } from "@phosphor-icons/react";
+import {
+  ArrowsOutSimple,
+  Chats,
+  Copy,
+  PushPin,
+  Hash,
+  At,
+  ArrowBendUpLeft,
+  DotsThree,
+} from "@phosphor-icons/react";
 import type { NormalizedEvent, NormalizedReaction } from "@/lib/matrix/types";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSyncStore } from "@/stores/syncStore";
@@ -48,10 +57,10 @@ export interface MessageBubbleProps {
 }
 
 /**
- * Uma mensagem da timeline: bolha diferenciada para remetente (sender,
- * à direita) vs destinatário (receiver, à esquerda), avatar inicial,
- * nome, hora, reply-to chip, edição/exclusão, corpo em markdown, visualizador
- * de imagens com lightbox e player de áudio com waveform dinâmico.
+ * Uma mensagem da timeline no padrão Discord: fluxo linear contínuo unificado à esquerda.
+ * Todas as mensagens (próprias ou de terceiros) alinham à esquerda, com avatar na lateral esquerda
+ * (ou alinhamento quando agrupadas consecutivamente pelo mesmo autor), cabeçalho de autor com timestamp,
+ * player de vídeo inline para mídias de vídeo, player de áudio e visualizador de imagem com lightbox.
  */
 export default function MessageBubble({
   event,
@@ -76,8 +85,7 @@ export default function MessageBubble({
   const guildNick = memberProfile?.nickname;
   const myNickname = useProfileStore((s) => s.nickname);
   const myDisplayName = useProfileStore((s) => s.displayName);
-  const myAppwriteAvatar = useProfileStore((s) => s.appwriteAvatarUrl);
-  const myAvatar = useProfileStore((s) => s.avatarUrl);
+  const myAvatar = useProfileStore((s) => s.avatarUrl ?? s.appwriteAvatarUrl);
 
   const rawRoomMembers = useSyncStore((s) => s.membersByRoom[event.roomId]);
   const roomMembers = rawRoomMembers ?? EMPTY_MEMBERS;
@@ -97,9 +105,9 @@ export default function MessageBubble({
     (isSender ? (myNickname || myDisplayName) : roomMember?.displayName || friend?.displayName) ||
     senderLabel(event.sender);
 
-  // Avatar com cadeia de fallback e cache persistente em disco
+  // Avatar com cadeia de fallback
   const senderAvatar = isSender
-    ? (memberProfile?.avatarUrl ?? myAppwriteAvatar ?? myAvatar ?? event.senderAvatarUrl ?? null)
+    ? (memberProfile?.avatarUrl ?? myAvatar ?? event.senderAvatarUrl ?? null)
     : (memberProfile?.avatarUrl ?? roomMember?.avatarUrl ?? friend?.avatarUrl ?? event.senderAvatarUrl ?? null);
   const time = new Date(event.originServerTs).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -112,28 +120,45 @@ export default function MessageBubble({
       : event.url
     : null;
 
-  const isAudio =
-    event.msgtype === "m.audio" ||
-    Boolean(event.info?.mimetype && event.info.mimetype.startsWith("audio/")) ||
-    event.body.startsWith("[Mensagem de voz]") ||
+  const isVideo =
+    event.msgtype === "m.video" ||
+    Boolean(event.info?.mimetype && event.info.mimetype.startsWith("video/")) ||
+    event.body.startsWith("[Vídeo]") ||
+    event.body.startsWith("[Video]") ||
+    /\.(mp4|webm|mov|mkv|ogv)(\?[^#\s]*)?$/i.test(event.body.trim()) ||
     (typeof mediaUrl === "string" &&
-      (mediaUrl.endsWith(".webm") ||
-        mediaUrl.endsWith(".ogg") ||
-        mediaUrl.endsWith(".mp3") ||
-        mediaUrl.endsWith(".m4a") ||
-        mediaUrl.endsWith(".wav")));
+      (mediaUrl.endsWith(".mp4") ||
+        mediaUrl.endsWith(".webm") ||
+        mediaUrl.endsWith(".mov") ||
+        mediaUrl.endsWith(".mkv") ||
+        mediaUrl.endsWith(".ogv") ||
+        /\.(mp4|webm|mov|mkv|ogv)(\?[^#\s]*)?$/i.test(mediaUrl)));
+
+  const isAudio =
+    !isVideo &&
+    (event.msgtype === "m.audio" ||
+      Boolean(event.info?.mimetype && event.info.mimetype.startsWith("audio/")) ||
+      event.body.startsWith("[Mensagem de voz]") ||
+      (typeof mediaUrl === "string" &&
+        (mediaUrl.endsWith(".webm") ||
+          mediaUrl.endsWith(".ogg") ||
+          mediaUrl.endsWith(".mp3") ||
+          mediaUrl.endsWith(".m4a") ||
+          mediaUrl.endsWith(".wav"))));
 
   const isImage =
-    event.msgtype === "m.image" ||
-    Boolean(event.info?.mimetype && event.info.mimetype.startsWith("image/")) ||
-    event.body.startsWith("[Imagem]") ||
-    (typeof mediaUrl === "string" &&
-      (mediaUrl.endsWith(".jpg") ||
-        mediaUrl.endsWith(".jpeg") ||
-        mediaUrl.endsWith(".png") ||
-        mediaUrl.endsWith(".webp") ||
-        mediaUrl.endsWith(".gif") ||
-        mediaUrl.endsWith(".svg")));
+    !isVideo &&
+    !isAudio &&
+    (event.msgtype === "m.image" ||
+      Boolean(event.info?.mimetype && event.info.mimetype.startsWith("image/")) ||
+      event.body.startsWith("[Imagem]") ||
+      (typeof mediaUrl === "string" &&
+        (mediaUrl.endsWith(".jpg") ||
+          mediaUrl.endsWith(".jpeg") ||
+          mediaUrl.endsWith(".png") ||
+          mediaUrl.endsWith(".webp") ||
+          mediaUrl.endsWith(".gif") ||
+          mediaUrl.endsWith(".svg"))));
 
   return (
     <ContextMenu>
@@ -142,17 +167,15 @@ export default function MessageBubble({
           data-event-id={event.eventId}
           data-pending={pending || undefined}
           data-is-sender={isSender || undefined}
-          className={`group relative flex gap-3 px-4 transition-colors w-full hover:bg-white/[0.03] ${
-            isSender ? "justify-end" : "justify-start"
-          } ${isCompact ? "py-0.5" : showHeader ? "pt-2.5 pb-0.5" : "py-0.5"}`}
+          className={`group relative flex gap-3 px-4 transition-colors w-full hover:bg-white/[0.02] ${
+            isCompact ? "py-0.5" : showHeader ? "pt-2 pb-0.5" : "py-0.5"
+          }`}
         >
           {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
           {!pending && (
             <div
               data-testid="message-hover-bar"
-              className={`absolute -top-3.5 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-card-bg/95 px-1 py-0.5 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur z-20 transition-all ${
-                isSender ? "right-14" : "right-4"
-              }`}
+              className="absolute -top-3.5 right-4 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-card-bg/95 px-1 py-0.5 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur z-20 transition-all"
             >
               <button
                 type="button"
@@ -184,6 +207,23 @@ export default function MessageBubble({
               <div className="w-[1px] h-3.5 bg-bd mx-0.5" />
               <button
                 type="button"
+                title="Responder"
+                aria-label="Responder"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const cleanNick = name.replace(/\s+/g, "");
+                  window.dispatchEvent(
+                    new CustomEvent("echo:insert-mention", {
+                      detail: { userId: event.sender, mentionText: `@${cleanNick} ` },
+                    }),
+                  );
+                }}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-mut hover:text-txt transition-colors active:scale-95"
+              >
+                <ArrowBendUpLeft size={13} weight="bold" />
+              </button>
+              <button
+                type="button"
                 title={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
                 aria-label={isPinned ? "Desafixar mensagem" : "Fixar mensagem"}
                 onClick={() => {
@@ -205,55 +245,76 @@ export default function MessageBubble({
               >
                 <Copy size={13} />
               </button>
+              <button
+                type="button"
+                title="Mais opções"
+                aria-label="Mais ações"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.currentTarget
+                    .closest("article")
+                    ?.dispatchEvent(
+                      new MouseEvent("contextmenu", {
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: e.clientX,
+                        clientY: e.clientY,
+                      }),
+                    );
+                }}
+                className="cursor-pointer flex h-7 w-7 items-center justify-center rounded hover:bg-surf2 text-mut hover:text-txt transition-colors active:scale-95"
+              >
+                <DotsThree size={14} weight="bold" />
+              </button>
             </div>
           )}
 
-          {/* Avatar do remetente (à esquerda quando !isSender) */}
-          {!isSender && (
-            <div className="shrink-0 pt-0.5">
-              {showHeader ? (
-                <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
-                  <MxcImage
-                    mxcUrl={senderAvatar}
-                    width={isCompact ? 28 : 40}
-                    height={isCompact ? 28 : 40}
-                    alt={`Avatar de ${name}`}
-                    className={`rounded-full object-cover border border-white/[0.08] shadow-sm ${
-                      isCompact ? "h-7 w-7" : "h-10 w-10"
-                    }`}
-                    fallback={
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
-                          isCompact ? "text-[10px]" : "text-xs font-bold"
-                        }`}
-                      >
-                        {name.slice(0, 1).toUpperCase()}
-                      </span>
-                    }
-                  />
-                </div>
-              ) : (
-                <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
-                  <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
-                    {time.slice(0, 5)}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Avatar / Gutter à esquerda (unificado para todas as mensagens - Ergonomia Discord) */}
+          <div className="shrink-0 pt-0.5 select-none">
+            {showHeader ? (
+              <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
+                <MxcImage
+                  mxcUrl={senderAvatar}
+                  width={isCompact ? 28 : 40}
+                  height={isCompact ? 28 : 40}
+                  alt={`Avatar de ${name}`}
+                  className={`rounded-full object-cover border border-white/[0.08] shadow-sm ${
+                    isCompact ? "h-7 w-7" : "h-10 w-10"
+                  }`}
+                  fallback={
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
+                        isCompact ? "text-[10px]" : "text-xs font-bold"
+                      }`}
+                    >
+                      {name.slice(0, 1).toUpperCase()}
+                    </span>
+                  }
+                />
+              </div>
+            ) : (
+              <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center h-full min-h-[20px]`} aria-hidden="true">
+                <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
+                  {time.slice(0, 5)}
+                </span>
+              </div>
+            )}
+          </div>
 
-          {/* Conteúdo da mensagem (Alinhado à direita para o remetente, à esquerda para os outros) */}
-          <div className={`flex flex-col min-w-0 max-w-[85%] sm:max-w-[75%] ${isSender ? "items-end" : "items-start"}`}>
+          {/* Conteúdo da mensagem (alinhado à esquerda no fluxo linear) */}
+          <div className="flex flex-col min-w-0 flex-1 items-start text-left">
             {/* Chip de reply-to (citação) */}
             {event.replyTo && <ReplyChip replyTo={event.replyTo} />}
 
             {/* Cabeçalho: nome, hora, selos (apenas no primeiro do grupo) */}
             {showHeader && (
-              <div className={`flex items-baseline gap-2 mb-1 ${isSender ? "flex-row-reverse" : "flex-row"}`}>
-                <span className={`truncate font-display text-sm font-semibold hover:underline cursor-pointer ${
-                  isSender ? "text-acc" : "text-txt"
-                }`}>
+              <div className="flex items-baseline gap-2 mb-0.5 flex-row">
+                <span
+                  className={`truncate font-display text-sm font-semibold hover:underline cursor-pointer ${
+                    isSender ? "text-acc" : "text-txt"
+                  }`}
+                >
                   {name}
                 </span>
                 {isBot && (
@@ -271,19 +332,38 @@ export default function MessageBubble({
               </div>
             )}
 
-            {/* Áudio / Mensagem de Voz */}
-            {isAudio && mediaUrl ? (
+            {/* Vídeo Inline */}
+            {isVideo && mediaUrl ? (
+              <div className="my-1.5 max-w-lg w-full rounded-2xl overflow-hidden border border-white/[0.08] bg-black/60 shadow-lg">
+                <video
+                  controls
+                  playsInline
+                  preload="metadata"
+                  src={mediaUrl}
+                  className="max-h-[380px] w-full rounded-2xl bg-black object-contain"
+                >
+                  <track kind="captions" />
+                  Seu navegador não suporta reprodução de vídeos.
+                </video>
+                {event.body && !event.body.startsWith("[Vídeo]") && !event.body.startsWith("[Video]") && (
+                  <div className="p-2 text-xs text-txt/90">
+                    <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
+                  </div>
+                )}
+              </div>
+            ) : isAudio && mediaUrl ? (
+              /* Áudio / Mensagem de Voz */
               <div className="my-1 max-w-md w-full">
                 <AudioPlayer
                   src={mediaUrl}
                   duration={event.info?.duration}
                   waveform={event.info?.waveform}
-                  isSender={isSender}
+                  isSender={false}
                 />
               </div>
             ) : isImage && mediaUrl ? (
               /* Imagem com prévia ampliada e Lightbox */
-              <div className={`my-1 space-y-1 ${isSender ? "flex flex-col items-end" : ""}`}>
+              <div className="my-1 space-y-1">
                 <div
                   className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-bd-subtle max-w-sm inline-block shadow-sm"
                   onClick={() => setLightboxOpen(true)}
@@ -301,11 +381,7 @@ export default function MessageBubble({
                   </div>
                 </div>
                 {event.body && !event.body.startsWith("[Imagem]") && (
-                  <div className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2.5 rounded-2xl shadow-sm ${
-                    isSender
-                      ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm text-left"
-                      : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm text-left"
-                  }`}>
+                  <div className="text-sm leading-relaxed text-txt/90 break-words [overflow-wrap:anywhere] max-w-full py-0.5">
                     <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
                   </div>
                 )}
@@ -317,21 +393,17 @@ export default function MessageBubble({
                 />
               </div>
             ) : (
-              /* Corpo da mensagem em bolha estilizada */
-              <div className={`flex flex-col gap-1 w-full ${isSender ? "items-end" : "items-start"}`}>
+              /* Mensagem de Texto Padrão Discord (fluxo linear contínuo) */
+              <div className="flex flex-col gap-1 w-full items-start">
                 {!/^%%URL[\s_]*(?:TOKEN|<em>TOKEN<\/em>|&lt;em&gt;TOKEN&lt;\/em&gt;)?[\s_]*\d*%%$/i.test((event.body ?? "").trim()) &&
                  !/^@@URLTOKEN\d*@@$/i.test((event.body ?? "").trim()) && (
-                  <div className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2.5 rounded-2xl shadow-sm text-left inline-block max-w-full ${
-                    isSender
-                      ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm self-end"
-                      : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm self-start"
-                  }`}>
+                  <div className="text-sm leading-relaxed text-txt/90 break-words [overflow-wrap:anywhere] max-w-full py-0.5">
                     <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
                   </div>
                 )}
                 {!event.redacted && (
-                  <div className={`w-full max-w-[650px] flex flex-col ${isSender ? "items-end self-end ml-auto" : "items-start self-start mr-auto"}`}>
-                    <RichEmbed content={event.body} align={isSender ? "right" : "left"} />
+                  <div className="w-full max-w-[650px] flex flex-col items-start self-start mr-auto">
+                    <RichEmbed content={event.body} align="left" />
                   </div>
                 )}
               </div>
@@ -345,7 +417,7 @@ export default function MessageBubble({
 
             {/* Reações empilhadas */}
             {((reactions?.length ?? 0) > 0 || (threadReplies ?? 0) > 0) && (
-              <div className={`mt-1.5 flex flex-wrap items-center gap-1.5 ${isSender ? "justify-end" : "justify-start"}`}>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 justify-start">
                 <ReactionStack
                   reactions={reactions ?? []}
                   myUserId={myUserId}
@@ -370,125 +442,90 @@ export default function MessageBubble({
               </div>
             )}
           </div>
-
-          {/* Avatar do remetente (à direita quando isSender) */}
-          {isSender && (
-            <div className="shrink-0 pt-0.5 order-last">
-              {showHeader ? (
-                <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
-                  <MxcImage
-                    mxcUrl={senderAvatar}
-                    width={isCompact ? 28 : 40}
-                    height={isCompact ? 28 : 40}
-                    alt={`Avatar de ${name}`}
-                    className={`rounded-full object-cover border border-acc/30 shadow-sm ${
-                      isCompact ? "h-7 w-7" : "h-10 w-10"
-                    }`}
-                    fallback={
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
-                          isCompact ? "text-[10px]" : "text-xs font-bold"
-                        }`}
-                      >
-                        {name.slice(0, 1).toUpperCase()}
-                      </span>
-                    }
-                  />
-                </div>
-              ) : (
-                <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
-                  <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
-                    {time.slice(0, 5)}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
         </article>
       </ContextMenuTrigger>
 
-  <ContextMenuContent className="w-56">
-    <ContextMenuLabel className="truncate text-txt font-semibold flex items-center justify-between">
-      <span className="truncate">{name}</span>
-      <span className="text-[10px] text-mut/60 font-mono">{time}</span>
-    </ContextMenuLabel>
-    <ContextMenuSeparator />
-
-    {/* Reações rápidas */}
-    {onToggleReaction && !pending && (
-      <>
-        <div className="flex items-center justify-around px-2 py-1.5 bg-white/[0.02] rounded-lg my-1">
-          {["❤️", "👍", "😂", "🎉", "🔥"].map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => onToggleReaction(event.eventId, emoji)}
-              className="cursor-pointer text-base hover:scale-125 transition-transform p-1 rounded hover:bg-white/[0.08]"
-              title={`Reagir com ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
+      <ContextMenuContent className="w-56">
+        <ContextMenuLabel className="truncate text-txt font-semibold flex items-center justify-between">
+          <span className="truncate">{name}</span>
+          <span className="text-[10px] text-mut/60 font-mono">{time}</span>
+        </ContextMenuLabel>
         <ContextMenuSeparator />
-      </>
-    )}
 
-    {/* Copiar Texto */}
-    {event.body && (
-      <ContextMenuItem onClick={() => navigator.clipboard.writeText(event.body)}>
-        <Copy size={15} weight="bold" />
-        <span>Copiar Texto</span>
-      </ContextMenuItem>
-    )}
+        {/* Reações rápidas */}
+        {onToggleReaction && !pending && (
+          <>
+            <div className="flex items-center justify-around px-2 py-1.5 bg-white/[0.02] rounded-lg my-1">
+              {["❤️", "👍", "😂", "🎉", "🔥"].map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => onToggleReaction(event.eventId, emoji)}
+                  className="cursor-pointer text-base hover:scale-125 transition-transform p-1 rounded hover:bg-white/[0.08]"
+                  title={`Reagir com ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <ContextMenuSeparator />
+          </>
+        )}
 
-    {/* Fixar / Desafixar */}
-    {!pending && (
-      <ContextMenuItem
-        onClick={() => {
-          if (isPinned) unpinMessage(event.roomId, event.eventId);
-          else pinMessage(event.roomId, event.eventId);
-        }}
-      >
-        <PushPin size={15} weight={isPinned ? "fill" : "bold"} className={isPinned ? "text-acc" : ""} />
-        <span>{isPinned ? "Desafixar Mensagem" : "Fixar Mensagem"}</span>
-      </ContextMenuItem>
-    )}
+        {/* Copiar Texto */}
+        {event.body && (
+          <ContextMenuItem onClick={() => navigator.clipboard.writeText(event.body)}>
+            <Copy size={15} weight="bold" />
+            <span>Copiar Texto</span>
+          </ContextMenuItem>
+        )}
 
-    {/* Mencionar Autor */}
-    {!isSender && (
-      <ContextMenuItem
-        onClick={() => {
-          const cleanNick = name.replace(/\s+/g, "");
-          window.dispatchEvent(
-            new CustomEvent("echo:insert-mention", {
-              detail: { userId: event.sender, mentionText: `@${cleanNick} ` },
-            })
-          );
-        }}
-      >
-        <At size={15} weight="bold" />
-        <span>Mencionar Autor</span>
-      </ContextMenuItem>
-    )}
+        {/* Fixar / Desafixar */}
+        {!pending && (
+          <ContextMenuItem
+            onClick={() => {
+              if (isPinned) unpinMessage(event.roomId, event.eventId);
+              else pinMessage(event.roomId, event.eventId);
+            }}
+          >
+            <PushPin size={15} weight={isPinned ? "fill" : "bold"} className={isPinned ? "text-acc" : ""} />
+            <span>{isPinned ? "Desafixar Mensagem" : "Fixar Mensagem"}</span>
+          </ContextMenuItem>
+        )}
 
-    {/* Se mídia */}
-    {mediaUrl && (
-      <ContextMenuItem onClick={() => setLightboxOpen(true)}>
-        <ArrowsOutSimple size={15} weight="bold" />
-        <span>Ampliar Mídia</span>
-      </ContextMenuItem>
-    )}
+        {/* Mencionar Autor */}
+        {!isSender && (
+          <ContextMenuItem
+            onClick={() => {
+              const cleanNick = name.replace(/\s+/g, "");
+              window.dispatchEvent(
+                new CustomEvent("echo:insert-mention", {
+                  detail: { userId: event.sender, mentionText: `@${cleanNick} ` },
+                })
+              );
+            }}
+          >
+            <At size={15} weight="bold" />
+            <span>Mencionar Autor</span>
+          </ContextMenuItem>
+        )}
 
-    <ContextMenuSeparator />
+        {/* Se mídia */}
+        {mediaUrl && (
+          <ContextMenuItem onClick={() => setLightboxOpen(true)}>
+            <ArrowsOutSimple size={15} weight="bold" />
+            <span>Ampliar Mídia</span>
+          </ContextMenuItem>
+        )}
 
-    {/* Copiar ID */}
-    <ContextMenuItem onClick={() => navigator.clipboard.writeText(event.eventId)}>
-      <Hash size={15} weight="bold" />
-      <span>Copiar ID da Mensagem</span>
-    </ContextMenuItem>
-  </ContextMenuContent>
-</ContextMenu>
+        <ContextMenuSeparator />
+
+        {/* Copiar ID */}
+        <ContextMenuItem onClick={() => navigator.clipboard.writeText(event.eventId)}>
+          <Hash size={15} weight="bold" />
+          <span>Copiar ID da Mensagem</span>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

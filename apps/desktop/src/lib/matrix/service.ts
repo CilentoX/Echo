@@ -175,7 +175,7 @@ export class MatrixService {
     return this.echoApi.getUserProfile(userId);
   }
 
-  /** Busca todo o perfil de um usuário no Appwrite Database (avatar, banner, bio, links). */
+  /** Busca todo o perfil de um usuário na Echo API / PostgreSQL (avatar, banner, bio, links). */
   async getGlobalProfile(userId: string) {
     // Global profile comes from PostgreSQL via Echo API; delegate to profile getUserProfile
     return this.echoApi.getUserProfile(userId);

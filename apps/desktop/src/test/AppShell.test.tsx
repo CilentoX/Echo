@@ -191,4 +191,30 @@ describe("AppShell", () => {
     expect(useVoiceStore.getState().isConnected).toBe(false);
     expect(useVoiceStore.getState().activeVoiceChannelId).toBeNull();
   });
+
+  it("em conversa direta (DM) na Home, exibe a 4ª coluna com perfil/atividade sem vazio preto", () => {
+    useUiStore.setState({
+      activeGuildId: "home",
+      activeChannelId: "!dm-amigo:hs",
+    });
+    setWidth(1200);
+    render(<AppShell />);
+
+    expect(column("rail")).toBeTruthy();
+    expect(column("sidebar")).toBeTruthy();
+    expect(column("chat")).toBeTruthy();
+    expect(column("members")).toBeTruthy();
+    expect(screen.getByText("Ativo Agora")).toBeTruthy();
+  });
+
+  it("UserBar fica ancorada na base da Coluna 2 (Sidebar de 232px)", () => {
+    setupGuildState();
+    setWidth(1200);
+    render(<AppShell />);
+
+    const sidebar = column("sidebar") as HTMLElement;
+    expect(sidebar).toBeTruthy();
+    const userBar = within(sidebar).getByTestId("user-bar");
+    expect(userBar).toBeTruthy();
+  });
 });

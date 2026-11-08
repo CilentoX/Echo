@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import RichEmbed from "@/features/chat/RichEmbed";
 
 describe("RichEmbed", () => {
@@ -129,5 +129,33 @@ describe("RichEmbed", () => {
   it("suporta URIs nativas spotify: e steam://", () => {
     render(<RichEmbed content="spotify:track:4cOdK2wGLETKBW3PvgPWqT" />);
     expect(screen.getByText("Spotify Player")).toBeTruthy();
+  });
+
+  it("utiliza endpoint interno da echo-api para link previews e jamais chama serviços pagos como microlink", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "success",
+        data: {
+          title: "Artigo Autossuficiente",
+          description: "Sem dependência de microlink SaaS",
+          publisher: "Blog Oficial",
+        },
+      }),
+    } as any);
+
+    render(<RichEmbed content="Veja https://blog.exemplo.com/post-legal" />);
+
+    expect(screen.getByText("blog.exemplo.com")).toBeTruthy();
+
+    await vi.waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalled();
+    });
+
+    const calls = fetchSpy.mock.calls.map((c) => String(c[0]));
+    expect(calls.some((url) => url.includes("microlink.io"))).toBe(false);
+    expect(calls.some((url) => url.includes("/api/link-preview"))).toBe(true);
+
+    fetchSpy.mockRestore();
   });
 });

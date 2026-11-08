@@ -179,4 +179,19 @@ describe("Composer (Fase B)", () => {
     expect(sendMessage).toHaveBeenNthCalledWith(1, ROOM, "primeira");
     expect(sendMessage).toHaveBeenNthCalledWith(2, ROOM, "segunda");
   });
+
+  it("insere menção no composer ao receber evento echo:insert-mention", async () => {
+    render(<Composer roomId={ROOM} sendMessage={vi.fn()} channelName="geral" />);
+    const input = screen.getByLabelText("Mensagem") as HTMLTextAreaElement;
+
+    window.dispatchEvent(
+      new CustomEvent("echo:insert-mention", {
+        detail: { userId: "@nina:hs", mentionText: "@nina " },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(input.value).toBe("@nina ");
+    });
+  });
 });

@@ -4,6 +4,7 @@ import CommunityRail from "./CommunityRail";
 import ChannelSidebar from "./ChannelSidebar";
 import ChatPane from "@/features/chat/ChatPane";
 import MemberList from "./MemberList";
+import DmSidePanel from "./DmSidePanel";
 import UserBar from "./UserBar";
 import VoiceConnectionBar from "./VoiceConnectionBar";
 import SyncStatusIndicator from "./SyncStatusIndicator";
@@ -255,6 +256,17 @@ export default function AppShell({
     };
   }, []);
 
+  const sidebarFooter = (
+    <div className="flex flex-col shrink-0">
+      <VoiceConnectionBar onOpenVoiceSettings={() => setProfileOpen(true, "voice")} />
+      <UserBar
+        onOpenProfile={() => setProfileOpen(true, "profile")}
+        onOpenSettings={() => setProfileOpen(true, "appearance")}
+        onOpenVoiceSettings={() => setProfileOpen(true, "voice")}
+      />
+    </div>
+  );
+
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-bg font-ui text-txt">
       {/* Área Principal de Navegação e Conteúdo ("|") */}
@@ -272,10 +284,11 @@ export default function AppShell({
               <HomeSidebar
                 variant="overlay"
                 onClose={() => setSidebarOpen(false)}
+                footer={sidebarFooter}
               />
             )
           ) : (
-            <HomeSidebar />
+            <HomeSidebar footer={sidebarFooter} />
           )
         ) : (
           sidebarOverlay ? (
@@ -285,12 +298,14 @@ export default function AppShell({
                 onClose={() => setSidebarOpen(false)}
                 onOpenProfile={() => setProfileOpen(true, "profile")}
                 onOpenSettings={() => setProfileOpen(true, "appearance")}
+                footer={sidebarFooter}
               />
             )
           ) : (
             <ChannelSidebar
               onOpenProfile={() => setProfileOpen(true, "profile")}
               onOpenSettings={() => setProfileOpen(true, "appearance")}
+              footer={sidebarFooter}
             />
           )
         )}
@@ -303,8 +318,9 @@ export default function AppShell({
                 sendFile={sendFile}
                 botSenders={botSenders}
                 showSidebarToggle={sidebarOverlay}
-                showMembersToggle={false}
+                showMembersToggle={!membersVisible}
                 onToggleSidebar={() => setSidebarOpen((open) => !open)}
+                onToggleMembers={() => setMembersOpen((open) => !open)}
               />
             )
           ) : (
@@ -338,7 +354,17 @@ export default function AppShell({
           )
         )}
 
-        {!isHome && (
+        {isHome ? (
+          activeChannelId && (
+            membersVisible ? (
+              <DmSidePanel />
+            ) : (
+              membersOpen && (
+                <DmSidePanel variant="overlay" onClose={() => setMembersOpen(false)} />
+              )
+            )
+          )
+        ) : (
           membersVisible ? (
             <MemberList />
           ) : (
@@ -347,16 +373,6 @@ export default function AppShell({
             )
           )
         )}
-      </div>
-
-      {/* Dock Inferior Persistente ("___") que ancora toda a extensão da aplicação */}
-      <div className="flex flex-col shrink-0">
-        <VoiceConnectionBar onOpenVoiceSettings={() => setProfileOpen(true, "voice")} />
-        <UserBar
-          onOpenProfile={() => setProfileOpen(true, "profile")}
-          onOpenSettings={() => setProfileOpen(true, "appearance")}
-          onOpenVoiceSettings={() => setProfileOpen(true, "voice")}
-        />
       </div>
 
       <SyncStatusIndicator />

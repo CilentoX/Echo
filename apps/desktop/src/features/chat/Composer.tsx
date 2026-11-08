@@ -243,6 +243,19 @@ export default function Composer({
     return () => window.removeEventListener("echo:files-dropped", handleFilesDropped);
   }, []);
 
+  /** Escuta inserção de menção/resposta via quick actions ou context menu */
+  useEffect(() => {
+    const handleInsertMention = (e: Event) => {
+      const custom = e as CustomEvent<{ userId?: string; mentionText?: string }>;
+      if (custom.detail?.mentionText) {
+        insertAtCursor(custom.detail.mentionText);
+      }
+    };
+
+    window.addEventListener("echo:insert-mention", handleInsertMention);
+    return () => window.removeEventListener("echo:insert-mention", handleInsertMention);
+  }, [insertAtCursor]);
+
   /** Constrói um evento placeholder otimista. */
   const buildOptimisticEvent = useCallback(
     (
@@ -254,19 +267,22 @@ export default function Composer({
     ): NormalizedEvent => {
       const isImg = file?.type.startsWith("image/");
       const isAud = file?.type.startsWith("audio/");
+      const isVid = file?.type.startsWith("video/") || Boolean(file && /\.(mp4|webm|mov|mkv|ogv)$/i.test(file.name));
       const event: NormalizedEvent = {
         eventId: localId,
         roomId,
         sender: myUserId ?? "",
         body: isAud
           ? "[Mensagem de voz]"
-          : isImg
-            ? (body || `[Imagem] ${file?.name ?? "anexo"}`)
-            : file
-              ? `[Arquivo] ${file.name}`
-              : body,
+          : isVid
+            ? (body || `[Vídeo] ${file?.name ?? "vídeo"}`)
+            : isImg
+              ? (body || `[Imagem] ${file?.name ?? "anexo"}`)
+              : file
+                ? `[Arquivo] ${file.name}`
+                : body,
         originServerTs: Date.now(),
-        msgtype: isAud ? "m.audio" : isImg ? "m.image" : file ? "m.file" : "m.text",
+        msgtype: isAud ? "m.audio" : isVid ? "m.video" : isImg ? "m.image" : file ? "m.file" : "m.text",
         url: file ? URL.createObjectURL(file) : undefined,
         info: file
           ? {
@@ -308,7 +324,9 @@ export default function Composer({
                 ? "m.audio"
                 : item.file.type.startsWith("image/")
                   ? "m.image"
-                  : "m.file"
+                  : item.file.type.startsWith("video/") || /\.(mp4|webm|mov|mkv|ogv)$/i.test(item.file.name)
+                    ? "m.video"
+                    : "m.file"
               : "m.text",
           };
           resolveEvent(item.localId, {

@@ -42,8 +42,8 @@ export default function MemberDropdownContent({
   const [isGuildOwner, setIsGuildOwner] = useState(false)
 
   const echoApi = useEchoApi()
-  const myAppwriteAvatarUrl = useProfileStore((state) => state.appwriteAvatarUrl)
-  const myAppwriteBannerUrl = useProfileStore((state) => state.appwriteBannerUrl)
+  const myAvatarUrl = useProfileStore((state) => state.avatarUrl ?? state.appwriteAvatarUrl)
+  const myBannerUrl = useProfileStore((state) => state.bannerUrl ?? state.appwriteBannerUrl)
   const isFriend = useFriendsStore((state) => state.friends.some((f) => f.userId === userId))
 
   const showToast = useCallback((message: string) => {
@@ -227,13 +227,13 @@ export default function MemberDropdownContent({
 
   const initial = (primaryName || "U").charAt(0).toUpperCase()
 
-  // Fallback chain para avatar: perfil carregado > avatar inicial do membro/canal > appwrite (se eu mesmo)
+  // Fallback chain para avatar: perfil carregado > avatar inicial do membro/canal > avatar do store (se eu mesmo)
   const effectiveAvatarUrl =
-    profile?.avatarUrl ?? initialAvatarUrl ?? (isMyUser ? myAppwriteAvatarUrl : null) ?? null
+    profile?.avatarUrl ?? initialAvatarUrl ?? (isMyUser ? myAvatarUrl : null) ?? null
 
   // Banner
   const effectiveBannerUrl =
-    profile?.bannerUrl ?? (isMyUser ? myAppwriteBannerUrl : null) ?? null
+    profile?.bannerUrl ?? (isMyUser ? myBannerUrl : null) ?? null
 
   return (
     <div
