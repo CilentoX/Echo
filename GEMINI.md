@@ -69,4 +69,16 @@ Todo modal, sheet ou diálogo de configuração/criação deve seguir a arquitet
 * **Cancelar:** `cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] text-txt hover:bg-white/[0.08] active:scale-95 transition-all`.
 * **Ação Primária:** `cursor-pointer flex-1 rounded-xl bg-acc text-bg font-semibold shadow-lg shadow-acc/20 hover:bg-acc-press active:scale-95 transition-all flex items-center justify-center gap-2`.
 
+---
+
+## 5. Princípio da Autossuficiência e Foco 100% Gratuito (Open-Source / Self-Hosted)
+
+* **Zero Custos Recorrentes:** Todas as ferramentas, bibliotecas, plugins e soluções de engenharia adotadas devem ser **100% gratuitas, open-source ou auto-hospedadas**.
+* **Sem Paywalls de Terceiros:** Nenhuma funcionalidade ou fluxo de trabalho deve depender de assinaturas pagas (SaaS) ou APIs pagas de terceiros.
+* **Stack Autossuficiente e Aberta:**
+  * **Frontend:** React 19, Tailwind CSS v4, Tauri v2, Zustand 5, Web Audio API nativa e Lucide/Phosphor Icons (MIT / Apache).
+  * **Mídia & Voz:** SFU LiveKit open-source, WebRTC nativo e coturn STUN/TURN self-hosted.
+  * **Comunicação Descentralizada:** Servidor Matrix Synapse e Echo API com PostgreSQL/SQLite auto-hospedados.
+  * **Ferramental de IA & Documentação:** Context7 (gratuito), Chrome DevTools nativo e skills internas de código.
+
 
