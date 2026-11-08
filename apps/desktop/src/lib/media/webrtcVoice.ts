@@ -7,6 +7,8 @@ export interface WebRtcCallbacks {
   onParticipantSpeaking?: (userId: string, isSpeaking: boolean) => void;
   onRemoteVideoStream?: (userId: string, stream: MediaStream | null, kind: "screen" | "camera") => void;
   onRttUpdate?: (rttMs: number) => void;
+  onPeerConnected?: (userId: string) => void;
+  onPeerDisconnected?: (userId: string) => void;
   onError?: (err: Error) => void;
 }
 
@@ -35,11 +37,15 @@ class WebRtcVoiceManager {
   private peers: Map<string, RTCPeerConnection> = new Map();
   private audioElements: Map<string, HTMLAudioElement> = new Map();
   private screenSenders: Map<string, RTCRtpSender> = new Map();
+  private screenAudioSenders: Map<string, RTCRtpSender> = new Map();
   private cameraSenders: Map<string, RTCRtpSender> = new Map();
   private remoteVideoStreams: Map<string, MediaStream> = new Map();
   private candidateQueues: Map<string, RTCIceCandidateInit[]> = new Map();
   private remoteAnalysers: Map<string, { analyser: AnalyserNode; interval: any }> = new Map();
   private callbacks: WebRtcCallbacks = {};
+  private sseSource: EventSource | null = null;
+  private peerVolumes: Map<string, number> = new Map();
+  private peerAudioNodes: Map<string, { gain: GainNode; source: MediaStreamAudioSourceNode }> = new Map();
 
   private rtcConfig: RTCConfiguration = {
     iceServers: this.getIceServers(),
@@ -159,11 +165,91 @@ class WebRtcVoiceManager {
       console.warn("[WebRtcVoice] Erro ao registrar presença no backend:", err);
     }
 
-    // 3. Inicia loop de Heartbeat e Sinalização
+    // 3. Conexão SSE instantânea (<20ms) para entrega imediata de sinais WebRTC e eventos
+    this.connectSse(channelId);
+
+    // 4. Inicia loop de Heartbeat e Sinalização (fallback HTTP)
     this.startHeartbeatAndSignalingLoop();
   }
 
+  private connectSse(channelId: string) {
+    this.disconnectSse();
+
+    if (typeof window === "undefined" || typeof EventSource === "undefined") {
+      return;
+    }
+
+    try {
+      const api = useEchoApi();
+      const token = typeof api?.getAccessToken === "function" ? api.getAccessToken() : "";
+      const baseUrl = typeof api?.getBaseUrl === "function" ? api.getBaseUrl() : ECHO_API_CONFIG.baseUrl;
+      const url = `${baseUrl}/api/channels/${encodeURIComponent(channelId)}/voice/events${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+
+      const sse = new EventSource(url);
+      this.sseSource = sse;
+
+      sse.addEventListener("signal", (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.fromUserId && data.signal) {
+            if (data.fromUserId !== this.myUserId) {
+              void this.handleIncomingSignal(data.fromUserId, data.signal);
+            }
+          }
+        } catch (err) {
+          console.warn("[WebRtcVoice] Erro ao processar sinal SSE:", err);
+        }
+      });
+
+      sse.addEventListener("participants", (event: MessageEvent) => {
+        try {
+          const participants = JSON.parse(event.data);
+          if (Array.isArray(participants)) {
+            this.callbacks.onParticipantsUpdate?.(participants);
+            this.syncPeers(participants);
+          }
+        } catch (err) {
+          console.warn("[WebRtcVoice] Erro ao processar participantes SSE:", err);
+        }
+      });
+
+      sse.addEventListener("participant_updated", (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data?.userId && typeof data.isSpeaking === "boolean") {
+            this.callbacks.onParticipantSpeaking?.(data.userId, data.isSpeaking);
+          }
+        } catch {}
+      });
+
+      sse.addEventListener("participant_left", (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data?.userId) {
+            this.cleanupPeer(data.userId);
+          }
+        } catch {}
+      });
+
+      sse.onerror = () => {
+        // EventSource nativo reconecta automaticamente com backoff
+      };
+    } catch (e) {
+      console.warn("[WebRtcVoice] Falha ao iniciar SSE:", e);
+    }
+  }
+
+  private disconnectSse() {
+    if (this.sseSource) {
+      try {
+        this.sseSource.close();
+      } catch {}
+      this.sseSource = null;
+    }
+  }
+
   public async leaveOldChannelOnly() {
+    this.disconnectSse();
     this.stopVad();
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
@@ -179,46 +265,18 @@ class WebRtcVoiceManager {
       } catch {}
     }
 
-    for (const item of this.remoteAnalysers.values()) {
-      clearInterval(item.interval);
+    for (const peerId of Array.from(this.peers.keys())) {
+      this.cleanupPeer(peerId);
     }
-    this.remoteAnalysers.clear();
 
-    for (const pc of this.peers.values()) {
-      try {
-        pc.close();
-      } catch {}
-    }
-    this.peers.clear();
-
-    for (const audio of this.audioElements.values()) {
-      try {
-        audio.pause();
-        audio.srcObject = null;
-        audio.remove();
-      } catch {}
-    }
-    this.audioElements.clear();
-    this.candidateQueues.clear();
-    this.screenSenders.clear();
-    this.cameraSenders.clear();
-    for (const peerId of this.remoteVideoStreams.keys()) {
-      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
-    }
-    this.remoteVideoStreams.clear();
     this.localScreenStream = null;
     this.localCameraStream = null;
     this.isScreenSharing = false;
     this.isCameraOn = false;
-    this.screenSenders.clear();
-    this.cameraSenders.clear();
-    for (const peerId of this.remoteVideoStreams.keys()) {
-      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
-    }
-    this.remoteVideoStreams.clear();
   }
 
   public async leave() {
+    this.disconnectSse();
     this.stopVad();
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
@@ -243,40 +301,9 @@ class WebRtcVoiceManager {
       } catch {}
     }
 
-    // Para analisadores remotos de fala
-    for (const item of this.remoteAnalysers.values()) {
-      clearInterval(item.interval);
+    for (const peerId of Array.from(this.peers.keys())) {
+      this.cleanupPeer(peerId);
     }
-    this.remoteAnalysers.clear();
-
-    // Fecha conexões peer
-    for (const pc of this.peers.values()) {
-      try {
-        pc.close();
-      } catch {}
-    }
-    this.peers.clear();
-
-    // Remove elementos de áudio
-    for (const audio of this.audioElements.values()) {
-      try {
-        audio.pause();
-        audio.srcObject = null;
-        audio.remove();
-      } catch {}
-    }
-    this.audioElements.clear();
-    this.candidateQueues.clear();
-    this.screenSenders.clear();
-    this.cameraSenders.clear();
-    for (const peerId of this.remoteVideoStreams.keys()) {
-      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
-    }
-    this.remoteVideoStreams.clear();
-    this.localScreenStream = null;
-    this.localCameraStream = null;
-    this.isScreenSharing = false;
-    this.isCameraOn = false;
 
     // Para faixas locais
     if (this.localStream) {
@@ -294,6 +321,7 @@ class WebRtcVoiceManager {
       this.analyser = null;
     }
 
+    this.peerVolumes.clear();
     this.currentGuildId = null;
     this.currentChannelId = null;
   }
@@ -303,6 +331,7 @@ class WebRtcVoiceManager {
    * garantindo que o servidor remova o usuário mesmo se o runtime fechar antes.
    */
   public leaveSyncOrKeepalive() {
+    this.disconnectSse();
     if (!this.currentChannelId) return;
     const chId = this.currentChannelId;
     this.currentChannelId = null;
@@ -354,13 +383,177 @@ class WebRtcVoiceManager {
     for (const audio of this.audioElements.values()) {
       audio.muted = deafened;
     }
+    for (const [peerId, node] of this.peerAudioNodes.entries()) {
+      const userVol = this.peerVolumes.get(peerId) ?? 100;
+      node.gain.gain.value = deafened ? 0 : userVol / 100;
+    }
   }
 
   public setParticipantVolume(userId: string, volume: number) {
+    this.peerVolumes.set(userId, volume);
     const audio = this.audioElements.get(userId);
     if (audio) {
-      // volume 0..200 normalizado para 0..1 (acima de 1 usa Web Audio se necessário, ou max 1.0)
       audio.volume = Math.max(0, Math.min(1, volume / 100));
+    }
+    const node = this.peerAudioNodes.get(userId);
+    if (node) {
+      node.gain.gain.value = this.isDeafened ? 0 : Math.max(0, volume / 100);
+    }
+  }
+
+  private cleanupPeer(peerId: string) {
+    const pc = this.peers.get(peerId);
+    if (pc) {
+      try {
+        pc.close();
+      } catch {}
+      this.peers.delete(peerId);
+    }
+
+    const audio = this.audioElements.get(peerId);
+    if (audio) {
+      try {
+        audio.pause();
+        audio.srcObject = null;
+        audio.remove();
+      } catch {}
+      this.audioElements.delete(peerId);
+    }
+
+    if (this.remoteAnalysers.has(peerId)) {
+      const a = this.remoteAnalysers.get(peerId)!;
+      clearInterval(a.interval);
+      this.remoteAnalysers.delete(peerId);
+    }
+
+    this.cleanupRemoteAudioNodes(peerId);
+
+    this.screenSenders.delete(peerId);
+    this.screenAudioSenders.delete(peerId);
+    this.cameraSenders.delete(peerId);
+    this.candidateQueues.delete(peerId);
+
+    if (this.remoteVideoStreams.has(peerId)) {
+      this.remoteVideoStreams.delete(peerId);
+      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+    }
+
+    this.callbacks.onPeerDisconnected?.(peerId);
+  }
+
+  private cleanupRemoteAudioNodes(peerId: string) {
+    if (this.peerAudioNodes.has(peerId)) {
+      const node = this.peerAudioNodes.get(peerId)!;
+      try {
+        node.gain.disconnect();
+        node.source.disconnect();
+      } catch {}
+      this.peerAudioNodes.delete(peerId);
+    }
+  }
+
+  private attachRemoteAudioPipeline(peerId: string, stream: MediaStream) {
+    this.cleanupRemoteAudioNodes(peerId);
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        if (!this.audioContext || this.audioContext.state === "closed") {
+          this.audioContext = new AudioCtx();
+        }
+        if (this.audioContext.state === "suspended") {
+          void this.audioContext.resume().catch(() => {});
+        }
+
+        const source = this.audioContext.createMediaStreamSource(stream);
+        const gain = this.audioContext.createGain();
+        const userVol = this.peerVolumes.get(peerId) ?? 100;
+        gain.gain.value = this.isDeafened ? 0 : userVol / 100;
+
+        source.connect(gain);
+        gain.connect(this.audioContext.destination);
+
+        this.peerAudioNodes.set(peerId, { gain, source });
+
+        // Muta o HTMLAudioElement para evitar reprodução duplicada
+        const audio = this.audioElements.get(peerId);
+        if (audio) {
+          audio.muted = true;
+        }
+      }
+    } catch (e) {
+      console.warn("[WebRtcVoice] Web Audio GainNode fallback:", e);
+      const audio = this.audioElements.get(peerId);
+      if (audio) {
+        audio.muted = this.isDeafened;
+        audio.volume = Math.max(0, Math.min(1, (this.peerVolumes.get(peerId) ?? 100) / 100));
+      }
+    }
+
+    this.attachRemoteVad(peerId, stream);
+  }
+
+  private optimizeSdp(sdp: string): string {
+    if (!sdp) return sdp;
+    let modified = sdp;
+
+    // 1. Otimiza áudio Opus para 128 kbps, estéreo e correção de erros (FEC)
+    modified = modified.replace(
+      /(a=fmtp:\d+ .*?maxaveragebitrate=)(\d+)/g,
+      `$1128000;stereo=1;sprop-stereo=1;useinbandfec=1`
+    );
+    if (!modified.includes("useinbandfec=1") && modified.includes("opus/48000")) {
+      modified = modified.replace(
+        /(a=rtpmap:(\d+) opus\/48000\/2[\r\n]+)/g,
+        `$1a=fmtp:$2 minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1;maxaveragebitrate=128000\r\n`
+      );
+    }
+
+    // 2. Aloca largura de banda para vídeo (4.5 Mbps para nitidez 1080p60)
+    if (modified.includes("m=video") && !modified.includes("b=AS:")) {
+      modified = modified.replace(
+        /(m=video[^\r\n]*[\r\n]+(?:c=[^\r\n]*[\r\n]+)?)/g,
+        `$1b=AS:4500\r\nb=TIAS:4500000\r\n`
+      );
+    }
+
+    return modified;
+  }
+
+  private tuneSender(sender: RTCRtpSender, maxBitrateBps: number = 4_500_000, degradationPreference: string = "maintain-resolution") {
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}];
+      }
+      for (const enc of params.encodings) {
+        enc.maxBitrate = maxBitrateBps;
+      }
+      if ("degradationPreference" in sender) {
+        (sender as any).degradationPreference = degradationPreference;
+      }
+      void sender.setParameters(params).catch(() => {});
+    } catch {}
+  }
+
+  private async restartIce(peerId: string) {
+    const pc = this.peers.get(peerId);
+    if (!pc || pc.connectionState === "closed") return;
+    try {
+      const offer = await pc.createOffer({ iceRestart: true });
+      const optimizedSdp = this.optimizeSdp(offer.sdp || "");
+      await pc.setLocalDescription({ type: offer.type, sdp: optimizedSdp });
+      if (this.currentChannelId) {
+        const api = useEchoApi();
+        if (typeof api?.sendVoiceSignal === "function") {
+          await api.sendVoiceSignal(this.currentChannelId, peerId, {
+            type: "offer",
+            sdp: { type: offer.type, sdp: optimizedSdp },
+          });
+        }
+      }
+    } catch (err) {
+      console.warn(`[WebRtcVoice] Erro ao reiniciar ICE com ${peerId}:`, err);
     }
   }
 
@@ -564,41 +757,17 @@ class WebRtcVoiceManager {
     );
 
     // Remove desconectados
-    for (const [peerId, pc] of this.peers.entries()) {
+    for (const peerId of Array.from(this.peers.keys())) {
       if (!activePeerIds.has(peerId)) {
-        try {
-          pc.close();
-        } catch {}
-        this.peers.delete(peerId);
-
-        const audio = this.audioElements.get(peerId);
-        if (audio) {
-          audio.pause();
-          audio.srcObject = null;
-          audio.remove();
-          this.audioElements.delete(peerId);
-        }
-
-        if (this.remoteAnalysers.has(peerId)) {
-          const a = this.remoteAnalysers.get(peerId)!;
-          clearInterval(a.interval);
-          this.remoteAnalysers.delete(peerId);
-        }
-
-        if (this.remoteVideoStreams.has(peerId)) {
-          this.remoteVideoStreams.delete(peerId);
-          this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
-        }
+        this.cleanupPeer(peerId);
       }
     }
 
-    // Cria conexão para novos participantes (inicia offer se for o peer com ID maior para evitar colisão)
+    // Cria conexão para novos participantes (inicia offer se for o peer com ID maior para evitar colisão; senão pré-inicializa)
     for (const peerId of activePeerIds) {
       if (!this.peers.has(peerId)) {
         const isInitiator = this.myUserId > peerId;
-        if (isInitiator) {
-          void this.createPeerConnection(peerId, true);
-        }
+        void this.createPeerConnection(peerId, isInitiator);
       }
     }
   }
@@ -650,6 +819,19 @@ class WebRtcVoiceManager {
     pc = new RTCPeerConnection(this.rtcConfig);
     this.peers.set(peerId, pc);
 
+    // Monitoramento do estado da conexão e auto ICE restart em caso de queda
+    pc.onconnectionstatechange = () => {
+      const state = pc!.connectionState;
+      if (state === "connected") {
+        this.callbacks.onPeerConnected?.(peerId);
+      } else if (state === "failed") {
+        this.callbacks.onPeerDisconnected?.(peerId);
+        void this.restartIce(peerId);
+      } else if (state === "disconnected") {
+        this.callbacks.onPeerDisconnected?.(peerId);
+      }
+    };
+
     // Garante transceiver de vídeo para permitir enviar e receber transmissões de tela/câmera
     try {
       pc.addTransceiver("video", { direction: "sendrecv" });
@@ -664,13 +846,22 @@ class WebRtcVoiceManager {
       }
     }
 
-    // Se já estiver transmitindo tela, anexa a faixa ao novo peer
+    // Se já estiver transmitindo tela, anexa a faixa de vídeo e áudio ao novo peer
     if (this.localScreenStream) {
       for (const track of this.localScreenStream.getVideoTracks()) {
         if (track.readyState === "live") {
           try {
             const sender = pc.addTrack(track, this.localScreenStream);
             this.screenSenders.set(peerId, sender);
+            this.tuneSender(sender, 4_500_000);
+          } catch {}
+        }
+      }
+      for (const audioTrack of this.localScreenStream.getAudioTracks()) {
+        if (audioTrack.readyState === "live") {
+          try {
+            const sender = pc.addTrack(audioTrack, this.localScreenStream);
+            this.screenAudioSenders.set(peerId, sender);
           } catch {}
         }
       }
@@ -725,8 +916,8 @@ class WebRtcVoiceManager {
         audio.volume = 1.0;
         void audio.play().catch(() => {});
 
-        // Detecção de fala remota em tempo real
-        this.attachRemoteVad(peerId, stream);
+        // Pipeline Web Audio com GainNode (0-200% volume boost) e VAD em tempo real
+        this.attachRemoteAudioPipeline(peerId, stream);
       } else if (track.kind === "video") {
         // Transmissão remota de tela ou webcam
         const videoStream = stream;
@@ -745,7 +936,7 @@ class WebRtcVoiceManager {
       }
     };
 
-    // Se formos o iniciador da conexão, cria a oferta SDP completa (áudio + vídeo)
+    // Se formos o iniciador da conexão, cria a oferta SDP completa com otimização
     if (isInitiator) {
       void (async () => {
         try {
@@ -753,14 +944,15 @@ class WebRtcVoiceManager {
             offerToReceiveAudio: true,
             offerToReceiveVideo: true,
           });
-          await pc!.setLocalDescription(offer);
+          const optimizedSdp = this.optimizeSdp(offer.sdp || "");
+          await pc!.setLocalDescription({ type: offer.type, sdp: optimizedSdp });
 
           if (this.currentChannelId) {
             const api = useEchoApi();
             if (typeof api?.sendVoiceSignal === "function") {
               await api.sendVoiceSignal(this.currentChannelId, peerId, {
                 type: "offer",
-                sdp: offer,
+                sdp: { type: offer.type, sdp: optimizedSdp },
               });
               this.pulseSignalingFast();
             }
@@ -779,25 +971,53 @@ class WebRtcVoiceManager {
     this.isScreenSharing = Boolean(
       stream && stream.getVideoTracks().some((t) => t.readyState === "live"),
     );
-    const track = stream ? stream.getVideoTracks()[0] : null;
+    const videoTrack = stream ? stream.getVideoTracks()[0] : null;
+    const audioTrack = stream ? stream.getAudioTracks()[0] : null;
+
+    if (videoTrack && "contentHint" in videoTrack) {
+      videoTrack.contentHint = "detail";
+    }
 
     for (const [peerId, pc] of this.peers.entries()) {
       try {
-        const existingSender = this.screenSenders.get(peerId);
-        if (track) {
-          if (existingSender) {
-            await existingSender.replaceTrack(track);
+        let needsRenegotiate = false;
+
+        // 1. Trata faixa de vídeo da transmissão de tela (1080p 60fps)
+        const existingVideoSender = this.screenSenders.get(peerId);
+        if (videoTrack) {
+          if (existingVideoSender) {
+            await existingVideoSender.replaceTrack(videoTrack);
+            this.tuneSender(existingVideoSender, 4_500_000);
           } else {
-            const sender = pc.addTrack(track, stream!);
+            const sender = pc.addTrack(videoTrack, stream!);
             this.screenSenders.set(peerId, sender);
-            await this.renegotiateWithPeer(peerId);
+            this.tuneSender(sender, 4_500_000);
+            needsRenegotiate = true;
           }
-        } else {
-          if (existingSender) {
-            pc.removeTrack(existingSender);
-            this.screenSenders.delete(peerId);
-            await this.renegotiateWithPeer(peerId);
+        } else if (existingVideoSender) {
+          pc.removeTrack(existingVideoSender);
+          this.screenSenders.delete(peerId);
+          needsRenegotiate = true;
+        }
+
+        // 2. Trata áudio compartilhado do sistema/aba
+        const existingAudioSender = this.screenAudioSenders.get(peerId);
+        if (audioTrack) {
+          if (existingAudioSender) {
+            await existingAudioSender.replaceTrack(audioTrack);
+          } else {
+            const sender = pc.addTrack(audioTrack, stream!);
+            this.screenAudioSenders.set(peerId, sender);
+            needsRenegotiate = true;
           }
+        } else if (existingAudioSender) {
+          pc.removeTrack(existingAudioSender);
+          this.screenAudioSenders.delete(peerId);
+          needsRenegotiate = true;
+        }
+
+        if (needsRenegotiate) {
+          await this.renegotiateWithPeer(peerId);
         }
       } catch (err) {
         console.warn(`[WebRtcVoice] Erro ao sincronizar tela com peer ${peerId}:`, err);
@@ -853,13 +1073,14 @@ class WebRtcVoiceManager {
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
       });
-      await pc.setLocalDescription(offer);
+      const optimizedSdp = this.optimizeSdp(offer.sdp || "");
+      await pc.setLocalDescription({ type: offer.type, sdp: optimizedSdp });
 
       const api = useEchoApi();
       if (typeof api?.sendVoiceSignal === "function") {
         await api.sendVoiceSignal(this.currentChannelId, peerId, {
           type: "offer",
-          sdp: offer,
+          sdp: { type: offer.type, sdp: optimizedSdp },
         });
         this.pulseSignalingFast();
       }
@@ -898,19 +1119,19 @@ class WebRtcVoiceManager {
         } catch {}
       }
       this.candidateQueues.delete(fromUserId);
-      // Libera memória se todas as filas foram processadas
       if (this.candidateQueues.size === 0) {
         this.candidateQueues.clear();
       }
 
       const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      const optimizedAnswer = this.optimizeSdp(answer.sdp || "");
+      await pc.setLocalDescription({ type: answer.type, sdp: optimizedAnswer });
 
       const api = useEchoApi();
       if (typeof api?.sendVoiceSignal === "function") {
         await api.sendVoiceSignal(this.currentChannelId, fromUserId, {
           type: "answer",
-          sdp: answer,
+          sdp: { type: answer.type, sdp: optimizedAnswer },
         });
         this.pulseSignalingFast();
       }
@@ -926,7 +1147,6 @@ class WebRtcVoiceManager {
           } catch {}
         }
         this.candidateQueues.delete(fromUserId);
-        // Libera memória se todas as filas foram processadas
         if (this.candidateQueues.size === 0) {
           this.candidateQueues.clear();
         }

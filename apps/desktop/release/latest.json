@@ -1,11 +1,11 @@
 {
-  "version": "0.1.21",
-  "notes": "Suporte completo a compartilhamento de tela e video WebRTC entre multiplos participantes.",
-  "pub_date": "2026-11-08T01:10:59.735Z",
+  "version": "0.1.22",
+  "notes": "Conexão por voz instantânea via Server-Sent Events (<20ms), live streaming nítido em 1080p 60fps com áudio do sistema/aba, auto ICE restart e boost de volume individual de até 200%",
+  "pub_date": "2026-11-08T01:35:53.500Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVlpQzYwQmw4T3ZGVEdtYjBON0NSRUg2QmV6eFk3OElyZXJrVWt6MHhIenJOcEp1dHpaNUtPNnU5VENlV2Rrc1RoZ2hqdlFrQWVySmg2aUFFQXZ4M1FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MTAwMjU3CWZpbGU6RWNob18wLjEuMjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4yMQozQ09mVDNuVEFSLzdjT0tCMzF6ZUhKNmRGeEFDTVdCYWhIWnh6Q1ZvakRlVDVtd1NxZ29va0dMQVF5UC9LR3pKVy9ndythaWRUcllRK3EwbkY3TUJDQT09Cg==",
-      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.21/Echo_0.1.21_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVdQc28rdy93N0R0c09QbXhjOXJGcXZWOXE3b0xzNW1YRnc5dHpVY2ZpRkpoYS9ueTFraXF6bGsxNmxOUmticyt0eVJhMEZVczUwR0ZiOTBtV0dsbWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MTAxNzUyCWZpbGU6RWNob18wLjEuMjJfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4yMgpxRFh5SXdnSGVHL3habFJrWTZ4c0tmNGpNS0JXd3QxdXF5Nzhnb2dVSXdGU2V6OHhDcGprVTVld0xTakp4Q3RsVzVJdkV6Q0lvVENMV0dYeWZGb3BEdz09Cg==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.22/Echo_0.1.22_x64-setup.exe"
     }
   }
 }

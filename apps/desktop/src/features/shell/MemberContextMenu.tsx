@@ -174,6 +174,33 @@ export default function MemberContextMenu({
                 </>
               )}
             </ContextMenuItem>
+
+            {!isMe && (
+              <div
+                className="px-2.5 py-2 space-y-1.5 border-t border-white/[0.04]"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between text-[11px] text-mut">
+                  <span className="font-medium">Volume do Usuário</span>
+                  <span className="font-mono text-acc font-bold">
+                    {voiceParticipant.volume ?? 100}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  step="1"
+                  value={voiceParticipant.volume ?? 100}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    useVoiceStore.getState().setParticipantVolume(userId, val);
+                  }}
+                  className="w-full h-1.5 bg-white/[0.08] rounded-lg appearance-none cursor-pointer accent-[#0FB9A8]"
+                />
+              </div>
+            )}
           </>
         )}
 

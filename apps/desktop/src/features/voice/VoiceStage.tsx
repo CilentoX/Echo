@@ -248,15 +248,33 @@ export default function VoiceStage({
     setScreenShareConfig(config);
     try {
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia) {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            frameRate: { ideal: config.fps, max: config.fps },
-            width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
-            height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
-            displaySurface: config.sourceType === "screen" ? "monitor" : "window",
-          },
-          audio: false,
-        } as MediaStreamConstraints);
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              frameRate: { ideal: config.fps, max: config.fps },
+              width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
+              height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
+              displaySurface: config.sourceType === "screen" ? "monitor" : "window",
+            },
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+            },
+          } as MediaStreamConstraints);
+        } catch {
+          // Fallback sem captura de áudio caso a plataforma/janela não suporte captura de som do sistema
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              frameRate: { ideal: config.fps, max: config.fps },
+              width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
+              height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
+              displaySurface: config.sourceType === "screen" ? "monitor" : "window",
+            },
+            audio: false,
+          } as MediaStreamConstraints);
+        }
         screenStreamRef.current = stream;
         const videoTrack = stream.getVideoTracks()[0];
         if (videoTrack) {
