@@ -468,4 +468,102 @@ describe("VoiceStage Component", () => {
     fireEvent.click(redockBtn);
     expect(useVoiceStore.getState().isScreenDetached).toBe(false);
   });
+
+  it("renderiza transmissão de tela remota com badge AO VIVO e botão de parar de assistir", () => {
+    useVoiceStore.getState().connectVoice(
+      "!guild1:echo",
+      "Echo Guild",
+      "ch-voice-1",
+      "Voz Geral",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina Pro",
+          isSpeaking: false,
+          volume: 100,
+        },
+        {
+          userId: "@rafael:echo.litteris.online",
+          username: "Rafael Pro",
+          isSpeaking: false,
+          isScreenSharing: true,
+          volume: 100,
+        },
+      ],
+    );
+
+    useVoiceStore.setState({
+      activeStreamUserId: "@rafael:echo.litteris.online",
+      isScreenSharing: false,
+    });
+
+    render(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
+
+    // Deve exibir que Rafael está transmitindo
+    expect(screen.getByText(/Rafael Pro transmitindo/i)).toBeTruthy();
+
+    // Deve exibir botão para parar de assistir
+    const stopWatchingBtn = screen.getByRole("button", { name: /Parar de Assistir/i });
+    expect(stopWatchingBtn).toBeTruthy();
+
+    fireEvent.click(stopWatchingBtn);
+    expect(useVoiceStore.getState().activeStreamUserId).toBeNull();
+  });
+
+  it("permite alternar entre múltiplos compartilhamentos de tela", () => {
+    useVoiceStore.getState().connectVoice(
+      "!guild1:echo",
+      "Echo Guild",
+      "ch-voice-1",
+      "Voz Geral",
+      [
+        {
+          userId: "@nina:echo.litteris.online",
+          username: "Nina Pro",
+          isSpeaking: false,
+          volume: 100,
+        },
+        {
+          userId: "@alice:echo.litteris.online",
+          username: "Alice Gamer",
+          isScreenSharing: true,
+          volume: 100,
+        },
+        {
+          userId: "@bob:echo.litteris.online",
+          username: "Bob Streamer",
+          isScreenSharing: true,
+          volume: 100,
+        },
+      ],
+    );
+
+    useVoiceStore.setState({
+      isScreenSharing: true, // local também transmitindo
+      activeStreamUserId: "@alice:echo.litteris.online",
+    });
+
+    render(
+      <VoiceStage
+        channelId="ch-voice-1"
+        channelName="Voz Geral"
+        guildId="!guild1:echo"
+        guildName="Echo Guild"
+      />,
+    );
+
+    // Deve ter botões para alternar
+    const bobSwitcherBtn = screen.getByRole("button", { name: /Alternar para tela de Bob Streamer/i });
+    expect(bobSwitcherBtn).toBeTruthy();
+
+    fireEvent.click(bobSwitcherBtn);
+    expect(useVoiceStore.getState().activeStreamUserId).toBe("@bob:echo.litteris.online");
+  });
 });

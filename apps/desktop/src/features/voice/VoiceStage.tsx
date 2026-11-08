@@ -35,6 +35,29 @@ import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import SoundboardPopover, { type SoundEffect } from "./SoundboardPopover";
 import ScreenShareModal from "./ScreenShareModal";
 import type { ScreenShareConfig } from "@/stores/voiceStore";
+import { webrtcVoice } from "@/lib/media/webrtcVoice";
+
+function RemoteParticipantVideo({ stream }: { stream: MediaStream }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+      }
+      videoRef.current.play().catch(() => {});
+    }
+  }, [stream]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className="w-full h-full object-cover"
+    />
+  );
+}
 
 const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
@@ -81,6 +104,9 @@ export default function VoiceStage({
   const setWebcamSize = useVoiceStore((s) => s.setWebcamSize);
   const isScreenDetached = useVoiceStore((s) => s.isScreenDetached);
   const setScreenDetached = useVoiceStore((s) => s.setScreenDetached);
+  const remoteVideoStreams = useVoiceStore((s) => s.remoteVideoStreams);
+  const activeStreamUserId = useVoiceStore((s) => s.activeStreamUserId);
+  const setActiveStreamUserId = useVoiceStore((s) => s.setActiveStreamUserId);
 
   const [screenShareModalOpen, setScreenShareModalOpen] = useState(false);
   const [webcamPosition, setWebcamPosition] = useState<{ xPercent: number; yPercent: number }>({
@@ -92,17 +118,7 @@ export default function VoiceStage({
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Sincroniza o MediaStream imediatamente em qualquer montagem/remontagem de layout sem tela preta
-  const setScreenVideoRef = useCallback((node: HTMLVideoElement | null) => {
-    screenVideoRef.current = node;
-    if (node && screenStreamRef.current) {
-      if (node.srcObject !== screenStreamRef.current) {
-        node.srcObject = screenStreamRef.current;
-      }
-      node.play().catch(() => {});
-    }
-  }, []);
-
+  // Sincroniza a câmera local imediatamente na montagem
   const setCameraVideoRef = useCallback((node: HTMLVideoElement | null) => {
     cameraVideoRef.current = node;
     if (node && cameraStreamRef.current) {
@@ -221,6 +237,7 @@ export default function VoiceStage({
       }
       setScreenSharing(false);
       setScreenShareConfig(null);
+      void webrtcVoice.setLocalScreenShare(null);
       return;
     }
 
@@ -247,12 +264,15 @@ export default function VoiceStage({
             screenStreamRef.current = null;
             setScreenSharing(false);
             setScreenShareConfig(null);
+            void webrtcVoice.setLocalScreenShare(null);
           };
         }
         if (screenVideoRef.current) {
           screenVideoRef.current.srcObject = stream;
+          screenVideoRef.current.play().catch(() => {});
         }
         setScreenSharing(true);
+        void webrtcVoice.setLocalScreenShare(stream);
       } else {
         setScreenSharing(true);
       }
@@ -270,6 +290,7 @@ export default function VoiceStage({
         cameraStreamRef.current = null;
       }
       setCameraOn(false);
+      void webrtcVoice.setLocalCamera(null);
       return;
     }
 
@@ -282,9 +303,11 @@ export default function VoiceStage({
           videoTrack.onended = () => {
             cameraStreamRef.current = null;
             setCameraOn(false);
+            void webrtcVoice.setLocalCamera(null);
           };
         }
         setCameraOn(true);
+        void webrtcVoice.setLocalCamera(stream);
       } else {
         setCameraOn(true);
       }
@@ -294,48 +317,16 @@ export default function VoiceStage({
   };
 
   useEffect(() => {
-    if (isScreenSharing && screenVideoRef.current && screenStreamRef.current) {
-      if (screenVideoRef.current.srcObject !== screenStreamRef.current) {
-        screenVideoRef.current.srcObject = screenStreamRef.current;
-      }
-      screenVideoRef.current.play().catch(() => {});
-    }
-  }, [isScreenSharing, screenShareLayout, isScreenDetached]);
-
-  useEffect(() => {
-    const video = screenVideoRef.current;
-    if (!video) return;
-
-    const onEnterPiP = () => setScreenDetached(true);
-    const onLeavePiP = () => setScreenDetached(false);
-
-    video.addEventListener("enterpictureinpicture", onEnterPiP);
-    video.addEventListener("leavepictureinpicture", onLeavePiP);
-
-    return () => {
-      video.removeEventListener("enterpictureinpicture", onEnterPiP);
-      video.removeEventListener("leavepictureinpicture", onLeavePiP);
-    };
-  }, [isScreenSharing, screenShareLayout]);
-
-  useEffect(() => {
-    if (isCameraOn && cameraVideoRef.current && cameraStreamRef.current) {
-      if (cameraVideoRef.current.srcObject !== cameraStreamRef.current) {
-        cameraVideoRef.current.srcObject = cameraStreamRef.current;
-      }
-      cameraVideoRef.current.play().catch(() => {});
-    }
-  }, [isCameraOn, screenShareLayout, isScreenDetached]);
-
-  useEffect(() => {
     return () => {
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
         screenStreamRef.current = null;
+        void webrtcVoice.setLocalScreenShare(null);
       }
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((t) => t.stop());
         cameraStreamRef.current = null;
+        void webrtcVoice.setLocalCamera(null);
       }
     };
   }, []);
@@ -434,10 +425,12 @@ export default function VoiceStage({
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach((t) => t.stop());
       screenStreamRef.current = null;
+      void webrtcVoice.setLocalScreenShare(null);
     }
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach((t) => t.stop());
       cameraStreamRef.current = null;
+      void webrtcVoice.setLocalCamera(null);
     }
     disconnectVoice();
     if (channelId.startsWith("temp-voice-") && activeGuildId) {
@@ -470,6 +463,133 @@ export default function VoiceStage({
       setParticipantSpeaking("me", speaking);
     },
   });
+
+  const localIsSharing = isScreenSharing;
+  const remoteSharers = participants.filter((p) => {
+    const isMe = p.userId === effectiveUserId || p.userId === "me" || p.userId === myUserId;
+    if (isMe) return false;
+    return Boolean(p.isScreenSharing || remoteVideoStreams[p.userId]);
+  });
+  const hasAnyScreenShare = localIsSharing || remoteSharers.length > 0;
+
+  // Participante cuja transmissão de tela está em foco no palco principal
+  let activeParticipant: {
+    userId: string;
+    username: string;
+    isMe: boolean;
+    stream: MediaStream | null;
+    config: ScreenShareConfig | null;
+  } | null = null;
+
+  if (activeStreamUserId) {
+    const isMe =
+      activeStreamUserId === effectiveUserId ||
+      activeStreamUserId === "me" ||
+      activeStreamUserId === myUserId;
+
+    if (isMe && localIsSharing) {
+      activeParticipant = {
+        userId: effectiveUserId,
+        username: "Você",
+        isMe: true,
+        stream: screenStreamRef.current,
+        config: screenShareConfig,
+      };
+    } else {
+      const p = participants.find((part) => part.userId === activeStreamUserId);
+      const stream =
+        remoteVideoStreams[activeStreamUserId] ||
+        webrtcVoice.getRemoteVideoStream(activeStreamUserId);
+      if (p || stream) {
+        activeParticipant = {
+          userId: activeStreamUserId,
+          username: p ? (guildProfiles?.[p.userId]?.nickname || p.username) : activeStreamUserId,
+          isMe: false,
+          stream: stream ?? null,
+          config: null,
+        };
+      }
+    }
+  }
+
+  // Fallback para o primeiro participante transmitindo se nenhum estiver focado
+  if (!activeParticipant) {
+    if (localIsSharing) {
+      activeParticipant = {
+        userId: effectiveUserId,
+        username: "Você",
+        isMe: true,
+        stream: screenStreamRef.current,
+        config: screenShareConfig,
+      };
+    } else if (remoteSharers.length > 0) {
+      const first = remoteSharers[0];
+      const stream =
+        remoteVideoStreams[first.userId] ||
+        webrtcVoice.getRemoteVideoStream(first.userId);
+      activeParticipant = {
+        userId: first.userId,
+        username: guildProfiles?.[first.userId]?.nickname || first.username,
+        isMe: false,
+        stream: stream ?? null,
+        config: null,
+      };
+    }
+  }
+
+  const displayedStream = activeParticipant?.stream ?? null;
+
+  // Sincroniza o MediaStream imediatamente em qualquer montagem/remontagem de layout sem tela preta
+  const setScreenVideoRef = useCallback(
+    (node: HTMLVideoElement | null) => {
+      screenVideoRef.current = node;
+      if (node && displayedStream) {
+        if (node.srcObject !== displayedStream) {
+          node.srcObject = displayedStream;
+        }
+        node.play().catch(() => {});
+      }
+    },
+    [displayedStream],
+  );
+
+  useEffect(() => {
+    if (screenVideoRef.current) {
+      if (displayedStream) {
+        if (screenVideoRef.current.srcObject !== displayedStream) {
+          screenVideoRef.current.srcObject = displayedStream;
+        }
+        screenVideoRef.current.play().catch(() => {});
+      } else {
+        screenVideoRef.current.srcObject = null;
+      }
+    }
+  }, [displayedStream, screenShareLayout, isScreenDetached]);
+
+  useEffect(() => {
+    const video = screenVideoRef.current;
+    if (!video) return;
+
+    const onEnterPiP = () => setScreenDetached(true);
+    const onLeavePiP = () => setScreenDetached(false);
+
+    video.addEventListener("enterpictureinpicture", onEnterPiP);
+    video.addEventListener("leavepictureinpicture", onLeavePiP);
+
+    return () => {
+      video.removeEventListener("enterpictureinpicture", onEnterPiP);
+      video.removeEventListener("leavepictureinpicture", onLeavePiP);
+    };
+  }, [hasAnyScreenShare, screenShareLayout]);
+
+  useEffect(() => {
+    if (isCameraOn && cameraVideoRef.current && cameraStreamRef.current) {
+      if (cameraVideoRef.current.srcObject !== cameraStreamRef.current) {
+        cameraVideoRef.current.srcObject = cameraStreamRef.current;
+      }
+      cameraVideoRef.current.play().catch(() => {});
+    }
+  }, [isCameraOn, screenShareLayout, isScreenDetached]);
 
   if (!canConnectVoice) {
     return (
@@ -514,6 +634,12 @@ export default function VoiceStage({
       speakingMembers.includes(participant.userId) ||
       (isMe && (isSpeaking || speakingMembers.includes("me") || speakingMembers.includes(effectiveUserId)));
 
+    const isSharingScreen = isMe
+      ? localIsSharing
+      : Boolean(participant.isScreenSharing || remoteVideoStreams[participant.userId]);
+
+    const isCurrentScreenFocus = activeParticipant?.userId === memberUserId;
+
     return (
       <MemberContextMenu
         key={participant.userId}
@@ -537,6 +663,34 @@ export default function VoiceStage({
                     : "bg-card-bg/70 hover:bg-card-bg/90 border border-bd-subtle hover:border-white/[0.15] shadow-sm hover:scale-[1.01]"
                 }`}
               >
+                {/* Badge de Transmissão de Tela (AO VIVO) */}
+                {isSharingScreen && (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveStreamUserId(memberUserId);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        setActiveStreamUserId(memberUserId);
+                      }
+                    }}
+                    title={isMe ? "Você está transmitindo tela" : `Assistir transmissão de ${memberNick}`}
+                    className={`absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-lg transition-all cursor-pointer ${
+                      isCurrentScreenFocus
+                        ? "bg-red-500 text-white shadow-red-500/30 animate-pulse"
+                        : "bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white"
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+                    <Television size={13} weight="bold" />
+                    <span>{isCurrentScreenFocus ? "Assistindo" : "Ao Vivo"}</span>
+                  </div>
+                )}
+
                 {/* Equalizer Waveform quando Falando */}
                 {participantSpeaking && (
                   <div
@@ -562,6 +716,14 @@ export default function VoiceStage({
                     <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[10px] text-white">
                       <VideoCamera size={12} weight="fill" className="text-online" />
                       <span>Câmera ativa</span>
+                    </div>
+                  </div>
+                ) : !isMe && participant.hasCamera && remoteVideoStreams[participant.userId] && (!isCurrentScreenFocus || !hasAnyScreenShare) ? (
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-white/[0.1] shadow-inner bg-black mb-2">
+                    <RemoteParticipantVideo stream={remoteVideoStreams[participant.userId]} />
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[10px] text-white">
+                      <VideoCamera size={12} weight="fill" className="text-online" />
+                      <span>Câmera</span>
                     </div>
                   </div>
                 ) : (
@@ -651,7 +813,9 @@ export default function VoiceStage({
   };
 
   const renderScreenShareStage = () => {
-    if (!isScreenSharing) return null;
+    if (!hasAnyScreenShare || !activeParticipant) return null;
+
+    const isCurrentActiveMe = activeParticipant.isMe;
 
     return (
       <div
@@ -684,38 +848,90 @@ export default function VoiceStage({
           <>
             {/* Header Superior da Transmissão e Controles de Layout */}
             <div className="absolute top-0 left-0 right-0 z-20 flex flex-wrap items-center justify-between gap-2 p-3 bg-gradient-to-b from-black/90 via-black/50 to-transparent">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="flex h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
                 <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                   <Television size={16} weight="bold" className="text-acc" />
-                  <span>Transmitindo Tela</span>
-                  {screenShareConfig?.sourceName && (
+                  <span>
+                    {isCurrentActiveMe
+                      ? "Transmitindo Tela"
+                      : `${activeParticipant.username} transmitindo`}
+                  </span>
+                  {isCurrentActiveMe && screenShareConfig?.sourceName && (
                     <span className="text-white/60 font-normal lowercase truncate max-w-[130px] sm:max-w-xs">
                       ({screenShareConfig.sourceName})
                     </span>
                   )}
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-white/[0.1] text-[10px] font-mono text-white/80">
-                  {screenShareConfig ? `${screenShareConfig.resolution} ${screenShareConfig.fps}fps` : "1080p 60fps"}
-                </span>
+                {isCurrentActiveMe && (
+                  <span className="px-2 py-0.5 rounded-md bg-white/[0.1] text-[10px] font-mono text-white/80">
+                    {screenShareConfig ? `${screenShareConfig.resolution} ${screenShareConfig.fps}fps` : "1080p 60fps"}
+                  </span>
+                )}
+                {!isCurrentActiveMe && (
+                  <span className="px-2 py-0.5 rounded-md bg-red-500/20 border border-red-500/40 text-[10px] font-semibold text-red-300">
+                    AO VIVO
+                  </span>
+                )}
+
+                {/* Seletor rápido de quem assistir se houver múltiplas transmissões */}
+                {((localIsSharing ? 1 : 0) + remoteSharers.length) > 1 && (
+                  <div className="flex items-center gap-1 bg-black/60 border border-white/[0.12] rounded-xl p-0.5 backdrop-blur-md ml-2">
+                    {localIsSharing && (
+                      <button
+                        type="button"
+                        aria-label="Alternar para sua tela"
+                        onClick={() => setActiveStreamUserId(effectiveUserId)}
+                        className={`cursor-pointer px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all ${
+                          isCurrentActiveMe
+                            ? "bg-acc text-bg shadow-xs"
+                            : "text-white/70 hover:text-white hover:bg-white/[0.06]"
+                        }`}
+                      >
+                        Você
+                      </button>
+                    )}
+                    {remoteSharers.map((rs) => {
+                      const rsNick = guildProfiles?.[rs.userId]?.nickname || rs.username;
+                      const isSelected = activeParticipant?.userId === rs.userId;
+                      return (
+                        <button
+                          key={rs.userId}
+                          type="button"
+                          aria-label={`Alternar para tela de ${rsNick}`}
+                          onClick={() => setActiveStreamUserId(rs.userId)}
+                          className={`cursor-pointer px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all truncate max-w-[100px] ${
+                            isSelected
+                              ? "bg-acc text-bg shadow-xs"
+                              : "text-white/70 hover:text-white hover:bg-white/[0.06]"
+                          }`}
+                        >
+                          {rsNick}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Seletor de Modos de Visualização */}
                 <div className="flex items-center bg-black/60 border border-white/[0.12] rounded-xl p-0.5 backdrop-blur-md">
-                  <button
-                    type="button"
-                    onClick={() => setScreenShareLayout("studio")}
-                    title="Modo Estúdio: Câmera sobreposta à tela como webcam de streamer"
-                    className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                      screenShareLayout === "studio"
-                        ? "bg-acc text-bg shadow-sm"
-                        : "text-white/70 hover:text-white hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    <Broadcast size={14} weight="bold" />
-                    <span>Estúdio</span>
-                  </button>
+                  {isCurrentActiveMe && (
+                    <button
+                      type="button"
+                      onClick={() => setScreenShareLayout("studio")}
+                      title="Modo Estúdio: Câmera sobreposta à tela como webcam de streamer"
+                      className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        screenShareLayout === "studio"
+                          ? "bg-acc text-bg shadow-sm"
+                          : "text-white/70 hover:text-white hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      <Broadcast size={14} weight="bold" />
+                      <span>Estúdio</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -758,21 +974,33 @@ export default function VoiceStage({
                   <span className="hidden sm:inline">Soltar Tela</span>
                 </button>
 
-                {/* Botão Parar Transmissão */}
-                <button
-                  type="button"
-                  onClick={handleToggleScreenShare}
-                  className="cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
-                >
-                  <StopCircle size={15} weight="bold" />
-                  <span>Parar Transmissão</span>
-                </button>
+                {/* Botão Parar Transmissão / Parar de Assistir */}
+                {isCurrentActiveMe ? (
+                  <button
+                    type="button"
+                    onClick={handleToggleScreenShare}
+                    className="cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
+                  >
+                    <StopCircle size={15} weight="bold" />
+                    <span>Parar Transmissão</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setActiveStreamUserId(null)}
+                    title="Parar de assistir tela em destaque"
+                    className="cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.1] hover:bg-white/[0.18] text-white text-xs font-semibold border border-white/[0.12] active:scale-95 transition-all"
+                  >
+                    <StopCircle size={15} weight="bold" />
+                    <span>Parar de Assistir</span>
+                  </button>
+                )}
               </div>
             </div>
           </>
         )}
 
-        {/* Video Player Principal da Tela: PERMANECE NO DOM para sustentar a sessão nativa de PiP ativa no Windows */}
+        {/* Video Player Principal da Tela */}
         <video
           ref={setScreenVideoRef}
           autoPlay
@@ -1004,7 +1232,7 @@ export default function VoiceStage({
         ) : (
           <div className="flex flex-col w-full">
             {/* Modo Split / Grade: Tela Lado a Lado com os Participantes */}
-            {isScreenSharing && !isScreenDetached && screenShareLayout === "split" ? (
+            {hasAnyScreenShare && !isScreenDetached && screenShareLayout === "split" ? (
               <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
                 <div className="flex-1 w-full min-w-0">
                   {renderScreenShareStage()}

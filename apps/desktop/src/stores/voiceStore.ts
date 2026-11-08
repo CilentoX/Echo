@@ -45,6 +45,8 @@ export interface VoiceState {
   webcamShape: WebcamShape;
   webcamSize: WebcamSize;
   isScreenDetached: boolean;
+  remoteVideoStreams: Record<string, MediaStream>;
+  activeStreamUserId: string | null;
 
   connectVoice: (
     guildId: string,
@@ -77,6 +79,8 @@ export interface VoiceState {
   toggleDeafen: (userId?: string) => void;
   setParticipantMuted: (userId: string, isMuted: boolean) => void;
   setParticipantDeafened: (userId: string, isDeafened: boolean) => void;
+  setRemoteVideoStream: (userId: string, stream: MediaStream | null) => void;
+  setActiveStreamUserId: (userId: string | null) => void;
 }
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
@@ -97,6 +101,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   webcamShape: "rectangle",
   webcamSize: "md",
   isScreenDetached: false,
+  remoteVideoStreams: {},
+  activeStreamUserId: null,
 
   connectVoice: (guildId, guildName, channelId, channelName, initialParticipants) => {
     // Se já estiver conectado no mesmo canal, não faz nada
@@ -127,6 +133,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
           isMuted,
           isDeafened,
           isSpeaking: false,
+          isScreenSharing: get().isScreenSharing,
+          hasCamera: get().isCameraOn,
           volume: 100,
         },
       ],
@@ -167,6 +175,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
                 isMuted: state.participants[0]?.isMuted ?? isMuted,
                 isDeafened: state.participants[0]?.isDeafened ?? isDeafened,
                 isSpeaking: state.isSpeaking,
+                isScreenSharing: state.isScreenSharing,
+                hasCamera: state.isCameraOn,
                 volume: 100,
               },
               ...others.map((o) => ({
@@ -176,12 +186,30 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
                 isMuted: Boolean(o.isMuted),
                 isDeafened: Boolean(o.isDeafened),
                 isSpeaking: Boolean(o.isSpeaking),
+                isScreenSharing: Boolean(o.isScreenSharing),
+                hasCamera: Boolean(o.hasCamera),
                 volume: 100,
               })),
             ];
 
-            return { participants: merged };
+            // Se alguém estiver compartilhando tela e não tivermos ninguém focado, foca automaticamente
+            let activeStreamUserId = state.activeStreamUserId;
+            if (!activeStreamUserId) {
+              const remoteSharing = merged.find(
+                (p) => p.isScreenSharing && p.userId !== currentRealId && p.userId !== "me"
+              );
+              if (remoteSharing) {
+                activeStreamUserId = remoteSharing.userId;
+              } else if (state.isScreenSharing) {
+                activeStreamUserId = currentRealId;
+              }
+            }
+
+            return { participants: merged, activeStreamUserId };
           });
+        },
+        onRemoteVideoStream: (userId, stream) => {
+          get().setRemoteVideoStream(userId, stream);
         },
         onSpeakingChange: (speaking) => {
           get().setSpeaking(speaking);
@@ -218,11 +246,51 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       screenShareConfig: null,
       speakingMembers: [],
       participants: [],
+      remoteVideoStreams: {},
+      activeStreamUserId: null,
     });
   },
 
-  setScreenSharing: (isScreenSharing) => set({ isScreenSharing }),
-  setCameraOn: (isCameraOn) => set({ isCameraOn }),
+  setScreenSharing: (isScreenSharing) => {
+    set((state) => {
+      const myId = state.participants[0]?.userId ?? "me";
+      return {
+        isScreenSharing,
+        activeStreamUserId: isScreenSharing ? myId : (state.activeStreamUserId === myId ? null : state.activeStreamUserId),
+        participants: state.participants.map((p) =>
+          p.userId === "me" || p.userId === myId ? { ...p, isScreenSharing } : p,
+        ),
+      };
+    });
+  },
+
+  setCameraOn: (isCameraOn) => {
+    set((state) => {
+      const myId = state.participants[0]?.userId ?? "me";
+      return {
+        isCameraOn,
+        participants: state.participants.map((p) =>
+          p.userId === "me" || p.userId === myId ? { ...p, hasCamera: isCameraOn } : p,
+        ),
+      };
+    });
+  },
+
+  setRemoteVideoStream: (userId, stream) => {
+    set((state) => {
+      const next = { ...state.remoteVideoStreams };
+      if (!stream) {
+        delete next[userId];
+        const nextActive = state.activeStreamUserId === userId ? null : state.activeStreamUserId;
+        return { remoteVideoStreams: next, activeStreamUserId: nextActive };
+      }
+      next[userId] = stream;
+      const nextActive = state.activeStreamUserId || userId;
+      return { remoteVideoStreams: next, activeStreamUserId: nextActive };
+    });
+  },
+
+  setActiveStreamUserId: (userId) => set({ activeStreamUserId: userId }),
   setScreenShareConfig: (screenShareConfig) => set({ screenShareConfig }),
   setScreenShareLayout: (screenShareLayout) => set({ screenShareLayout }),
   setWebcamShape: (webcamShape) => set({ webcamShape }),
@@ -284,10 +352,16 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   removeParticipant: (userId) => {
-    set((state) => ({
-      participants: state.participants.filter((p) => p.userId !== userId),
-      speakingMembers: state.speakingMembers.filter((id) => id !== userId),
-    }));
+    set((state) => {
+      const nextStreams = { ...state.remoteVideoStreams };
+      delete nextStreams[userId];
+      return {
+        participants: state.participants.filter((p) => p.userId !== userId),
+        speakingMembers: state.speakingMembers.filter((id) => id !== userId),
+        remoteVideoStreams: nextStreams,
+        activeStreamUserId: state.activeStreamUserId === userId ? null : state.activeStreamUserId,
+      };
+    });
   },
 
   moveParticipantToChannel: (userId, targetChannelId, targetChannelName, currentUserId) => {

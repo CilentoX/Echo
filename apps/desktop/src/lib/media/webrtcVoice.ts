@@ -5,12 +5,15 @@ export interface WebRtcCallbacks {
   onParticipantsUpdate?: (participants: any[]) => void;
   onSpeakingChange?: (isSpeaking: boolean) => void;
   onParticipantSpeaking?: (userId: string, isSpeaking: boolean) => void;
+  onRemoteVideoStream?: (userId: string, stream: MediaStream | null, kind: "screen" | "camera") => void;
   onRttUpdate?: (rttMs: number) => void;
   onError?: (err: Error) => void;
 }
 
 class WebRtcVoiceManager {
   private localStream: MediaStream | null = null;
+  private localScreenStream: MediaStream | null = null;
+  private localCameraStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private vadInterval: any = null;
@@ -26,9 +29,14 @@ class WebRtcVoiceManager {
   private isMuted: boolean = false;
   private isDeafened: boolean = false;
   private isSpeaking: boolean = false;
+  private isScreenSharing: boolean = false;
+  private isCameraOn: boolean = false;
 
   private peers: Map<string, RTCPeerConnection> = new Map();
   private audioElements: Map<string, HTMLAudioElement> = new Map();
+  private screenSenders: Map<string, RTCRtpSender> = new Map();
+  private cameraSenders: Map<string, RTCRtpSender> = new Map();
+  private remoteVideoStreams: Map<string, MediaStream> = new Map();
   private candidateQueues: Map<string, RTCIceCandidateInit[]> = new Map();
   private remoteAnalysers: Map<string, { analyser: AnalyserNode; interval: any }> = new Map();
   private callbacks: WebRtcCallbacks = {};
@@ -134,6 +142,8 @@ class WebRtcVoiceManager {
           avatarUrl,
           isMuted,
           isDeafened,
+          isScreenSharing: this.isScreenSharing,
+          hasCamera: this.isCameraOn,
         });
 
         if ((res as any)?.myUserId) {
@@ -190,6 +200,22 @@ class WebRtcVoiceManager {
     }
     this.audioElements.clear();
     this.candidateQueues.clear();
+    this.screenSenders.clear();
+    this.cameraSenders.clear();
+    for (const peerId of this.remoteVideoStreams.keys()) {
+      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+    }
+    this.remoteVideoStreams.clear();
+    this.localScreenStream = null;
+    this.localCameraStream = null;
+    this.isScreenSharing = false;
+    this.isCameraOn = false;
+    this.screenSenders.clear();
+    this.cameraSenders.clear();
+    for (const peerId of this.remoteVideoStreams.keys()) {
+      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+    }
+    this.remoteVideoStreams.clear();
   }
 
   public async leave() {
@@ -241,6 +267,16 @@ class WebRtcVoiceManager {
     }
     this.audioElements.clear();
     this.candidateQueues.clear();
+    this.screenSenders.clear();
+    this.cameraSenders.clear();
+    for (const peerId of this.remoteVideoStreams.keys()) {
+      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+    }
+    this.remoteVideoStreams.clear();
+    this.localScreenStream = null;
+    this.localCameraStream = null;
+    this.isScreenSharing = false;
+    this.isCameraOn = false;
 
     // Para faixas locais
     if (this.localStream) {
@@ -417,6 +453,35 @@ class WebRtcVoiceManager {
     } catch {}
   }
 
+  public async tickHeartbeat() {
+    if (!this.currentChannelId) return;
+    const api = useEchoApi();
+    if (typeof api?.voiceHeartbeat !== "function") return;
+    try {
+      const hbRes = await api.voiceHeartbeat(this.currentChannelId, {
+        guildId: this.currentGuildId ?? undefined,
+        username: this.myUsername || undefined,
+        avatarUrl: this.myAvatarUrl,
+        isSpeaking: this.isSpeaking,
+        isMuted: this.isMuted,
+        isDeafened: this.isDeafened,
+        isScreenSharing: this.isScreenSharing,
+        hasCamera: this.isCameraOn,
+      });
+
+      if (hbRes) {
+        if ((hbRes as any).myUserId) {
+          this.myUserId = (hbRes as any).myUserId;
+        }
+
+        if (hbRes.participants) {
+          this.callbacks.onParticipantsUpdate?.(hbRes.participants);
+          this.syncPeers(hbRes.participants);
+        }
+      }
+    } catch {}
+  }
+
   private startHeartbeatAndSignalingLoop() {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     if (this.burstInterval) clearInterval(this.burstInterval);
@@ -436,6 +501,8 @@ class WebRtcVoiceManager {
           isSpeaking: this.isSpeaking,
           isMuted: this.isMuted,
           isDeafened: this.isDeafened,
+          isScreenSharing: this.isScreenSharing,
+          hasCamera: this.isCameraOn,
         });
 
         if (hbRes) {
@@ -517,6 +584,11 @@ class WebRtcVoiceManager {
           clearInterval(a.interval);
           this.remoteAnalysers.delete(peerId);
         }
+
+        if (this.remoteVideoStreams.has(peerId)) {
+          this.remoteVideoStreams.delete(peerId);
+          this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+        }
       }
     }
 
@@ -578,10 +650,41 @@ class WebRtcVoiceManager {
     pc = new RTCPeerConnection(this.rtcConfig);
     this.peers.set(peerId, pc);
 
+    // Garante transceiver de vídeo para permitir enviar e receber transmissões de tela/câmera
+    try {
+      pc.addTransceiver("video", { direction: "sendrecv" });
+    } catch {}
+
     // Adiciona faixa de áudio local
     if (this.localStream) {
       for (const track of this.localStream.getAudioTracks()) {
-        pc.addTrack(track, this.localStream);
+        try {
+          pc.addTrack(track, this.localStream);
+        } catch {}
+      }
+    }
+
+    // Se já estiver transmitindo tela, anexa a faixa ao novo peer
+    if (this.localScreenStream) {
+      for (const track of this.localScreenStream.getVideoTracks()) {
+        if (track.readyState === "live") {
+          try {
+            const sender = pc.addTrack(track, this.localScreenStream);
+            this.screenSenders.set(peerId, sender);
+          } catch {}
+        }
+      }
+    }
+
+    // Se já estiver com câmera ativa, anexa a faixa ao novo peer
+    if (this.localCameraStream) {
+      for (const track of this.localCameraStream.getVideoTracks()) {
+        if (track.readyState === "live") {
+          try {
+            const sender = pc.addTrack(track, this.localCameraStream);
+            this.cameraSenders.set(peerId, sender);
+          } catch {}
+        }
       }
     }
 
@@ -598,39 +701,57 @@ class WebRtcVoiceManager {
       }
     };
 
-    // Recepção da faixa de áudio remota
+    // Recepção de faixas remotas (áudio ou vídeo/tela)
     pc.ontrack = (event) => {
+      const track = event.track;
       let stream = event.streams?.[0];
-      if (!stream && event.track) {
-        stream = new MediaStream([event.track]);
+      if (!stream && track) {
+        stream = new MediaStream([track]);
       }
       if (!stream) return;
 
-      let audio = this.audioElements.get(peerId);
-      if (!audio) {
-        audio = document.createElement("audio");
-        audio.autoplay = true;
+      if (track.kind === "audio") {
+        let audio = this.audioElements.get(peerId);
+        if (!audio) {
+          audio = document.createElement("audio");
+          audio.autoplay = true;
+          audio.muted = this.isDeafened;
+          audio.volume = 1.0;
+          document.body.appendChild(audio);
+          this.audioElements.set(peerId, audio);
+        }
+        audio.srcObject = stream;
         audio.muted = this.isDeafened;
         audio.volume = 1.0;
-        document.body.appendChild(audio);
-        this.audioElements.set(peerId, audio);
-      }
-      audio.srcObject = stream;
-      audio.muted = this.isDeafened;
-      audio.volume = 1.0;
-      void audio.play().catch(() => {});
+        void audio.play().catch(() => {});
 
-      // Detecção de fala remota em tempo real
-      this.attachRemoteVad(peerId, stream);
+        // Detecção de fala remota em tempo real
+        this.attachRemoteVad(peerId, stream);
+      } else if (track.kind === "video") {
+        // Transmissão remota de tela ou webcam
+        const videoStream = stream;
+        this.remoteVideoStreams.set(peerId, videoStream);
+        this.callbacks.onRemoteVideoStream?.(peerId, videoStream, "screen");
+
+        track.onended = () => {
+          this.remoteVideoStreams.delete(peerId);
+          this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+        };
+
+        track.onunmute = () => {
+          this.remoteVideoStreams.set(peerId, videoStream);
+          this.callbacks.onRemoteVideoStream?.(peerId, videoStream, "screen");
+        };
+      }
     };
 
-    // Se formos o iniciador da conexão, cria a oferta SDP
+    // Se formos o iniciador da conexão, cria a oferta SDP completa (áudio + vídeo)
     if (isInitiator) {
       void (async () => {
         try {
           const offer = await pc!.createOffer({
             offerToReceiveAudio: true,
-            offerToReceiveVideo: false,
+            offerToReceiveVideo: true,
           });
           await pc!.setLocalDescription(offer);
 
@@ -653,6 +774,100 @@ class WebRtcVoiceManager {
     return pc;
   }
 
+  public async setLocalScreenShare(stream: MediaStream | null) {
+    this.localScreenStream = stream;
+    this.isScreenSharing = Boolean(
+      stream && stream.getVideoTracks().some((t) => t.readyState === "live"),
+    );
+    const track = stream ? stream.getVideoTracks()[0] : null;
+
+    for (const [peerId, pc] of this.peers.entries()) {
+      try {
+        const existingSender = this.screenSenders.get(peerId);
+        if (track) {
+          if (existingSender) {
+            await existingSender.replaceTrack(track);
+          } else {
+            const sender = pc.addTrack(track, stream!);
+            this.screenSenders.set(peerId, sender);
+            await this.renegotiateWithPeer(peerId);
+          }
+        } else {
+          if (existingSender) {
+            pc.removeTrack(existingSender);
+            this.screenSenders.delete(peerId);
+            await this.renegotiateWithPeer(peerId);
+          }
+        }
+      } catch (err) {
+        console.warn(`[WebRtcVoice] Erro ao sincronizar tela com peer ${peerId}:`, err);
+      }
+    }
+
+    void this.tickHeartbeat();
+  }
+
+  public async setLocalCamera(stream: MediaStream | null) {
+    this.localCameraStream = stream;
+    this.isCameraOn = Boolean(
+      stream && stream.getVideoTracks().some((t) => t.readyState === "live"),
+    );
+    const track = stream ? stream.getVideoTracks()[0] : null;
+
+    for (const [peerId, pc] of this.peers.entries()) {
+      try {
+        const existingSender = this.cameraSenders.get(peerId);
+        if (track) {
+          if (existingSender) {
+            await existingSender.replaceTrack(track);
+          } else {
+            const sender = pc.addTrack(track, stream!);
+            this.cameraSenders.set(peerId, sender);
+            await this.renegotiateWithPeer(peerId);
+          }
+        } else {
+          if (existingSender) {
+            pc.removeTrack(existingSender);
+            this.cameraSenders.delete(peerId);
+            await this.renegotiateWithPeer(peerId);
+          }
+        }
+      } catch (err) {
+        console.warn(`[WebRtcVoice] Erro ao sincronizar câmera com peer ${peerId}:`, err);
+      }
+    }
+
+    void this.tickHeartbeat();
+  }
+
+  public getRemoteVideoStream(peerId: string): MediaStream | null {
+    return this.remoteVideoStreams.get(peerId) ?? null;
+  }
+
+  private async renegotiateWithPeer(peerId: string) {
+    const pc = this.peers.get(peerId);
+    if (!pc || !this.currentChannelId) return;
+
+    try {
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+      await pc.setLocalDescription(offer);
+
+      const api = useEchoApi();
+      if (typeof api?.sendVoiceSignal === "function") {
+        await api.sendVoiceSignal(this.currentChannelId, peerId, {
+          type: "offer",
+          sdp: offer,
+        });
+        this.pulseSignalingFast();
+      }
+    } catch (err) {
+      console.warn(`[WebRtcVoice] Erro ao renegociar com ${peerId}:`, err);
+    }
+  }
+
   private async handleIncomingSignal(fromUserId: string, signal: any) {
     if (!signal || !this.currentChannelId) return;
 
@@ -660,6 +875,17 @@ class WebRtcVoiceManager {
       let pc = this.peers.get(fromUserId);
       if (!pc) {
         pc = this.createPeerConnection(fromUserId, false);
+      }
+
+      // Trata colisão/glare de ofertas durante renegociação
+      if (pc.signalingState !== "stable") {
+        if (this.myUserId < fromUserId) {
+          try {
+            await pc.setLocalDescription({ type: "rollback" } as any);
+          } catch {}
+        } else {
+          return;
+        }
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
@@ -690,7 +916,7 @@ class WebRtcVoiceManager {
       }
     } else if (signal.type === "answer") {
       const pc = this.peers.get(fromUserId);
-      if (pc) {
+      if (pc && pc.signalingState === "have-local-offer") {
         await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
 
         const queued = this.candidateQueues.get(fromUserId) || [];

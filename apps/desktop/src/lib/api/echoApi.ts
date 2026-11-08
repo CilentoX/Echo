@@ -1316,6 +1316,8 @@ export class EchoApi {
       avatarUrl?: string | null;
       isMuted?: boolean;
       isDeafened?: boolean;
+      isScreenSharing?: boolean;
+      hasCamera?: boolean;
     },
   ): Promise<{ success: boolean; channelId: string; participants: any[] }> {
     const encoded = encodeURIComponent(channelId);
@@ -1334,6 +1336,8 @@ export class EchoApi {
       isSpeaking?: boolean;
       isMuted?: boolean;
       isDeafened?: boolean;
+      isScreenSharing?: boolean;
+      hasCamera?: boolean;
     },
   ): Promise<{ channelId: string; participants: any[]; myUserId?: string }> {
     const encoded = encodeURIComponent(channelId);
