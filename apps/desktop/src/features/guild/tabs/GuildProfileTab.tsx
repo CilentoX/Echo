@@ -167,7 +167,7 @@ export function GuildProfileTab({
   return (
     <div className="flex flex-col gap-6" onKeyDown={handleKeyDown}>
       {/* Banner Section */}
-      <div className="relative w-full">
+      <div className="relative w-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-md bg-surf2">
         <ImageUploadWithEdit
           value={currentBannerUrl}
           label=""
@@ -184,10 +184,11 @@ export function GuildProfileTab({
           }}
           onRemove={() => setEditBannerUrl(null)}
           type="banner"
-          preset="medium"
-          previewHeight="h-40"
+          preset="large"
+          previewHeight="h-44 sm:h-48"
           editTitle="Editar banner da guilda"
           editable={isOwner && isEditing && !isSaving}
+          disabled={!isOwner || !isEditing || isSaving}
           maxSizeMB={5}
           appwriteUrl={currentBannerUrl}
           initials={initials}
@@ -196,8 +197,8 @@ export function GuildProfileTab({
       </div>
 
       {/* Guild Header - Avatar + Info */}
-      <div className="relative -mt-10 flex flex-col items-center gap-4 px-6">
-        <div className="relative z-10">
+      <div className="relative -mt-16 flex flex-col items-center gap-4 px-6 z-10">
+        <div className="relative rounded-2xl p-1.5 bg-[#10141d] shadow-2xl ring-1 ring-white/[0.08]">
           <ImageUploadWithEdit
             value={currentAvatarUrl}
             label=""
@@ -213,12 +214,13 @@ export function GuildProfileTab({
               }
             }}
             onRemove={() => setEditAvatarUrl(null)}
-            type="avatar"
+            type="guild"
             preset="large"
-            previewHeight="h-24 rounded-full"
-            previewW="w-24"
+            previewHeight="h-28"
+            previewW="w-28"
             editTitle="Editar foto da guilda"
             editable={isOwner && isEditing && !isSaving}
+            disabled={!isOwner || !isEditing || isSaving}
             maxSizeMB={2}
             appwriteUrl={currentAvatarUrl}
             initials={initials}

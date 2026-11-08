@@ -65,6 +65,15 @@ vi.mock("@/components/media/ImageUploadWithEdit", () => {
     disabled,
     placeholder,
     appwriteUrl,
+    previewHeight: _ph,
+    previewW: _pw,
+    editTitle: _et,
+    editable: _ed,
+    maxSizeMB: _ms,
+    uploadError: _ue,
+    type: _t,
+    preset: _pr,
+    initials: _in,
     ...props
   }: any) => {
     const hasImage = value || appwriteUrl;

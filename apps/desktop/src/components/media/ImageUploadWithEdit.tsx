@@ -250,7 +250,7 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
 
       <div
         className={`relative border border-bd bg-surf2 flex items-center justify-center group overflow-hidden ${
-          type === "avatar" ? "rounded-full" : "rounded-xl"
+          type === "avatar" ? "rounded-full" : "rounded-2xl"
         } ${previewHeight} ${
           previewW ? previewW : type === "avatar" ? previewHeight.replace("h-", "w-") : "w-full"
         } ${editable ? "cursor-pointer" : "cursor-default"}`}
@@ -278,51 +278,85 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                 console.warn("[ImageUploadWithEdit] Falha ao carregar imagem:", e.currentTarget.src)
               }}
             />
-            {/* Hover overlay com ações explícitas de troca e corte */}
+
+            {/* Hover overlay com controles ergonômicos e sem colisões */}
             {editable && !uploading && (
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 transition-opacity z-10 p-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    inputRef.current?.click()
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 text-white text-[11px] font-medium flex items-center gap-1.5 border border-white/20 transition-all cursor-pointer shadow-md"
-                  title="Escolher outro arquivo"
-                >
-                  <Camera size={14} weight="bold" />
-                  <span>Trocar</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditorOpen(true)
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 text-white text-[11px] font-medium flex items-center gap-1.5 border border-white/20 transition-all cursor-pointer shadow-md"
-                  title="Ajustar enquadramento e corte"
-                >
-                  <Crop size={14} weight="bold" />
-                  <span>Recortar</span>
-                </button>
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-10 p-2 backdrop-blur-[2px]">
+                {type === "banner" ? (
+                  /* Controles Panorâmicos do Banner */
+                  <div className="flex items-center gap-2 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => inputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white text-xs font-medium flex items-center gap-1.5 border border-white/20 backdrop-blur-md transition-all cursor-pointer shadow-md active:scale-95"
+                      title="Escolher outro banner"
+                    >
+                      <Camera size={14} weight="bold" />
+                      <span>Trocar banner</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorOpen(true)}
+                      className="px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white text-xs font-medium flex items-center gap-1.5 border border-white/20 backdrop-blur-md transition-all cursor-pointer shadow-md active:scale-95"
+                      title="Ajustar enquadramento e corte"
+                    >
+                      <Crop size={14} weight="bold" />
+                      <span>Ajustar corte</span>
+                    </button>
+                    {onRemove && (
+                      <button
+                        type="button"
+                        onClick={handleRemove}
+                        className="p-1.5 rounded-xl bg-red-600/80 hover:bg-red-600 text-white text-xs flex items-center justify-center border border-white/20 backdrop-blur-md transition-all cursor-pointer shadow-md active:scale-95"
+                        title="Remover banner"
+                        aria-label="Remover banner"
+                      >
+                        <Trash size={14} weight="bold" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  /* Controles Compactos do Avatar */
+                  <div className="flex flex-col items-center justify-center gap-1 text-white">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        inputRef.current?.click()
+                      }}
+                      className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all cursor-pointer active:scale-95 shadow-md"
+                      title="Trocar foto"
+                    >
+                      <Camera size={18} weight="bold" />
+                    </button>
+                    <span className="text-[10px] font-semibold tracking-wide select-none drop-shadow">
+                      Alterar
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setEditorOpen(true)}
+                        className="p-1 rounded-md bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer hover:text-acc active:scale-95 border border-white/10"
+                        title="Ajustar corte"
+                      >
+                        <Crop size={12} weight="bold" />
+                      </button>
+                      {onRemove && (
+                        <button
+                          type="button"
+                          onClick={handleRemove}
+                          className="p-1 rounded-md bg-red-600/80 hover:bg-red-600 text-white transition-all cursor-pointer active:scale-95 border border-white/10"
+                          title="Remover foto"
+                        >
+                          <Trash size={12} weight="bold" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            {/* Botão remover - no canto superior */}
-            {editable && onRemove && hasImage && !uploading && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleRemove()
-                }}
-                disabled={uploading || disabled}
-                className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-red-600/80 hover:bg-red-600 flex items-center justify-center text-xs text-white transition-colors z-20 disabled:opacity-50 disabled:pointer-events-none drop-shadow-md cursor-pointer"
-                title="Remover imagem"
-                aria-label="Remover imagem"
-              >
-                <Trash size={13} weight="bold" />
-              </button>
-            )}
+
             {uploading && (
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 z-20">
                 <span className="text-xs text-white animate-pulse font-medium drop-shadow-lg">Enviando…</span>
@@ -343,10 +377,10 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
             {(!initials || type !== "avatar") && (
               <>
                 {type === "banner" ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-r from-acc/25 via-surf2 to-acc/10">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center dark:bg-gradient-to-br dark:from-indigo-950/60 dark:via-purple-950/40 dark:to-slate-950 bg-gradient-to-br from-slate-200 via-zinc-100 to-slate-100">
                     {editable && (
-                      <div className="flex items-center gap-2 rounded-lg bg-black/40 px-3 py-1.5 text-xs font-medium text-txt backdrop-blur-sm group-hover:bg-black/60 transition-colors shadow-sm">
-                        <UploadIcon size={16} />
+                      <div className="flex items-center gap-2 rounded-xl bg-black/50 px-3.5 py-2 text-xs font-medium text-white backdrop-blur-md group-hover:bg-black/70 transition-all shadow-md border border-white/10 cursor-pointer">
+                        <Camera size={16} />
                         <span>{placeholder || "Adicionar banner"}</span>
                       </div>
                     )}
@@ -364,6 +398,14 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                 )}
               </>
             )}
+
+            {/* Hover para adicionar quando sem imagem */}
+            {editable && !uploading && type === "avatar" && (
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity z-10 text-white backdrop-blur-[2px]">
+                <Camera size={20} weight="bold" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Adicionar</span>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -377,42 +419,6 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
         disabled={uploading || disabled}
         onChange={handleFileSelect}
       />
-
-      {/* Ações auxiliares diretas abaixo do preview quando editável e com imagem */}
-      {editable && hasImage && !uploading && (
-        <div className="flex items-center justify-center gap-3 text-[11px] text-mut pt-0.5">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="text-acc hover:underline flex items-center gap-1 cursor-pointer font-medium"
-          >
-            <Camera size={13} weight="bold" />
-            <span>Trocar foto</span>
-          </button>
-          <span className="text-mut/40">·</span>
-          <button
-            type="button"
-            onClick={() => setEditorOpen(true)}
-            className="text-mut hover:text-txt hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            <Crop size={13} weight="bold" />
-            <span>Ajustar corte</span>
-          </button>
-          {onRemove && (
-            <>
-              <span className="text-mut/40">·</span>
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="text-red-400 hover:text-red-300 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Trash size={13} weight="bold" />
-                <span>Remover</span>
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {error || uploadError ? (
         <p className="text-xs text-err text-center">{error || uploadError}</p>
