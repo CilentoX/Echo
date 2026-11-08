@@ -311,10 +311,19 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
   unsubscribeUi = useUiStore.subscribe((state, prev) => {
     if (state.activeGuildId !== prev.activeGuildId || state.activeChannelId !== prev.activeChannelId) {
       try {
-        desktopConfig.set("navigation", {
-          lastActiveGuildId: state.activeGuildId,
-          lastActiveChannelId: state.activeChannelId,
-        });
+        const guildChannels = state.activeGuildId ? (useSyncStore.getState().channelsByGuild[state.activeGuildId] ?? []) : [];
+        const isVoice =
+          guildChannels.some((c) => c.channelId === state.activeChannelId && c.type === "voice") ||
+          state.activeChannelId?.startsWith("ch-voice-") ||
+          state.activeChannelId?.startsWith("temp-voice-");
+
+        // NUNCA persiste canais de voz na navegação (evita abrir o app já conectado ou no canal de voz)
+        if (!isVoice) {
+          desktopConfig.set("navigation", {
+            lastActiveGuildId: state.activeGuildId,
+            lastActiveChannelId: state.activeChannelId,
+          });
+        }
       } catch {}
     }
 

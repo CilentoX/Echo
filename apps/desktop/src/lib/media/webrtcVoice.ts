@@ -281,7 +281,7 @@ class WebRtcVoiceManager {
       const api = useEchoApi();
       const token = typeof api?.getAccessToken === "function" ? api.getAccessToken() : "";
       const baseUrl = typeof api?.getBaseUrl === "function" ? api.getBaseUrl() : ECHO_API_CONFIG.baseUrl;
-      const url = `${baseUrl}/api/channels/${encodeURIComponent(chId)}/voice/leave`;
+      const url = `${baseUrl}/api/channels/${encodeURIComponent(chId)}/voice/leave${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 
       // 1. sendBeacon se disponível (garantido durante unload do browser)
       if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {

@@ -91,6 +91,13 @@ if (fs.existsSync(sigSrc)) {
   process.exit(1);
 }
 
+const exeSrc = 'C:\\st\\sharestream\\release\\Echo.exe';
+const exeDst = path.join(releaseDir, 'Echo.exe');
+if (fs.existsSync(exeSrc)) {
+  fs.copyFileSync(exeSrc, exeDst);
+  console.log(`   ✓ Executável portátil copiado: ${exeDst}`);
+}
+
 // 6. Gera o manifesto latest.json
 console.log('\n5. Gerando manifesto latest.json e sincronizando com echo-site...');
 const notes = process.argv[3] || '';

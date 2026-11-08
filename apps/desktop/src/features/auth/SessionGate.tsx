@@ -11,6 +11,7 @@ import { startSyncWiring, stopSyncWiring } from "@/lib/matrix/wiring";
 import { isNewAccount, isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
+import { useVoiceStore } from "@/stores/voiceStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { isTauri, restartApp, runStartupUpdateCheck, setMainWindowMode } from "@/lib/updater";
 import { useUpdateStore } from "@/stores/updateStore";
@@ -61,6 +62,13 @@ export default function SessionGate({ shell }: SessionGateProps) {
       ui.setMyUserId(userId);
       ui.setPresence(userId, "online");
       void useProfileStore.getState().loadProfile();
+
+      // Garante que ao entrar no shell o usuário nunca inicie conectado à voz e limpa no backend
+      try {
+        useVoiceStore.getState().disconnectVoice();
+        void echoApi.leaveVoiceChannel("current").catch(() => {});
+      } catch {}
+
       // Fire-and-forget: startSyncWiring is async but we don't need to wait for it
       void startSyncWiring(() => rejectSession());
       setView("shell");

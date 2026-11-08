@@ -111,4 +111,31 @@ describe("Desktop Storage & Cache System (Discord-Style)", () => {
     expect(useUiStore.getState().activeGuildId).toBe("!offline_guild:echo");
     expect(useUiStore.getState().activeChannelId).toBe("!chan_cached:echo");
   });
+
+  it("não restaura canal de voz como ativo na inicialização, selecionando canal de texto", () => {
+    desktopCache.cacheChannels("!voice_guild:echo", [
+      {
+        channelId: "ch-voice-1",
+        name: "Voz Geral",
+        type: "voice",
+        unreadCount: 0,
+      },
+      {
+        channelId: "ch-text-1",
+        name: "geral",
+        type: "text",
+        unreadCount: 0,
+      },
+    ]);
+    desktopConfig.set("navigation", {
+      lastActiveGuildId: "!voice_guild:echo",
+      lastActiveChannelId: "ch-voice-1",
+    });
+
+    desktopStorage.hydrateStoresFromLocal();
+
+    expect(useUiStore.getState().activeGuildId).toBe("!voice_guild:echo");
+    // Deve ignorar o canal de voz e selecionar o canal de texto
+    expect(useUiStore.getState().activeChannelId).toBe("ch-text-1");
+  });
 });

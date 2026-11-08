@@ -1,11 +1,11 @@
 {
-  "version": "0.1.19",
-  "notes": "Echo v0.1.19: Fechamento instantâneo sem travamento, conexão de voz rápida com aviso sonoro e visual, e controle estrito de permissões de canais por dono e cargos.",
-  "pub_date": "2026-11-08T00:20:35.136Z",
+  "version": "0.1.20",
+  "notes": "Correção definitiva para não conectar automaticamente em salas de voz na abertura do app e limpeza ao fechar.",
+  "pub_date": "2026-11-08T00:38:24.500Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVhvSGg2cE5YVFg1UmNvVTk5REVidU5TMzRESzlYYlBGQnJBYjRUV0k5WXdxaWl4L3BYK3BsakoyUVRxSG1GS2JrcWpBZlAvWkVRMTNtc1dLNiszTWcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MDk3MjMzCWZpbGU6RWNob18wLjEuMTlfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4xOQoxdlpML3NZeXRjaDJjbDA5UWljUElicFpwY1FtNzh6a25DREx6dEQxNFRBYTRNMU5zTjhXVUxqb0h2aVBPSzFrb1RCZ3NOZVNIekFWdWVQblpCajhDUT09Cg==",
-      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.19/Echo_0.1.19_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVN6a1k0L0phcVVWc3owbUNYYktpYWhxZGRMdlVqNDJCd3dxaWNOVFkra1AxU3Y5cy8rSHUxWEpwcFV4dnkvM25zOXgzRC9Cd1ZzY2g4Z0FTQ2JMSFFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MDk4MzAyCWZpbGU6RWNob18wLjEuMjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4yMApQWU9GOVFLNzBmV1ptUUhiNHdFaEp4SS9PNENQeCtMK3JON1ByZUR2RFp0bTFKTkpHSG1yNzNyVS9DYmJ5NmZkajdVbkhvMmEzaFhWblRyanJUYTBBQT09Cg==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.20/Echo_0.1.20_x64-setup.exe"
     }
   }
 }

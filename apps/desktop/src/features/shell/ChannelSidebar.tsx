@@ -584,7 +584,8 @@ export default function ChannelSidebar({
           const curActive = useUiStore.getState().activeChannelId;
           const exists = channelList.some((c) => c.channelId === curActive);
           if ((!curActive || !exists) && channelList.length > 0) {
-            useUiStore.getState().setActiveChannel(channelList[0].channelId);
+            const firstText = channelList.find((c) => c.type !== "voice");
+            useUiStore.getState().setActiveChannel(firstText?.channelId ?? null);
           }
         })
         .catch(() => {});
@@ -679,7 +680,24 @@ export default function ChannelSidebar({
             }
             setGuildVoiceState(merged);
           } else {
-            setGuildVoiceState(res.channels);
+            // Se o usuário local NÃO está conectado à voz no app,
+            // remove qualquer vestígio do usuário local dos canais para evitar ghosting visual de sessão anterior
+            const sanitized: Record<string, any[]> = {};
+            let hasStaleSelf = false;
+            for (const [cid, pList] of Object.entries(res.channels)) {
+              const list = Array.isArray(pList) ? pList : [];
+              const withoutMe = list.filter(
+                (p) => p.userId !== myId && p.userId !== "me" && p.userId !== myUserId,
+              );
+              if (withoutMe.length !== list.length) {
+                hasStaleSelf = true;
+              }
+              sanitized[cid] = withoutMe;
+            }
+            if (hasStaleSelf) {
+              void api.leaveVoiceChannel("current").catch(() => {});
+            }
+            setGuildVoiceState(sanitized);
           }
         }
       } catch {}
@@ -694,12 +712,13 @@ export default function ChannelSidebar({
     };
   }, [activeGuildId]);
 
-  // Se canais já estiverem em cache e o canal ativo não pertencer à guilda, seleciona o primeiro
+  // Se canais já estiverem em cache e o canal ativo não pertencer à guilda, seleciona o primeiro canal de texto
   useEffect(() => {
     if (allChannels.length > 0) {
       const channelExists = allChannels.some((c) => c.channelId === activeChannelId);
       if (!channelExists) {
-        setActiveChannel(allChannels[0].channelId);
+        const firstText = allChannels.find((c) => c.type !== "voice");
+        setActiveChannel(firstText?.channelId ?? null);
         useFriendsStore.getState().setSelectedFriendId(null);
       }
     }
@@ -2330,7 +2349,8 @@ export default function ChannelSidebar({
             const nextList = allChannels.filter((c) => c.channelId !== deletedId);
             useSyncStore.getState().setChannels(activeGuildId ?? "", nextList);
             if (activeChannelId === deletedId && nextList.length > 0) {
-              useUiStore.getState().setActiveChannel(nextList[0].channelId);
+              const firstText = nextList.find((c) => c.type !== "voice");
+              useUiStore.getState().setActiveChannel(firstText?.channelId ?? nextList[0].channelId);
             }
           }}
         />

@@ -58,14 +58,15 @@ export default function ChatPane({
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
 
-  // Auto-seleciona o primeiro canal da guilda se nenhum estiver selecionado ou se o canal ativo não pertencer à guilda
+  // Auto-seleciona o primeiro canal de texto da guilda se nenhum estiver selecionado ou se o canal ativo não pertencer à guilda
   useEffect(() => {
     if (activeGuildId && activeGuildId !== "home") {
       const guildChannels = channelsByGuild[activeGuildId] ?? [];
       if (guildChannels.length > 0) {
         const belongsToGuild = guildChannels.some((c) => c.channelId === activeChannelId);
         if (!belongsToGuild) {
-          setActiveChannel(guildChannels[0].channelId);
+          const firstText = guildChannels.find((c) => c.type !== "voice");
+          setActiveChannel(firstText?.channelId ?? null);
         }
       }
     }

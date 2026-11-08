@@ -85,7 +85,27 @@ export const desktopStorage = {
       if (nav?.lastActiveGuildId && nav.lastActiveGuildId !== "home") {
         useUiStore.getState().setActiveGuild(nav.lastActiveGuildId);
         if (nav.lastActiveChannelId) {
-          useUiStore.getState().setActiveChannel(nav.lastActiveChannelId);
+          // NUNCA restaura canal de voz como ativo ao iniciar o aplicativo
+          const guildChannels =
+            cachedChannels && typeof cachedChannels === "object"
+              ? (cachedChannels as Record<string, any[]>)[nav.lastActiveGuildId]
+              : null;
+          const targetChannel = Array.isArray(guildChannels)
+            ? guildChannels.find((c: any) => c.channelId === nav.lastActiveChannelId)
+            : null;
+          const isVoice =
+            targetChannel?.type === "voice" ||
+            nav.lastActiveChannelId.startsWith("ch-voice-") ||
+            nav.lastActiveChannelId.startsWith("temp-voice-");
+
+          if (isVoice) {
+            const firstText = Array.isArray(guildChannels)
+              ? guildChannels.find((c: any) => c.type !== "voice")
+              : null;
+            useUiStore.getState().setActiveChannel(firstText?.channelId ?? null);
+          } else {
+            useUiStore.getState().setActiveChannel(nav.lastActiveChannelId);
+          }
         }
       }
     } catch (err) {

@@ -10,6 +10,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
 import { stopSyncWiring } from "@/lib/matrix/wiring";
+import { useVoiceStore } from "@/stores/voiceStore";
 
 /** R2: envio real via MatrixService; o Composer cuida do envio síncrono (P10). */
 
@@ -46,13 +47,24 @@ function Shell() {
 
 export default function App() {
   useEffect(() => {
+    // Garante que o aplicativo nunca inicialize com estado de voz pendente
+    try {
+      useVoiceStore.getState().disconnectVoice();
+    } catch {}
+
     const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
     let unlistenFn: (() => void) | null = null;
 
     if (isTauri) {
       listen("echo://close-requested", async () => {
         try {
+          await webrtcVoice.leave();
+        } catch {}
+        try {
           webrtcVoice.leaveSyncOrKeepalive();
+        } catch {}
+        try {
+          useVoiceStore.getState().disconnectVoice();
         } catch {}
         try {
           stopSyncWiring();

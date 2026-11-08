@@ -1,0 +1,11 @@
+{
+  "version": "0.1.20",
+  "notes": "Correção definitiva para não conectar automaticamente em salas de voz na abertura do app e limpeza ao fechar.",
+  "pub_date": "2026-11-08T00:38:24.500Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVEJxWG96dnhQWVN6a1k0L0phcVVWc3owbUNYYktpYWhxZGRMdlVqNDJCd3dxaWNOVFkra1AxU3Y5cy8rSHUxWEpwcFV4dnkvM25zOXgzRC9Cd1ZzY2g4Z0FTQ2JMSFFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MDk4MzAyCWZpbGU6RWNob18wLjEuMjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMS4yMApQWU9GOVFLNzBmV1ptUUhiNHdFaEp4SS9PNENQeCtMK3JON1ByZUR2RFp0bTFKTkpHSG1yNzNyVS9DYmJ5NmZkajdVbkhvMmEzaFhWblRyanJUYTBBQT09Cg==",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.20/Echo_0.1.20_x64-setup.exe"
+    }
+  }
+}
