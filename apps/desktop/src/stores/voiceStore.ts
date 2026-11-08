@@ -35,6 +35,8 @@ export interface VoiceState {
   activeVoiceChannelName: string | null;
   isConnected: boolean;
   isConnecting: boolean;
+  connectionState: "disconnected" | "connecting" | "connected";
+  setConnectionState: (state: "disconnected" | "connecting" | "connected") => void;
   pingMs: number;
   isSpeaking: boolean;
   isScreenSharing: boolean;
@@ -92,6 +94,18 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   activeVoiceChannelName: null,
   isConnected: false,
   isConnecting: false,
+  connectionState: "disconnected",
+  setConnectionState: (connState) => {
+    const wasConn = get().connectionState === "connected";
+    set({
+      connectionState: connState,
+      isConnected: connState === "connected",
+      isConnecting: connState === "connecting",
+    });
+    if (connState === "connected" && !wasConn) {
+      void audioEngine.playVoiceConnected();
+    }
+  },
   pingMs: 24,
   isSpeaking: false,
   isScreenSharing: false,
@@ -126,6 +140,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       activeVoiceChannelName: channelName,
       isConnecting: !wasConnected,
       isConnected: true,
+      connectionState: wasConnected ? "connected" : "connecting",
       pingMs: 0,
       participants: initialParticipants ?? [
         {
@@ -245,13 +260,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         onRttUpdate: (rttMs) => {
           get().setPing(rttMs);
         },
+        onConnectionStateChange: (connState) => {
+          get().setConnectionState(connState);
+        },
       },
     ).finally(() => {
       set({
-        isConnected: true,
         isConnecting: false,
       });
-      void audioEngine.playVoiceConnected();
     });
   },
 
@@ -265,6 +281,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       activeVoiceChannelName: null,
       isConnected: false,
       isConnecting: false,
+      connectionState: "disconnected",
       isSpeaking: false,
       isScreenSharing: false,
       isCameraOn: false,

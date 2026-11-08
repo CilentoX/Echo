@@ -168,6 +168,7 @@ export default function ScreenShareModal({
   };
 
   const handleConfirm = () => {
+    if (!selectedSource) return;
     onStartShare({
       sourceId: selectedSource.id,
       sourceName: selectedSource.name,

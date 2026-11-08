@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { audioEngine } from "@/lib/media/audioEngine";
 
 describe("voiceStore", () => {
   beforeEach(() => {
@@ -131,8 +132,25 @@ describe("voiceStore", () => {
 
     const state = useVoiceStore.getState();
     expect(state.isConnected).toBe(false);
+    expect(state.connectionState).toBe("disconnected");
     expect(state.activeVoiceChannelId).toBeNull();
     expect(state.participants).toEqual([]);
+  });
+
+  it("inicia em connecting e só toca playVoiceConnected quando connectionState for connected", async () => {
+    const playSpy = vi.spyOn(audioEngine, "playVoiceConnected").mockResolvedValue(undefined);
+
+    useVoiceStore.getState().connectVoice("guild-1", "Guild", "ch-1", "Voz");
+    expect(useVoiceStore.getState().connectionState).toBe("connecting");
+
+    // Durante connecting, o chime ainda NÃO toca
+    expect(playSpy).not.toHaveBeenCalled();
+
+    // Transição para connected via setConnectionState (ICE/WebRTC concluído)
+    useVoiceStore.getState().setConnectionState("connected");
+    expect(useVoiceStore.getState().connectionState).toBe("connected");
+    expect(useVoiceStore.getState().isConnected).toBe(true);
+    expect(playSpy).toHaveBeenCalled();
   });
 });
 

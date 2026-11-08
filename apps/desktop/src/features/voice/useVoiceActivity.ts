@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { webrtcVoice } from "@/lib/media/webrtcVoice";
 
 export interface UseVoiceActivityOptions {
   enabled: boolean;
@@ -50,6 +51,10 @@ function setupAutoplayResume() {
   window.addEventListener("keydown", resumeContext, { passive: true });
 }
 
+export function getSharedVoiceStream(): MediaStream | null {
+  return sharedMediaStream;
+}
+
 async function startSharedAudio() {
   if (sharedAudioContext || sharedMediaStream || isInitializing) return;
   if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
@@ -63,21 +68,32 @@ async function startSharedAudio() {
   setupAutoplayResume();
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    // Elimina abertura concorrente dupla de microfone reutilizando stream ativa do WebRTC se já existir
+    const rtcStream = webrtcVoice.getLocalStream();
+    const hasActiveRtcStream = Boolean(
+      rtcStream && rtcStream.getAudioTracks().some((t) => t.readyState === "live"),
+    );
+
+    const stream = hasActiveRtcStream && rtcStream
+      ? rtcStream
+      : await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
 
     if (subscribers.size === 0) {
-      stream.getTracks().forEach((t) => t.stop());
+      if (!hasActiveRtcStream) {
+        stream.getTracks().forEach((t) => t.stop());
+      }
       isInitializing = false;
       return;
     }
 
     sharedMediaStream = stream;
+    webrtcVoice.setPrewarmedStream(stream);
     const ctx = new AudioContextClass();
     sharedAudioContext = ctx;
 
@@ -205,7 +221,7 @@ async function startSharedAudio() {
           }
         });
       } else {
-        // --- Fallback Gracioso para Mocks de Teste (Vitest) ---
+        // --- Fallback Gracioso para Mocks de Teste (Vitest) com Histerese e Hang Time ---
         let freqSum = 0;
         const voiceBins = Math.min(freqBuffer.length, 36);
         for (let i = 0; i < voiceBins; i++) {
@@ -214,7 +230,10 @@ async function startSharedAudio() {
         const avgFreq = voiceBins > 0 ? freqSum / voiceBins : 0;
 
         subscribers.forEach((sub) => {
-          const isLoudEnough = avgFreq > sub.threshold;
+          const attackThreshold = sub.threshold;
+          const releaseThreshold = Math.max(2, sub.threshold - 4);
+          const isLoudEnough = avgFreq > attackThreshold;
+          const isBelowRelease = avgFreq < releaseThreshold;
 
           if (isLoudEnough) {
             if (sub.holdTimer) {
@@ -225,7 +244,7 @@ async function startSharedAudio() {
               sub.isSpeaking = true;
               sub.onSpeakingChange(true);
             }
-          } else {
+          } else if (isBelowRelease) {
             if (sub.isSpeaking && !sub.holdTimer) {
               sub.holdTimer = setTimeout(() => {
                 sub.isSpeaking = false;
@@ -244,7 +263,8 @@ async function startSharedAudio() {
   }
 }
 
-function stopSharedAudio() {
+export function stopSharedAudio() {
+  webrtcVoice.setPrewarmedStream(null);
   if (sharedInterval) {
     clearInterval(sharedInterval);
     sharedInterval = null;
@@ -262,7 +282,10 @@ function stopSharedAudio() {
     sharedAnalyserNode = null;
   }
   if (sharedMediaStream) {
-    sharedMediaStream.getTracks().forEach((t) => t.stop());
+    const isOwnedByRtc = sharedMediaStream === webrtcVoice.getLocalStream();
+    if (!isOwnedByRtc) {
+      sharedMediaStream.getTracks().forEach((t) => t.stop());
+    }
     sharedMediaStream = null;
   }
   if (sharedAudioContext) {
@@ -280,7 +303,7 @@ export function useVoiceActivity({
   enabled,
   isMuted,
   threshold = 8,
-  holdTimeMs = 350,
+  holdTimeMs = 250,
   onSpeakingChange,
 }: UseVoiceActivityOptions) {
   const subscriberIdRef = useRef<number | null>(null);

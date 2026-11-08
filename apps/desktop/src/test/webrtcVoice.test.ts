@@ -237,5 +237,93 @@ describe("WebRtcVoiceManager - SSE, Qualidade de Live e Boost 200%", () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(getSignalsSpy).not.toHaveBeenCalled();
   });
+
+  it("ao desconectar um peer via participant_left, invoca onParticipantSpeaking(peerId, false)", async () => {
+    const onParticipantSpeaking = vi.fn();
+    await webrtcVoice.join(
+      "guild-1",
+      "ch-test-1",
+      "@test:echo.litteris.online",
+      "Tester",
+      null,
+      false,
+      false,
+      { onParticipantSpeaking },
+    );
+
+    const sse = createdEventSources[0];
+    expect(sse).toBeDefined();
+
+    // Emite participant_left
+    sse.emit("participant_left", {
+      userId: "@peer1:echo.litteris.online",
+    });
+
+    expect(onParticipantSpeaking).toHaveBeenCalledWith("@peer1:echo.litteris.online", false);
+  });
+
+  it("garante que participante mutado NUNCA ative status de fala", async () => {
+    const onParticipantSpeaking = vi.fn();
+    await webrtcVoice.join(
+      "guild-1",
+      "ch-test-1",
+      "@test:echo.litteris.online",
+      "Tester",
+      null,
+      false,
+      false,
+      { onParticipantSpeaking },
+    );
+
+    const sse = createdEventSources[0];
+
+    // Emite participant_updated com isMuted=true e isSpeaking=true
+    sse.emit("participant_updated", {
+      userId: "@peer1:echo.litteris.online",
+      isSpeaking: true,
+      isMuted: true,
+      isDeafened: false,
+    });
+
+    expect(onParticipantSpeaking).toHaveBeenCalledWith("@peer1:echo.litteris.online", false);
+    expect(onParticipantSpeaking).not.toHaveBeenCalledWith("@peer1:echo.litteris.online", true);
+  });
+
+  it("reutiliza prewarmedStream sem chamar getUserMedia concorrente", async () => {
+    const mockTrack = { readyState: "live", stop: vi.fn(), kind: "audio" };
+    const mockStream = {
+      getAudioTracks: () => [mockTrack],
+      getTracks: () => [mockTrack],
+    } as any;
+
+    const getUserMediaSpy = vi.fn();
+    const origMediaDevices = navigator.mediaDevices;
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia: getUserMediaSpy },
+      configurable: true,
+      writable: true,
+    });
+
+    webrtcVoice.setPrewarmedStream(mockStream);
+
+    await webrtcVoice.join(
+      "guild-1",
+      "ch-test-1",
+      "@test:echo.litteris.online",
+      "Tester",
+      null,
+      false,
+      false,
+    );
+
+    expect(getUserMediaSpy).not.toHaveBeenCalled();
+    expect(webrtcVoice.getLocalStream()).toBe(mockStream);
+    webrtcVoice.setPrewarmedStream(null);
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: origMediaDevices,
+      configurable: true,
+      writable: true,
+    });
+  });
 });
 

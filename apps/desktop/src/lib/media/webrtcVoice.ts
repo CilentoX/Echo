@@ -10,6 +10,7 @@ export interface WebRtcCallbacks {
   onRttUpdate?: (rttMs: number) => void;
   onPeerConnected?: (userId: string) => void;
   onPeerDisconnected?: (userId: string) => void;
+  onConnectionStateChange?: (state: "disconnected" | "connecting" | "connected") => void;
   onError?: (err: Error) => void;
 }
 
@@ -42,7 +43,9 @@ class WebRtcVoiceManager {
   private cameraSenders: Map<string, RTCRtpSender> = new Map();
   private remoteVideoStreams: Map<string, MediaStream> = new Map();
   private candidateQueues: Map<string, RTCIceCandidateInit[]> = new Map();
-  private remoteAnalysers: Map<string, { analyser: AnalyserNode; interval: any }> = new Map();
+  private remoteAnalysers: Map<string, { analyser: AnalyserNode; interval: any; hangTimer?: any }> = new Map();
+  private peerMutedStates: Map<string, boolean> = new Map();
+  private hasNotifiedConnected: boolean = false;
   private callbacks: WebRtcCallbacks = {};
   private sseSource: EventSource | null = null;
   private peerVolumes: Map<string, number> = new Map();
@@ -82,6 +85,16 @@ class WebRtcVoiceManager {
     return this.myUserId;
   }
 
+  public getLocalStream(): MediaStream | null {
+    return this.localStream;
+  }
+
+  private prewarmedStream: MediaStream | null = null;
+
+  public setPrewarmedStream(stream: MediaStream | null) {
+    this.prewarmedStream = stream;
+  }
+
   public async join(
     guildId: string,
     channelId: string,
@@ -100,7 +113,7 @@ class WebRtcVoiceManager {
     if (isSwitching && hasLiveStream) {
       await this.leaveOldChannelOnly();
     } else if (this.currentChannelId !== channelId) {
-      await this.leave();
+      await this.leave(false);
     }
 
     this.currentGuildId = guildId;
@@ -111,12 +124,25 @@ class WebRtcVoiceManager {
     this.isMuted = isMuted;
     this.isDeafened = isDeafened;
     this.callbacks = callbacks;
+    this.hasNotifiedConnected = false;
+    this.peerMutedStates.clear();
 
-    // 1. Captura de microfone local (reutiliza stream existente para troca instantânea)
+    // 1. Captura de microfone local (reutiliza stream existente ou pré-aquecido para evitar abertura concorrente dupla)
     try {
       const streamLive =
         this.localStream && this.localStream.getAudioTracks().some((t) => t.readyState === "live");
-      if (!streamLive && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      const prewarmedLive =
+        !streamLive &&
+        this.prewarmedStream &&
+        this.prewarmedStream.getAudioTracks().some((t) => t.readyState === "live");
+
+      if (prewarmedLive && this.prewarmedStream) {
+        this.localStream = this.prewarmedStream;
+        this.setMicrophoneMuted(isMuted);
+        if (!this.vadInterval) {
+          this.startVad();
+        }
+      } else if (!streamLive && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
         this.localStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
@@ -158,6 +184,11 @@ class WebRtcVoiceManager {
         }
 
         if (res.participants) {
+          for (const p of res.participants) {
+            if (p?.userId) {
+              this.peerMutedStates.set(p.userId, Boolean(p.isMuted || p.isDeafened));
+            }
+          }
           this.callbacks.onParticipantsUpdate?.(res.participants);
           this.syncPeers(res.participants);
         }
@@ -171,6 +202,20 @@ class WebRtcVoiceManager {
 
     // 4. Inicia loop de Heartbeat e Sinalização (fallback HTTP)
     this.startHeartbeatAndSignalingLoop();
+
+    // 5. Se o usuário estiver sozinho na sala (0 peers remotos), estabelece conexão com sucesso
+    if (this.peers.size === 0) {
+      this.hasNotifiedConnected = true;
+      this.callbacks.onConnectionStateChange?.("connected");
+    }
+  }
+
+  private notifyConnected(peerId: string) {
+    this.callbacks.onPeerConnected?.(peerId);
+    if (!this.hasNotifiedConnected) {
+      this.hasNotifiedConnected = true;
+      this.callbacks.onConnectionStateChange?.("connected");
+    }
   }
 
   private connectSse(channelId: string) {
@@ -206,6 +251,11 @@ class WebRtcVoiceManager {
         try {
           const participants = JSON.parse(event.data);
           if (Array.isArray(participants)) {
+            for (const p of participants) {
+              if (p?.userId) {
+                this.peerMutedStates.set(p.userId, Boolean(p.isMuted || p.isDeafened));
+              }
+            }
             this.callbacks.onParticipantsUpdate?.(participants);
             this.syncPeers(participants);
           }
@@ -218,6 +268,13 @@ class WebRtcVoiceManager {
         try {
           const data = JSON.parse(event.data);
           if (data?.userId) {
+            if (typeof data.isMuted === "boolean" || typeof data.isDeafened === "boolean") {
+              const muted = Boolean(data.isMuted || data.isDeafened);
+              this.peerMutedStates.set(data.userId, muted);
+              if (muted) {
+                this.callbacks.onParticipantSpeaking?.(data.userId, false);
+              }
+            }
             this.callbacks.onParticipantUpdated?.(data.userId, {
               isSpeaking: data.isSpeaking,
               isMuted: data.isMuted,
@@ -290,9 +347,14 @@ class WebRtcVoiceManager {
     this.isCameraOn = false;
   }
 
-  public async leave() {
+  public async leave(notify = true) {
     this.disconnectSse();
     this.stopVad();
+    this.hasNotifiedConnected = false;
+    this.peerMutedStates.clear();
+    if (notify) {
+      this.callbacks.onConnectionStateChange?.("disconnected");
+    }
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
@@ -320,10 +382,12 @@ class WebRtcVoiceManager {
       this.cleanupPeer(peerId);
     }
 
-    // Para faixas locais de áudio
+    // Para faixas locais de áudio (se não for stream compartilhado gerido por useVoiceActivity)
     if (this.localStream) {
-      for (const track of this.localStream.getTracks()) {
-        track.stop();
+      if (this.localStream !== this.prewarmedStream) {
+        for (const track of this.localStream.getTracks()) {
+          track.stop();
+        }
       }
       this.localStream = null;
     }
@@ -366,20 +430,60 @@ class WebRtcVoiceManager {
   }
 
   /**
-   * Envia sinal síncrono/keepalive de saída ao fechar janela/processo
-   * garantindo que o servidor remova o usuário mesmo se o runtime fechar antes.
+   * Envia sinal síncrono/keepalive de saída ao fechar janela/processo,
+   * parando tracks locais e AudioContext imediatamente de forma síncrona
+   * e garantindo que o servidor remova o usuário mesmo se o runtime fechar antes.
    */
   public leaveSyncOrKeepalive() {
     this.disconnectSse();
-    if (!this.currentChannelId) return;
-    const chId = this.currentChannelId;
-    this.currentChannelId = null;
-    this.currentGuildId = null;
-
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
+    if (this.burstInterval) {
+      clearInterval(this.burstInterval);
+      this.burstInterval = null;
+    }
+    if (this.fastPollTimeout) {
+      clearTimeout(this.fastPollTimeout);
+      this.fastPollTimeout = null;
+    }
+    this.stopVad();
+
+    // Limpeza síncrona imediata de faixas locais de áudio, tela e câmera
+    if (this.localStream) {
+      for (const track of this.localStream.getTracks()) {
+        try { track.stop(); } catch {}
+      }
+      this.localStream = null;
+    }
+    if (this.localScreenStream) {
+      for (const track of this.localScreenStream.getTracks()) {
+        try { track.stop(); } catch {}
+      }
+      this.localScreenStream = null;
+    }
+    if (this.localCameraStream) {
+      for (const track of this.localCameraStream.getTracks()) {
+        try { track.stop(); } catch {}
+      }
+      this.localCameraStream = null;
+    }
+
+    for (const peerId of Array.from(this.peers.keys())) {
+      try { this.cleanupPeer(peerId); } catch {}
+    }
+
+    if (this.audioContext) {
+      try { void this.audioContext.close(); } catch {}
+      this.audioContext = null;
+      this.analyser = null;
+    }
+
+    if (!this.currentChannelId) return;
+    const chId = this.currentChannelId;
+    this.currentChannelId = null;
+    this.currentGuildId = null;
 
     try {
       const api = useEchoApi();
@@ -469,6 +573,9 @@ class WebRtcVoiceManager {
     if (this.remoteAnalysers.has(peerId)) {
       const a = this.remoteAnalysers.get(peerId)!;
       clearInterval(a.interval);
+      if (a.hangTimer) {
+        clearTimeout(a.hangTimer);
+      }
       this.remoteAnalysers.delete(peerId);
     }
 
@@ -479,12 +586,11 @@ class WebRtcVoiceManager {
     this.cameraSenders.delete(peerId);
     this.candidateQueues.delete(peerId);
     this.remoteVideoStreams.delete(peerId);
-    this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+    this.peerMutedStates.delete(peerId);
 
-    if (this.remoteVideoStreams.has(peerId)) {
-      this.remoteVideoStreams.delete(peerId);
-      this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
-    }
+    // Ao desconectar um peer, invocar onParticipantSpeaking(peerId, false) para remover do estado de fala
+    this.callbacks.onParticipantSpeaking?.(peerId, false);
+    this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
 
     this.callbacks.onPeerDisconnected?.(peerId);
   }
@@ -605,6 +711,8 @@ class WebRtcVoiceManager {
     }
   }
 
+  private vadHangTimer: any = null;
+
   private startVad() {
     if (!this.localStream) return;
     try {
@@ -620,7 +728,11 @@ class WebRtcVoiceManager {
       const dataArray = new Uint8Array(bufferLength);
 
       this.vadInterval = setInterval(() => {
-        if (!this.analyser || this.isMuted) {
+        if (!this.analyser || this.isMuted || this.isDeafened) {
+          if (this.vadHangTimer) {
+            clearTimeout(this.vadHangTimer);
+            this.vadHangTimer = null;
+          }
           if (this.isSpeaking) {
             this.isSpeaking = false;
             this.callbacks.onSpeakingChange?.(false);
@@ -634,19 +746,38 @@ class WebRtcVoiceManager {
           sum += dataArray[i];
         }
         const average = sum / bufferLength;
-        const speakingNow = average > 14; // Limiar de sensibilidade do microfone
+        const attackThreshold = 15;
+        const releaseThreshold = 10;
 
-        if (speakingNow !== this.isSpeaking) {
-          this.isSpeaking = speakingNow;
-          this.callbacks.onSpeakingChange?.(speakingNow);
+        if (average > attackThreshold) {
+          if (this.vadHangTimer) {
+            clearTimeout(this.vadHangTimer);
+            this.vadHangTimer = null;
+          }
+          if (!this.isSpeaking) {
+            this.isSpeaking = true;
+            this.callbacks.onSpeakingChange?.(true);
+          }
+        } else if (average < releaseThreshold && this.isSpeaking) {
+          if (!this.vadHangTimer) {
+            this.vadHangTimer = setTimeout(() => {
+              this.isSpeaking = false;
+              this.vadHangTimer = null;
+              this.callbacks.onSpeakingChange?.(false);
+            }, 250); // 250ms hang time
+          }
         }
-      }, 120);
+      }, 70);
     } catch (e) {
       console.warn("[WebRtcVoice] Não foi possível iniciar VAD:", e);
     }
   }
 
   private stopVad() {
+    if (this.vadHangTimer) {
+      clearTimeout(this.vadHangTimer);
+      this.vadHangTimer = null;
+    }
     if (this.vadInterval) {
       clearInterval(this.vadInterval);
       this.vadInterval = null;
@@ -839,6 +970,9 @@ class WebRtcVoiceManager {
     if (this.remoteAnalysers.has(peerId)) {
       const existing = this.remoteAnalysers.get(peerId)!;
       clearInterval(existing.interval);
+      if (existing.hangTimer) {
+        clearTimeout(existing.hangTimer);
+      }
       this.remoteAnalysers.delete(peerId);
     }
 
@@ -854,23 +988,52 @@ class WebRtcVoiceManager {
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       let wasSpeaking = false;
+      let hangTimer: any = null;
 
       const interval = setInterval(() => {
+        // Se o peer estiver mutado ou desconectado, NUNCA ativa o status de fala
+        if (this.peerMutedStates.get(peerId)) {
+          if (wasSpeaking) {
+            wasSpeaking = false;
+            if (hangTimer) {
+              clearTimeout(hangTimer);
+              hangTimer = null;
+            }
+            this.callbacks.onParticipantSpeaking?.(peerId, false);
+          }
+          return;
+        }
+
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
         for (let i = 0; i < bufferLength; i++) {
           sum += dataArray[i];
         }
         const avg = sum / bufferLength;
-        const isSpeaking = avg > 12;
+        const attackThreshold = 14;
+        const releaseThreshold = 9;
 
-        if (isSpeaking !== wasSpeaking) {
-          wasSpeaking = isSpeaking;
-          this.callbacks.onParticipantSpeaking?.(peerId, isSpeaking);
+        if (avg > attackThreshold) {
+          if (hangTimer) {
+            clearTimeout(hangTimer);
+            hangTimer = null;
+          }
+          if (!wasSpeaking) {
+            wasSpeaking = true;
+            this.callbacks.onParticipantSpeaking?.(peerId, true);
+          }
+        } else if (avg < releaseThreshold && wasSpeaking) {
+          if (!hangTimer) {
+            hangTimer = setTimeout(() => {
+              wasSpeaking = false;
+              hangTimer = null;
+              this.callbacks.onParticipantSpeaking?.(peerId, false);
+            }, 250); // 250ms hang time
+          }
         }
-      }, 100);
+      }, 70);
 
-      this.remoteAnalysers.set(peerId, { analyser, interval });
+      this.remoteAnalysers.set(peerId, { analyser, interval, hangTimer });
     } catch {}
   }
 
@@ -886,12 +1049,20 @@ class WebRtcVoiceManager {
     pc.onconnectionstatechange = () => {
       const state = pc!.connectionState;
       if (state === "connected") {
-        this.callbacks.onPeerConnected?.(peerId);
+        this.notifyConnected(peerId);
       } else if (state === "failed") {
         this.callbacks.onPeerDisconnected?.(peerId);
+        this.callbacks.onParticipantSpeaking?.(peerId, false);
         void this.restartIce(peerId);
       } else if (state === "disconnected") {
         this.callbacks.onPeerDisconnected?.(peerId);
+        this.callbacks.onParticipantSpeaking?.(peerId, false);
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc!.iceConnectionState === "connected") {
+        this.notifyConnected(peerId);
       }
     };
 
@@ -998,12 +1169,8 @@ class WebRtcVoiceManager {
         };
 
         track.onmute = () => {
-          setTimeout(() => {
-            if (track.muted || track.readyState === "ended") {
-              this.remoteVideoStreams.delete(peerId);
-              this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
-            }
-          }, 800);
+          // Não descarta o stream prematuramente em oscilações transitórias de rede (bug dos 800ms).
+          // O encerramento real do stream é tratado por track.onended ou evento participant_updated via SSE.
         };
       }
     };

@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import MemberContextMenu from "@/features/shell/MemberContextMenu";
+import GuildContextMenu from "@/features/guild/GuildContextMenu";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useSyncStore } from "@/stores/syncStore";
 import MessageBubble from "@/features/chat/MessageBubble";
 import type { NormalizedEvent } from "@/lib/matrix/types";
 
@@ -166,6 +168,126 @@ describe("Sistema Global de Context Menus (Padrão Discord)", () => {
 
       fireEvent.click(screen.getByText("Copiar ID da Mensagem"));
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith("$event123");
+    });
+  });
+
+  describe("GuildContextMenu (RBAC P0)", () => {
+    const mockGuild = {
+      guildId: "guild-rbac-1",
+      name: "Guilda Teste RBAC",
+      avatarUrl: null,
+      unreadCount: 0,
+      createdBy: "@lucas:echo.litteris.online",
+    };
+
+    it("exibe Criar Canal, Criar Categoria e Configurações para o dono da guilda", async () => {
+      useUiStore.setState({ myUserId: "@lucas:echo.litteris.online" });
+      useSyncStore.setState({
+        guilds: [mockGuild],
+        guildRoles: { "guild-rbac-1": [] },
+        guildMemberRoles: { "guild-rbac-1": {} },
+      });
+
+      render(
+        <GuildContextMenu guild={mockGuild}>
+          <div data-testid="guild-item">Guilda do Dono</div>
+        </GuildContextMenu>
+      );
+
+      fireEvent.contextMenu(screen.getByTestId("guild-item"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Criar Canal")).toBeDefined();
+        expect(screen.getByText("Criar Categoria")).toBeDefined();
+        expect(screen.getByText("Configurações do Servidor")).toBeDefined();
+      });
+    });
+
+    it("NÃO exibe Criar Canal, Criar Categoria ou Configurações para membro sem permissão", async () => {
+      useUiStore.setState({ myUserId: "@member:echo.litteris.online" });
+      useSyncStore.setState({
+        guilds: [mockGuild],
+        guildRoles: { "guild-rbac-1": [] },
+        guildMemberRoles: { "guild-rbac-1": {} },
+      });
+
+      render(
+        <GuildContextMenu guild={mockGuild}>
+          <div data-testid="guild-item-regular">Guilda Membro Normal</div>
+        </GuildContextMenu>
+      );
+
+      fireEvent.contextMenu(screen.getByTestId("guild-item-regular"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Editar Perfil no Servidor")).toBeDefined();
+      });
+
+      expect(screen.queryByText("Criar Canal")).toBeNull();
+      expect(screen.queryByText("Criar Categoria")).toBeNull();
+      expect(screen.queryByText("Configurações do Servidor")).toBeNull();
+    });
+
+    it("exibe opções de canal e configurações para membro com cargo MANAGE_CHANNELS", async () => {
+      useUiStore.setState({ myUserId: "@moderator:echo.litteris.online" });
+      useSyncStore.setState({
+        guilds: [mockGuild],
+        guildRoles: {
+          "guild-rbac-1": [
+            {
+              id: "role-mod",
+              roleId: "role-mod",
+              name: "Moderador",
+              color: "#00ff00",
+              position: 1,
+              permissions: ["MANAGE_CHANNELS"],
+            } as any,
+          ],
+        },
+        guildMemberRoles: {
+          "guild-rbac-1": {
+            "@moderator:echo.litteris.online": ["role-mod"],
+          },
+        },
+      });
+
+      render(
+        <GuildContextMenu guild={mockGuild}>
+          <div data-testid="guild-item-mod">Guilda Moderador</div>
+        </GuildContextMenu>
+      );
+
+      fireEvent.contextMenu(screen.getByTestId("guild-item-mod"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Criar Canal")).toBeDefined();
+        expect(screen.getByText("Criar Categoria")).toBeDefined();
+        expect(screen.getByText("Configurações do Servidor")).toBeDefined();
+        expect(screen.getByText("Sair do Servidor")).toBeDefined();
+        expect(screen.queryByText("Excluir Servidor")).toBeNull();
+      });
+    });
+
+    it("exibe Excluir Servidor e NÃO exibe Sair do Servidor para o dono da guilda", async () => {
+      useUiStore.setState({ myUserId: "@lucas:echo.litteris.online" });
+      useSyncStore.setState({
+        guilds: [mockGuild],
+        guildRoles: { "guild-rbac-1": [] },
+        guildMemberRoles: { "guild-rbac-1": {} },
+      });
+
+      render(
+        <GuildContextMenu guild={mockGuild}>
+          <div data-testid="guild-item-owner-destruct">Guilda Dono Ação</div>
+        </GuildContextMenu>
+      );
+
+      fireEvent.contextMenu(screen.getByTestId("guild-item-owner-destruct"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Excluir Servidor")).toBeDefined();
+        expect(screen.queryByText("Sair do Servidor")).toBeNull();
+      });
     });
   });
 });

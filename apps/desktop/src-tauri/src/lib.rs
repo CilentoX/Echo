@@ -187,12 +187,17 @@ async fn set_main_mode(window: tauri::Window) -> Result<(), String> {
 static IS_CLOSING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Chamado pelo frontend assim que o cleanup assíncrono (WebRTC leave, sync stop) for concluído.
-/// Encerra o processo Tauri de forma limpa e imediata.
+/// Encerra o processo Tauri de forma limpa e imediata, destruindo a janela e garantindo
+/// que nenhum processo WebView2 fique órfão em segundo plano.
 #[tauri::command]
-fn ack_close_and_exit(app: tauri::AppHandle) -> Result<(), String> {
+fn ack_close_and_exit(app: tauri::AppHandle, window: tauri::Window) -> Result<(), String> {
     let _ = config_store::flush_all();
+    let _ = window.destroy();
+    for (_, w) in app.webview_windows() {
+        let _ = w.destroy();
+    }
     app.exit(0);
-    Ok(())
+    std::process::exit(0);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -222,22 +227,31 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if IS_CLOSING.swap(true, std::sync::atomic::Ordering::SeqCst) {
                     api.prevent_close();
-                    window.app_handle().exit(0);
-                    return;
+                    let _ = window.destroy();
+                    std::process::exit(0);
                 }
                 api.prevent_close();
+
+                // Oculta imediatamente a janela para feedback visual de 0ms ao clicar no [X]
+                let _ = window.hide();
 
                 // Notifica o frontend para fechar WebRTC e parar syncs
                 let _ = window.emit("echo://close-requested", ());
 
                 let app_handle = window.app_handle().clone();
+                let win_clone = window.clone();
                 std::thread::spawn(move || {
                     let _ = config_store::flush_all();
 
                     // Timeout defensivo de 400ms para encerramento gracioso do processo;
                     // se o frontend chamar ack_close_and_exit antes, o app já sai imediatamente.
                     std::thread::sleep(std::time::Duration::from_millis(400));
+                    let _ = win_clone.destroy();
+                    for (_, w) in app_handle.webview_windows() {
+                        let _ = w.destroy();
+                    }
                     app_handle.exit(0);
+                    std::process::exit(0);
                 });
             }
         })

@@ -1,5 +1,5 @@
 import { EchoApi, type EchoApiInit } from "@/lib/api/echoApi";
-import type { Session } from "./types";
+import type { Session, GuildSummary } from "./types";
 import { ECHO_HOMESERVER_URL } from "./sso";
 import { useKeyring } from "@/lib/storage/keyring";
 
@@ -277,27 +277,33 @@ export class MatrixService {
   }
 
   /** Joined Spaces (m.space) como resumos de guildas. Nome lido de m.room.name. */
-  async listGuilds(): Promise<{
-    guildId: string;
-    name: string;
-    avatarUrl: string | null;
-    bannerUrl?: string | null;
-    description?: string | null;
-    unreadCount: number;
-  }[]> {
-    return this.echoApi.getGuilds();
+  async listGuilds(): Promise<GuildSummary[]> {
+    const rawGuilds = await this.echoApi.getGuilds();
+    return rawGuilds.map((g: any) => ({
+      guildId: g.guildId,
+      name: g.name,
+      avatarUrl: g.avatarUrl ?? null,
+      bannerUrl: g.bannerUrl ?? null,
+      description: g.description ?? null,
+      unreadCount: g.unreadCount ?? 0,
+      createdBy: g.createdBy ?? null,
+    }));
   }
 
   /** Cria uma nova guilda (Space m.space) com nome, ícone, banner e descrição. */
   async createGuild(
     data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
-  ): Promise<{
-    guildId: string;
-    name: string;
-    avatarUrl: string | null;
-    unreadCount: number;
-  }> {
-    return this.echoApi.createGuild(data, this.session?.userId ?? "");
+  ): Promise<GuildSummary> {
+    const res = await this.echoApi.createGuild(data, this.session?.userId ?? "");
+    return {
+      guildId: res.guildId,
+      name: res.name,
+      avatarUrl: res.avatarUrl ?? null,
+      bannerUrl: (res as any).bannerUrl ?? data.bannerUrl ?? null,
+      description: (res as any).description ?? data.description ?? null,
+      unreadCount: res.unreadCount ?? 0,
+      createdBy: (res as any).createdBy ?? this.session?.userId ?? null,
+    };
   }
 
   /** Sai (deleta) uma guilda própria. */

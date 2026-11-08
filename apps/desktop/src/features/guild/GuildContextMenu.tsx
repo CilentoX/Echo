@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -27,7 +27,7 @@ import {
   Check,
 } from "@phosphor-icons/react";
 import { useUiStore } from "@/stores/uiStore";
-import { useSyncStore } from "@/stores/syncStore";
+import { useSyncStore, selectGuildRoles, selectUserGuildRoles } from "@/stores/syncStore";
 import { matrixService } from "@/lib/matrix/instance";
 import InviteModal from "./InviteModal";
 import GuildSettingsModal from "./GuildSettingsModal";
@@ -81,10 +81,28 @@ export default function GuildContextMenu({ guild, children }: GuildContextMenuPr
 
   const effectiveUserId =
     myUserId || (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : "") || "";
+
+  const guildRoles = useSyncStore(
+    useMemo(() => selectGuildRoles(guild.guildId), [guild.guildId]),
+  );
+  const userRoleIds = useSyncStore(
+    useMemo(() => selectUserGuildRoles(guild.guildId, effectiveUserId), [guild.guildId, effectiveUserId]),
+  );
+
   const isGuildOwner = Boolean(
-    (effectiveGuild as any).createdBy &&
+    effectiveGuild.createdBy &&
       effectiveUserId &&
-      (effectiveGuild as any).createdBy === effectiveUserId,
+      effectiveGuild.createdBy.toLowerCase() === effectiveUserId.toLowerCase()
+  );
+
+  const canManageChannels = Boolean(
+    isGuildOwner ||
+    ((guildRoles as any[]) || []).some((r) =>
+      ((userRoleIds as string[]) || []).includes((r as any).roleId || r.id) &&
+      (r.permissions?.includes("MANAGE_CHANNELS") ||
+       r.permissions?.includes("MANAGE_GUILD") ||
+       r.permissions?.includes("ADMINISTRATOR"))
+    )
   );
 
   const unreadCount = effectiveGuild.unreadCount ?? guild.unreadCount ?? 0;
@@ -218,33 +236,36 @@ export default function GuildContextMenu({ guild, children }: GuildContextMenuPr
             </ContextMenuSub>
           )}
 
-          <ContextMenuSeparator />
+          {/* Criação de Canais, Categorias e Configurações da Guilda (apenas se for dono ou tiver permissão de gerenciar canais) */}
+          {canManageChannels && (
+            <>
+              <ContextMenuSeparator />
 
-          {/* Criação de Canais e Categorias */}
-          <ContextMenuItem
-            onClick={() => setCreateChannelOpen(true)}
-            className="flex items-center gap-2.5 cursor-pointer"
-          >
-            <Plus size={16} weight="bold" className="text-mut" />
-            <span>Criar Canal</span>
-          </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => setCreateChannelOpen(true)}
+                className="flex items-center gap-2.5 cursor-pointer"
+              >
+                <Plus size={16} weight="bold" className="text-mut" />
+                <span>Criar Canal</span>
+              </ContextMenuItem>
 
-          <ContextMenuItem
-            onClick={() => setCreateCategoryOpen(true)}
-            className="flex items-center gap-2.5 cursor-pointer"
-          >
-            <FolderSimplePlus size={16} weight="bold" className="text-mut" />
-            <span>Criar Categoria</span>
-          </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => setCreateCategoryOpen(true)}
+                className="flex items-center gap-2.5 cursor-pointer"
+              >
+                <FolderSimplePlus size={16} weight="bold" className="text-mut" />
+                <span>Criar Categoria</span>
+              </ContextMenuItem>
 
-          {/* Configurações do Servidor */}
-          <ContextMenuItem
-            onClick={() => setSettingsOpen(true)}
-            className="flex items-center gap-2.5 cursor-pointer"
-          >
-            <Gear size={16} weight="bold" className="text-mut" />
-            <span>Configurações do Servidor</span>
-          </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => setSettingsOpen(true)}
+                className="flex items-center gap-2.5 cursor-pointer"
+              >
+                <Gear size={16} weight="bold" className="text-mut" />
+                <span>Configurações do Servidor</span>
+              </ContextMenuItem>
+            </>
+          )}
 
           {/* Editar Perfil no Servidor */}
           <ContextMenuItem

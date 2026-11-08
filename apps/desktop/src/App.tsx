@@ -10,6 +10,7 @@ import { useEffect, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
+import { stopSharedAudio } from "@/features/voice/useVoiceActivity";
 import { stopSyncWiring } from "@/lib/matrix/wiring";
 import { useVoiceStore } from "@/stores/voiceStore";
 
@@ -59,10 +60,16 @@ export default function App() {
     if (isTauri) {
       listen("echo://close-requested", async () => {
         try {
-          await webrtcVoice.leave();
+          // Despacha aviso de saída de voz via sendBeacon síncrono para o SO/backend e limpa WebRTC
+          webrtcVoice.leaveSyncOrKeepalive();
         } catch {}
         try {
-          webrtcVoice.leaveSyncOrKeepalive();
+          // Para e desconecta faixas de microfone compartilhadas pelo hook VAD
+          stopSharedAudio();
+        } catch {}
+        try {
+          // Limpeza assíncrona complementar
+          await webrtcVoice.leave();
         } catch {}
         try {
           useVoiceStore.getState().disconnectVoice();
@@ -83,6 +90,8 @@ export default function App() {
     const handleBeforeUnload = () => {
       try {
         webrtcVoice.leaveSyncOrKeepalive();
+        stopSharedAudio();
+        void webrtcVoice.leave();
       } catch {}
     };
     window.addEventListener("beforeunload", handleBeforeUnload);

@@ -210,7 +210,13 @@ export default function ChannelSidebar({
   const isGuildMuted = useSyncStore((state) => state.isGuildMuted);
 
   const isGuildOwner = Boolean(
-    (activeGuild?.createdBy && effectiveUserId && activeGuild.createdBy.toLowerCase() === effectiveUserId.toLowerCase()) ||
+    activeGuild?.createdBy &&
+      effectiveUserId &&
+      activeGuild.createdBy.toLowerCase() === effectiveUserId.toLowerCase()
+  );
+
+  const canManageGuild = Boolean(
+    isGuildOwner ||
     ((guildRoles as any[]) || []).some((r) =>
       ((userRoleIds as string[]) || []).includes((r as any).roleId || r.id) &&
       (r.permissions?.includes("ADMINISTRATOR") || r.permissions?.includes("MANAGE_GUILD"))
@@ -218,12 +224,10 @@ export default function ChannelSidebar({
   );
 
   const canManageChannels = Boolean(
-    isGuildOwner ||
+    canManageGuild ||
     ((guildRoles as any[]) || []).some((r) =>
       ((userRoleIds as string[]) || []).includes((r as any).roleId || r.id) &&
-      (r.permissions?.includes("MANAGE_CHANNELS") ||
-       r.permissions?.includes("MANAGE_GUILD") ||
-       r.permissions?.includes("ADMINISTRATOR"))
+      r.permissions?.includes("MANAGE_CHANNELS")
     )
   );
 
@@ -938,7 +942,7 @@ export default function ChannelSidebar({
                       <span>Convidar Pessoas</span>
                     </button>
 
-                    {isGuildOwner && (
+                    {(canManageGuild || canManageChannels) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -2150,7 +2154,9 @@ export default function ChannelSidebar({
                                         p.isDeafened ||
                                         (isMe && (!microphoneEnabled || !headphonesEnabled))
                                       );
+                                      const isThisActiveVoiceChannel = channel.channelId === activeVoiceChannelId;
                                       const participantSpeaking =
+                                        isThisActiveVoiceChannel &&
                                         !isParticipantMuted &&
                                         (p.isSpeaking ||
                                           speakingMembers.includes(p.userId) ||

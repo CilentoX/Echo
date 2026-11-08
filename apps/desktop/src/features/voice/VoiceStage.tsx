@@ -253,14 +253,25 @@ export default function VoiceStage({
     try {
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia) {
         let stream: MediaStream;
+        const standardConstraints: any = {
+          frameRate: { ideal: config.fps, max: config.fps },
+          width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
+          height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
+          displaySurface: config.sourceType === "screen" ? "monitor" : "window",
+        };
+
+        const videoConstraints: any = config.sourceId
+          ? {
+              ...standardConstraints,
+              deviceId: { ideal: config.sourceId },
+              chromeMediaSource: "desktop",
+              chromeMediaSourceId: config.sourceId,
+            }
+          : standardConstraints;
+
         try {
           stream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-              frameRate: { ideal: config.fps, max: config.fps },
-              width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
-              height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
-              displaySurface: config.sourceType === "screen" ? "monitor" : "window",
-            },
+            video: videoConstraints,
             audio: {
               echoCancellation: false,
               noiseSuppression: false,
@@ -268,16 +279,19 @@ export default function VoiceStage({
             },
           } as MediaStreamConstraints);
         } catch {
-          // Fallback sem captura de áudio caso a plataforma/janela não suporte captura de som do sistema
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-              frameRate: { ideal: config.fps, max: config.fps },
-              width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
-              height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
-              displaySurface: config.sourceType === "screen" ? "monitor" : "window",
-            },
-            audio: false,
-          } as MediaStreamConstraints);
+          try {
+            // Fallback sem captura de áudio caso a plataforma/janela não suporte captura de som do sistema
+            stream = await navigator.mediaDevices.getDisplayMedia({
+              video: videoConstraints,
+              audio: false,
+            } as MediaStreamConstraints);
+          } catch {
+            // Fallback sem sourceId caso o browser/runtime rejeite restrição de dispositivo específico
+            stream = await navigator.mediaDevices.getDisplayMedia({
+              video: standardConstraints,
+              audio: false,
+            } as MediaStreamConstraints);
+          }
         }
         screenStreamRef.current = stream;
         const videoTrack = stream.getVideoTracks()[0];
