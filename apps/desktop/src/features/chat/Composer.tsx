@@ -452,194 +452,219 @@ export default function Composer({
         />
       ) : (
         <div
-          className={`flex items-end gap-1.5 rounded-2xl border bg-surf/90 px-3.5 py-2.5 shadow-sm transition-all focus-within:border-acc/40 focus-within:ring-2 focus-within:ring-acc/10 ${
+          className={`flex flex-col rounded-2xl border bg-surf/90 shadow-sm transition-all focus-within:border-acc/40 focus-within:ring-2 focus-within:ring-acc/10 ${
             !canSend ? "opacity-60 bg-surf/40 cursor-not-allowed" : ""
           } ${
             isDraggingOver ? "border-acc ring-2 ring-acc/20 bg-acc/5" : "border-bd/80"
           }`}
         >
-          {/* Botão emoji com Popover acoplado */}
-          <EmojiPicker
-            onSelect={handleEmojiSelect}
-            open={emojiOpen}
-            onOpenChange={setEmojiOpen}
-          >
-            <button
-              type="button"
-              aria-label="Escolher emoji"
-              aria-expanded={emojiOpen}
-              disabled={!canSend}
-              onClick={() => canSend && setEmojiOpen((o) => !o)}
-              className={`p-1.5 rounded-xl transition-colors ${
-                !canSend
-                  ? "cursor-not-allowed opacity-40 text-mut"
-                  : "cursor-pointer hover:bg-surf2 text-mut hover:text-txt active:scale-95"
-              }`}
-            >
-              <Smile size={16} />
-            </button>
-          </EmojiPicker>
-
-          {/* Botão anexar */}
-          <button
-            type="button"
-            aria-label="Anexar arquivo"
-            disabled={!canAttach || !canSend}
-            title={canAttach ? "Anexar arquivo" : "Você não tem permissão para anexar arquivos"}
-            onClick={() => {
-              if (!canAttach || !canSend) return;
-              const input = document.getElementById("composer-file-input") as HTMLInputElement | null;
-              input?.click();
-            }}
-            className={`p-1.5 rounded-xl transition-colors ${
-              !canAttach || !canSend
-                ? "cursor-not-allowed opacity-40 text-mut"
-                : "cursor-pointer hover:bg-surf2 text-mut hover:text-txt active:scale-95"
-            }`}
-          >
-            <Paperclip size={16} />
-          </button>
-
-          {/* Botão Gravar Áudio */}
-          <button
-            type="button"
-            aria-label="Gravar áudio"
-            disabled={!canAttach || !canSend}
-            title={canAttach ? "Gravar mensagem de voz" : "Você não tem permissão para gravar áudio"}
-            onClick={() => {
-              if (!canAttach || !canSend) return;
-              setIsVoiceRecording(true);
-            }}
-            className={`p-1.5 rounded-xl transition-colors ${
-              !canAttach || !canSend
-                ? "cursor-not-allowed opacity-40 text-mut"
-                : "cursor-pointer hover:bg-surf2 text-mut hover:text-acc active:scale-95"
-            }`}
-          >
-            <Microphone size={16} weight="bold" />
-          </button>
-
-          <input
-            id="composer-file-input"
-            data-testid="composer-file-input"
-            type="file"
-            className="hidden"
-            onChange={handleAttachmentChange}
-          />
-
           {/* Anexo selecionado com preview real para imagem */}
           {attachment && (
-            <div className="flex items-center gap-2 bg-surf2 border border-bd rounded-xl px-2 py-1 shadow-xs">
-              {attachment.file.type.startsWith("image/") ? (
-                <img
-                  src={attachment.preview}
-                  alt="Prévia"
-                  className="h-8 w-8 rounded-lg object-cover ring-1 ring-bd shrink-0"
-                />
-              ) : (
-                <span className="text-[10px] uppercase font-mono px-1 py-0.5 rounded bg-bd text-mut font-bold shrink-0">
-                  {attachment.file.name.split(".").pop() || "FILE"}
-                </span>
-              )}
-              <span className="text-xs text-txt truncate max-w-[120px]" title={attachment.file.name}>
-                {attachment.file.name}
-              </span>
-              <button
-                type="button"
-                onClick={removeAttachment}
-                aria-label="Remover anexo"
-                className="cursor-pointer p-1 hover:bg-surf rounded-lg text-mut hover:text-txt active:scale-95"
-              >
-                <X size={14} />
-              </button>
+            <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2.5 bg-surf2 border border-bd rounded-xl px-3 py-1.5 shadow-sm">
+                {attachment.file.type.startsWith("image/") ? (
+                  <img
+                    src={attachment.preview}
+                    alt="Prévia"
+                    className="h-10 w-10 rounded-lg object-cover ring-1 ring-bd shrink-0"
+                  />
+                ) : (
+                  <span className="text-[10px] uppercase font-mono px-1.5 py-1 rounded bg-bd text-mut font-bold shrink-0">
+                    {attachment.file.name.split(".").pop() || "FILE"}
+                  </span>
+                )}
+                <div className="flex flex-col min-w-0 pr-1">
+                  <span className="text-xs text-txt font-medium truncate max-w-[200px]" title={attachment.file.name}>
+                    {attachment.file.name}
+                  </span>
+                  <span className="text-[10px] text-mut">
+                    {(attachment.file.size / 1024).toFixed(1)} KB
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeAttachment}
+                  aria-label="Remover anexo"
+                  className="cursor-pointer p-1 hover:bg-surf rounded-lg text-mut hover:text-err transition-colors active:scale-95"
+                >
+                  <X size={15} />
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Formatação rápida */}
-          <button
-            type="button"
-            disabled={!canSend}
-            onClick={() => canSend && wrapSelection("**", "**")}
-            aria-label="Negrito"
-            className={`p-1 rounded-lg font-bold text-xs ${
-              !canSend ? "opacity-40 cursor-not-allowed text-mut" : "cursor-pointer hover:bg-surf2 text-mut"
-            }`}
-          >
-            B
-          </button>
-          <button
-            type="button"
-            disabled={!canSend}
-            onClick={() => canSend && wrapSelection("*", "*")}
-            aria-label="Itálico"
-            className={`p-1 rounded-lg italic text-xs ${
-              !canSend ? "opacity-40 cursor-not-allowed text-mut" : "cursor-pointer hover:bg-surf2 text-mut"
-            }`}
-          >
-            I
-          </button>
-          <button
-            type="button"
-            disabled={!canSend}
-            onClick={() => canSend && wrapSelection("`", "`")}
-            aria-label="Código"
-            className={`p-1 rounded-lg text-xs font-mono ${
-              !canSend ? "opacity-40 cursor-not-allowed text-mut" : "cursor-pointer hover:bg-surf2 text-mut"
-            }`}
-          >
-            `
-          </button>
+          {/* Linha Principal do Input: [ 📎 ] | textarea | [ B I ` ] | [ 😀 ] [ 🎤 ] [ Enviar ] */}
+          <div className="flex items-end gap-2 px-3.5 py-2.5">
+            {/* Botão de Anexo (+) estilo Discord no lado esquerdo */}
+            <button
+              type="button"
+              aria-label="Anexar arquivo"
+              disabled={!canAttach || !canSend}
+              title={canAttach ? "Anexar arquivo ou mídia" : "Você não tem permissão para anexar arquivos"}
+              onClick={() => {
+                if (!canAttach || !canSend) return;
+                const input = document.getElementById("composer-file-input") as HTMLInputElement | null;
+                input?.click();
+              }}
+              className={`p-2 rounded-xl transition-all flex items-center justify-center shrink-0 mb-0.5 ${
+                !canAttach || !canSend
+                  ? "cursor-not-allowed opacity-40 text-mut"
+                  : "cursor-pointer bg-white/[0.04] hover:bg-white/[0.08] text-mut hover:text-txt active:scale-95"
+              }`}
+            >
+              <Paperclip size={18} />
+            </button>
 
-          <textarea
-            ref={textareaRef}
-            aria-label="Mensagem"
-            disabled={!canSend}
-            rows={1}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onPaste={handlePaste}
-            onKeyDown={(e) => {
-              if (!canSend) return;
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void handleSend();
-              } else if (e.key === "ArrowUp" && draft.trim() === "") {
-                const timeline = useSyncStore.getState().timelineByChannel[roomId] ?? [];
-                const myMessages = timeline.filter(
-                  (m) =>
-                    (m.sender === effectiveUserId || (myUserId ? m.sender === myUserId : false)) &&
-                    m.body &&
-                    !m.eventId.startsWith("pending-"),
-                );
-                const lastMsg = myMessages[myMessages.length - 1];
-                if (lastMsg && lastMsg.body) {
+            <input
+              id="composer-file-input"
+              data-testid="composer-file-input"
+              type="file"
+              className="hidden"
+              onChange={handleAttachmentChange}
+            />
+
+            {/* Campo Textarea com auto-grow e placeholder limpo */}
+            <textarea
+              ref={textareaRef}
+              aria-label="Mensagem"
+              disabled={!canSend}
+              rows={1}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+              }}
+              onPaste={handlePaste}
+              onKeyDown={(e) => {
+                if (!canSend) return;
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  setDraft(lastMsg.body);
+                  void handleSend();
+                } else if (e.key === "ArrowUp" && draft.trim() === "") {
+                  const timeline = useSyncStore.getState().timelineByChannel[roomId] ?? [];
+                  const myMessages = timeline.filter(
+                    (m) =>
+                      (m.sender === effectiveUserId || (myUserId ? m.sender === myUserId : false)) &&
+                      m.body &&
+                      !m.eventId.startsWith("pending-"),
+                  );
+                  const lastMsg = myMessages[myMessages.length - 1];
+                  if (lastMsg && lastMsg.body) {
+                    e.preventDefault();
+                    setDraft(lastMsg.body);
+                  }
                 }
+              }}
+              placeholder={
+                !canSend
+                  ? "🔒 Você não tem permissão para enviar mensagens neste canal."
+                  : channelName
+                    ? `Conversar em #${channelName}`
+                    : "Mensagem"
               }
-            }}
-            placeholder={
-              !canSend
-                ? "🔒 Você não tem permissão para enviar mensagens neste canal."
-                : channelName
-                  ? `Conversar em #${channelName}`
-                  : "Mensagem"
-            }
-            className={`max-h-32 flex-1 resize-none bg-transparent text-sm text-txt outline-none placeholder:text-mut ${
-              !canSend ? "cursor-not-allowed" : ""
-            }`}
-            style={{ height: draft ? "auto" : undefined }}
-          />
+              className={`max-h-40 min-h-[24px] py-1 flex-1 resize-none bg-transparent text-sm text-txt outline-none placeholder:text-mut/50 leading-relaxed scrollbar-thin ${
+                !canSend ? "cursor-not-allowed" : ""
+              }`}
+              style={{ height: draft ? undefined : "24px" }}
+            />
 
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!canSend || (draft.trim() === "" && !attachment)}
-            className="cursor-pointer flex items-center gap-1.5 rounded-xl bg-acc px-3 py-1.5 text-sm font-semibold text-bg hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 transition-all shadow-sm"
-          >
-            <Send size={16} aria-hidden />
-            Enviar
-          </button>
+            {/* Controles do Lado Direito */}
+            <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
+              {/* Formatação rápida discreta (Markdown) */}
+              <div className="hidden sm:flex items-center gap-0.5 px-1.5 py-0.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-mut mr-1">
+                <button
+                  type="button"
+                  disabled={!canSend}
+                  onClick={() => canSend && wrapSelection("**", "**")}
+                  aria-label="Negrito"
+                  title="Negrito (**texto**)"
+                  className={`px-1.5 py-0.5 rounded-lg font-bold text-xs hover:text-txt hover:bg-white/[0.06] transition-colors ${
+                    !canSend ? "opacity-40 cursor-not-allowed text-mut" : "cursor-pointer"
+                  }`}
+                >
+                  B
+                </button>
+                <button
+                  type="button"
+                  disabled={!canSend}
+                  onClick={() => canSend && wrapSelection("*", "*")}
+                  aria-label="Itálico"
+                  title="Itálico (*texto*)"
+                  className={`px-1.5 py-0.5 rounded-lg italic text-xs hover:text-txt hover:bg-white/[0.06] transition-colors ${
+                    !canSend ? "opacity-40 cursor-not-allowed text-mut" : "cursor-pointer"
+                  }`}
+                >
+                  I
+                </button>
+                <button
+                  type="button"
+                  disabled={!canSend}
+                  onClick={() => canSend && wrapSelection("`", "`")}
+                  aria-label="Código"
+                  title="Código inline (`código`)"
+                  className={`px-1.5 py-0.5 rounded-lg text-xs font-mono hover:text-txt hover:bg-white/[0.06] transition-colors ${
+                    !canSend ? "opacity-40 cursor-not-allowed text-mut" : "cursor-pointer"
+                  }`}
+                >
+                  {"</>"}
+                </button>
+              </div>
+
+              {/* Botão emoji com Popover acoplado */}
+              <EmojiPicker
+                onSelect={handleEmojiSelect}
+                open={emojiOpen}
+                onOpenChange={setEmojiOpen}
+              >
+                <button
+                  type="button"
+                  aria-label="Escolher emoji"
+                  aria-expanded={emojiOpen}
+                  disabled={!canSend}
+                  onClick={() => canSend && setEmojiOpen((o) => !o)}
+                  className={`p-2 rounded-xl transition-all ${
+                    !canSend
+                      ? "cursor-not-allowed opacity-40 text-mut"
+                      : "cursor-pointer hover:bg-white/[0.06] text-mut hover:text-yellow-400 active:scale-95"
+                  }`}
+                >
+                  <Smile size={18} />
+                </button>
+              </EmojiPicker>
+
+              {/* Botão Gravar Áudio */}
+              <button
+                type="button"
+                aria-label="Gravar áudio"
+                disabled={!canAttach || !canSend}
+                title={canAttach ? "Gravar mensagem de voz" : "Você não tem permissão para gravar áudio"}
+                onClick={() => {
+                  if (!canAttach || !canSend) return;
+                  setIsVoiceRecording(true);
+                }}
+                className={`p-2 rounded-xl transition-all ${
+                  !canAttach || !canSend
+                    ? "cursor-not-allowed opacity-40 text-mut"
+                    : "cursor-pointer hover:bg-white/[0.06] text-mut hover:text-acc active:scale-95"
+                }`}
+              >
+                <Microphone size={18} weight="bold" />
+              </button>
+
+              {/* Botão Enviar com estilo refinado */}
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={!canSend || (draft.trim() === "" && !attachment)}
+                aria-label="Enviar"
+                className="cursor-pointer flex items-center gap-1.5 rounded-xl bg-acc px-3.5 py-2 text-xs font-semibold text-bg hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-acc transition-all shadow-md shadow-acc/15"
+              >
+                <Send size={15} aria-hidden />
+                <span>Enviar</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
