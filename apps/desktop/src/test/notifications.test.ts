@@ -90,5 +90,12 @@ describe("Sistema de Notificações - Store, Chimes e Triggers", () => {
     await notifyFriendRequest("Eu mesmo", "@test:domain", null);
     expect(useNotificationStore.getState().notifications).toHaveLength(0);
   });
+
+  it("notifyNewMessage e notifyFriendRequest respeitam messageSound: false", async () => {
+    useSettingsStore.setState({ messageSound: false });
+    await notifyNewMessage("room-other", "Amigo", "Oi", undefined, null, "@outro:domain");
+    await notifyFriendRequest("Outro Amigo", "@amigo:domain", null);
+    expect(useNotificationStore.getState().notifications).toHaveLength(2);
+  });
 });
 

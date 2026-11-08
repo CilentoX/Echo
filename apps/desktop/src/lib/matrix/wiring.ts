@@ -43,6 +43,12 @@ const typingByRoom = new Map<string, Set<string>>();
 let syncWs: WebSocket | null = null;
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
+/** Timestamp de boot/início da sessão atual do aplicativo. */
+let sessionBootTimestamp = 0;
+/** Flag que indica se o sync inicial e o carregamento do backlog foram concluídos. */
+let isLiveSyncReady = false;
+let liveSyncSettleTimer: ReturnType<typeof setTimeout> | null = null;
+
 function isAuthError(error: { errcode: string } | undefined): boolean {
   return error !== undefined && ["M_UNKNOWN_TOKEN", "M_MISSING_TOKEN"].includes(error.errcode);
 }
@@ -67,12 +73,18 @@ let friendsInitialFetchDone = false;
 
 async function checkIncomingFriendRequests(): Promise<void> {
   try {
+    const activeToken = (matrixService as any).getAccessToken?.() ?? (matrixService as any).accessToken;
+    const isMocked = (matrixService.getFriends as any)?._isMockFunction || (matrixService.getFriends as any)?.mock;
+    if (!activeToken && !isMocked) {
+      return;
+    }
+
     const friendsStore = useFriendsStore.getState();
     await friendsStore.loadFriends();
     const pendingIncoming = friendsStore.pendingIncoming ?? [];
 
     if (!friendsInitialFetchDone) {
-      // Primeira execução da sessão: registra conhecidos para não alarmar solicitações antigas
+      // Primeira execução bem-sucedida da sessão: registra conhecidos para não alarmar solicitações antigas
       for (const req of pendingIncoming) {
         if (req?.friendshipId) {
           knownIncomingFriendRequests.add(req.friendshipId);
@@ -82,12 +94,16 @@ async function checkIncomingFriendRequests(): Promise<void> {
       return;
     }
 
-    // Execuções subsequentes: dispara notificação e som para novidades
+    // Execuções subsequentes: só dispara notificação e som para novidades reais após o boot
     for (const req of pendingIncoming) {
       if (req?.friendshipId && !knownIncomingFriendRequests.has(req.friendshipId)) {
         knownIncomingFriendRequests.add(req.friendshipId);
-        const name = req.user?.displayName || req.user?.username || "Novo Usuário";
-        void notifyFriendRequest(name, req.user?.userId, req.user?.avatarUrl);
+        const reqTs = req.createdAt ? new Date(req.createdAt).getTime() : 0;
+        const isAfterBoot = reqTs > sessionBootTimestamp;
+        if (isLiveSyncReady && isAfterBoot) {
+          const name = req.user?.displayName || req.user?.username || "Novo Usuário";
+          void notifyFriendRequest(name, req.user?.userId, req.user?.avatarUrl);
+        }
       }
     }
   } catch {
@@ -157,6 +173,14 @@ async function handleStatus(status: string, error?: { errcode: string }): Promis
 
   if (status === "syncing") {
     if (!initialDataLoaded) await loadInitialData();
+    if (!isLiveSyncReady) {
+      if (liveSyncSettleTimer) clearTimeout(liveSyncSettleTimer);
+      // Concede um buffer defensivo (1500ms) para que todo o backlog inicial seja processado em silêncio
+      liveSyncSettleTimer = setTimeout(() => {
+        isLiveSyncReady = true;
+        liveSyncSettleTimer = null;
+      }, 1500);
+    }
     return;
   }
 
@@ -219,7 +243,9 @@ function startPollingLoop(): void {
           for (const ev of chronological) {
             const isNew = !store.timelineByChannel[ev.roomId]?.some((e) => e.eventId === ev.eventId);
             store.applyEvent(ev);
-            if (isNew && ev.body && ev.sender && (Date.now() - (ev.originServerTs ?? 0) < 30_000)) {
+            const isRecent = Date.now() - (ev.originServerTs ?? 0) < 60_000;
+            const isAfterBoot = (ev.originServerTs ?? 0) > sessionBootTimestamp;
+            if (isLiveSyncReady && isNew && ev.body && ev.sender && isAfterBoot && isRecent) {
               const senderName = findSenderDisplayName(ev.roomId, ev.sender);
               const roomName = findChannelName(ev.roomId);
               void notifyNewMessage(ev.roomId, senderName, ev.body, roomName, (ev as any).senderAvatarUrl, ev.sender);
@@ -259,16 +285,21 @@ function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | nul
   if (event.isRedacted && event.isRedacted()) return null;
   const content = event.getContent ? event.getContent() : (event.content || {});
   const body = event.body || content.body;
-  const eventId = event.eventId;
-  const roomId = event.roomId;
-  const sender = event.sender;
+  const eventId = event.eventId || (typeof event.getId === "function" ? event.getId() : undefined);
+  const roomId = event.roomId || (typeof event.getRoomId === "function" ? event.getRoomId() : undefined);
+  const sender = event.sender || (typeof event.getSender === "function" ? event.getSender() : undefined);
   if (typeof body !== "string" || !eventId || !roomId) return null;
+  const originServerTs =
+    event.originServerTs ??
+    (typeof event.getTs === "function" ? event.getTs() : undefined) ??
+    event.origin_server_ts ??
+    0;
   return {
     eventId,
     roomId,
     sender,
     body,
-    originServerTs: event.originServerTs ?? Date.now(),
+    originServerTs,
     msgtype: event.msgtype || content.msgtype || "m.text",
     url: event.url || content.url || null,
     info: event.info || content.info || undefined,
@@ -304,6 +335,8 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
   if (started) return;
   started = true;
   authFailureCallback = onAuthFailure ?? null;
+  sessionBootTimestamp = Date.now();
+  isLiveSyncReady = false;
 
   // Hook sync handlers into matrixService
   matrixService.startSyncHandlers({
@@ -314,7 +347,9 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
         const store = useSyncStore.getState();
         const isNew = !store.timelineByChannel[normalized.roomId]?.some((e) => e.eventId === normalized.eventId);
         store.applyEvent(normalized);
-        if (isNew && normalized.body && normalized.sender && (Date.now() - (normalized.originServerTs ?? 0) < 30_000)) {
+        const isRecent = Date.now() - (normalized.originServerTs ?? 0) < 60_000;
+        const isAfterBoot = normalized.originServerTs > sessionBootTimestamp;
+        if (isLiveSyncReady && isNew && normalized.body && normalized.sender && isAfterBoot && isRecent) {
           const senderName = findSenderDisplayName(normalized.roomId, normalized.sender);
           const roomName = findChannelName(normalized.roomId);
           void notifyNewMessage(
@@ -427,6 +462,12 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
 /** Desliga o sync, limpa flags internas e reseta os stores (logout). */
 export function stopSyncWiring(): void {
   stopPollingLoop();
+  if (liveSyncSettleTimer) {
+    clearTimeout(liveSyncSettleTimer);
+    liveSyncSettleTimer = null;
+  }
+  isLiveSyncReady = false;
+  sessionBootTimestamp = 0;
   void matrixService.setPresence?.("offline")?.catch(() => {});
   if (syncWs) {
     try {
@@ -487,6 +528,12 @@ export async function setTyping(roomId: string, isTyping: boolean): Promise<void
 /** Reseta estado interno do wiring (usado em testes). */
 export function __resetWiringState(): void {
   stopPollingLoop();
+  if (liveSyncSettleTimer) {
+    clearTimeout(liveSyncSettleTimer);
+    liveSyncSettleTimer = null;
+  }
+  isLiveSyncReady = false;
+  sessionBootTimestamp = 0;
   started = false;
   initialDataLoaded = false;
   authFailureCallback = null;
@@ -509,6 +556,16 @@ export function __resetWiringState(): void {
   ui.setMyUserId(null);
   ui.setActiveGuild(null);
   ui.setActiveChannel(null);
+}
+
+/** Define manualmente a flag isLiveSyncReady (usado em testes). */
+export function __setLiveSyncReady(ready: boolean): void {
+  isLiveSyncReady = ready;
+}
+
+/** Define manualmente o timestamp de boot da sessão (usado em testes). */
+export function __setSessionBootTimestamp(ts: number): void {
+  sessionBootTimestamp = ts;
 }
 
 

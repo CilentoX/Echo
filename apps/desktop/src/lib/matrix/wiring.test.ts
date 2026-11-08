@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
-import { startSyncWiring, stopSyncWiring, loadOlder, __resetWiringState } from "@/lib/matrix/wiring";
+import { useNotificationStore } from "@/stores/notificationStore";
+import {
+  startSyncWiring,
+  stopSyncWiring,
+  loadOlder,
+  __resetWiringState,
+  __setLiveSyncReady,
+  __setSessionBootTimestamp,
+} from "@/lib/matrix/wiring";
 import { matrixService } from "@/lib/matrix/instance";
 import type { GuildSummary, ChannelSummary, NormalizedEvent, MemberSummary } from "@/lib/matrix/types";
 
@@ -66,6 +74,7 @@ function resetStores() {
     typingUsers: {},
     presence: {},
   });
+  useNotificationStore.getState().clearAll();
   // Reset wiring internal state
   __resetWiringState();
   vi.clearAllMocks();
@@ -234,5 +243,66 @@ describe("wiring.ts - stopSyncWiring / Logout (B2)", () => {
     expect(useUiStore.getState().activeGuildId).toBeNull();
     expect(useUiStore.getState().activeChannelId).toBeNull();
     expect(useSyncStore.getState().status).toBe("connecting");
+  });
+});
+
+describe("wiring.ts - Boot Silence and Live Event Filtering", () => {
+  beforeEach(resetStores);
+
+  it("mensagens com timestamp anterior ao boot ou durante initial sync NÃO notificam", async () => {
+    startSyncWiring();
+    const bootTime = Date.now();
+    __setSessionBootTimestamp(bootTime);
+    __setLiveSyncReady(false); // ainda em fase de sincronização inicial
+
+    const handlers = (matrixService as any).__handlers;
+
+    // Mensagem histórica antiga (antes do boot)
+    handlers.onEvent({
+      getType: () => "m.room.message",
+      eventId: "hist-1",
+      roomId: "!c1:hs",
+      sender: "@amigo:hs",
+      content: { body: "Mensagem histórica antiga" },
+      originServerTs: bootTime - 50_000,
+    });
+
+    expect(useNotificationStore.getState().notifications).toHaveLength(0);
+
+    // Mensagem recente mas com isLiveSyncReady ainda falso (fase de boot / backlog)
+    handlers.onEvent({
+      getType: () => "m.room.message",
+      eventId: "boot-1",
+      roomId: "!c1:hs",
+      sender: "@amigo:hs",
+      content: { body: "Mensagem no momento do boot" },
+      originServerTs: bootTime + 10,
+    });
+
+    expect(useNotificationStore.getState().notifications).toHaveLength(0);
+  });
+
+  it("mensagens recentes chegam em tempo real APÓS live sync estar pronto disparam notificação", async () => {
+    startSyncWiring();
+    const bootTime = Date.now() - 5000;
+    __setSessionBootTimestamp(bootTime);
+    __setLiveSyncReady(true); // sync pronto
+
+    useUiStore.getState().setActiveChannel("!other:hs"); // canal inativo para permitir notificação
+
+    const handlers = (matrixService as any).__handlers;
+
+    handlers.onEvent({
+      getType: () => "m.room.message",
+      eventId: "live-1",
+      roomId: "!c1:hs",
+      sender: "@amigo:hs",
+      content: { body: "Mensagem em tempo real!" },
+      originServerTs: Date.now(),
+    });
+
+    const notifications = useNotificationStore.getState().notifications;
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].body).toBe("Mensagem em tempo real!");
   });
 });

@@ -64,8 +64,11 @@ export async function notifyNewMessage(
     return;
   }
 
-  // Toca chime sonoro suave
-  playMessageChime(0.25);
+  // Toca chime sonoro suave se habilitado nas configurações
+  const soundEnabled = useSettingsStore.getState().messageSound;
+  if (soundEnabled) {
+    playMessageChime(0.25);
+  }
 
   const displayTitle = roomName ? `${senderName} (#${roomName})` : senderName;
   const truncatedBody = body.length > 120 ? body.slice(0, 117) + "..." : body;
@@ -125,8 +128,11 @@ export async function notifyFriendRequest(
   const presence = useProfileStore.getState().presence;
   if (presence === "dnd") return;
 
-  // Alerta sonoro amigável
-  playFriendRequestChime(0.3);
+  // Alerta sonoro amigável se habilitado nas configurações
+  const soundEnabled = useSettingsStore.getState().messageSound;
+  if (soundEnabled) {
+    playFriendRequestChime(0.3);
+  }
 
   const title = "Novo Pedido de Amizade";
   const body = `${senderName} quer se conectar com você no Echo!`;
