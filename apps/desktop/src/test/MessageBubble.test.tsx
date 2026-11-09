@@ -40,12 +40,13 @@ describe("MessageBubble v2", () => {
     expect(el.className).toContain("flex");
   });
 
-  it("renderiza mensagem do próprio usuário em linha completa com hover", () => {
+  it("renderiza mensagem do próprio usuário alinhada à direita com hover", () => {
     const senderEvent: NormalizedEvent = { ...baseEvent, sender: MY_USER };
     renderBubble(senderEvent);
     const el = articleEl();
     expect(el.className).toContain("w-full");
-    expect(el.className).toContain("hover:bg-white/[0.02]");
+    expect(el.className).toContain("justify-end");
+    expect(el.className).toContain("hover:bg-white/[0.03]");
   });
 
   it("renderiza player de vídeo inline com controls para eventos de vídeo", () => {

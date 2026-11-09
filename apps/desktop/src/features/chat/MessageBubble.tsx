@@ -57,10 +57,11 @@ export interface MessageBubbleProps {
 }
 
 /**
- * Uma mensagem da timeline no padrão Discord: fluxo linear contínuo unificado à esquerda.
- * Todas as mensagens (próprias ou de terceiros) alinham à esquerda, com avatar na lateral esquerda
- * (ou alinhamento quando agrupadas consecutivamente pelo mesmo autor), cabeçalho de autor com timestamp,
- * player de vídeo inline para mídias de vídeo, player de áudio e visualizador de imagem com lightbox.
+ * Uma mensagem da timeline no padrão e identidade visual do Echo:
+ * bolha diferenciada para remetente (sender, à direita em Teal Glow) vs destinatário
+ * (receiver, à esquerda em Dark Glassmorphism), avatar lateral, nome, hora, reply-to chip,
+ * edição/exclusão, corpo em markdown, visualizador de imagens com lightbox, player de vídeo
+ * nativo inline e player de áudio com waveform.
  */
 export default function MessageBubble({
   event,
@@ -167,15 +168,17 @@ export default function MessageBubble({
           data-event-id={event.eventId}
           data-pending={pending || undefined}
           data-is-sender={isSender || undefined}
-          className={`group relative flex gap-3 px-4 transition-colors w-full hover:bg-white/[0.02] ${
-            isCompact ? "py-0.5" : showHeader ? "pt-2 pb-0.5" : "py-0.5"
-          }`}
+          className={`group relative flex gap-3 px-4 transition-colors w-full hover:bg-white/[0.03] ${
+            isSender ? "justify-end" : "justify-start"
+          } ${isCompact ? "py-0.5" : showHeader ? "pt-2.5 pb-0.5" : "py-0.5"}`}
         >
           {/* Barra de Ações Rápidas Flutuante (Hover Bar) */}
           {!pending && (
             <div
               data-testid="message-hover-bar"
-              className="absolute -top-3.5 right-4 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-card-bg/95 px-1 py-0.5 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur z-20 transition-all"
+              className={`absolute -top-3.5 hidden group-hover:flex items-center gap-0.5 rounded-lg border border-bd bg-card-bg/95 px-1 py-0.5 shadow-lg shadow-black/10 dark:shadow-black/40 backdrop-blur z-20 transition-all ${
+                isSender ? "right-14" : "right-4"
+              }`}
             >
               <button
                 type="button"
@@ -269,47 +272,49 @@ export default function MessageBubble({
             </div>
           )}
 
-          {/* Avatar / Gutter à esquerda (unificado para todas as mensagens - Ergonomia Discord) */}
-          <div className="shrink-0 pt-0.5 select-none">
-            {showHeader ? (
-              <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
-                <MxcImage
-                  mxcUrl={senderAvatar}
-                  width={isCompact ? 28 : 40}
-                  height={isCompact ? 28 : 40}
-                  alt={`Avatar de ${name}`}
-                  className={`rounded-full object-cover border border-white/[0.08] shadow-sm ${
-                    isCompact ? "h-7 w-7" : "h-10 w-10"
-                  }`}
-                  fallback={
-                    <span
-                      aria-hidden="true"
-                      className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
-                        isCompact ? "text-[10px]" : "text-xs font-bold"
-                      }`}
-                    >
-                      {name.slice(0, 1).toUpperCase()}
-                    </span>
-                  }
-                />
-              </div>
-            ) : (
-              <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center h-full min-h-[20px]`} aria-hidden="true">
-                <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
-                  {time.slice(0, 5)}
-                </span>
-              </div>
-            )}
-          </div>
+          {/* Avatar do remetente (à esquerda quando !isSender) */}
+          {!isSender && (
+            <div className="shrink-0 pt-0.5">
+              {showHeader ? (
+                <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
+                  <MxcImage
+                    mxcUrl={senderAvatar}
+                    width={isCompact ? 28 : 40}
+                    height={isCompact ? 28 : 40}
+                    alt={`Avatar de ${name}`}
+                    className={`rounded-full object-cover border border-white/[0.08] shadow-sm ${
+                      isCompact ? "h-7 w-7" : "h-10 w-10"
+                    }`}
+                    fallback={
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
+                          isCompact ? "text-[10px]" : "text-xs font-bold"
+                        }`}
+                      >
+                        {name.slice(0, 1).toUpperCase()}
+                      </span>
+                    }
+                  />
+                </div>
+              ) : (
+                <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
+                  <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
+                    {time.slice(0, 5)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Conteúdo da mensagem (alinhado à esquerda no fluxo linear) */}
-          <div className="flex flex-col min-w-0 flex-1 items-start text-left">
+          {/* Conteúdo da mensagem (Alinhado à direita para o remetente, à esquerda para os outros) */}
+          <div className={`flex flex-col min-w-0 max-w-[85%] sm:max-w-[75%] ${isSender ? "items-end" : "items-start"}`}>
             {/* Chip de reply-to (citação) */}
             {event.replyTo && <ReplyChip replyTo={event.replyTo} />}
 
             {/* Cabeçalho: nome, hora, selos (apenas no primeiro do grupo) */}
             {showHeader && (
-              <div className="flex items-baseline gap-2 mb-0.5 flex-row">
+              <div className={`flex items-baseline gap-2 mb-1 ${isSender ? "flex-row-reverse" : "flex-row"}`}>
                 <span
                   className={`truncate font-display text-sm font-semibold hover:underline cursor-pointer ${
                     isSender ? "text-acc" : "text-txt"
@@ -334,7 +339,11 @@ export default function MessageBubble({
 
             {/* Vídeo Inline */}
             {isVideo && mediaUrl ? (
-              <div className="my-1.5 max-w-lg w-full rounded-2xl overflow-hidden border border-white/[0.08] bg-black/60 shadow-lg">
+              <div
+                className={`my-1.5 max-w-lg w-full rounded-2xl overflow-hidden border border-white/[0.08] bg-black/60 shadow-lg ${
+                  isSender ? "self-end" : "self-start"
+                }`}
+              >
                 <video
                   controls
                   playsInline
@@ -346,7 +355,13 @@ export default function MessageBubble({
                   Seu navegador não suporta reprodução de vídeos.
                 </video>
                 {event.body && !event.body.startsWith("[Vídeo]") && !event.body.startsWith("[Video]") && (
-                  <div className="p-2 text-xs text-txt/90">
+                  <div
+                    className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2 rounded-b-2xl ${
+                      isSender
+                        ? "bg-acc/15 border-t border-acc/20 text-txt text-left"
+                        : "bg-surf/80 border-t border-white/[0.06] text-txt/90 text-left"
+                    }`}
+                  >
                     <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
                   </div>
                 )}
@@ -358,12 +373,12 @@ export default function MessageBubble({
                   src={mediaUrl}
                   duration={event.info?.duration}
                   waveform={event.info?.waveform}
-                  isSender={false}
+                  isSender={isSender}
                 />
               </div>
             ) : isImage && mediaUrl ? (
               /* Imagem com prévia ampliada e Lightbox */
-              <div className="my-1 space-y-1">
+              <div className={`my-1 space-y-1 ${isSender ? "flex flex-col items-end" : ""}`}>
                 <div
                   className="relative group/img cursor-pointer overflow-hidden rounded-2xl border border-bd-subtle max-w-sm inline-block shadow-sm"
                   onClick={() => setLightboxOpen(true)}
@@ -381,7 +396,13 @@ export default function MessageBubble({
                   </div>
                 </div>
                 {event.body && !event.body.startsWith("[Imagem]") && (
-                  <div className="text-sm leading-relaxed text-txt/90 break-words [overflow-wrap:anywhere] max-w-full py-0.5">
+                  <div
+                    className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2.5 rounded-2xl shadow-sm ${
+                      isSender
+                        ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm text-left"
+                        : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm text-left"
+                    }`}
+                  >
                     <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
                   </div>
                 )}
@@ -393,17 +414,27 @@ export default function MessageBubble({
                 />
               </div>
             ) : (
-              /* Mensagem de Texto Padrão Discord (fluxo linear contínuo) */
-              <div className="flex flex-col gap-1 w-full items-start">
+              /* Corpo da mensagem em bolha estilizada */
+              <div className={`flex flex-col gap-1 w-full ${isSender ? "items-end" : "items-start"}`}>
                 {!/^%%URL[\s_]*(?:TOKEN|<em>TOKEN<\/em>|&lt;em&gt;TOKEN&lt;\/em&gt;)?[\s_]*\d*%%$/i.test((event.body ?? "").trim()) &&
                  !/^@@URLTOKEN\d*@@$/i.test((event.body ?? "").trim()) && (
-                  <div className="text-sm leading-relaxed text-txt/90 break-words [overflow-wrap:anywhere] max-w-full py-0.5">
+                  <div
+                    className={`text-sm leading-relaxed break-words [overflow-wrap:anywhere] px-4 py-2.5 rounded-2xl shadow-sm text-left inline-block max-w-full ${
+                      isSender
+                        ? "bg-acc/15 border border-acc/30 text-txt rounded-tr-sm self-end"
+                        : "bg-surf/80 border border-white/[0.06] text-txt/90 rounded-tl-sm self-start"
+                    }`}
+                  >
                     <MessageBody body={event.body} redacted={event.redacted} pending={pending} />
                   </div>
                 )}
                 {!event.redacted && (
-                  <div className="w-full max-w-[650px] flex flex-col items-start self-start mr-auto">
-                    <RichEmbed content={event.body} align="left" />
+                  <div
+                    className={`w-full max-w-[650px] flex flex-col ${
+                      isSender ? "items-end self-end ml-auto" : "items-start self-start mr-auto"
+                    }`}
+                  >
+                    <RichEmbed content={event.body} align={isSender ? "right" : "left"} />
                   </div>
                 )}
               </div>
@@ -417,7 +448,7 @@ export default function MessageBubble({
 
             {/* Reações empilhadas */}
             {((reactions?.length ?? 0) > 0 || (threadReplies ?? 0) > 0) && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 justify-start">
+              <div className={`mt-1.5 flex flex-wrap items-center gap-1.5 ${isSender ? "justify-end" : "justify-start"}`}>
                 <ReactionStack
                   reactions={reactions ?? []}
                   myUserId={myUserId}
@@ -442,6 +473,41 @@ export default function MessageBubble({
               </div>
             )}
           </div>
+
+          {/* Avatar do remetente (à direita quando isSender) */}
+          {isSender && (
+            <div className="shrink-0 pt-0.5 order-last">
+              {showHeader ? (
+                <div className={`relative ${isCompact ? "w-7 h-7" : "w-10 h-10"}`}>
+                  <MxcImage
+                    mxcUrl={senderAvatar}
+                    width={isCompact ? 28 : 40}
+                    height={isCompact ? 28 : 40}
+                    alt={`Avatar de ${name}`}
+                    className={`rounded-full object-cover border border-acc/30 shadow-sm ${
+                      isCompact ? "h-7 w-7" : "h-10 w-10"
+                    }`}
+                    fallback={
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-full w-full items-center justify-center rounded-full bg-acc text-bg font-display font-semibold shadow-sm ${
+                          isCompact ? "text-[10px]" : "text-xs font-bold"
+                        }`}
+                      >
+                        {name.slice(0, 1).toUpperCase()}
+                      </span>
+                    }
+                  />
+                </div>
+              ) : (
+                <div className={`${isCompact ? "w-7" : "w-10"} flex items-center justify-center`} aria-hidden="true">
+                  <span className="hidden group-hover:block text-[10px] text-mut/50 font-mono select-none">
+                    {time.slice(0, 5)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </article>
       </ContextMenuTrigger>
 
