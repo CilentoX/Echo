@@ -1,5 +1,17 @@
 import { create } from "zustand";
 
+/** Carrega guildas fixadas do localStorage. */
+function loadPinnedGuilds(): string[] {
+  try {
+    const raw = localStorage.getItem("echo:pinnedGuilds");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
 export interface UiState {
   /** MXID da sessão ativa ("@lucas:litteris.online"); null fora do shell. */
   myUserId: string | null;
@@ -14,6 +26,10 @@ export interface UiState {
   typingUsers: Record<string, string[]>;
   /** userId → estado de presença. */
   presence: Record<string, "online" | "offline" | "unavailable">;
+  /** IDs das guildas fixadas na dock de acesso rápido. */
+  pinnedGuilds: string[];
+  /** userId do membro cujo perfil está aberto (null = perfil próprio). */
+  memberProfileUserId: string | null;
   setMyUserId(userId: string | null): void;
   setActiveGuild(guildId: string | null): void;
   setActiveChannel(channelId: string | null): void;
@@ -24,10 +40,25 @@ export interface UiState {
   setTypingUsers(roomId: string, names: string[]): void;
   /** Define a presença de um usuário. */
   setPresence(userId: string, presence: "online" | "offline" | "unavailable"): void;
+  /** Fixa uma guilda na dock de acesso rápido. */
+  pinGuild(guildId: string): void;
+  /** Remove uma guilda da dock de acesso rápido. */
+  unpinGuild(guildId: string): void;
+  /** Verifica se uma guilda está fixada. */
+  isGuildPinned(guildId: string): boolean;
+  /** Abre o perfil de outro membro (null fecha). */
+  setMemberProfileUserId(userId: string | null): void;
+}
+
+/** Persiste a lista de guildas fixadas no localStorage. */
+function persistPinnedGuilds(ids: string[]) {
+  try {
+    localStorage.setItem("echo:pinnedGuilds", JSON.stringify(ids));
+  } catch {}
 }
 
 /** Estado de navegação da UI (guild/canal ativos, sessão); sem dados de sync. */
-export const useUiStore = create<UiState>()((set) => ({
+export const useUiStore = create<UiState>()((set, get) => ({
   myUserId: null,
   activeGuildId: null,
   activeChannelId: null,
@@ -38,6 +69,8 @@ export const useUiStore = create<UiState>()((set) => ({
   joinGuildInitialCode: null,
   typingUsers: {},
   presence: {},
+  pinnedGuilds: loadPinnedGuilds(),
+  memberProfileUserId: null,
 
   setMyUserId: (userId) => set({ myUserId: userId }),
   setActiveGuild: (guildId) => set({ activeGuildId: guildId }),
@@ -56,4 +89,23 @@ export const useUiStore = create<UiState>()((set) => ({
     set((state) => ({
       presence: { ...state.presence, [userId]: presence },
     })),
+
+  pinGuild: (guildId) => {
+    const current = get().pinnedGuilds;
+    if (current.includes(guildId)) return;
+    const next = [...current, guildId];
+    persistPinnedGuilds(next);
+    set({ pinnedGuilds: next });
+  },
+
+  unpinGuild: (guildId) => {
+    const current = get().pinnedGuilds;
+    if (!current.includes(guildId)) return;
+    const next = current.filter((id) => id !== guildId);
+    persistPinnedGuilds(next);
+    set({ pinnedGuilds: next });
+  },
+
+  isGuildPinned: (guildId) => get().pinnedGuilds.includes(guildId),
+  setMemberProfileUserId: (userId) => set({ memberProfileUserId: userId }),
 }));

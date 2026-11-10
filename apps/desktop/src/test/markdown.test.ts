@@ -66,5 +66,67 @@ describe("renderMarkdown", () => {
     expect(html).not.toContain("%%URL_TOKEN0%%");
     expect(html).not.toContain("TOKEN");
   });
+
+  it("formata riscado (strikethrough) com a sintaxe ~~texto~~", () => {
+    const text = "Este texto foi ~~cancelado~~ e substituído.";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain('<del class="line-through opacity-75">cancelado</del>');
+  });
+
+  it("formata spoilers com a sintaxe ||segredo|| interativo", () => {
+    const text = "O final do jogo é ||o herói sobrevive||!";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain("text-transparent");
+    expect(html).toContain("o herói sobrevive");
+    expect(html).toContain("title=\"Spoiler: clique para revelar\"");
+  });
+
+  it("preserva riscado e spoilers combinados com negrito e links", () => {
+    const text = "**Cuidado**: ~~não abra~~ veja este ||link secreto||: https://echo.litteris.online";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain("<strong class=\"font-bold\">Cuidado</strong>");
+    expect(html).toContain('<del class="line-through opacity-75">não abra</del>');
+    expect(html).toContain("link secreto");
+    expect(html).toContain('<a href="https://echo.litteris.online"');
+  });
+
+  it("renderiza menções de membros com pill interativo e data-mention-id", () => {
+    const text = "Olá @[Lucas](@lucas:echo.litteris.online), bem-vindo!";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain('class="mention-pill');
+    expect(html).toContain('data-mention-id="@lucas:echo.litteris.online"');
+    expect(html).toContain("@Lucas");
+  });
+
+  it("renderiza menções de cargos com badge colorido e data-role-id", () => {
+    const text = "Atenção @[Moderadores](role:role-mod-1), nova denúncia.";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain('class="mention-pill');
+    expect(html).toContain('data-role-id="role-mod-1"');
+    expect(html).toContain("@Moderadores");
+  });
+
+  it("renderiza menções especiais @everyone e @here", () => {
+    const text = "Reunião agora @everyone e atenção @here!";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain('class="mention-pill');
+    expect(html).toContain("@everyone");
+    expect(html).toContain("@here");
+  });
+
+  it("renderiza menções de canais com pill e data-channel-id", () => {
+    const text = "Por favor converse em #[bate-papo](channel:chan-general-1) amigos.";
+    const html = renderMarkdown(text);
+
+    expect(html).toContain('class="channel-pill');
+    expect(html).toContain('data-channel-id="chan-general-1"');
+    expect(html).toContain("#bate-papo");
+  });
 });
 

@@ -1,4 +1,4 @@
-import { Paperclip, Send, Smile, X } from "lucide-react";
+import { Paperclip, PaperPlaneTilt, Smiley, X, TextB, TextItalic, Code, TextStrikethrough, Link as LinkIcon, Quotes } from "@phosphor-icons/react";
 import { Microphone } from "@phosphor-icons/react";
 import { useCallback, useRef, useState, useEffect } from "react";
 
@@ -7,6 +7,7 @@ import { useUiStore } from "@/stores/uiStore";
 import type { NormalizedEvent } from "@/lib/matrix/types";
 import { EmojiPicker } from "@/components/emoji/EmojiPicker";
 import VoiceRecorder from "./VoiceRecorder";
+import MentionAutocompletePopover, { type MentionItem } from "./MentionAutocompletePopover";
 import { optimizeImageForUpload } from "@/lib/media/imageOptimizer";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import { matrixService } from "@/lib/matrix/instance";
@@ -19,6 +20,17 @@ export type SendFileFn = (roomId: string, file: File, body?: string) => Promise<
 
 const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
+const MAX_MESSAGE_LENGTH = 4000;
+
+// Dicas contextuais rotativas para o placeholder
+const PLACEHOLDER_TIPS = [
+  "Use **negrito** ou *itálico* para formatar",
+  "Pressione ↑ para editar sua última mensagem",
+  "Arraste imagens ou use Ctrl+V para colar",
+  "Digite @ para mencionar alguém",
+  "Digite # para buscar canais",
+  "Shift+Enter para nova linha",
+];
 
 export interface ComposerProps {
   roomId: string;
@@ -49,7 +61,7 @@ export default function Composer({
   roomId,
   sendMessage,
   sendFile,
-  channelName,
+  channelName: _channelName,
   canSendMessages: propCanSend,
   canAttachFiles: propCanAttach,
 }: ComposerProps) {
@@ -59,6 +71,47 @@ export default function Composer({
   const [pending, setPending] = useState<PendingMessage[]>([]);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [placeholderTip, setPlaceholderTip] = useState(0);
+  const [editMode, setEditMode] = useState<string | null>(null); // eventId da mensagem sendo editada
+
+  // Placeholder rotativo a cada 8 segundos
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPlaceholderTip((prev) => (prev + 1) % PLACEHOLDER_TIPS.length);
+    }, 8000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Toolbar flutuante de formatação (estilo Notion) — aparece ao selecionar texto
+  const [selectionToolbar, setSelectionToolbar] = useState<{
+    visible: boolean;
+    top: number;
+    left: number;
+  }>({ visible: false, top: 0, left: 0 });
+
+  const updateSelectionToolbar = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta || ta.selectionStart === ta.selectionEnd) {
+      setSelectionToolbar((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      return;
+    }
+    // Calcula posição aproximada da seleção relativa ao textarea
+    const taRect = ta.getBoundingClientRect();
+    const lineHeight = 22; // altura estimada da linha
+    const linesBefore = ta.value.slice(0, ta.selectionStart).split("\n").length - 1;
+    const top = taRect.top + linesBefore * lineHeight - 40; // 40px acima da linha
+    const left = taRect.left + 60; // offset horizontal
+    setSelectionToolbar({ visible: true, top, left });
+  }, []);
+
+  const [autocomplete, setAutocomplete] = useState<{
+    isOpen: boolean;
+    type: "mention" | "channel";
+    query: string;
+    triggerIndex: number;
+  } | null>(null);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
+  const autocompleteItemsRef = useRef<MentionItem[]>([]);
 
   const myUserId = useUiStore((s) => s.myUserId);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
@@ -102,6 +155,21 @@ export default function Composer({
           channelType: "text",
         });
 
+  // Atalho ↑ para editar última mensagem quando o input está vazio
+  const handleEditLastMessage = useCallback(() => {
+    if (draft.trim() !== "") return;
+    const events = useSyncStore.getState().timelineByChannel[roomId];
+    if (!events || events.length === 0) return;
+    const myLastMsg = [...events].reverse().find(
+      (e) => e.sender === effectiveUserId && e.msgtype != null,
+    );
+    if (myLastMsg) {
+      setEditMode(myLastMsg.eventId);
+      setDraft(myLastMsg.body ?? "");
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [draft, roomId, effectiveUserId]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendingRef = useRef(false);
 
@@ -123,6 +191,59 @@ export default function Composer({
     ta.style.height = "auto";
     ta.style.height = `${ta.scrollHeight}px`;
   }, []);
+
+  const checkAutocomplete = useCallback((text: string, cursorPosition: number) => {
+    const textBefore = text.slice(0, cursorPosition);
+    const match = textBefore.match(/(?:^|\s)([@#])([a-zA-Z0-9_\-\u00C0-\u017F]*)$/);
+    if (match && match[1]) {
+      const trigger = match[1];
+      const query = match[2] ?? "";
+      const triggerIndex = textBefore.lastIndexOf(trigger);
+      setAutocomplete({
+        isOpen: true,
+        type: trigger === "@" ? "mention" : "channel",
+        query,
+        triggerIndex,
+      });
+      setAutocompleteIndex(0);
+    } else {
+      setAutocomplete(null);
+    }
+  }, []);
+
+  const handleSelectAutocomplete = useCallback(
+    (item: MentionItem) => {
+      if (!autocomplete) return;
+      const ta = textareaRef.current;
+      const cursor = ta?.selectionStart ?? draft.length;
+      const beforeTrigger = draft.slice(0, autocomplete.triggerIndex);
+      const afterCursor = draft.slice(cursor);
+
+      let insertion = "";
+      if (item.kind === "member") {
+        insertion = `@[${item.name}](${item.id}) `;
+      } else if (item.kind === "role") {
+        insertion = `@[${item.name}](role:${item.id}) `;
+      } else if (item.kind === "special") {
+        insertion = `@${item.name} `;
+      } else if (item.kind === "channel") {
+        insertion = `#[${item.name}](channel:${item.id}) `;
+      }
+
+      const nextDraft = beforeTrigger + insertion + afterCursor;
+      setDraft(nextDraft);
+      setAutocomplete(null);
+
+      if (ta) {
+        const newPos = beforeTrigger.length + insertion.length;
+        setTimeout(() => {
+          ta.focus();
+          ta.setSelectionRange(newPos, newPos);
+        }, 0);
+      }
+    },
+    [autocomplete, draft],
+  );
 
   const wrapSelection = useCallback((open: string, close: string) => {
     const ta = textareaRef.current;
@@ -372,6 +493,10 @@ export default function Composer({
           optimisticEvent: optEvent,
         };
         setPending((list) => [...list, item]);
+        // Revoga ObjectURL do preview para evitar memory leak
+        if (attachment.preview?.startsWith("blob:")) {
+          URL.revokeObjectURL(attachment.preview);
+        }
         setAttachment(null);
         setDraft("");
         void sendPending(item);
@@ -470,12 +595,43 @@ export default function Composer({
         />
       ) : (
         <div
-          className={`flex flex-col rounded-2xl border bg-surf/90 shadow-sm transition-all focus-within:border-acc/40 focus-within:ring-2 focus-within:ring-acc/10 ${
+          className={`relative flex flex-col rounded-2xl border bg-surf/90 shadow-sm transition-all focus-within:border-acc/40 focus-within:ring-2 focus-within:ring-acc/10 ${
             !canSend ? "opacity-60 bg-surf/40 cursor-not-allowed" : ""
           } ${
             isDraggingOver ? "border-acc ring-2 ring-acc/20 bg-acc/5" : "border-bd/80"
           }`}
         >
+          {/* Toolbar Flutuante de Formatação (estilo Notion) — aparece ao selecionar texto */}
+          {selectionToolbar.visible && canSend && (
+            <div
+              className="fixed z-50 flex items-center gap-0.5 rounded-xl bg-[#1a1f2e] border border-bd/60 px-1 py-1 shadow-xl shadow-black/40 animate-in fade-in slide-in-from-bottom-1 duration-150"
+              style={{ top: selectionToolbar.top, left: selectionToolbar.left }}
+            >
+              <button type="button" onClick={() => wrapSelection("**", "**")} title="Negrito" className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-colors"><TextB size={14} /></button>
+              <button type="button" onClick={() => wrapSelection("*", "*")} title="Itálico" className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-colors"><TextItalic size={14} /></button>
+              <button type="button" onClick={() => wrapSelection("~~", "~~")} title="Tachado" className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-colors"><TextStrikethrough size={14} /></button>
+              <div className="w-[1px] h-4 bg-bd/40 mx-0.5" />
+              <button type="button" onClick={() => wrapSelection("`", "`")} title="Código inline" className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-colors"><Code size={14} /></button>
+              <button type="button" onClick={() => wrapSelection("> ", "")} title="Citação" className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-colors"><Quotes size={14} /></button>
+              <button type="button" onClick={() => wrapSelection("[", "](url)")} title="Link" className="cursor-pointer p-1.5 rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-colors"><LinkIcon size={14} /></button>
+            </div>
+          )}
+
+          {/* Autocomplete flutuante de Menções e Canais */}
+          {autocomplete?.isOpen && (
+            <MentionAutocompletePopover
+              type={autocomplete.type}
+              query={autocomplete.query}
+              roomId={roomId}
+              guildId={activeGuildId}
+              selectedIndex={autocompleteIndex}
+              onSelect={handleSelectAutocomplete}
+              onItemsChange={(items) => {
+                autocompleteItemsRef.current = items;
+              }}
+            />
+          )}
+
           {/* Anexo selecionado com preview real para imagem */}
           {attachment && (
             <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2 border-b border-white/[0.06]">
@@ -541,51 +697,109 @@ export default function Composer({
               onChange={handleAttachmentChange}
             />
 
-            {/* Campo Textarea com auto-grow e placeholder limpo */}
-            <textarea
-              ref={textareaRef}
-              aria-label="Mensagem"
-              disabled={!canSend}
-              rows={1}
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
-              }}
-              onPaste={handlePaste}
-              onKeyDown={(e) => {
-                if (!canSend) return;
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSend();
-                } else if (e.key === "ArrowUp" && draft.trim() === "") {
-                  const timeline = useSyncStore.getState().timelineByChannel[roomId] ?? [];
-                  const myMessages = timeline.filter(
-                    (m) =>
-                      (m.sender === effectiveUserId || (myUserId ? m.sender === myUserId : false)) &&
-                      m.body &&
-                      !m.eventId.startsWith("pending-"),
-                  );
-                  const lastMsg = myMessages[myMessages.length - 1];
-                  if (lastMsg && lastMsg.body) {
-                    e.preventDefault();
-                    setDraft(lastMsg.body);
+            {/* Campo Textarea com auto-grow, placeholder rotativo e suporte a edição */}
+            <div className="flex-1 relative">
+              {/* Banner de Modo Edição */}
+              {editMode && (
+                <div className="absolute -top-8 left-0 right-0 flex items-center justify-between px-3 py-1 rounded-t-xl bg-acc/10 border-b border-acc/20 animate-in slide-in-from-bottom-1 duration-150">
+                  <span className="text-[11px] font-medium text-acc flex items-center gap-1.5">
+                    <span className="text-xs">✏️</span> Editando mensagem
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setEditMode(null); setDraft(""); }}
+                    className="cursor-pointer p-0.5 rounded hover:bg-acc/20 text-acc/70 hover:text-acc transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
+              <textarea
+                ref={textareaRef}
+                aria-label="Mensagem"
+                disabled={!canSend}
+                rows={1}
+                value={draft}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDraft(val);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+                  checkAutocomplete(val, e.target.selectionStart ?? val.length);
+                }}
+                onPaste={handlePaste}
+                onSelect={updateSelectionToolbar}
+                onMouseUp={updateSelectionToolbar}
+                onKeyUp={(e) => {
+                  if (e.shiftKey || e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
+                    updateSelectionToolbar();
                   }
+                }}
+                onKeyDown={(e) => {
+                  if (!canSend) return;
+
+                  // Navegação e seleção no autocomplete de menções / canais
+                  if (autocomplete?.isOpen && autocompleteItemsRef.current.length > 0) {
+                    const items = autocompleteItemsRef.current;
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setAutocompleteIndex((prev) => (prev + 1) % items.length);
+                      return;
+                    }
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setAutocompleteIndex((prev) => (prev - 1 + items.length) % items.length);
+                      return;
+                    }
+                    if (e.key === "Enter" || e.key === "Tab") {
+                      e.preventDefault();
+                      const selected = items[autocompleteIndex] ?? items[0];
+                      if (selected) {
+                        handleSelectAutocomplete(selected);
+                      }
+                      return;
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setAutocomplete(null);
+                      return;
+                    }
+                  }
+
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleSend();
+                  } else if (e.key === "Escape" && editMode) {
+                    e.preventDefault();
+                    setEditMode(null);
+                    setDraft("");
+                  } else if (e.key === "ArrowUp" && draft.trim() === "" && !editMode) {
+                    handleEditLastMessage();
+                  }
+                }}
+                placeholder={
+                  !canSend
+                    ? "🔒 Você não tem permissão para enviar mensagens neste canal."
+                    : editMode
+                      ? "Editando mensagem… (Esc para cancelar)"
+                      : PLACEHOLDER_TIPS[placeholderTip]
                 }
-              }}
-              placeholder={
-                !canSend
-                  ? "🔒 Você não tem permissão para enviar mensagens neste canal."
-                  : channelName
-                    ? `Conversar em #${channelName}`
-                    : "Mensagem"
-              }
-              className={`max-h-40 min-h-[24px] py-1 flex-1 resize-none bg-transparent text-sm text-txt outline-none placeholder:text-mut/50 leading-relaxed scrollbar-thin ${
-                !canSend ? "cursor-not-allowed" : ""
-              }`}
-              style={{ height: draft ? undefined : "24px" }}
-            />
+                className={`max-h-40 min-h-[24px] py-1 w-full resize-none bg-transparent text-sm text-txt outline-none placeholder:text-mut/50 leading-relaxed overflow-y-hidden transition-colors duration-300 ${
+                  !canSend ? "cursor-not-allowed" : editMode ? "placeholder:text-acc/60" : ""
+                }`}
+                style={{ height: draft ? undefined : "24px" }}
+              />
+
+              {/* Character Count Discreto */}
+              {draft.length > MAX_MESSAGE_LENGTH * 0.8 && (
+                <span className={`absolute bottom-1 right-1 text-[10px] font-mono transition-colors ${
+                  draft.length > MAX_MESSAGE_LENGTH ? "text-err font-semibold" : "text-mut/50"
+                }`}>
+                  {draft.length}/{MAX_MESSAGE_LENGTH}
+                </span>
+              )}
+            </div>
 
             {/* Controles do Lado Direito */}
             <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
@@ -647,7 +861,7 @@ export default function Composer({
                       : "cursor-pointer hover:bg-white/[0.06] text-mut hover:text-yellow-400 active:scale-95"
                   }`}
                 >
-                  <Smile size={18} />
+                  <Smiley size={18} />
                 </button>
               </EmojiPicker>
 
@@ -678,7 +892,7 @@ export default function Composer({
                 aria-label="Enviar"
                 className="cursor-pointer flex items-center gap-1.5 rounded-xl bg-acc px-3.5 py-2 text-xs font-semibold text-bg hover:bg-acc-press active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-acc transition-all shadow-md shadow-acc/15"
               >
-                <Send size={15} aria-hidden />
+                <PaperPlaneTilt size={15} aria-hidden />
                 <span>Enviar</span>
               </button>
             </div>

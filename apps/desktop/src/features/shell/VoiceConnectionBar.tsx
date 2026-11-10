@@ -4,8 +4,9 @@ import { useVoiceStore } from "@/stores/voiceStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { PhoneDisconnect, Broadcast, SpeakerHigh } from "@phosphor-icons/react";
+import { PhoneDisconnect, Broadcast, SpeakerHigh, Screencast, Sliders } from "@phosphor-icons/react";
 import { useVoiceActivity } from "@/features/voice/useVoiceActivity";
+import { usePushToTalk } from "@/features/voice/usePushToTalk";
 import { matrixService } from "@/lib/matrix/instance";
 
 export interface VoiceConnectionBarProps {
@@ -28,9 +29,13 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
   const activeVoiceGuildName = useVoiceStore((s) => s.activeVoiceGuildName);
   const pingMs = useVoiceStore((s) => s.pingMs);
   const disconnectVoice = useVoiceStore((s) => s.disconnectVoice);
+  const isScreenSharing = useVoiceStore((s) => s.isScreenSharing);
+  const inputMode = useSettingsStore((s) => s.inputMode);
+
+  usePushToTalk();
 
   useVoiceActivity({
-    enabled: isConnected && !isMuted && !isDeafened,
+    enabled: isConnected && !isMuted && !isDeafened && inputMode === "voice_activity",
     isMuted: isMuted || isDeafened,
     onSpeakingChange: (speaking) => {
       setSpeaking(speaking);
@@ -53,16 +58,44 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
     }
   };
 
+  const handleNavigateToVoice = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const voiceChannelId = useVoiceStore.getState().activeVoiceChannelId;
+    if (voiceChannelId) {
+      useUiStore.getState().setActiveChannel(voiceChannelId);
+      const syncGuilds = useSyncStore.getState().guilds;
+      for (const g of syncGuilds) {
+        const channels = useSyncStore.getState().channelsByGuild[g.guildId] ?? [];
+        if (channels.some((c) => c.channelId === voiceChannelId)) {
+          useUiStore.getState().setActiveGuild(g.guildId);
+          break;
+        }
+      }
+    }
+  };
+
+  const handleToggleScreenShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("echo:toggle-screenshare"));
+  };
+
   if (!isConnected && !isConnecting) {
     return null;
   }
 
+  const pingColor =
+    pingMs < 60
+      ? "text-online bg-online/10 border-online/20"
+      : pingMs < 120
+        ? "text-amber-400 bg-amber-400/10 border-amber-400/20"
+        : "text-err bg-err/10 border-err/20";
+
   return (
     <div
       data-testid="voice-connection-bar"
-      className="flex h-12 w-full shrink-0 items-center justify-between border-b border-bd-subtle bg-surf/95 px-3 backdrop-blur-md z-20 select-none animate-in fade-in-0 duration-150"
+      className="flex h-12 w-full shrink-0 items-center justify-between border-t border-b border-white/[0.08] bg-[#0c1017]/95 px-2.5 backdrop-blur-md z-20 select-none animate-in fade-in-0 slide-in-from-bottom-2 duration-150 shadow-sm"
     >
-      {/* Informações da Conexão (Arrastável para outro canal de voz) */}
+      {/* Informações da Conexão (Arrastável para outro canal de voz ou clique para navegar) */}
       <button
         type="button"
         draggable={true}
@@ -75,9 +108,9 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
           e.dataTransfer.setData("text/plain", myUserId || "me");
           e.dataTransfer.effectAllowed = "move";
         }}
-        onClick={onOpenVoiceSettings}
-        className="cursor-pointer group flex items-center gap-2.5 min-w-0 text-left transition-all cursor-grab active:cursor-grabbing"
-        title="Arrastar para outro canal de voz para transferir chamada, ou clicar para configurações"
+        onClick={handleNavigateToVoice}
+        className="cursor-pointer group flex items-center gap-2 min-w-0 text-left transition-all cursor-grab active:cursor-grabbing flex-1 mr-1"
+        title="Arrastar para transferir de canal, ou clicar para visualizar a chamada"
       >
         <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-online/10 text-online border border-online/20 shadow-xs">
           {isConnecting ? (
@@ -93,9 +126,9 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
         <div className="flex flex-col min-w-0 leading-tight">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold text-online group-hover:underline">
-              {isConnecting ? "Conectando à voz..." : "Voz Conectada"}
+              {isConnecting ? "Conectando..." : "Voz Conectada"}
             </span>
-            <span className="font-mono text-[10px] text-mut/70 bg-white/[0.04] px-1 py-0.2 rounded border border-bd-subtle">
+            <span className={`font-mono text-[9px] px-1 py-0.2 rounded border font-semibold ${pingColor}`}>
               {pingMs}ms
             </span>
           </div>
@@ -105,17 +138,45 @@ export default function VoiceConnectionBar({ onOpenVoiceSettings }: VoiceConnect
         </div>
       </button>
 
-      {/* Botão de Desconectar */}
-      <button
-        type="button"
-        data-testid="voice-disconnect-btn"
-        aria-label="Desconectar do canal de voz"
-        title="Desconectar da chamada de voz"
-        onClick={handleDisconnect}
-        className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-xl text-err/80 bg-err/10 hover:bg-err hover:text-bg active:scale-95 transition-all shadow-xs"
-      >
-        <PhoneDisconnect size={16} weight="bold" />
-      </button>
+      {/* Ações Rápidas: Tela e Desconectar */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={handleToggleScreenShare}
+          title={isScreenSharing ? "Parar compartilhamento de tela" : "Compartilhar tela"}
+          aria-label="Compartilhar tela"
+          className={`cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
+            isScreenSharing
+              ? "bg-acc/20 text-acc border border-acc/30 shadow-xs"
+              : "text-mut hover:text-txt hover:bg-white/[0.08]"
+          }`}
+        >
+          <Screencast size={15} weight={isScreenSharing ? "bold" : "regular"} />
+        </button>
+
+        {onOpenVoiceSettings && (
+          <button
+            type="button"
+            onClick={onOpenVoiceSettings}
+            title="Configurações de Voz e Vídeo"
+            aria-label="Configurações de Voz e Vídeo"
+            className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt hover:bg-white/[0.08] transition-all"
+          >
+            <Sliders size={15} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          data-testid="voice-disconnect-btn"
+          aria-label="Desconectar do canal de voz"
+          title="Desconectar da chamada de voz"
+          onClick={handleDisconnect}
+          className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-err/80 bg-err/10 hover:bg-err hover:text-bg active:scale-95 transition-all shadow-xs"
+        >
+          <PhoneDisconnect size={15} weight="bold" />
+        </button>
+      </div>
     </div>
   );
 }

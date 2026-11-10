@@ -2,7 +2,7 @@ import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useFriendsStore } from "@/stores/friendsStore";
-import { loadSession, useKeyring } from "@/lib/storage/keyring";
+import { loadSession } from "@/lib/storage/keyring";
 import { notifyNewMessage, notifyFriendRequest } from "@/lib/notifications/nativeNotify";
 import { matrixService } from "./instance";
 import { desktopCache, desktopConfig } from "@/lib/storage/desktopConfig";
@@ -371,17 +371,6 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
       if (stored?.accessToken) {
         sessionToken = stored.accessToken;
       }
-    } catch {
-      // ignore
-    }
-  }
-
-  // Fallback para keyring legado (se existir)
-  if (!sessionToken) {
-    try {
-      const storedSession = await useKeyring.getItem("echo:session");
-      const sessionJson = storedSession ? JSON.parse(storedSession) : null;
-      sessionToken = sessionJson?.accessToken ?? null;
     } catch {
       // ignore
     }

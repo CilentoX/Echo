@@ -10,6 +10,8 @@ import {
   CheckCircle,
   Gear,
   CircleNotch,
+  SpeakerHigh,
+  SpeakerSlash,
 } from "@phosphor-icons/react";
 import {
   Dialog,
@@ -19,7 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { isTauri } from "@/lib/updater";
-import type { ScreenShareConfig } from "@/stores/voiceStore";
+import type { ScreenShareConfig, ScreenShareQuality, ScreenShareContentHint } from "@/stores/voiceStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export interface ScreenShareModalProps {
   open: boolean;
@@ -76,10 +79,10 @@ const PRESET_WINDOWS: ShareSource[] = [
     resolution: "1920x1040",
   },
   {
-    id: "window-spotify",
-    name: "Spotify",
+    id: "window-obs",
+    name: "OBS Studio",
     type: "window",
-    subtitle: "Player de Música",
+    subtitle: "Transmissão / Gravação",
     resolution: "1280x720",
   },
 ];
@@ -96,10 +99,24 @@ export default function ScreenShareModal({
   const [selectedSource, setSelectedSource] = useState<ShareSource>(PRESET_SCREENS[0]!);
   const [resolution, setResolution] = useState<"720p" | "1080p">("1080p");
   const [fps, setFps] = useState<30 | 60>(60);
+  const [shareAudio, setShareAudio] = useState(true);
+  const [qualityPreset, setQualityPreset] = useState<ScreenShareQuality>("auto");
+  const [contentHint, setContentHint] = useState<ScreenShareContentHint>("auto");
 
   const displayedScreens = nativeScreens.length > 0 ? nativeScreens : PRESET_SCREENS;
   const displayedWindows = nativeWindows.length > 0 ? nativeWindows : PRESET_WINDOWS;
   const currentList = activeTab === "screens" ? displayedScreens : displayedWindows;
+
+  // Carrega preferências persistidas de screen share quando o modal abre
+  useEffect(() => {
+    if (!open) return;
+    const settings = useSettingsStore.getState();
+    setResolution(settings.screenShareResolution);
+    setFps(settings.screenShareFps);
+    setShareAudio(settings.screenShareAudio);
+    setQualityPreset(settings.screenShareQuality);
+    setContentHint(settings.screenShareContentHint);
+  }, [open]);
 
   // Busca fontes nativas reais quando o modal abre no Tauri
   useEffect(() => {
@@ -169,12 +186,24 @@ export default function ScreenShareModal({
 
   const handleConfirm = () => {
     if (!selectedSource) return;
+
+    // Persiste as preferências de screen share para a próxima sessão
+    const settings = useSettingsStore.getState();
+    settings.setScreenShareResolution(resolution);
+    settings.setScreenShareFps(fps);
+    settings.setScreenShareAudio(shareAudio);
+    settings.setScreenShareQuality(qualityPreset);
+    settings.setScreenShareContentHint(contentHint);
+
     onStartShare({
       sourceId: selectedSource.id,
       sourceName: selectedSource.name,
       sourceType: selectedSource.type,
       resolution,
       fps,
+      shareAudio,
+      qualityPreset,
+      contentHint,
     });
     onClose();
   };
@@ -183,7 +212,7 @@ export default function ScreenShareModal({
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full max-w-xl p-0 gap-0 border border-white/[0.08] bg-[#12161f] text-txt shadow-2xl rounded-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+        className="w-full max-w-3xl p-0 gap-0 border border-white/[0.08] bg-[#12161f] text-txt shadow-2xl rounded-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 max-h-[90vh] flex flex-col"
       >
         {/* Cabeçalho Superior Fixo */}
         <div className="flex items-center justify-between p-5 border-b border-white/[0.08] bg-black/20">
@@ -209,6 +238,9 @@ export default function ScreenShareModal({
             <X size={18} />
           </button>
         </div>
+
+        {/* Área rolável: abas + fontes + preview + configurações */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
 
         {/* Seletor de Abas Estilo Discord: Telas vs Janelas */}
         <div className="px-5 pt-4 pb-2">
@@ -309,7 +341,7 @@ export default function ScreenShareModal({
           </div>
         </div>
 
-        {/* Configurações de Qualidade de Transmissão (Padrão Discord) */}
+        {/* Configurações de Qualidade de Transmissão */}
         <div className="px-5 py-3.5 border-t border-white/[0.06] bg-black/10 space-y-3">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-mut uppercase tracking-wider">
             <Gear size={13} weight="bold" />
@@ -375,10 +407,112 @@ export default function ScreenShareModal({
               </div>
             </div>
           </div>
+
+          {/* Preset de Qualidade */}
+          <div>
+            <span className="text-[11px] text-mut/80 block mb-1.5 font-medium">Preset de Qualidade</span>
+            <div className="flex rounded-xl bg-white/[0.03] p-1 border border-white/[0.06] gap-1">
+              {([
+                ["auto", "Auto"],
+                ["low", "Baixa"],
+                ["medium", "Média"],
+                ["high", "Alta"],
+              ] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setQualityPreset(val)}
+                  className={`cursor-pointer flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all ${
+                    qualityPreset === val
+                      ? "bg-acc text-bg shadow-sm"
+                      : "text-mut hover:text-txt"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-mut/60 mt-1">
+              {qualityPreset === "auto" && "Ajusta automaticamente conforme a conexão"}
+              {qualityPreset === "low" && "720p30 · ~1.5 Mbps · ideal para conexões lentas"}
+              {qualityPreset === "medium" && "1080p30 · ~3 Mbps · bom equilíbrio"}
+              {qualityPreset === "high" && "1080p60 · ~4.5 Mbps · máxima qualidade"}
+            </p>
+          </div>
+
+          {/* Otimização de Conteúdo */}
+          <div>
+            <span className="text-[11px] text-mut/80 block mb-1.5 font-medium">Otimizar Para</span>
+            <div className="flex rounded-xl bg-white/[0.03] p-1 border border-white/[0.06] gap-1">
+              {([
+                ["auto", "Automático"],
+                ["detail", "Texto / Código"],
+                ["motion", "Vídeo / Jogo"],
+              ] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setContentHint(val)}
+                  className={`cursor-pointer flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all ${
+                    contentHint === val
+                      ? "bg-acc text-bg shadow-sm"
+                      : "text-mut hover:text-txt"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Toggle de Áudio do Sistema */}
+          <button
+            type="button"
+            onClick={() => setShareAudio((v) => !v)}
+            className={`cursor-pointer w-full flex items-center gap-3 rounded-xl border p-3 transition-all active:scale-[0.99] ${
+              shareAudio
+                ? "bg-acc/10 border-acc/40"
+                : "bg-white/[0.03] border-white/[0.06] hover:border-white/[0.12]"
+            }`}
+          >
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                shareAudio ? "bg-acc text-bg" : "bg-white/[0.06] text-mut"
+              }`}
+            >
+              {shareAudio ? (
+                <SpeakerHigh size={18} weight="bold" />
+              ) : (
+                <SpeakerSlash size={18} weight="bold" />
+              )}
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <span className={`text-xs font-semibold block ${shareAudio ? "text-txt" : "text-mut"}`}>
+                Compartilhar áudio do sistema
+              </span>
+              <span className="text-[10px] text-mut/70 block mt-0.5">
+                {shareAudio
+                  ? "Os participantes ouvirão o som do seu computador"
+                  : "Apenas o vídeo será transmitido"}
+              </span>
+            </div>
+            <div
+              className={`h-5 w-9 rounded-full p-0.5 transition-colors ${
+                shareAudio ? "bg-acc" : "bg-white/[0.1]"
+              }`}
+            >
+              <div
+                className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                  shareAudio ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </div>
+          </button>
         </div>
+        </div>{/* fim da área rolável */}
 
         {/* Rodapé de Ações */}
-        <div className="flex items-center gap-3 p-4 border-t border-white/[0.08] bg-black/20">
+        <div className="flex items-center gap-3 p-4 border-t border-white/[0.08] bg-black/20 shrink-0">
           <button
             type="button"
             onClick={onClose}

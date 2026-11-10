@@ -215,6 +215,10 @@ export class EchoApi {
   private accessToken: string;
   private userId: string | null = null;
   private readonly apiKey: string | undefined;
+  private refreshTokenValue: string | null = null;
+  private expiresAtMs: number | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private isRefreshing: boolean = false;
   private syncHandlers: {
     onStatus?: (status: string, error?: any) => void;
     onEvent?: (event: any) => void;
@@ -259,6 +263,92 @@ export class EchoApi {
   /** Recreate or restore client session. */
   restoreSession(session: Session): void {
     this.setAccessToken(session.accessToken ?? "", session.userId ?? undefined);
+    // Configura dados de refresh para renovação automática proativa
+    if (session.refreshToken) {
+      this.refreshTokenValue = session.refreshToken;
+    }
+    if (session.expiresAt) {
+      this.expiresAtMs = session.expiresAt;
+      this.scheduleProactiveRefresh();
+    }
+  }
+
+  /**
+   * Agenda um refresh preventivo do token antes da expiração.
+   * Renova 60 segundos antes do expiry ou em 80% do tempo de vida restante.
+   */
+  private scheduleProactiveRefresh(): void {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer);
+    if (!this.refreshTokenValue || !this.expiresAtMs) return;
+
+    const now = Date.now();
+    const remaining = this.expiresAtMs - now;
+    if (remaining <= 0) {
+      // Já expirou — tenta refresh imediato no próximo request via interceptor
+      return;
+    }
+
+    // Renova 60s antes ou em 80% do tempo restante, o que for menor
+    const refreshIn = Math.min(remaining - 60_000, remaining * 0.2);
+    const delay = Math.max(refreshIn, 5_000); // mínimo 5s para evitar loop
+
+    console.log(`[EchoApi] Refresh proativo agendado em ${Math.round(delay / 1000)}s`);
+    this.refreshTimer = setTimeout(() => {
+      void this.performAutoRefresh();
+    }, delay);
+  }
+
+  /**
+   * Executa o refresh automático do token e persiste a nova sessão.
+   */
+  private async performAutoRefresh(): Promise<boolean> {
+    if (this.isRefreshing || !this.refreshTokenValue) return false;
+    this.isRefreshing = true;
+
+    try {
+      console.log("[EchoApi] Iniciando refresh automático do token...");
+      const refreshed = await this.refreshSession(this.refreshTokenValue);
+      this.accessToken = refreshed.accessToken;
+      this.refreshTokenValue = refreshed.refreshToken ?? this.refreshTokenValue;
+      this.expiresAtMs = refreshed.expiresAt;
+      if (refreshed.userId) this.userId = refreshed.userId;
+
+      // Persiste a sessão renovada no keyring
+      await saveSession(refreshed).catch((err) => {
+        console.warn("[EchoApi] Falha ao persistir sessão renovada:", err);
+      });
+
+      console.log("[EchoApi] Token renovado com sucesso.");
+      this.scheduleProactiveRefresh();
+      return true;
+    } catch (err) {
+      console.error("[EchoApi] Refresh automático falhou:", err);
+      return false;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  /**
+   * Interceptor: quando uma requisição retorna 401, tenta refresh e refaz a chamada.
+   */
+  protected async requestWithAutoRetry(
+    method: string,
+    path: string,
+    body?: unknown,
+  ): Promise<Response> {
+    const url = new URL(path, this.baseUrl);
+    let res = await request(url.toString(), { method, body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken);
+
+    if (res.status === 401 && this.refreshTokenValue && !this.isRefreshing) {
+      console.warn(`[EchoApi] 401 em ${method} ${path} — tentando refresh...`);
+      const ok = await this.performAutoRefresh();
+      if (ok) {
+        res = await request(url.toString(), { method, body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken);
+      }
+    }
+
+    return res;
   }
 
   /** Returns the current user's MXID, or empty string if not known. */
@@ -266,35 +356,36 @@ export class EchoApi {
     return this.userId ?? "";
   }
 
-  /** GET request. */
+  /** GET request with auto-retry on 401. */
   protected async get(path: string, params?: URLSearchParams): Promise<Response> {
-    const url = new URL(path, this.baseUrl);
-    if (params) url.search = params.toString();
-    return request(url.toString(), { method: "GET" }, this.apiKey, this.accessToken);
+    let fullPath = path;
+    if (params) fullPath += `?${params.toString()}`;
+    return this.requestWithAutoRetry("GET", fullPath);
   }
 
-  /** POST request. */
+  /** POST request with auto-retry on 401. */
   public async post(path: string, body?: unknown, authToken?: string): Promise<Response> {
-    const url = new URL(path, this.baseUrl);
-    return request(url.toString(), { method: "POST", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken, authToken);
+    // Se um authToken explícito foi passado (ex: refresh), usa request direto sem retry
+    if (authToken) {
+      const url = new URL(path, this.baseUrl);
+      return request(url.toString(), { method: "POST", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken, authToken);
+    }
+    return this.requestWithAutoRetry("POST", path, body);
   }
 
-  /** PUT request. */
+  /** PUT request with auto-retry on 401. */
   public async put(path: string, body?: unknown): Promise<Response> {
-    const url = new URL(path, this.baseUrl);
-    return request(url.toString(), { method: "PUT", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken);
+    return this.requestWithAutoRetry("PUT", path, body);
   }
 
-  /** PATCH request. */
+  /** PATCH request with auto-retry on 401. */
   public async patch(path: string, body?: unknown): Promise<Response> {
-    const url = new URL(path, this.baseUrl);
-    return request(url.toString(), { method: "PATCH", body: body as BodyInit | null | undefined }, this.apiKey, this.accessToken);
+    return this.requestWithAutoRetry("PATCH", path, body);
   }
 
-  /** DELETE request. */
+  /** DELETE request with auto-retry on 401. */
   public async delete(path: string): Promise<Response> {
-    const url = new URL(path, this.baseUrl);
-    return request(url.toString(), { method: "DELETE" }, this.apiKey, this.accessToken);
+    return this.requestWithAutoRetry("DELETE", path);
   }
 
   // ── Authentication ──────────────────────────────────────────────
@@ -902,25 +993,40 @@ export class EchoApi {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", "chat");
-    const res = await fetch(`${this.baseUrl}/api/upload/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        ...(this.apiKey ? { "X-API-Key": this.apiKey } : {}),
-      },
-      body: formData,
-      credentials: "omit",
-    });
-    if (!res.ok) {
-      const errTxt = await res.text();
-      throw new Error(`Failed to upload media: ${res.status} ${errTxt}`);
+
+    // Timeout de 60s para evitar freeze infinito em uploads grandes
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+    try {
+      const res = await fetch(`${this.baseUrl}/api/upload/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          ...(this.apiKey ? { "X-API-Key": this.apiKey } : {}),
+        },
+        body: formData,
+        credentials: "omit",
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const errTxt = await res.text();
+        throw new Error(`Failed to upload media: ${res.status} ${errTxt}`);
+      }
+      const data = await res.json();
+      const rawUrl = data.mxcUri || data.contentUri || data.url || "";
+      if (rawUrl && rawUrl.startsWith("/")) {
+        return `${this.baseUrl}${rawUrl}`;
+      }
+      return rawUrl;
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        throw new Error("Upload expirou após 60 segundos. Tente com uma imagem menor.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    const data = await res.json();
-    const rawUrl = data.mxcUri || data.contentUri || data.url || "";
-    if (rawUrl && rawUrl.startsWith("/")) {
-      return `${this.baseUrl}${rawUrl}`;
-    }
-    return rawUrl;
   }
 
   /** Get the profile URL for a user (avatar/banner). */

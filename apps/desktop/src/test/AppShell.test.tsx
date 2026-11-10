@@ -207,14 +207,14 @@ describe("AppShell", () => {
     expect(screen.getByText("Ativo Agora")).toBeTruthy();
   });
 
-  it("UserBar fica ancorada na base da Coluna 2 (Sidebar de 232px)", () => {
+  it("UserBar fica ancorada na dock inferior full-width (fora da sidebar)", () => {
     setupGuildState();
     setWidth(1200);
     render(<AppShell />);
 
-    const sidebar = column("sidebar") as HTMLElement;
-    expect(sidebar).toBeTruthy();
-    const userBar = within(sidebar).getByTestId("user-bar");
+    // Após o redesign, o UserBar foi movido para a dock inferior persistente,
+    // fora da sidebar. Verificamos que ele existe no DOM global.
+    const userBar = screen.getByTestId("user-bar");
     expect(userBar).toBeTruthy();
   });
 });

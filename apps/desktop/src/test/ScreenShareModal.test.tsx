@@ -49,7 +49,7 @@ describe("ScreenShareModal (Seleção Nativa Própria de Telas e Janelas)", () =
 
     expect(screen.getByText("Visual Studio Code")).toBeTruthy();
     expect(screen.getByText("Google Chrome")).toBeTruthy();
-    expect(screen.getByText("Spotify")).toBeTruthy();
+    expect(screen.getByText("OBS Studio")).toBeTruthy();
   });
 
   it("permite selecionar qualidade de transmissão (resolução e fps) e disparar transmissão", () => {
@@ -85,6 +85,9 @@ describe("ScreenShareModal (Seleção Nativa Própria de Telas e Janelas)", () =
       sourceType: "window",
       resolution: "720p",
       fps: 30,
+      shareAudio: true,
+      qualityPreset: "auto",
+      contentHint: "auto",
     });
     expect(handleClose).toHaveBeenCalled();
   });

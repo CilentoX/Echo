@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { renderMarkdown } from "@/lib/markdown";
 import { useSyncStore } from "@/stores/syncStore";
+import { useUiStore } from "@/stores/uiStore";
 
 export interface MessageBodyProps {
   /** Texto cru da mensagem (sem markdown processado). */
@@ -54,6 +55,19 @@ export default function MessageBody({
     return null;
   }
 
+  const handleClick = useCallback((e: React.MouseEvent<HTMLParagraphElement>) => {
+    const target = (e.target as HTMLElement).closest(".mention-pill, .channel-pill");
+    if (!target) return;
+    const channelId = target.getAttribute("data-channel-id");
+    const mentionId = target.getAttribute("data-mention-id");
+    if (channelId) {
+      useUiStore.getState().setActiveChannel(channelId);
+    } else if (mentionId) {
+      useUiStore.getState().setMemberProfileUserId(mentionId);
+      useUiStore.getState().setProfileOpen(true, "profile");
+    }
+  }, []);
+
   const html = renderMarkdown(body, customEmojiMap);
   if (!html.trim()) {
     return null;
@@ -62,6 +76,7 @@ export default function MessageBody({
   return (
     <p
       data-testid="message-body"
+      onClick={handleClick}
       className={`whitespace-pre-wrap break-words text-sm ${pending ? "opacity-70" : ""}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />

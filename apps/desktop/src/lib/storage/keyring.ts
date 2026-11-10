@@ -60,37 +60,3 @@ export async function clearSession(): Promise<void> {
   }
 }
 
-/** Armazena um valor no keyring (interface compatível com keyv/Storage). */
-export async function setItem(key: string, value: string): Promise<void> {
-  try {
-    await invoke("set_item", { key, value });
-  } catch {
-    // Tauri command not available
-  }
-}
-
-/** Recupera um valor do keyring. */
-export async function getItem(key: string): Promise<string | null> {
-  try {
-    return await invoke("get_item", { key });
-  } catch {
-    // Tauri command not available (e.g. running in browser/dev without Tauri)
-    return null;
-  }
-}
-
-/** Remove um item do keyring. */
-export async function removeItem(key: string): Promise<void> {
-  try {
-    await invoke("remove_item", { key });
-  } catch {
-    // Tauri command not available
-  }
-}
-
-/** Interface compatível com keyv/Storage para compatibilidade. */
-export const useKeyring = {
-  setItem,
-  getItem,
-  removeItem,
-};

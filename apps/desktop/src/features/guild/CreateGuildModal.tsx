@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Plus, Camera, Trash, Sparkle } from "@phosphor-icons/react";
 import ImageEditor from "@/components/media/ImageEditor";
 import { useEchoApi } from "@/lib/api/echoApi";
@@ -58,6 +58,16 @@ export default function CreateGuildModal({
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const echoApi = useEchoApi();
+
+  // Revoke blob URLs on unmount or when modal closes
+  useEffect(() => {
+    return () => {
+      if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
+      if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
+      if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
+      if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+    };
+  }, [rawIconUrl, rawBannerUrl, iconPreview, bannerPreview]);
 
   const handleIconSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

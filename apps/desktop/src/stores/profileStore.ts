@@ -30,6 +30,8 @@ export interface ProfileState {
   links: ProfileLink[];       // links sociais (GitHub, LinkedIn, etc.)
   presence?: "online" | "offline" | "unavailable" | "idle" | "dnd";
   customStatus?: CustomStatus | null;
+  /** Indica se o perfil está sendo carregado da API. */
+  isLoading: boolean;
 
   setDisplayName(name: string): void;
   setUsername(username: string): void;
@@ -64,6 +66,7 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
   role: null,
   joinedAt: null,
   links: [],
+  isLoading: true,
   presence: "online",
   customStatus: (() => {
     try {
@@ -116,7 +119,22 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
     else localStorage.removeItem("echo:appwriteBannerUrl");
   },
   loadProfile: async () => {
+    set({ isLoading: true });
     try {
+      // Carrega dados em cache do localStorage como fallback imediato para evitar flash do MXID
+      try {
+        const cachedDisplayName = localStorage.getItem("echo:cachedDisplayName");
+        const cachedUsername = localStorage.getItem("echo:cachedUsername");
+        const cachedNickname = localStorage.getItem("echo:cachedNickname");
+        if (cachedDisplayName || cachedUsername) {
+          set({
+            displayName: cachedDisplayName || "",
+            username: cachedUsername || "",
+            nickname: cachedNickname || null,
+          });
+        }
+      } catch {}
+
       // Garante que há token de acesso antes de disparar consulta à API
       let activeToken = matrixService.getAccessToken?.() ?? (matrixService as any).accessToken;
       if (!activeToken) {
@@ -128,6 +146,7 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
       }
       if (!activeToken) {
         // Usuário ainda não autenticado; pula consulta remota sem gerar 401
+        set({ isLoading: false });
         return;
       }
 
@@ -180,8 +199,17 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
           bio: userProfile?.bio ?? null,
         });
       } catch {}
+
+      // Persiste displayName/username/nickname no localStorage como fallback imediato
+      try {
+        if (displayName) localStorage.setItem("echo:cachedDisplayName", displayName);
+        if (resolvedUsername) localStorage.setItem("echo:cachedUsername", resolvedUsername);
+        if (nickname) localStorage.setItem("echo:cachedNickname", nickname);
+      } catch {}
     } catch {
       // falha silenciosa: perfil será preenchido à medida que for usado
+    } finally {
+      set({ isLoading: false });
     }
   },
   setLinks: (links) => set({ links: [...links] }),

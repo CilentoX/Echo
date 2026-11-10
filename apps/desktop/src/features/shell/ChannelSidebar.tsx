@@ -1,27 +1,17 @@
 import {
-  Camera,
-  Hash,
-  MagnifyingGlass,
-  Gear,
-  Plus,
-  Sparkle,
-  SpeakerHigh,
-  UserPlus,
-  X,
-  Lock,
+  BellSlash,
+  BellSimple,
   CaretDown,
   CaretRight,
-  Bell,
-  BellSlash,
-  FolderSimplePlus,
-  Trash,
   Copy,
-  Check,
-  Pencil,
-  SignOut,
-  BellSimple,
   DotsSixVertical,
+  Gear,
+  Hash,
+  Lock,
+  Plus,
+  SpeakerHigh,
   Television,
+  Trash,
 } from "@phosphor-icons/react";
 import { useMemo, useState, useEffect, useRef } from "react";
 import EmptyState from "./EmptyState";
@@ -39,8 +29,6 @@ import GuildSettingsModal from "@/features/guild/GuildSettingsModal";
 import ChannelSettingsModal from "@/features/guild/ChannelSettingsModal";
 import InviteModal from "@/features/guild/InviteModal";
 import ChannelMutePopover from "@/features/channels/ChannelMutePopover";
-import MxcImage from "@/components/media/MxcImage";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -52,12 +40,16 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from "@/components/ui/context-menu";
-import MemberDropdownContent from "./MemberDropdownContent";
-import MemberContextMenu from "./MemberContextMenu";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import type { ChannelSummary } from "@/lib/matrix/types";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
 import { useEchoApi } from "@/lib/api/echoApi";
+import {
+  ChannelSidebarHeader,
+  GuildBannerHeader,
+  ChannelSearchInput,
+  VoiceParticipantItem,
+} from "./sidebar";
 
 export interface ChannelSidebarProps {
   /** `overlay` floats above the chat below 900px; `static` is the docked column. */
@@ -96,8 +88,6 @@ export default function ChannelSidebar({
   const [openVoiceMemberId, setOpenVoiceMemberId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [guildVoiceState, setGuildVoiceState] = useState<Record<string, any[]>>({});
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const [headerCopied, setHeaderCopied] = useState(false);
 
   const guildCategories = useSyncStore(
     useMemo(() => selectGuildCategories(activeGuildId ?? ""), [activeGuildId]),
@@ -846,461 +836,68 @@ export default function ChannelSidebar({
           : "h-full"
       }`}
     >
-      {/* Top Header Bar da Guilda (Ergonomia Discord, texto nítido em text-txt, botões táteis) */}
-      {activeGuild ? (
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <header className="flex h-12 w-full shrink-0 items-center justify-between border-b border-bd-subtle bg-surf px-3 select-none z-10 cursor-context-menu">
-              <div className="flex items-center gap-2 min-w-0 pr-1">
-                {activeGuild.avatarUrl ? (
-                  <MxcImage
-                    mxcUrl={activeGuild.avatarUrl}
-                    alt={`Ícone de ${activeGuild.name}`}
-                    className="h-7 w-7 rounded-lg object-cover ring-1 ring-bd-subtle shadow-sm shrink-0"
-                    width={28}
-                    height={28}
-                  />
-                ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-acc text-bg font-display font-bold text-xs shadow-sm shrink-0">
-                    {activeGuild.name.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-                <h1 className="truncate font-display text-sm font-bold text-txt">
-                  {activeGuild.name}
-                </h1>
-                {isGuildMuted(activeGuild.guildId) && (
-                  <span title="Servidor Silenciado">
-                    <BellSlash size={13} className="shrink-0 text-amber-400" />
-                  </span>
-                )}
-              </div>
+      {/* Top Header Bar da Guilda */}
+      <ChannelSidebarHeader
+        activeGuild={activeGuild}
+        canManageGuild={canManageGuild}
+        canManageChannels={canManageChannels}
+        isGuildOwner={isGuildOwner}
+        overlay={overlay}
+        onClose={onClose}
+        onOpenCreateCategory={() => setCreateCategoryOpen(true)}
+        onOpenCreateChannel={() => {
+          setTargetCategoryForChannel(undefined);
+          setTargetTypeForChannel("text");
+          setCreateChannelOpen(true);
+        }}
+        onOpenInvite={() => setInviteOpen(true)}
+        onOpenSettings={() => setEditGuildOpen(true)}
+        isGuildMuted={isGuildMuted}
+        muteGuild={muteGuild}
+        unmuteGuild={unmuteGuild}
+        onDeleteGuild={async () => {
+          if (!activeGuild) return;
+          if (!window.confirm(`Atenção: Tem certeza absoluta que deseja excluir o servidor "${activeGuild.name}"?`)) return;
+          try {
+            await matrixService.deleteGuild(activeGuild.guildId);
+            useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
+            setActiveGuild("home");
+            setActiveChannel(null);
+          } catch (err) {
+            console.error("Falha ao excluir o servidor:", err);
+          }
+        }}
+        onLeaveGuild={async () => {
+          if (!activeGuild) return;
+          if (!window.confirm(`Tem certeza que deseja sair do servidor "${activeGuild.name}"?`)) return;
+          try {
+            await matrixService.leaveGuild(activeGuild.guildId);
+            useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
+            setActiveGuild("home");
+            setActiveChannel(null);
+          } catch (err) {
+            console.error("Falha ao sair do servidor:", err);
+          }
+        }}
+      />
 
-              <div className="flex items-center gap-1 shrink-0">
-                {canManageChannels && !overlay && (
-                  <button
-                    type="button"
-                    aria-label="Criar categoria"
-                    title="Criar categoria"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCreateCategoryOpen(true);
-                    }}
-                    className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                  >
-                    <FolderSimplePlus size={15} aria-hidden />
-                  </button>
-                )}
-                {!overlay && canManageChannels && (
-                  <button
-                    type="button"
-                    aria-label="Criar canal"
-                    title="Criar canal"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTargetCategoryForChannel(undefined);
-                      setTargetTypeForChannel("text");
-                      setCreateChannelOpen(true);
-                    }}
-                    className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                  >
-                    <Plus size={15} aria-hidden />
-                  </button>
-                )}
-                <Popover open={headerMenuOpen} onOpenChange={setHeaderMenuOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Opções do servidor"
-                      title="Opções do servidor"
-                      className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                    >
-                      <CaretDown
-                        size={14}
-                        weight="bold"
-                        className={`transition-transform duration-200 ${
-                          headerMenuOpen ? "rotate-180 text-txt" : ""
-                        }`}
-                      />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
-                    sideOffset={8}
-                    className="w-56 p-1.5 rounded-2xl border border-white/[0.08] bg-[#12161f]/95 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 z-50"
-                  >
-                    <div className="px-2.5 py-1.5 font-semibold text-xs text-txt truncate border-b border-white/[0.06] mb-1">
-                      {activeGuild.name}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHeaderMenuOpen(false);
-                        setInviteOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-acc font-semibold hover:bg-acc/10 hover:text-acc-press transition-all cursor-pointer text-left"
-                    >
-                      <UserPlus size={15} weight="bold" />
-                      <span>Convidar Pessoas</span>
-                    </button>
-
-                    {(canManageGuild || canManageChannels) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setHeaderMenuOpen(false);
-                          setEditGuildOpen(true);
-                        }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                      >
-                        <Gear size={15} weight="bold" />
-                        <span>Configurações do Servidor</span>
-                      </button>
-                    )}
-
-                    {canManageChannels && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHeaderMenuOpen(false);
-                            setTargetCategoryForChannel(undefined);
-                            setTargetTypeForChannel("text");
-                            setCreateChannelOpen(true);
-                          }}
-                          className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                        >
-                          <Plus size={15} weight="bold" />
-                          <span>Criar Canal</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHeaderMenuOpen(false);
-                            setCreateCategoryOpen(true);
-                          }}
-                          className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                        >
-                          <FolderSimplePlus size={15} weight="bold" />
-                          <span>Criar Categoria</span>
-                        </button>
-                      </>
-                    )}
-
-                    <div className="h-[1px] bg-white/[0.06] my-1" />
-
-                    {/* Silenciar Servidor */}
-                    {isGuildMuted(activeGuild.guildId) ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setHeaderMenuOpen(false);
-                          unmuteGuild(activeGuild.guildId);
-                        }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-online hover:bg-online/10 transition-all cursor-pointer text-left"
-                      >
-                        <Bell size={15} weight="bold" />
-                        <span>Reativar Notificações</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setHeaderMenuOpen(false);
-                          muteGuild(activeGuild.guildId);
-                        }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                      >
-                        <BellSlash size={15} weight="bold" />
-                        <span>Silenciar Servidor</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHeaderMenuOpen(false);
-                        useUiStore.getState().setProfileOpen(true, "profile");
-                      }}
-                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                    >
-                      <Pencil size={15} weight="bold" />
-                      <span>Editar Perfil no Servidor</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(activeGuild.guildId);
-                          setHeaderCopied(true);
-                          setTimeout(() => setHeaderCopied(false), 2000);
-                        } catch {}
-                      }}
-                      className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-mut hover:bg-white/[0.08] hover:text-txt transition-all cursor-pointer text-left"
-                    >
-                      {headerCopied ? (
-                        <>
-                          <Check size={15} weight="bold" className="text-online" />
-                          <span className="text-online font-medium">ID Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={15} weight="bold" />
-                          <span>Copiar ID do Servidor</span>
-                        </>
-                      )}
-                    </button>
-
-                    <div className="h-[1px] bg-white/[0.06] my-1" />
-
-                    {isGuildOwner ? (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setHeaderMenuOpen(false);
-                          if (!window.confirm(`Atenção: Tem certeza absoluta que deseja excluir o servidor "${activeGuild.name}"?`)) return;
-                          try {
-                            await matrixService.deleteGuild(activeGuild.guildId);
-                            useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
-                            setActiveGuild("home");
-                            setActiveChannel(null);
-                          } catch (err) {
-                            console.error("Falha ao excluir o servidor:", err);
-                          }
-                        }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-err hover:bg-err/10 transition-all cursor-pointer font-medium text-left"
-                      >
-                        <Trash size={15} weight="bold" />
-                        <span>Excluir Servidor</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setHeaderMenuOpen(false);
-                          if (!window.confirm(`Tem certeza que deseja sair do servidor "${activeGuild.name}"?`)) return;
-                          try {
-                            await matrixService.leaveGuild(activeGuild.guildId);
-                            useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
-                            setActiveGuild("home");
-                            setActiveChannel(null);
-                          } catch (err) {
-                            console.error("Falha ao sair do servidor:", err);
-                          }
-                        }}
-                        className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs text-err hover:bg-err/10 transition-all cursor-pointer font-medium text-left"
-                      >
-                        <SignOut size={15} weight="bold" />
-                        <span>Sair do Servidor</span>
-                      </button>
-                    )}
-                  </PopoverContent>
-                </Popover>
-                {overlay && (
-                  <button
-                    type="button"
-                    aria-label="Fechar canais"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClose?.();
-                    }}
-                    className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg text-mut hover:text-txt dark:hover:bg-white/[0.08] hover:bg-black/[0.06] transition-all active:scale-95"
-                  >
-                    <X size={15} />
-                  </button>
-                )}
-              </div>
-            </header>
-          </ContextMenuTrigger>
-          <ContextMenuContent className="w-56">
-            <ContextMenuLabel className="truncate text-txt font-semibold">{activeGuild.name}</ContextMenuLabel>
-            <ContextMenuSeparator />
-            <ContextMenuItem onClick={() => setInviteOpen(true)}>
-              <UserPlus size={15} weight="bold" className="text-acc" />
-              <span>Convidar Pessoas</span>
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => setEditGuildOpen(true)}>
-              <Gear size={15} weight="bold" />
-              <span>Configurações do Servidor</span>
-            </ContextMenuItem>
-            {canManageChannels && (
-              <>
-                <ContextMenuItem
-                  onClick={() => {
-                    setTargetCategoryForChannel(undefined);
-                    setTargetTypeForChannel("text");
-                    setCreateChannelOpen(true);
-                  }}
-                >
-                  <Plus size={15} weight="bold" />
-                  <span>Criar Canal</span>
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => setCreateCategoryOpen(true)}>
-                  <FolderSimplePlus size={15} weight="bold" />
-                  <span>Criar Categoria</span>
-                </ContextMenuItem>
-              </>
-            )}
-            <ContextMenuSeparator />
-            {isGuildMuted(activeGuild.guildId) ? (
-              <ContextMenuItem
-                onClick={() => unmuteGuild(activeGuild.guildId)}
-                className="flex items-center gap-2 cursor-pointer text-online focus:text-online"
-              >
-                <Bell size={15} weight="bold" />
-                <span>Reativar Notificações</span>
-              </ContextMenuItem>
-            ) : (
-              <ContextMenuSub>
-                <ContextMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                  <BellSlash size={15} weight="bold" className="text-mut" />
-                  <span>Silenciar Servidor</span>
-                </ContextMenuSubTrigger>
-                <ContextMenuSubContent className="w-44">
-                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 15)}>Por 15 minutos</ContextMenuItem>
-                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 60)}>Por 1 hora</ContextMenuItem>
-                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 480)}>Por 8 horas</ContextMenuItem>
-                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId, 1440)}>Por 24 horas</ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onClick={() => muteGuild(activeGuild.guildId)}>Até eu reativar</ContextMenuItem>
-                </ContextMenuSubContent>
-              </ContextMenuSub>
-            )}
-            <ContextMenuItem onClick={() => useUiStore.getState().setProfileOpen(true, "profile")}>
-              <Pencil size={15} weight="bold" />
-              <span>Editar Perfil no Servidor</span>
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => navigator.clipboard.writeText(activeGuild.guildId)}>
-              <Copy size={15} weight="bold" />
-              <span>Copiar ID do Servidor</span>
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            {isGuildOwner ? (
-              <ContextMenuItem
-                destructive
-                onClick={async () => {
-                  if (!window.confirm(`Atenção: Tem certeza absoluta que deseja excluir o servidor "${activeGuild.name}"?`)) return;
-                  try {
-                    await matrixService.deleteGuild(activeGuild.guildId);
-                    useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
-                    setActiveGuild("home");
-                    setActiveChannel(null);
-                  } catch (err) {
-                    console.error("Falha ao excluir o servidor:", err);
-                  }
-                }}
-                className="flex items-center gap-2 cursor-pointer text-err focus:text-err"
-              >
-                <Trash size={15} weight="bold" />
-                <span>Excluir Servidor</span>
-              </ContextMenuItem>
-            ) : (
-              <ContextMenuItem
-                destructive
-                onClick={async () => {
-                  if (!window.confirm(`Tem certeza que deseja sair do servidor "${activeGuild.name}"?`)) return;
-                  try {
-                    await matrixService.leaveGuild(activeGuild.guildId);
-                    useSyncStore.getState().setGuilds(guilds.filter((g) => g.guildId !== activeGuild.guildId));
-                    setActiveGuild("home");
-                    setActiveChannel(null);
-                  } catch (err) {
-                    console.error("Falha ao sair do servidor:", err);
-                  }
-                }}
-                className="flex items-center gap-2 cursor-pointer text-err focus:text-err"
-              >
-                <SignOut size={15} weight="bold" />
-                <span>Sair do Servidor</span>
-              </ContextMenuItem>
-            )}
-          </ContextMenuContent>
-        </ContextMenu>
-      ) : (
-        <header className="flex h-12 items-center justify-between border-b border-bd-subtle px-4 group">
-          <h1 className="truncate font-display text-sm font-semibold text-txt">
-            Echo
-          </h1>
-        </header>
-      )}
-
-      {/* Banner Card da Guilda (Abaixo do Header, com imagem ou cover generativo adaptativo) */}
+      {/* Banner Card da Guilda */}
       {activeGuild && (
-        <div className="px-2.5 pt-2.5 pb-1 shrink-0">
-          {activeGuild.bannerUrl ? (
-            <div className="relative h-28 w-full overflow-hidden rounded-2xl border border-bd-subtle shadow-sm group/banner select-none">
-              <MxcImage
-                mxcUrl={activeGuild.bannerUrl}
-                alt={activeGuild.name}
-                className="h-full w-full object-cover group-hover/banner:scale-105 transition-transform duration-500"
-                width={212}
-                height={112}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-              <button
-                type="button"
-                onClick={() => setEditGuildOpen(true)}
-                title="Alterar banner"
-                aria-label="Alterar banner"
-                className="cursor-pointer absolute top-2 right-2 rounded-lg p-1.5 text-white/90 bg-black/40 hover:bg-black/60 backdrop-blur-md opacity-0 group-hover/banner:opacity-100 transition-all border border-white/10"
-              >
-                <Camera size={13} />
-              </button>
-            </div>
-          ) : (
-            <div
-              data-testid="guild-banner-fallback"
-              className={`relative h-24 w-full overflow-hidden rounded-2xl border border-bd-subtle shadow-sm select-none group/banner transition-colors duration-300 ${bannerFallbackGradient}`}
-            >
-              {/* Glows sutis e dinâmicos */}
-              <div className="absolute -top-6 -right-6 h-20 w-20 rounded-full bg-acc/15 blur-xl pointer-events-none" />
-              <div className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-acc/10 blur-xl pointer-events-none" />
-
-              {/* Marca d'água sutil com a inicial da guilda */}
-              <div className="absolute right-3 -bottom-2 font-display text-6xl font-black text-txt/[0.05] select-none pointer-events-none tracking-tighter">
-                {activeGuild.name.slice(0, 1).toUpperCase()}
-              </div>
-
-              {/* Badge elegante de Comunidade */}
-              <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-surf/80 dark:bg-black/30 backdrop-blur-md border border-bd-subtle px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-mut shadow-xs">
-                <Sparkle size={10} className="text-acc" weight="fill" />
-                <span>Comunidade</span>
-              </div>
-
-              {/* Atalho rápido no hover para personalizar banner */}
-              <button
-                type="button"
-                onClick={() => setEditGuildOpen(true)}
-                title="Personalizar banner da guilda"
-                aria-label="Personalizar banner da guilda"
-                className="cursor-pointer absolute top-2 right-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-mut hover:text-txt bg-surf/80 dark:bg-black/40 hover:bg-surf backdrop-blur-md border border-bd-subtle opacity-0 group-hover/banner:opacity-100 transition-all"
-              >
-                <Camera size={12} />
-                <span>Banner</span>
-              </button>
-            </div>
-          )}
-        </div>
+        <GuildBannerHeader
+          activeGuild={activeGuild}
+          bannerFallbackGradient={bannerFallbackGradient}
+          onOpenSettings={() => setEditGuildOpen(true)}
+        />
       )}
 
       {guilds.length === 0 ? (
         <EmptyState />
       ) : (
         <>
-          <div className="border-b border-bd-subtle px-3 py-2">
-            <div className="flex items-center gap-2 rounded-xl dark:bg-white/[0.03] bg-card-bg/70 border border-bd-subtle px-2.5 py-1.5 text-mut/70 group focus-within:bg-card-bg focus-within:border-acc/40 transition-all">
-              <MagnifyingGlass size={13} aria-hidden />
-              <input
-                type="search"
-                placeholder="Buscar canais"
-                aria-label="Buscar canais"
-                value={channelSearch}
-                onChange={(e) => setChannelSearch(e.target.value)}
-                className="w-full bg-transparent text-xs text-txt outline-none placeholder:text-mut/50 group-focus-within:text-txt"
-              />
-            </div>
-          </div>
+          <ChannelSearchInput
+            value={channelSearch}
+            onChange={setChannelSearch}
+          />
 
           <div
             className="flex-1 overflow-y-auto px-2 py-3 space-y-4"
@@ -2140,170 +1737,27 @@ export default function ChannelSidebar({
                                   if (!channelParticipants || channelParticipants.length === 0) return null;
                                   return (
                                     <ul className="ml-4 mt-1 mb-2 space-y-1 animate-in fade-in-0 duration-150">
-                                      {channelParticipants.map((p) => {
-                                      const isMe =
-                                        p.userId === "me" ||
-                                        p.userId === myUserId ||
-                                        (myUserId ? p.userId === myUserId : false);
-                                      const effectiveUserId = p.userId === "me" ? (myUserId || "") : p.userId;
-                                      const effectiveNick = guildProfiles?.[effectiveUserId]?.nickname || p.username;
-                                      const effectiveAvatar =
-                                        p.avatarUrl ||
-                                        guildProfiles?.[effectiveUserId]?.avatarUrl ||
-                                        (isMe ? (myAppwriteAvatarUrl || profileAvatarUrl) : null);
-                                      const isParticipantMuted = Boolean(
-                                        p.isMuted ||
-                                        p.isDeafened ||
-                                        (isMe && (!microphoneEnabled || !headphonesEnabled))
-                                      );
-                                      const isThisActiveVoiceChannel = channel.channelId === activeVoiceChannelId;
-                                      const participantSpeaking =
-                                        isThisActiveVoiceChannel &&
-                                        !isParticipantMuted &&
-                                        (p.isSpeaking ||
-                                          speakingMembers.includes(p.userId) ||
-                                          (isMe &&
-                                            connected &&
-                                            isVoiceConnected &&
-                                            (isSpeaking ||
-                                              speakingMembers.includes("me") ||
-                                              (effectiveUserId ? speakingMembers.includes(effectiveUserId) : false))));
-
-                                      return (
-                                        <MemberContextMenu
+                                      {channelParticipants.map((p) => (
+                                        <VoiceParticipantItem
                                           key={p.userId}
-                                          userId={effectiveUserId || p.userId}
-                                          displayName={effectiveNick}
-                                          avatarUrl={effectiveAvatar}
-                                          onOpenProfile={() => setOpenVoiceMemberId(p.userId)}
-                                        >
-                                          <li
-                                            className="relative cursor-grab active:cursor-grabbing"
-                                            draggable={true}
-                                            onDragStart={(e) => {
-                                              e.stopPropagation();
-                                              const payload = JSON.stringify({ userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe });
-                                              e.dataTransfer.setData("application/x-echo-voice-member", payload);
-                                              e.dataTransfer.setData("text/plain", effectiveUserId || p.userId || "me");
-                                              e.dataTransfer.effectAllowed = "move";
-                                              (window as any).__ECHO_ACTIVE_DRAG__ = {
-                                                type: "voice-member",
-                                                id: effectiveUserId || p.userId || "me",
-                                                data: { userId: effectiveUserId || p.userId || "me", username: effectiveNick, isMe },
-                                              };
-                                            }}
-                                            onDragEnd={() => {
-                                              (window as any).__ECHO_ACTIVE_DRAG__ = null;
-                                            }}
-                                          >
-                                            <Popover
-                                              open={openVoiceMemberId === p.userId}
-                                              onOpenChange={(open) => setOpenVoiceMemberId(open ? p.userId : null)}
-                                            >
-                                              <PopoverTrigger asChild>
-                                                <div
-                                                  role="button"
-                                                  tabIndex={0}
-                                                  onKeyDown={(e) => {
-                                                    if (e.key === "Enter" || e.key === " ") {
-                                                      e.preventDefault();
-                                                      setOpenVoiceMemberId(openVoiceMemberId === p.userId ? null : p.userId);
-                                                    }
-                                                  }}
-                                                  aria-label={`Perfil de ${effectiveNick}`}
-                                                  className={`cursor-pointer flex w-full items-center gap-1.5 py-1 px-2 rounded-xl text-xs transition-all active:scale-[0.98] group ${
-                                                    openVoiceMemberId === p.userId
-                                                      ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt"
-                                                      : participantSpeaking
-                                                        ? "bg-online/10 text-online border border-online/20"
-                                                        : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
-                                                  }`}
-                                                >
-                                                  <DotsSixVertical
-                                                    size={11}
-                                                    className="opacity-0 group-hover:opacity-60 cursor-grab active:cursor-grabbing text-mut shrink-0 -ml-1 mr-0.5"
-                                                  />
-                                                  <div className="relative h-5 w-5 shrink-0">
-                                                    {effectiveAvatar ? (
-                                                      <MxcImage
-                                                        mxcUrl={effectiveAvatar}
-                                                        alt={effectiveNick}
-                                                        className={`h-5 w-5 rounded-full object-cover transition-all ${
-                                                          participantSpeaking
-                                                            ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
-                                                            : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
-                                                        }`}
-                                                        width={20}
-                                                        height={20}
-                                                      />
-                                                    ) : (
-                                                      <div
-                                                        className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-acc text-bg shadow-sm transition-all ${
-                                                          participantSpeaking
-                                                            ? "ring-2 ring-online shadow-sm shadow-online/60 animate-pulse"
-                                                            : "ring-1 ring-bd-subtle group-hover:ring-acc/40"
-                                                        }`}
-                                                      >
-                                                        {effectiveNick.charAt(0).toUpperCase()}
-                                                      </div>
-                                                    )}
-                                                    {p.isMuted && (
-                                                      <span
-                                                        className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-err ring-1 ring-surf"
-                                                        title="Mutado"
-                                                      />
-                                                    )}
-                                                  </div>
-
-                                                  <span
-                                                    className={`text-[11px] truncate flex-1 text-left ${
-                                                      participantSpeaking ? "text-online font-semibold" : "text-txt/90"
-                                                    }`}
-                                                  >
-                                                    {effectiveNick}
-                                                  </span>
-
-                                                  {/* Badge de Live/Transmissão de Tela */}
-                                                  {p.isScreenSharing && (
-                                                    <span
-                                                      className="flex items-center gap-0.5 rounded bg-err/15 px-1.5 py-0.5 text-[9px] font-bold text-err shrink-0 tracking-wider shadow-xs animate-pulse"
-                                                      title="Transmitindo tela"
-                                                    >
-                                                      <Television size={10} weight="fill" />
-                                                      AO VIVO
-                                                    </span>
-                                                  )}
-
-                                                  {/* Equalizer Waveform quando Falando */}
-                                                  {participantSpeaking && (
-                                                    <div className="flex items-center gap-0.5 shrink-0" title="Falando...">
-                                                      <span className="h-2 w-0.5 rounded-full bg-online animate-[pulse_0.6s_ease-in-out_infinite]" />
-                                                      <span className="h-3 w-0.5 rounded-full bg-online animate-[pulse_0.4s_ease-in-out_infinite_150ms]" />
-                                                      <span className="h-1.5 w-0.5 rounded-full bg-online animate-[pulse_0.5s_ease-in-out_infinite_300ms]" />
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </PopoverTrigger>
-                                              <PopoverContent
-                                                side="right"
-                                                align="start"
-                                                sideOffset={8}
-                                                collisionPadding={16}
-                                                className="w-auto p-0 border-0 bg-transparent shadow-none max-w-none outline-none z-50"
-                                              >
-                                                <MemberDropdownContent
-                                                  userId={effectiveUserId || (myUserId ?? "")}
-                                                  initialDisplayName={effectiveNick}
-                                                  initialAvatarUrl={effectiveAvatar}
-                                                  onClose={() => setOpenVoiceMemberId(null)}
-                                                />
-                                              </PopoverContent>
-                                            </Popover>
-                                          </li>
-                                        </MemberContextMenu>
-                                      );
-                                    })}
-                                  </ul>
+                                          participant={p}
+                                          channelId={channel.channelId}
+                                          connected={connected}
+                                          guildProfiles={guildProfiles}
+                                          myUserId={myUserId}
+                                          myAppwriteAvatarUrl={myAppwriteAvatarUrl}
+                                          profileAvatarUrl={profileAvatarUrl}
+                                          microphoneEnabled={microphoneEnabled}
+                                          headphonesEnabled={headphonesEnabled}
+                                          activeVoiceChannelId={activeVoiceChannelId}
+                                          speakingMembers={speakingMembers}
+                                          isSpeaking={isSpeaking}
+                                          isVoiceConnected={isVoiceConnected}
+                                          isOpen={openVoiceMemberId === p.userId}
+                                          onOpenChange={(open) => setOpenVoiceMemberId(open ? p.userId : null)}
+                                        />
+                                      ))}
+                                    </ul>
                                   );
                                 })()}
                               </li>

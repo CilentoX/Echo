@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
-import { Compass, Plus, SignIn } from "@phosphor-icons/react";
+import { Compass, PushPin, Plus, SignIn } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import GuildContextMenu from "@/features/guild/GuildContextMenu";
@@ -110,6 +110,20 @@ export default function CommunityRail({
   const setActiveGuild = useUiStore((s) => s.setActiveGuild);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
   const myUserId = useUiStore((s) => s.myUserId);
+  const pinnedGuildIds = useUiStore((s) => s.pinnedGuilds);
+
+  // Guildas fixadas na dock de acesso rápido (preservando ordem de fixação)
+  const pinnedGuilds = useMemo(() => {
+    return pinnedGuildIds
+      .map((id) => guilds.find((g) => g.guildId === id))
+      .filter(Boolean) as typeof guilds;
+  }, [pinnedGuildIds, guilds]);
+
+  // Guildas não fixadas para a lista principal
+  const unpinnedGuilds = useMemo(() => {
+    const pinnedSet = new Set(pinnedGuildIds);
+    return guilds.filter((g) => !pinnedSet.has(g.guildId));
+  }, [guilds, pinnedGuildIds]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
@@ -175,7 +189,28 @@ export default function CommunityRail({
       {/* Separador sutil */}
       <div className="w-8 h-[2px] bg-bd-subtle rounded-full shrink-0 my-0.5" />
 
-      {guilds.map((guild) => {
+      {/* Seção de Guildas Fixadas na Dock de Acesso Rápido */}
+      {pinnedGuilds.length > 0 && (
+        <>
+          <div className="relative group flex items-center justify-center w-full" title="Guildas fixadas">
+            <PushPin size={10} weight="fill" className="text-acc/60 mb-1" />
+          </div>
+          {pinnedGuilds.map((guild) => {
+            const active = guild.guildId === activeGuildId;
+            return (
+              <GuildButton
+                key={`pinned-${guild.guildId}`}
+                guild={guild}
+                active={active}
+                onSelect={setActiveGuild}
+              />
+            );
+          })}
+          <div className="w-8 h-[2px] bg-bd-subtle rounded-full shrink-0 my-0.5" />
+        </>
+      )}
+
+      {unpinnedGuilds.map((guild) => {
         const active = guild.guildId === activeGuildId;
         return (
           <GuildButton

@@ -23,14 +23,28 @@ export interface SettingsState {
   autoGainControl: boolean;       // controle automático de ganho
   inputMode: "voice_activity" | "push_to_talk";
   pushToTalkKey: string;
+  pttActive: boolean;
 
   /** Privacidade */
   onlineStatusVisible: boolean;   // outros veem se você está online
   readReceipts: boolean;          // enviar recibos de leitura
   typingVisible: boolean;         // mostrar "está digitando…"
 
+  /** Screen Share Preferences (persistidas) */
+  screenShareResolution: "720p" | "1080p";
+  screenShareFps: 30 | 60;
+  screenShareAudio: boolean;
+  screenShareQuality: "auto" | "low" | "medium" | "high";
+  screenShareContentHint: "auto" | "detail" | "motion" | "text";
+
   /** Sessões */
   currentSessionDevice: string | null;
+
+  setScreenShareResolution(v: "720p" | "1080p"): void;
+  setScreenShareFps(v: 30 | 60): void;
+  setScreenShareAudio(v: boolean): void;
+  setScreenShareQuality(v: "auto" | "low" | "medium" | "high"): void;
+  setScreenShareContentHint(v: "auto" | "detail" | "motion" | "text"): void;
 
   setNativeNotifications(v: boolean): void;
   setMessageSound(v: boolean): void;
@@ -50,6 +64,7 @@ export interface SettingsState {
   setAutoGainControl(v: boolean): void;
   setInputMode(mode: "voice_activity" | "push_to_talk"): void;
   setPushToTalkKey(key: string): void;
+  setPttActive(v: boolean): void;
 
   setOnlineStatusVisible(v: boolean): void;
   setReadReceipts(v: boolean): void;
@@ -99,11 +114,25 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   autoGainControl: true,
   inputMode: "voice_activity",
   pushToTalkKey: "ControlLeft",
+  pttActive: false,
 
   onlineStatusVisible: true,
   readReceipts: true,
   typingVisible: true,
+
+  screenShareResolution: "1080p",
+  screenShareFps: 60,
+  screenShareAudio: true,
+  screenShareQuality: "auto",
+  screenShareContentHint: "auto",
+
   currentSessionDevice: null,
+
+  setScreenShareResolution: (v) => set({ screenShareResolution: v }),
+  setScreenShareFps: (v) => set({ screenShareFps: v }),
+  setScreenShareAudio: (v) => set({ screenShareAudio: v }),
+  setScreenShareQuality: (v) => set({ screenShareQuality: v }),
+  setScreenShareContentHint: (v) => set({ screenShareContentHint: v }),
 
   setNativeNotifications: (v) => set({ nativeNotifications: v }),
   setMessageSound: (v) => set({ messageSound: v }),
@@ -126,6 +155,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setHeadphonesDevice: (id) => {
     set({ headphonesDevice: id });
     persistAudioConfig({ headphonesDevice: id });
+    // Aplica setSinkId em todos os peers remotos ativos via webrtcVoice
+    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+      void webrtcVoice.setOutputDevice(id);
+    }).catch(() => {});
   },
 
   setInputVolume: (v) => {
@@ -156,6 +189,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({ pushToTalkKey: key });
     persistAudioConfig({ pushToTalkKey: key });
   },
+  setPttActive: (v) => set({ pttActive: v }),
 
   setOnlineStatusVisible: (v) => set({ onlineStatusVisible: v }),
   setReadReceipts: (v) => set({ readReceipts: v }),
@@ -201,6 +235,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       autoGainControl: true,
       inputMode: "voice_activity",
       pushToTalkKey: "ControlLeft",
+      pttActive: false,
       onlineStatusVisible: true,
       readReceipts: true,
       typingVisible: true,

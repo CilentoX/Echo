@@ -168,3 +168,27 @@
   font-size: 11px !important;
 }
 
+/* Speaking Ring Animation — anel de fala suave e distinto para voice stage */
+@keyframes speaking-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(20, 218, 166, 0.5), 0 0 8px rgba(20, 218, 166, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(20, 218, 166, 0.15), 0 0 16px rgba(20, 218, 166, 0.4);
+  }
+}
+
+.animate-speaking-ring {
+  animation: speaking-ring 1.8s ease-in-out infinite;
+}
+
+/* Speaking Badge Pulse — pulso sutil para badges de "Falando" */
+@keyframes speaking-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-speaking-badge {
+  animation: speaking-badge 1.5s ease-in-out infinite;
+}
+

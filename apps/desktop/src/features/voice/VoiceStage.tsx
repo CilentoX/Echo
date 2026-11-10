@@ -20,6 +20,14 @@ import {
   Broadcast,
   DotsSixVertical,
   Columns,
+  Gear,
+  WifiHigh,
+  WifiMedium,
+  WifiLow,
+  WifiX,
+  Timer,
+  Eye,
+  ArrowsHorizontal,
 } from "@phosphor-icons/react";
 import { useVoiceActivity } from "./useVoiceActivity";
 import { useVoiceStore } from "@/stores/voiceStore";
@@ -63,6 +71,9 @@ function RemoteParticipantVideo({ stream }: { stream: MediaStream }) {
 
 const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
+
+// Persistência global da câmera entre re-renders/remontagens do VoiceStage
+let globalCameraStream: MediaStream | null = null;
 
 export interface VoiceStageProps {
   channelId: string;
@@ -111,16 +122,71 @@ export default function VoiceStage({
   const remoteVideoStreams = useVoiceStore((s) => s.remoteVideoStreams);
   const activeStreamUserId = useVoiceStore((s) => s.activeStreamUserId);
   const setActiveStreamUserId = useVoiceStore((s) => s.setActiveStreamUserId);
+  const setParticipantVolume = useVoiceStore((s) => s.setParticipantVolume);
 
   const [screenShareModalOpen, setScreenShareModalOpen] = useState(false);
+  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const [availableMics, setAvailableMics] = useState<MediaDeviceInfo[]>([]);
+  const [availableSpeakers, setAvailableSpeakers] = useState<MediaDeviceInfo[]>([]);
+  const microphoneDevice = useSettingsStore((s) => s.microphoneDevice);
+  const headphonesDevice = useSettingsStore((s) => s.headphonesDevice);
+  const setMicrophoneDevice = useSettingsStore((s) => s.setMicrophoneDevice);
+  const setHeadphonesDevice = useSettingsStore((s) => s.setHeadphonesDevice);
   const [webcamPosition, setWebcamPosition] = useState<{ xPercent: number; yPercent: number }>({
     xPercent: 74,
     yPercent: 60,
   });
+  const [webcamOpacity, setWebcamOpacity] = useState(1);
+  const [webcamMirrored, setWebcamMirrored] = useState(false);
+  const [screenShareElapsed, setScreenShareElapsed] = useState(0);
+  const screenShareStartRef = useRef<number | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Enumera dispositivos de áudio ao abrir o painel de configurações
+  useEffect(() => {
+    if (!audioSettingsOpen) return;
+    let cancelled = false;
+    void navigator.mediaDevices?.enumerateDevices().then((devices) => {
+      if (cancelled) return;
+      setAvailableMics(devices.filter((d) => d.kind === "audioinput"));
+      setAvailableSpeakers(devices.filter((d) => d.kind === "audiooutput"));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [audioSettingsOpen]);
+
+  // Timer de duração da transmissão de tela
+  useEffect(() => {
+    if (isScreenSharing) {
+      screenShareStartRef.current = Date.now();
+      setScreenShareElapsed(0);
+      const interval = setInterval(() => {
+        if (screenShareStartRef.current) {
+          setScreenShareElapsed(Math.floor((Date.now() - screenShareStartRef.current) / 1000));
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    } else {
+      screenShareStartRef.current = null;
+      setScreenShareElapsed(0);
+    }
+  }, [isScreenSharing]);
+
+  // Formata segundos em HH:MM:SS para o timer AO VIVO
+  const formatElapsed = useCallback((totalSeconds: number) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }, []);
+
+  // Indicador visual de qualidade de conexão baseado no ping
+  const connectionQuality = pingMs <= 50 ? "excellent" : pingMs <= 100 ? "good" : pingMs <= 200 ? "fair" : "poor";
+  const ConnectionIcon = connectionQuality === "excellent" ? WifiHigh : connectionQuality === "good" ? WifiMedium : connectionQuality === "fair" ? WifiLow : WifiX;
+  const connectionColor = connectionQuality === "excellent" ? "text-online" : connectionQuality === "good" ? "text-online/80" : connectionQuality === "fair" ? "text-amber-400" : "text-err";
 
   // Sincroniza a câmera local imediatamente na montagem
   const setCameraVideoRef = useCallback((node: HTMLVideoElement | null) => {
@@ -248,6 +314,16 @@ export default function VoiceStage({
     setScreenShareModalOpen(true);
   };
 
+  useEffect(() => {
+    const handleCustomToggle = () => {
+      void handleToggleScreenShare();
+    };
+    window.addEventListener("echo:toggle-screenshare", handleCustomToggle);
+    return () => {
+      window.removeEventListener("echo:toggle-screenshare", handleCustomToggle);
+    };
+  }, [isScreenSharing]);
+
   const handleStartScreenShare = async (config: ScreenShareConfig) => {
     setScreenShareConfig(config);
     try {
@@ -269,24 +345,35 @@ export default function VoiceStage({
             }
           : standardConstraints;
 
+        // Decide se tenta capturar áudio do sistema baseado na preferência do usuário
+        const wantSystemAudio = config.shareAudio !== false;
+        const audioConstraints = wantSystemAudio
+          ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+          : false;
+
         try {
           stream = await navigator.mediaDevices.getDisplayMedia({
             video: videoConstraints,
-            audio: {
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-            },
+            audio: audioConstraints,
           } as MediaStreamConstraints);
         } catch {
-          try {
-            // Fallback sem captura de áudio caso a plataforma/janela não suporte captura de som do sistema
-            stream = await navigator.mediaDevices.getDisplayMedia({
-              video: videoConstraints,
-              audio: false,
-            } as MediaStreamConstraints);
-          } catch {
-            // Fallback sem sourceId caso o browser/runtime rejeite restrição de dispositivo específico
+          if (wantSystemAudio) {
+            // Fallback sem captura de áudio caso a plataforma/janela não suporte
+            console.warn("[VoiceStage] Captura de áudio do sistema falhou, tentando apenas vídeo");
+            try {
+              stream = await navigator.mediaDevices.getDisplayMedia({
+                video: videoConstraints,
+                audio: false,
+              } as MediaStreamConstraints);
+            } catch {
+              // Fallback sem sourceId caso o browser/runtime rejeite restrição de dispositivo específico
+              stream = await navigator.mediaDevices.getDisplayMedia({
+                video: standardConstraints,
+                audio: false,
+              } as MediaStreamConstraints);
+            }
+          } else {
+            // Usuário desativou áudio, fallback direto sem sourceId
             stream = await navigator.mediaDevices.getDisplayMedia({
               video: standardConstraints,
               audio: false,
@@ -308,7 +395,10 @@ export default function VoiceStage({
           screenVideoRef.current.play().catch(() => {});
         }
         setScreenSharing(true);
-        void webrtcVoice.setLocalScreenShare(stream);
+        void webrtcVoice.setLocalScreenShare(stream, {
+          contentHint: config.contentHint,
+          qualityPreset: config.qualityPreset,
+        });
       } else {
         setScreenSharing(true);
       }
@@ -321,10 +411,12 @@ export default function VoiceStage({
 
   const handleToggleCamera = async () => {
     if (isCameraOn) {
+      // Para a câmera mas mantém o stream global para possível reativação rápida
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((t) => t.stop());
         cameraStreamRef.current = null;
       }
+      globalCameraStream = null;
       setCameraOn(false);
       void webrtcVoice.setLocalCamera(null);
       return;
@@ -332,18 +424,25 @@ export default function VoiceStage({
 
     try {
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Reutiliza stream global se ainda estiver ativo, senão captura novo
+        let stream = globalCameraStream;
+        const isGlobalLive = stream && stream.getVideoTracks().some((t) => t.readyState === "live");
+        if (!isGlobalLive) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          globalCameraStream = stream;
+        }
         cameraStreamRef.current = stream;
-        const videoTrack = stream.getVideoTracks()[0];
+        const videoTrack = stream!.getVideoTracks()[0];
         if (videoTrack) {
           videoTrack.onended = () => {
             cameraStreamRef.current = null;
+            globalCameraStream = null;
             setCameraOn(false);
             void webrtcVoice.setLocalCamera(null);
           };
         }
         setCameraOn(true);
-        void webrtcVoice.setLocalCamera(stream);
+        void webrtcVoice.setLocalCamera(stream!);
       } else {
         setCameraOn(true);
       }
@@ -739,7 +838,7 @@ export default function VoiceStage({
                 {/* Equalizer Waveform quando Falando */}
                 {participantSpeaking && (
                   <div
-                    className="absolute top-3 right-3 flex items-center gap-0.5 px-2 py-1 rounded-full bg-online/15 border border-online/30 animate-pulse"
+                    className="absolute top-3 right-3 flex items-center gap-0.5 px-2 py-1 rounded-full bg-online/15 border border-online/30 animate-speaking-badge"
                     title="Falando agora"
                   >
                     <span className="w-1 h-3 rounded-full bg-online animate-[pulse_0.6s_ease-in-out_infinite]" />
@@ -780,7 +879,7 @@ export default function VoiceStage({
                         alt={memberNick}
                         className={`h-20 w-20 rounded-full object-cover shadow-lg transition-all duration-150 ${
                           participantSpeaking
-                            ? "ring-4 ring-online shadow-online/60 animate-pulse"
+                            ? "ring-4 ring-online shadow-online/60 animate-speaking-ring"
                             : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
                         }`}
                         width={80}
@@ -790,7 +889,7 @@ export default function VoiceStage({
                       <div
                         className={`flex h-20 w-20 items-center justify-center rounded-full bg-acc text-bg font-display text-2xl font-black shadow-lg transition-all duration-150 ${
                           participantSpeaking
-                            ? "ring-4 ring-online shadow-online/60 animate-pulse"
+                            ? "ring-4 ring-online shadow-online/60 animate-speaking-ring"
                             : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
                         }`}
                       >
@@ -829,10 +928,36 @@ export default function VoiceStage({
 
                 {/* Badge de Fala Animado */}
                 {participantSpeaking && (
-                  <span className="mt-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-online/15 border border-online/30 text-[9px] font-bold uppercase tracking-wider text-online animate-pulse">
+                  <span className="mt-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-online/15 border border-online/30 text-[9px] font-bold uppercase tracking-wider text-online animate-speaking-badge">
                     <Waveform size={11} weight="bold" />
                     <span>Falando</span>
                   </span>
+                )}
+
+                {/* Slider de Volume por Participante (apenas para outros usuários) */}
+                {!isMe && (
+                  <div
+                    className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-20"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-md border border-white/[0.1]">
+                      <SpeakerHigh size={12} weight="bold" className="text-mut shrink-0" />
+                      <input
+                        type="range"
+                        min={0}
+                        max={200}
+                        step={5}
+                        defaultValue={participant.volume ?? 100}
+                        onChange={(e) => setParticipantVolume(memberUserId, Number(e.target.value))}
+                        aria-label={`Volume de ${memberNick}`}
+                        className="w-full h-1 accent-acc cursor-pointer"
+                      />
+                      <span className="text-[9px] font-mono text-mut w-7 text-right tabular-nums">
+                        {participant.volume ?? 100}%
+                      </span>
+                    </div>
+                  </div>
                 )}
               </button>
             </PopoverTrigger>
@@ -1045,6 +1170,27 @@ export default function VoiceStage({
           </>
         )}
 
+        {/* AO VIVO Badge + Timer (apenas quando o usuário local está transmitindo) */}
+        {isCurrentActiveMe && isScreenSharing && !isScreenDetached && (
+          <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-600/90 backdrop-blur-sm shadow-lg border border-red-500/30">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+              </span>
+              <span className="text-[11px] font-bold text-white tracking-wide">AO VIVO</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-sm border border-white/[0.08]">
+              <Timer size={12} weight="bold" className="text-mut" />
+              <span className="text-[11px] font-mono font-semibold text-txt tabular-nums">{formatElapsed(screenShareElapsed)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-sm border border-white/[0.08]">
+              <Eye size={12} weight="bold" className="text-mut" />
+              <span className="text-[11px] font-semibold text-txt">{participants.length}</span>
+            </div>
+          </div>
+        )}
+
         {/* Video Player Principal da Tela */}
         <video
           ref={setScreenVideoRef}
@@ -1087,7 +1233,8 @@ export default function VoiceStage({
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-cover pointer-events-none"
+              style={{ opacity: webcamOpacity, transform: webcamMirrored ? "scaleX(-1)" : undefined }}
+              className="w-full h-full object-cover pointer-events-none transition-transform duration-200"
             />
 
             {/* Controles de Hover da Webcam */}
@@ -1171,6 +1318,37 @@ export default function VoiceStage({
             )}
           </div>
         )}
+
+        {/* Studio Control Bar — aparece apenas no modo estúdio quando transmitindo */}
+        {isCurrentActiveMe && isScreenSharing && !isScreenDetached && screenShareLayout === "studio" && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-2 rounded-2xl bg-black/80 backdrop-blur-md border border-white/[0.1] shadow-xl">
+            {/* Opacidade da Webcam */}
+            <div className="flex items-center gap-1.5 pr-2 border-r border-white/[0.1]">
+              <span className="text-[10px] font-semibold text-mut uppercase tracking-wide">Opacidade</span>
+              <input
+                type="range"
+                min={30}
+                max={100}
+                value={Math.round(webcamOpacity * 100)}
+                onChange={(e) => setWebcamOpacity(Number(e.target.value) / 100)}
+                className="w-16 h-1 accent-acc cursor-pointer"
+              />
+            </div>
+
+            {/* Espelhar Webcam */}
+            <button
+              type="button"
+              onClick={() => setWebcamMirrored((v) => !v)}
+              title={webcamMirrored ? "Desespelhar câmera" : "Espelhar câmera"}
+              className={`cursor-pointer p-1.5 rounded-lg transition-all active:scale-95 ${
+                webcamMirrored ? "bg-acc/20 text-acc" : "text-mut hover:text-txt hover:bg-white/[0.08]"
+              }`}
+            >
+              <ArrowsHorizontal size={14} weight="bold" />
+            </button>
+
+            </div>
+        )}
       </div>
     );
   };
@@ -1198,9 +1376,9 @@ export default function VoiceStage({
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-online/15 border border-online/30 text-[10px] font-semibold text-online shadow-xs">
-                  <span className="h-1.5 w-1.5 rounded-full bg-online animate-pulse" />
+                  <ConnectionIcon size={14} weight="bold" className={connectionColor} />
                   <span>Voz Conectada</span>
-                  <span className="font-mono text-[9px] text-online/70 ml-1">({pingMs}ms)</span>
+                  <span className={`font-mono text-[9px] ml-1 ${connectionColor}`}>({pingMs}ms)</span>
                 </span>
               )}
               {!canSpeak && (
@@ -1331,7 +1509,7 @@ export default function VoiceStage({
                   : isMyMuted
                     ? "cursor-pointer bg-err text-white shadow-md shadow-err/20 hover:bg-err-press"
                     : isSpeaking
-                      ? "cursor-pointer bg-online/25 text-online border border-online/50 shadow-md shadow-online/30 animate-pulse"
+                      ? "cursor-pointer bg-online/25 text-online border border-online/50 shadow-md shadow-online/30 animate-speaking-ring"
                       : "cursor-pointer bg-online/10 text-online hover:bg-online/20 border border-online/30"
               }`}
             >
@@ -1391,6 +1569,65 @@ export default function VoiceStage({
               <Screencast size={18} weight="bold" />
               <span className="hidden sm:inline">{isScreenSharing ? "Compartilhando" : "Compartilhar Tela"}</span>
             </button>
+
+            {/* Botão Configurações de Áudio */}
+            <Popover open={audioSettingsOpen} onOpenChange={setAudioSettingsOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Configurações de áudio"
+                  title="Selecionar microfone e alto-falante"
+                  className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-txt hover:bg-white/[0.12] border border-bd-subtle transition-all active:scale-95"
+                >
+                  <Gear size={18} weight="bold" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="center" sideOffset={12} className="w-72 p-4 rounded-2xl bg-card-bg border border-bd-subtle shadow-2xl backdrop-blur-xl">
+                <div className="flex flex-col gap-3">
+                  <span className="text-xs font-bold text-txt uppercase tracking-wider">Dispositivos de Áudio</span>
+
+                  {/* Seletor de Microfone */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-mut flex items-center gap-1.5">
+                      <Microphone size={12} weight="bold" />
+                      <span>Microfone</span>
+                    </label>
+                    <select
+                      value={microphoneDevice ?? ""}
+                      onChange={(e) => setMicrophoneDevice(e.target.value || null)}
+                      className="w-full px-3 py-2 rounded-lg bg-surf2/80 border border-bd-subtle text-xs text-txt focus:outline-none focus:border-acc cursor-pointer"
+                    >
+                      <option value="">Padrão do Sistema</option>
+                      {availableMics.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || `Microfone (${d.deviceId.slice(0, 8)})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Seletor de Alto-falante */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11px] font-semibold text-mut flex items-center gap-1.5">
+                      <SpeakerHigh size={12} weight="bold" />
+                      <span>Alto-falante</span>
+                    </label>
+                    <select
+                      value={headphonesDevice ?? ""}
+                      onChange={(e) => setHeadphonesDevice(e.target.value || null)}
+                      className="w-full px-3 py-2 rounded-lg bg-surf2/80 border border-bd-subtle text-xs text-txt focus:outline-none focus:border-acc cursor-pointer"
+                    >
+                      <option value="">Padrão do Sistema</option>
+                      {availableSpeakers.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || `Alto-falante (${d.deviceId.slice(0, 8)})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <div className="h-6 w-[1px] bg-bd-subtle mx-1" />
 

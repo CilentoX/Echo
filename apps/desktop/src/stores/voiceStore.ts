@@ -4,12 +4,21 @@ import { useSettingsStore } from "./settingsStore";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
 import { audioEngine } from "@/lib/media/audioEngine";
 
+export type ScreenShareQuality = "auto" | "low" | "medium" | "high";
+export type ScreenShareContentHint = "auto" | "detail" | "motion" | "text";
+
 export interface ScreenShareConfig {
   sourceId: string;
   sourceName: string;
   sourceType: "screen" | "window";
   resolution: "720p" | "1080p";
   fps: 30 | 60;
+  /** Compartilhar áudio do sistema (captura de loopback) */
+  shareAudio?: boolean;
+  /** Preset de qualidade que controla bitrate e resolução efetiva */
+  qualityPreset?: ScreenShareQuality;
+  /** Otimização de encoding para tipo de conteúdo */
+  contentHint?: ScreenShareContentHint;
 }
 
 export type ScreenShareLayout = "studio" | "split" | "fullscreen";
@@ -184,19 +193,23 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
               return pNorm && pNorm !== "me" && pNorm !== myNorm && pNorm !== (myUserId || "").toLowerCase();
             });
 
-            const merged = [
-              currentMyUser || {
-                userId: currentRealId,
-                username,
-                avatarUrl,
-                isMuted: state.participants[0]?.isMuted ?? isMuted,
-                isDeafened: state.participants[0]?.isDeafened ?? isDeafened,
-                isSpeaking: state.isSpeaking,
-                isScreenSharing: state.isScreenSharing,
-                hasCamera: state.isCameraOn,
-                volume: 100,
-              },
-              ...others.map((o) => ({
+            // Build merged list with structural sharing — reuse existing participant
+            // objects when their fields haven't changed to avoid unnecessary re-renders
+            const myUser = currentMyUser || {
+              userId: currentRealId,
+              username,
+              avatarUrl,
+              isMuted: state.participants[0]?.isMuted ?? isMuted,
+              isDeafened: state.participants[0]?.isDeafened ?? isDeafened,
+              isSpeaking: state.isSpeaking,
+              isScreenSharing: state.isScreenSharing,
+              hasCamera: state.isCameraOn,
+              volume: 100,
+            };
+
+            const merged: VoiceParticipant[] = [myUser];
+            for (const o of others) {
+              const normalized: VoiceParticipant = {
                 userId: o.userId,
                 username: o.username || o.userId.replace(/^@/, "").split(":")[0],
                 avatarUrl: o.avatarUrl ?? null,
@@ -206,15 +219,40 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
                 isScreenSharing: Boolean(o.isScreenSharing),
                 hasCamera: Boolean(o.hasCamera),
                 volume: 100,
-              })),
-            ];
+              };
+
+              // Structural sharing: reuse the existing participant object if all fields match
+              const existing = state.participants.find((p) => p.userId === normalized.userId);
+              if (
+                existing &&
+                existing.username === normalized.username &&
+                existing.avatarUrl === normalized.avatarUrl &&
+                existing.isMuted === normalized.isMuted &&
+                existing.isDeafened === normalized.isDeafened &&
+                existing.isSpeaking === normalized.isSpeaking &&
+                existing.isScreenSharing === normalized.isScreenSharing &&
+                existing.hasCamera === normalized.hasCamera &&
+                existing.volume === normalized.volume
+              ) {
+                merged.push(existing);
+              } else {
+                merged.push(normalized);
+              }
+            }
+
+            // Early return if nothing actually changed — avoids triggering React re-renders
+            const participantsUnchanged =
+              merged.length === state.participants.length &&
+              merged.every((p, i) => p === state.participants[i]);
 
             // Limpa remoteVideoStreams para participantes que saíram ou pararam de transmitir tela/câmera
             const nextStreams = { ...state.remoteVideoStreams };
+            let streamsChanged = false;
             for (const streamUserId of Object.keys(nextStreams)) {
               const part = merged.find((p) => p.userId === streamUserId);
               if (!part || (!part.isScreenSharing && !part.hasCamera)) {
                 delete nextStreams[streamUserId];
+                streamsChanged = true;
               }
             }
 
@@ -242,7 +280,20 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
               }
             }
 
-            return { participants: merged, remoteVideoStreams: nextStreams, activeStreamUserId };
+            // Skip state update entirely if nothing changed
+            if (
+              participantsUnchanged &&
+              !streamsChanged &&
+              activeStreamUserId === state.activeStreamUserId
+            ) {
+              return state;
+            }
+
+            return {
+              participants: participantsUnchanged ? state.participants : merged,
+              remoteVideoStreams: streamsChanged ? nextStreams : state.remoteVideoStreams,
+              activeStreamUserId,
+            };
           });
         },
         onRemoteVideoStream: (userId, stream) => {
@@ -371,6 +422,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       const target = state.participants.find((p) => p.userId === userId);
       const isTargetMuted = Boolean(target?.isMuted || target?.isDeafened);
       const effectiveSpeaking = isTargetMuted ? false : Boolean(isSpeaking);
+
+      // Early return if speaking status hasn't actually changed — avoids
+      // array allocations and participant mapping on every redundant VAD tick
+      if (target && target.isSpeaking === effectiveSpeaking) return state;
 
       const speaking = effectiveSpeaking
         ? Array.from(new Set([...state.speakingMembers, userId]))

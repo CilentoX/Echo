@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import {
   ArrowsOutSimple,
   Chats,
@@ -63,7 +63,7 @@ export interface MessageBubbleProps {
  * edição/exclusão, corpo em markdown, visualizador de imagens com lightbox, player de vídeo
  * nativo inline e player de áudio com waveform.
  */
-export default function MessageBubble({
+export default memo(function MessageBubble({
   event,
   showHeader,
   pending = false,
@@ -99,6 +99,17 @@ export default function MessageBubble({
   );
   const pinMessage = useSyncStore((s) => s.pinMessage);
   const unpinMessage = useSyncStore((s) => s.unpinMessage);
+
+  const isMentioned = Boolean(
+    !isSender &&
+      myUserId &&
+      event.body &&
+      (event.body.includes(myUserId) ||
+        event.body.includes("@everyone") ||
+        event.body.includes("@here") ||
+        (myNickname && (event.body.includes(`@[${myNickname}]`) || event.body.includes(`@${myNickname}`))) ||
+        (myDisplayName && (event.body.includes(`@[${myDisplayName}]`) || event.body.includes(`@${myDisplayName}`)))),
+  );
 
   // Nome de exibição: prioriza apelido na guilda, depois apelido global, depois displayName, depois fallback do Matrix
   const name =
@@ -168,7 +179,12 @@ export default function MessageBubble({
           data-event-id={event.eventId}
           data-pending={pending || undefined}
           data-is-sender={isSender || undefined}
-          className={`group relative flex gap-3 px-4 transition-colors w-full hover:bg-white/[0.03] ${
+          data-mentioned={isMentioned || undefined}
+          className={`group relative flex gap-3 px-4 transition-colors w-full ${
+            isMentioned
+              ? "bg-acc/[0.05] hover:bg-acc/[0.08] border-l-2 border-acc shadow-xs shadow-acc/10"
+              : "hover:bg-white/[0.03]"
+          } ${
             isSender ? "justify-end" : "justify-start"
           } ${isCompact ? "py-0.5" : showHeader ? "pt-2.5 pb-0.5" : "py-0.5"}`}
         >
@@ -594,4 +610,4 @@ export default function MessageBubble({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});

@@ -16,12 +16,10 @@ import {
   Play,
   FilmStrip,
   MusicNotes,
+  XLogo,
+  TiktokLogo,
+  InstagramLogo,
 } from "@phosphor-icons/react";
-import {
-  TwitterEmbed,
-  TikTokEmbed,
-  InstagramEmbed,
-} from "react-social-media-embed";
 import { launchAppProtocol } from "@/lib/appLauncher";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
 
@@ -440,9 +438,18 @@ export default function RichEmbed({ content, align = "left" }: RichEmbedProps) {
     };
   }, [embed]);
 
-  // Carrega metadados OpenGraph via endpoint interno na echo-api para links genéricos, Discord e GitHub
+  // Carrega metadados OpenGraph via endpoint interno na echo-api para links genéricos, Discord, GitHub e redes sociais
   useEffect(() => {
-    if (!embed || (embed.type !== "generic" && embed.type !== "github" && embed.type !== "discord" && embed.type !== "reddit")) {
+    if (
+      !embed ||
+      (embed.type !== "generic" &&
+        embed.type !== "github" &&
+        embed.type !== "discord" &&
+        embed.type !== "reddit" &&
+        embed.type !== "twitter" &&
+        embed.type !== "tiktok" &&
+        embed.type !== "instagram")
+    ) {
       return;
     }
 
@@ -1002,29 +1009,155 @@ export default function RichEmbed({ content, align = "left" }: RichEmbedProps) {
     );
   }
 
-  // ── TWITTER / X EMBED ──
+  // ── TWITTER / X CARD (Nativo, seguro contra CSP) ──
   if (embed.type === "twitter") {
+    const postTitle = ogData?.title || embed.title || "Publicação no X";
+    const postDesc = ogData?.description;
+    const postImage = ogData?.imageUrl;
+
     return (
-      <div className={`mt-2.5 max-w-md ${alignClass} rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150`}>
-        <TwitterEmbed url={embed.url} width={380} />
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border-l-4 border-l-[#1DA1F2] border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3.5 space-y-2.5 text-left`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 text-txt shrink-0">
+              <XLogo size={14} weight="bold" />
+            </div>
+            <span className="text-xs font-bold text-txt truncate">X / Twitter</span>
+          </div>
+          <a
+            href={embed.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cursor-pointer text-mut hover:text-txt p-1 rounded-lg hover:bg-white/[0.06] transition-colors"
+            title="Abrir no X"
+          >
+            <ArrowSquareOut size={14} />
+          </a>
+        </div>
+        <h4 className="text-sm font-semibold text-txt line-clamp-2">
+          <a href={embed.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+            {postTitle}
+          </a>
+        </h4>
+        {postDesc && (
+          <p className="text-xs text-mut/90 leading-relaxed line-clamp-3">
+            {postDesc}
+          </p>
+        )}
+        {postImage && (
+          <div className="pt-1 overflow-hidden rounded-xl">
+            <a href={embed.url} target="_blank" rel="noopener noreferrer">
+              <img
+                src={postImage}
+                alt=""
+                className="w-full max-h-56 object-cover rounded-xl border border-white/[0.06] hover:scale-[1.01] transition-transform duration-200"
+                loading="lazy"
+              />
+            </a>
+          </div>
+        )}
       </div>
     );
   }
 
-  // ── TIKTOK EMBED ──
+  // ── TIKTOK CARD (Nativo, seguro contra CSP) ──
   if (embed.type === "tiktok") {
+    const videoTitle = ogData?.title || embed.title || "Vídeo no TikTok";
+    const videoDesc = ogData?.description;
+    const videoImage = ogData?.imageUrl;
+
     return (
-      <div className={`mt-2.5 max-w-sm ${alignClass} rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150`}>
-        <TikTokEmbed url={embed.url} width={325} />
+      <div className={`mt-2.5 max-w-sm w-full ${alignClass} rounded-2xl border-l-4 border-l-[#00f2fe] border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3.5 space-y-2.5 text-left`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#00f2fe]/20 text-[#00f2fe] shrink-0">
+              <TiktokLogo size={14} weight="fill" />
+            </div>
+            <span className="text-xs font-bold text-txt truncate">TikTok</span>
+          </div>
+          <a
+            href={embed.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cursor-pointer text-mut hover:text-txt p-1 rounded-lg hover:bg-white/[0.06] transition-colors"
+            title="Abrir no TikTok"
+          >
+            <ArrowSquareOut size={14} />
+          </a>
+        </div>
+        <h4 className="text-sm font-semibold text-txt line-clamp-2">
+          <a href={embed.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+            {videoTitle}
+          </a>
+        </h4>
+        {videoDesc && (
+          <p className="text-xs text-mut/90 leading-relaxed line-clamp-2">
+            {videoDesc}
+          </p>
+        )}
+        {videoImage && (
+          <div className="pt-1 overflow-hidden rounded-xl">
+            <a href={embed.url} target="_blank" rel="noopener noreferrer">
+              <img
+                src={videoImage}
+                alt=""
+                className="w-full max-h-56 object-cover rounded-xl border border-white/[0.06] hover:scale-[1.01] transition-transform duration-200"
+                loading="lazy"
+              />
+            </a>
+          </div>
+        )}
       </div>
     );
   }
 
-  // ── INSTAGRAM EMBED ──
+  // ── INSTAGRAM CARD (Nativo, seguro contra CSP) ──
   if (embed.type === "instagram") {
+    const instaTitle = ogData?.title || embed.title || "Publicação no Instagram";
+    const instaDesc = ogData?.description;
+    const instaImage = ogData?.imageUrl;
+
     return (
-      <div className={`mt-2.5 max-w-sm ${alignClass} rounded-2xl overflow-hidden shadow-xl animate-in fade-in-0 duration-150`}>
-        <InstagramEmbed url={embed.url} width={328} />
+      <div className={`mt-2.5 max-w-sm w-full ${alignClass} rounded-2xl border-l-4 border-l-[#E1306C] border border-white/[0.08] bg-[#12161f]/95 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3.5 space-y-2.5 text-left`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#E1306C]/20 text-[#E1306C] shrink-0">
+              <InstagramLogo size={14} weight="fill" />
+            </div>
+            <span className="text-xs font-bold text-txt truncate">Instagram</span>
+          </div>
+          <a
+            href={embed.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cursor-pointer text-mut hover:text-txt p-1 rounded-lg hover:bg-white/[0.06] transition-colors"
+            title="Abrir no Instagram"
+          >
+            <ArrowSquareOut size={14} />
+          </a>
+        </div>
+        <h4 className="text-sm font-semibold text-txt line-clamp-2">
+          <a href={embed.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+            {instaTitle}
+          </a>
+        </h4>
+        {instaDesc && (
+          <p className="text-xs text-mut/90 leading-relaxed line-clamp-2">
+            {instaDesc}
+          </p>
+        )}
+        {instaImage && (
+          <div className="pt-1 overflow-hidden rounded-xl">
+            <a href={embed.url} target="_blank" rel="noopener noreferrer">
+              <img
+                src={instaImage}
+                alt=""
+                className="w-full max-h-56 object-cover rounded-xl border border-white/[0.06] hover:scale-[1.01] transition-transform duration-200"
+                loading="lazy"
+              />
+            </a>
+          </div>
+        )}
       </div>
     );
   }

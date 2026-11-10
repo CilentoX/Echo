@@ -50,6 +50,49 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
     return `@@INLINECODE${idx}@@`;
   });
 
+  // Protege menções de membros, cargos e canais contra colisões com itálicos/negritos
+  const mentionTokens: Array<{
+    kind: "member" | "role" | "special" | "channel";
+    name: string;
+    id?: string;
+  }> = [];
+
+  // Menções ricas de membros ou cargos: @[Nome](userId) ou @[Cargo](role:roleId)
+  html = html.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, (_match, name, idPart) => {
+    const idx = mentionTokens.length;
+    const isRole = idPart.startsWith("role:");
+    const id = isRole ? idPart.slice(5) : idPart;
+    mentionTokens.push({
+      kind: isRole ? "role" : "member",
+      name,
+      id,
+    });
+    return `@@MENTIONTOKEN${idx}@@`;
+  });
+
+  // Menções de canais: #[Nome](channel:channelId) ou #[Nome](channelId)
+  html = html.replace(/#\[([^\]]+)\]\(([^)]+)\)/g, (_match, name, idPart) => {
+    const idx = mentionTokens.length;
+    const id = idPart.startsWith("channel:") ? idPart.slice(8) : idPart;
+    mentionTokens.push({
+      kind: "channel",
+      name,
+      id,
+    });
+    return `@@MENTIONTOKEN${idx}@@`;
+  });
+
+  // Menções especiais de sistema: @everyone e @here
+  html = html.replace(/(?:^|\s)@(everyone|here)(?=\s|$|[.,!?;:])/g, (match, special) => {
+    const prefix = match.startsWith(" ") ? " " : "";
+    const idx = mentionTokens.length;
+    mentionTokens.push({
+      kind: "special",
+      name: special,
+    });
+    return `${prefix}@@MENTIONTOKEN${idx}@@`;
+  });
+
   // Protege links markdown [texto](url) e URLs cruas de colisões com itálicos/negritos
   // O formato @@URLTOKEN...@@ NÃO contém underscores nem asteriscos, prevenindo corrupção por formatações
   const urlTokens: Array<{ type: "md" | "raw"; text?: string; url: string }> = [];
@@ -87,6 +130,19 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
   );
   html = html.replace(/__(.+?)__/g, (_match, inner) => `<strong class="font-bold">${inner}</strong>`);
 
+  // Riscado: ~~texto~~
+  html = html.replace(
+    /~~(.+?)~~/g,
+    (_match, inner) => `<del class="line-through opacity-75">${inner}</del>`,
+  );
+
+  // Spoilers: ||texto|| (revela no clique / hover com visual Dark Glass)
+  html = html.replace(
+    /\|\|(.+?)\|\|/g,
+    (_match, inner) =>
+      `<span class="rounded px-1.5 py-0.5 bg-surf3/90 text-transparent hover:text-txt hover:bg-surf3 cursor-pointer select-none transition-all duration-150" onclick="this.classList.toggle('text-transparent'); this.classList.toggle('select-none');" title="Spoiler: clique para revelar">${inner}</span>`,
+  );
+
   // Itálico: *texto* ou _texto_ (não dentro de código já processado)
   html = html.replace(/\*(.+?)\*/g, (_match, inner) => `<em>${inner}</em>`);
   html = html.replace(/_(.+?)_/g, (_match, inner) => `<em>${inner}</em>`);
@@ -100,6 +156,22 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
       return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${item.text}</a>`;
     }
     return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-acc underline underline-offset-4 hover:text-acc-press break-all">${cleanUrl}</a>`;
+  });
+
+  // Restaura menções de membros, cargos, canais e menções especiais protegidas
+  html = html.replace(/@@MENTIONTOKEN(\d+)@@/g, (_match, idxStr) => {
+    const item = mentionTokens[Number(idxStr)];
+    if (!item) return "";
+    if (item.kind === "channel") {
+      return `<span class="channel-pill inline-flex items-center px-1.5 py-0.5 rounded-md bg-white/[0.08] text-txt border border-white/[0.08] font-medium text-xs hover:text-acc hover:bg-white/[0.12] cursor-pointer transition-all select-none" data-channel-id="${escapeHtml(item.id || "")}">#${escapeHtml(item.name)}</span>`;
+    }
+    if (item.kind === "special") {
+      return `<span class="mention-pill inline-flex items-center px-1.5 py-0.5 rounded-md bg-acc/20 text-acc border border-acc/30 font-bold text-xs hover:bg-acc/30 cursor-pointer transition-all select-none">@${escapeHtml(item.name)}</span>`;
+    }
+    if (item.kind === "role") {
+      return `<span class="mention-pill inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-acc/15 text-acc border border-acc/20 font-medium text-xs hover:bg-acc/25 cursor-pointer transition-all select-none" data-role-id="${escapeHtml(item.id || "")}"><span class="w-1.5 h-1.5 rounded-full bg-acc"></span>@${escapeHtml(item.name)}</span>`;
+    }
+    return `<span class="mention-pill inline-flex items-center px-1.5 py-0.5 rounded-md bg-acc/15 text-acc border border-acc/20 font-medium text-xs hover:bg-acc/25 cursor-pointer transition-all select-none" data-mention-id="${escapeHtml(item.id || "")}">@${escapeHtml(item.name)}</span>`;
   });
 
   // Limpeza defensiva contra qualquer token residual de versões legadas ou corrupção

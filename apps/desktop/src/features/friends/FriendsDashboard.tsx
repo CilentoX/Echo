@@ -751,83 +751,79 @@ export default function FriendsDashboard() {
             aria-label="Ativo Agora e Comunidade"
             className="hidden lg:flex w-[320px] shrink-0 flex-col border-l border-bd-subtle bg-surf/40 p-5 space-y-6 overflow-y-auto scrollbar-thin select-none"
           >
-            {/* Bloco 1: Ativo Agora */}
+            {/* Bloco 1: Story Circles "Ativos Agora" — estilo Instagram Stories */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-display text-xs font-bold uppercase tracking-wider text-txt">
-                  Ativo Agora
+                  Ativos Agora
                 </h3>
                 {onlineFriends.length > 0 && (
-                  <span className="text-[10px] text-acc font-semibold">
-                    {onlineFriends.length} online
+                  <span className="text-[10px] text-acc font-semibold bg-acc/10 px-2 py-0.5 rounded-full border border-acc/20">
+                    {onlineFriends.length}
                   </span>
                 )}
               </div>
 
               {onlineFriends.length > 0 ? (
-                <div className="space-y-2">
-                  {onlineFriends.slice(0, 5).map((f) => (
-                    <MemberContextMenu
-                      key={f.userId}
-                      userId={f.userId}
-                      displayName={f.displayName}
-                      avatarUrl={f.avatarUrl}
-                    >
-                      <div
-                        onClick={() => openDirectMessage(f.userId)}
-                        className="cursor-pointer group flex items-center justify-between p-2.5 rounded-xl bg-card-bg/60 border border-bd-glass dark:bg-white/[0.02] dark:border-white/[0.04] hover:bg-card-bg hover:border-acc/30 transition-all"
+                <div className="flex flex-wrap gap-3 justify-start">
+                  {onlineFriends.slice(0, 8).map((f) => {
+                    const hasStatus = Boolean(
+                      (f.userId === myUserId && myCustomStatus) || (f as any).customStatus,
+                    );
+                    return (
+                      <MemberContextMenu
+                        key={f.userId}
+                        userId={f.userId}
+                        displayName={f.displayName}
+                        avatarUrl={f.avatarUrl}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="relative shrink-0">
-                            {f.avatarUrl ? (
-                              <MxcImage
-                                mxcUrl={f.avatarUrl}
-                                alt={f.displayName}
-                                className="h-8 w-8 rounded-full object-cover"
-                                width={32}
-                                height={32}
-                              />
-                            ) : (
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-acc/15 font-display text-xs font-bold text-acc">
-                                {f.displayName.slice(0, 1).toUpperCase()}
-                              </div>
-                            )}
-                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card-bg" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-txt truncate group-hover:text-acc transition-colors">
-                              {f.displayName}
-                            </p>
-                            <p className="text-[10px] text-emerald-400/80 truncate flex items-center gap-1">
-                              {f.userId === myUserId && myCustomStatus ? (
-                                <>
-                                  {myCustomStatus.emoji && <span>{myCustomStatus.emoji}</span>}
-                                  <span>{myCustomStatus.text}</span>
-                                </>
-                              ) : (f as any).customStatus ? (
-                                <>
-                                  {(f as any).customStatus.emoji && <span>{(f as any).customStatus.emoji}</span>}
-                                  <span>{(f as any).customStatus.text}</span>
-                                </>
+                        <button
+                          type="button"
+                          onClick={() => openDirectMessage(f.userId)}
+                          title={`${f.displayName} — Clique para conversar`}
+                          className="cursor-pointer group flex flex-col items-center gap-1.5 w-[68px] outline-none"
+                        >
+                          {/* Story Ring com gradiente animado */}
+                          <div className={`relative p-[2.5px] rounded-full transition-all duration-300 ${
+                            hasStatus
+                              ? "bg-gradient-to-tr from-acc via-cyan-400 to-purple-400 shadow-[0_0_12px_rgba(20,218,166,0.3)] group-hover:shadow-[0_0_18px_rgba(20,218,166,0.5)] group-hover:scale-105"
+                              : "bg-gradient-to-tr from-acc/60 to-acc/30 group-hover:from-acc group-hover:to-cyan-400 group-hover:scale-105"
+                          }`}>
+                            <div className="rounded-full p-[2px] bg-surf">
+                              {f.avatarUrl ? (
+                                <MxcImage
+                                  mxcUrl={f.avatarUrl}
+                                  alt={f.displayName}
+                                  className="h-12 w-12 rounded-full object-cover"
+                                  width={48}
+                                  height={48}
+                                />
                               ) : (
-                                "Disponível no Echo"
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-acc/20 font-display text-sm font-bold text-acc">
+                                  {f.displayName.slice(0, 1).toUpperCase()}
+                                </div>
                               )}
-                            </p>
+                            </div>
+                            {/* Indicador de presença */}
+                            <span className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-surf shadow-sm" />
                           </div>
-                        </div>
-                        <ChatCircle size={15} className="text-mut group-hover:text-txt transition-colors shrink-0" />
-                      </div>
-                    </MemberContextMenu>
-                  ))}
+                          {/* Nome truncado */}
+                          <span className="text-[10px] font-medium text-mut truncate w-full text-center group-hover:text-acc transition-colors leading-tight">
+                            {f.displayName.split(" ")[0]}
+                          </span>
+                        </button>
+                      </MemberContextMenu>
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-bd-glass bg-card-bg/50 p-4 text-center space-y-2">
-                  <div className="w-9 h-9 mx-auto rounded-full dark:bg-white/[0.04] bg-black/[0.05] flex items-center justify-center text-mut/60">
-                    <Users size={18} />
+                <div className="rounded-2xl border border-dashed border-bd-glass bg-card-bg/30 p-5 text-center space-y-2.5">
+                  <div className="w-10 h-10 mx-auto rounded-full bg-acc/10 flex items-center justify-center text-acc/60">
+                    <Sparkle size={20} />
                   </div>
-                  <p className="text-xs font-semibold text-txt">Está meio quieto por aqui…</p>
-                  <p className="text-[11px] text-mut/60 leading-relaxed">
-                    Quando seus amigos estiverem online no Echo, a atividade deles aparecerá aqui.
+                  <p className="text-xs font-semibold text-txt">Tudo tranquilo por agora</p>
+                  <p className="text-[11px] text-mut/50 leading-relaxed max-w-[200px] mx-auto">
+                    Seus amigos ativos aparecerão como stories aqui.
                   </p>
                 </div>
               )}

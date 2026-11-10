@@ -55,7 +55,10 @@ export default function MxcImage({
   useAuth = true,
 }: MxcImageProps) {
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // Inicia em loading=true apenas para URLs mxc:// que precisam de download/cache.
+  // URLs http(s)://, data: e blob: já estão prontas e não precisam de spinner.
+  const needsFetch = !!mxcUrl && mxcUrl.startsWith("mxc://");
+  const [loading, setLoading] = useState(needsFetch);
   const [retryCount, setRetryCount] = useState(0);
   const [useThumbnail, setUseThumbnail] = useState(false);
   const initialUrl = useMemo(

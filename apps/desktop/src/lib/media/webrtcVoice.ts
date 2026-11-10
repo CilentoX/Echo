@@ -19,7 +19,6 @@ class WebRtcVoiceManager {
   private localScreenStream: MediaStream | null = null;
   private localCameraStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
   private vadInterval: any = null;
   private heartbeatInterval: any = null;
   private burstInterval: any = null;
@@ -41,10 +40,12 @@ class WebRtcVoiceManager {
   private screenSenders: Map<string, RTCRtpSender> = new Map();
   private screenAudioSenders: Map<string, RTCRtpSender> = new Map();
   private cameraSenders: Map<string, RTCRtpSender> = new Map();
+  private screenShareBitrate: number = 4_500_000;
   private remoteVideoStreams: Map<string, MediaStream> = new Map();
   private candidateQueues: Map<string, RTCIceCandidateInit[]> = new Map();
-  private remoteAnalysers: Map<string, { analyser: AnalyserNode; interval: any; hangTimer?: any }> = new Map();
+  private remoteAnalysers: Map<string, { analyser: AnalyserNode; source?: MediaStreamAudioSourceNode; interval: any; hangTimer?: any }> = new Map();
   private peerMutedStates: Map<string, boolean> = new Map();
+  private peerHasCamera: Map<string, boolean> = new Map();
   private hasNotifiedConnected: boolean = false;
   private callbacks: WebRtcCallbacks = {};
   private sseSource: EventSource | null = null;
@@ -71,6 +72,44 @@ class WebRtcVoiceManager {
       { urls: "stun:stun.cloudflare.com:3478" },
       { urls: "stun:stun.services.mozilla.com" },
     ];
+  }
+
+  /**
+   * Aplica setSinkId em um elemento de áudio HTML para rotear saída ao dispositivo selecionado.
+   * Lê o deviceId do settingsStore se disponível, ou usa o parâmetro fornecido.
+   */
+  private async applyOutputDeviceToElement(audio: HTMLAudioElement, deviceId?: string | null): Promise<void> {
+    const sinkId = deviceId ?? (() => {
+      try {
+        const raw = localStorage.getItem("echo:audioConfig");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return parsed.headphonesDevice || parsed.outputDeviceId || null;
+        }
+      } catch {}
+      return null;
+    })();
+
+    if (!sinkId || sinkId === "default") return;
+
+    const el = audio as unknown as { setSinkId?: (id: string) => Promise<void> };
+    if (typeof el.setSinkId === "function") {
+      try {
+        await el.setSinkId(sinkId);
+      } catch (err) {
+        console.warn("[webrtcVoice] setSinkId falhou:", err);
+      }
+    }
+  }
+
+  /**
+   * Altera o dispositivo de saída de áudio para todos os peers remotos ativos.
+   * Chamado quando o usuário muda a seleção de alto-falante/fone nas configurações.
+   */
+  public async setOutputDevice(deviceId: string | null): Promise<void> {
+    for (const [, audio] of this.audioElements) {
+      await this.applyOutputDeviceToElement(audio, deviceId);
+    }
   }
 
   public getCurrentGuildId() {
@@ -275,6 +314,10 @@ class WebRtcVoiceManager {
                 this.callbacks.onParticipantSpeaking?.(data.userId, false);
               }
             }
+            // Rastreia estado de câmera remota para distinguir câmera vs screen share no ontrack
+            if (typeof data.hasCamera === "boolean") {
+              this.peerHasCamera.set(data.userId, data.hasCamera);
+            }
             this.callbacks.onParticipantUpdated?.(data.userId, {
               isSpeaking: data.isSpeaking,
               isMuted: data.isMuted,
@@ -421,7 +464,6 @@ class WebRtcVoiceManager {
         await this.audioContext.close();
       } catch {}
       this.audioContext = null;
-      this.analyser = null;
     }
 
     this.peerVolumes.clear();
@@ -477,7 +519,6 @@ class WebRtcVoiceManager {
     if (this.audioContext) {
       try { void this.audioContext.close(); } catch {}
       this.audioContext = null;
-      this.analyser = null;
     }
 
     if (!this.currentChannelId) return;
@@ -576,6 +617,9 @@ class WebRtcVoiceManager {
       if (a.hangTimer) {
         clearTimeout(a.hangTimer);
       }
+      // Desconecta source + analyser nodes para evitar leak de Web Audio resources
+      try { (a as any).source?.disconnect(); } catch {}
+      try { a.analyser?.disconnect(); } catch {}
       this.remoteAnalysers.delete(peerId);
     }
 
@@ -713,64 +757,14 @@ class WebRtcVoiceManager {
 
   private vadHangTimer: any = null;
 
+  /**
+   * Local VAD is handled exclusively by the useVoiceActivity singleton hook
+   * (adaptive noise floor, RMS/dB analysis, hysteresis, formant detection).
+   * This stub exists only to maintain the interface contract — it does nothing.
+   */
   private startVad() {
-    if (!this.localStream) return;
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      this.audioContext = new AudioCtx();
-      const source = this.audioContext.createMediaStreamSource(this.localStream);
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 512;
-      source.connect(this.analyser);
-
-      const bufferLength = this.analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      this.vadInterval = setInterval(() => {
-        if (!this.analyser || this.isMuted || this.isDeafened) {
-          if (this.vadHangTimer) {
-            clearTimeout(this.vadHangTimer);
-            this.vadHangTimer = null;
-          }
-          if (this.isSpeaking) {
-            this.isSpeaking = false;
-            this.callbacks.onSpeakingChange?.(false);
-          }
-          return;
-        }
-
-        this.analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / bufferLength;
-        const attackThreshold = 15;
-        const releaseThreshold = 10;
-
-        if (average > attackThreshold) {
-          if (this.vadHangTimer) {
-            clearTimeout(this.vadHangTimer);
-            this.vadHangTimer = null;
-          }
-          if (!this.isSpeaking) {
-            this.isSpeaking = true;
-            this.callbacks.onSpeakingChange?.(true);
-          }
-        } else if (average < releaseThreshold && this.isSpeaking) {
-          if (!this.vadHangTimer) {
-            this.vadHangTimer = setTimeout(() => {
-              this.isSpeaking = false;
-              this.vadHangTimer = null;
-              this.callbacks.onSpeakingChange?.(false);
-            }, 250); // 250ms hang time
-          }
-        }
-      }, 70);
-    } catch (e) {
-      console.warn("[WebRtcVoice] Não foi possível iniciar VAD:", e);
-    }
+    // No-op: local VAD delegated to useVoiceActivity singleton to avoid
+    // duplicate AudioContext, AnalyserNode, and setInterval overhead.
   }
 
   private stopVad() {
@@ -1033,7 +1027,7 @@ class WebRtcVoiceManager {
         }
       }, 70);
 
-      this.remoteAnalysers.set(peerId, { analyser, interval, hangTimer });
+      this.remoteAnalysers.set(peerId, { analyser, source, interval, hangTimer });
     } catch {}
   }
 
@@ -1087,7 +1081,7 @@ class WebRtcVoiceManager {
           try {
             const sender = pc.addTrack(track, this.localScreenStream);
             this.screenSenders.set(peerId, sender);
-            this.tuneSender(sender, 4_500_000);
+            this.tuneSender(sender, this.screenShareBitrate);
           } catch {}
         }
       }
@@ -1148,24 +1142,29 @@ class WebRtcVoiceManager {
         audio.srcObject = stream;
         audio.muted = this.isDeafened;
         audio.volume = 1.0;
+
+        // Aplica setSinkId para rotear áudio ao dispositivo de saída selecionado
+        void this.applyOutputDeviceToElement(audio);
+
         void audio.play().catch(() => {});
 
         // Pipeline Web Audio com GainNode (0-200% volume boost) e VAD em tempo real
         this.attachRemoteAudioPipeline(peerId, stream);
       } else if (track.kind === "video") {
-        // Transmissão remota de tela ou webcam
+        // Transmissão remota de tela ou webcam — usa peerHasCamera do SSE para distinguir
         const videoStream = stream;
+        const videoKind: "camera" | "screen" = this.peerHasCamera.get(peerId) ? "camera" : "screen";
         this.remoteVideoStreams.set(peerId, videoStream);
-        this.callbacks.onRemoteVideoStream?.(peerId, videoStream, "screen");
+        this.callbacks.onRemoteVideoStream?.(peerId, videoStream, videoKind);
 
         track.onended = () => {
           this.remoteVideoStreams.delete(peerId);
-          this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+          this.callbacks.onRemoteVideoStream?.(peerId, null, videoKind);
         };
 
         track.onunmute = () => {
           this.remoteVideoStreams.set(peerId, videoStream);
-          this.callbacks.onRemoteVideoStream?.(peerId, videoStream, "screen");
+          this.callbacks.onRemoteVideoStream?.(peerId, videoStream, videoKind);
         };
 
         track.onmute = () => {
@@ -1205,7 +1204,18 @@ class WebRtcVoiceManager {
     return pc;
   }
 
-  public async setLocalScreenShare(stream: MediaStream | null) {
+  /**
+   * Configura ou remove o stream de compartilhamento de tela local.
+   * @param stream - MediaStream da captura de tela (ou null para parar)
+   * @param options - Opções de qualidade e otimização de conteúdo
+   */
+  public async setLocalScreenShare(
+    stream: MediaStream | null,
+    options?: {
+      contentHint?: "auto" | "detail" | "motion" | "text";
+      qualityPreset?: "auto" | "low" | "medium" | "high";
+    },
+  ) {
     this.localScreenStream = stream;
     this.isScreenSharing = Boolean(
       stream && stream.getVideoTracks().some((t) => t.readyState === "live"),
@@ -1213,9 +1223,25 @@ class WebRtcVoiceManager {
     const videoTrack = stream ? stream.getVideoTracks()[0] : null;
     const audioTrack = stream ? stream.getAudioTracks()[0] : null;
 
+    // Content hint adaptativo baseado na preferência do usuário
     if (videoTrack && "contentHint" in videoTrack) {
-      videoTrack.contentHint = "detail";
+      const hint = options?.contentHint ?? "auto";
+      if (hint === "auto") {
+        // Auto: usa "detail" como padrão seguro para screen share
+        videoTrack.contentHint = "detail";
+      } else {
+        videoTrack.contentHint = hint;
+      }
     }
+
+    // Bitrate dinâmico baseado no preset de qualidade
+    const qualityBitrates: Record<string, number> = {
+      low: 1_500_000,     // ~1.5 Mbps
+      medium: 3_000_000,  // ~3 Mbps
+      high: 4_500_000,    // ~4.5 Mbps
+      auto: 4_500_000,    // Auto usa máximo, WebRTC ajusta conforme rede
+    };
+    this.screenShareBitrate = qualityBitrates[options?.qualityPreset ?? "auto"] ?? 4_500_000;
 
     for (const [peerId, pc] of this.peers.entries()) {
       try {
@@ -1329,7 +1355,7 @@ class WebRtcVoiceManager {
     try {
       const sender = this.screenSenders.get(peerId);
       if (sender) {
-        this.tuneSender(sender, 4_500_000);
+        this.tuneSender(sender, this.screenShareBitrate);
       }
 
       const offer = await pc.createOffer({
@@ -1399,7 +1425,7 @@ class WebRtcVoiceManager {
 
       const scrSender = this.screenSenders.get(fromUserId);
       if (scrSender) {
-        this.tuneSender(scrSender, 4_500_000);
+        this.tuneSender(scrSender, this.screenShareBitrate);
       }
 
       const api = useEchoApi();
@@ -1417,7 +1443,7 @@ class WebRtcVoiceManager {
 
         const scrSender = this.screenSenders.get(fromUserId);
         if (scrSender) {
-          this.tuneSender(scrSender, 4_500_000);
+          this.tuneSender(scrSender, this.screenShareBitrate);
         }
 
         const queued = this.candidateQueues.get(fromUserId) || [];

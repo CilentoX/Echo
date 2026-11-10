@@ -20,6 +20,8 @@ import {
   FolderSimplePlus,
   Gear,
   Pencil,
+  PushPin,
+  PushPinSlash,
   Plus,
   SignOut,
   Trash,
@@ -73,6 +75,10 @@ export default function GuildContextMenu({ guild, children }: GuildContextMenuPr
   const isGuildMuted = useSyncStore((s) => s.isGuildMuted);
   const muteGuild = useSyncStore((s) => s.muteGuild);
   const unmuteGuild = useSyncStore((s) => s.unmuteGuild);
+  const pinGuild = useUiStore((s) => s.pinGuild);
+  const unpinGuild = useUiStore((s) => s.unpinGuild);
+  const pinnedGuilds = useUiStore((s) => s.pinnedGuilds);
+  const isPinned = pinnedGuilds.includes(guild.guildId);
 
   // Informações completas em cache da guilda
   const storeGuild = guilds.find((g) => g.guildId === guild.guildId);
@@ -290,6 +296,24 @@ export default function GuildContextMenu({ guild, children }: GuildContextMenuPr
               <>
                 <Copy size={16} weight="bold" className="text-mut" />
                 <span>Copiar ID do Servidor</span>
+              </>
+            )}
+          </ContextMenuItem>
+
+          {/* Fixar/Desafixar na Dock de Acesso Rápido */}
+          <ContextMenuItem
+            onClick={() => isPinned ? unpinGuild(guild.guildId) : pinGuild(guild.guildId)}
+            className="flex items-center gap-2.5 cursor-pointer"
+          >
+            {isPinned ? (
+              <>
+                <PushPinSlash size={16} weight="bold" className="text-amber-400" />
+                <span>Desafixar da Dock</span>
+              </>
+            ) : (
+              <>
+                <PushPin size={16} weight="bold" className="text-acc" />
+                <span>Fixar na Dock</span>
               </>
             )}
           </ContextMenuItem>

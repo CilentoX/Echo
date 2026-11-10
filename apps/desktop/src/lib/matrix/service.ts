@@ -1,7 +1,7 @@
 import { EchoApi, type EchoApiInit } from "@/lib/api/echoApi";
 import type { Session, GuildSummary } from "./types";
 import { ECHO_HOMESERVER_URL } from "./sso";
-import { useKeyring } from "@/lib/storage/keyring";
+import { saveSession, clearSession } from "@/lib/storage/keyring";
 
 /**
  * Injection point for tests: by default we build an EchoApi client,
@@ -33,7 +33,7 @@ export class MatrixService {
     const session = await this.echoApi.exchangeCodeForTokens(code);
 
     // Store session in keyring for persistence
-    await useKeyring.setItem("echo:session", JSON.stringify(session));
+    await saveSession(session);
 
     this.session = session;
 
@@ -61,7 +61,7 @@ export class MatrixService {
   /** Logout: clear session and disconnect client. */
   async logout(): Promise<void> {
     this.session = null;
-    await useKeyring.removeItem("echo:session");
+    await clearSession();
     // Echo API singleton token is cleared by the session gate
   }
 

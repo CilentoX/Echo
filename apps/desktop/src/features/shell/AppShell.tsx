@@ -14,6 +14,7 @@ import FriendsDashboard from "@/features/friends/FriendsDashboard";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import Profile from "@/features/profile/Profile";
+import MemberProfileModal from "@/features/profile/MemberProfileModal";
 import Settings from "@/features/settings/Settings";
 import QuickSwitcherModal from "./QuickSwitcherModal";
 import AppNotInstalledModal from "@/components/modals/AppNotInstalledModal";
@@ -256,16 +257,7 @@ export default function AppShell({
     };
   }, []);
 
-  const sidebarFooter = (
-    <div className="flex flex-col shrink-0">
-      <VoiceConnectionBar onOpenVoiceSettings={() => setProfileOpen(true, "voice")} />
-      <UserBar
-        onOpenProfile={() => setProfileOpen(true, "profile")}
-        onOpenSettings={() => setProfileOpen(true, "appearance")}
-        onOpenVoiceSettings={() => setProfileOpen(true, "voice")}
-      />
-    </div>
-  );
+  // VoiceConnectionBar movido para a dock full-width (fora da sidebar)
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-bg font-ui text-txt">
@@ -284,11 +276,10 @@ export default function AppShell({
               <HomeSidebar
                 variant="overlay"
                 onClose={() => setSidebarOpen(false)}
-                footer={sidebarFooter}
               />
             )
           ) : (
-            <HomeSidebar footer={sidebarFooter} />
+            <HomeSidebar />
           )
         ) : (
           sidebarOverlay ? (
@@ -298,14 +289,12 @@ export default function AppShell({
                 onClose={() => setSidebarOpen(false)}
                 onOpenProfile={() => setProfileOpen(true, "profile")}
                 onOpenSettings={() => setProfileOpen(true, "appearance")}
-                footer={sidebarFooter}
               />
             )
           ) : (
             <ChannelSidebar
               onOpenProfile={() => setProfileOpen(true, "profile")}
               onOpenSettings={() => setProfileOpen(true, "appearance")}
-              footer={sidebarFooter}
             />
           )
         )}
@@ -375,13 +364,28 @@ export default function AppShell({
         )}
       </div>
 
+      {/* Dock Inferior Persistente ("___") — full-width, identidade Echo */}
+      {/* Dock Inferior Persistente ("___") — full-width, identidade Echo */}
+      <div className="flex w-full flex-col shrink-0">
+        <VoiceConnectionBar onOpenVoiceSettings={() => setProfileOpen(true, "voice")} />
+        <UserBar
+          onOpenProfile={() => setProfileOpen(true, "profile")}
+          onOpenSettings={() => setProfileOpen(true, "appearance")}
+          onOpenVoiceSettings={() => setProfileOpen(true, "voice")}
+        />
+      </div>
+
       <SyncStatusIndicator />
 
       <Profile
         open={profileOpen}
         initialTab={(profileInitialTab as any) || "profile"}
-        onClose={() => setProfileOpen(false)}
+        onClose={() => {
+          setProfileOpen(false);
+          useUiStore.getState().setMemberProfileUserId(null);
+        }}
       />
+      <MemberProfileModal />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <CreateGuildModal

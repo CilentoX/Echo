@@ -68,7 +68,7 @@ describe("GoogleLoginScreen", () => {
     expect(screen.getByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
   });
 
-  it("enquanto carrega, o botão fica desabilitado mostrando 'Entrando...'", async () => {
+  it("enquanto carrega, mostra estado de loading com spinner", async () => {
     const { runSsoLogin } = await import("@/lib/matrix/sso");
     let resolveLogin: (session: Session) => void;
     const loginPromise = new Promise<Session>((resolve) => {
@@ -80,8 +80,8 @@ describe("GoogleLoginScreen", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Entrar com Google/ }));
 
-    const loading = screen.getByRole("button", { name: /Entrando\.\.\./ });
-    expect(loading.hasAttribute("disabled")).toBe(true);
+    // Novo design: mostra texto de loading em vez de botão desabilitado
+    expect(await screen.findByText(/Autenticando com Google/i)).toBeTruthy();
 
     resolveLogin!(SESSION);
     await waitFor(() => expect(screen.getByRole("button", { name: /Entrar com Google/ })).toBeTruthy());
@@ -108,9 +108,8 @@ describe("GoogleLoginScreen", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Entrar com Google/ }));
 
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /Falha ao abrir o navegador para login/,
-    );
+    // Novo design: erro mostrado como texto, não como role="alert"
+    expect(await screen.findByText(/Falha ao abrir o navegador para login/i)).toBeTruthy();
 
     (runSsoLogin as ReturnType<typeof vi.fn>).mockResolvedValueOnce(SESSION);
     await userEvent.click(screen.getByRole("button", { name: /Tentar de novo/ }));

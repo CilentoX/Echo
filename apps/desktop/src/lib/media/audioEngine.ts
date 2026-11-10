@@ -324,6 +324,86 @@ export class AudioEngine {
       }, 500);
     } catch {}
   }
+
+  /**
+   * Toca o som tátil e instantâneo de ativação do Push-to-Talk (chirp sutil ascendente).
+   */
+  async playPttActivate(volume: number = 50): Promise<void> {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") await ctx.resume();
+
+      const masterGain = ctx.createGain();
+      const vol = Math.max(0, Math.min(1, volume / 100));
+      masterGain.gain.setValueAtTime(vol * 0.2, ctx.currentTime);
+      masterGain.connect(ctx.destination);
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(700, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1050, ctx.currentTime + 0.04);
+
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05);
+
+      osc.connect(gain);
+      gain.connect(masterGain);
+
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.06);
+
+      setTimeout(() => {
+        void ctx.close().catch(() => {});
+      }, 200);
+    } catch {}
+  }
+
+  /**
+   * Toca o som tátil e instantâneo de desativação do Push-to-Talk (chirp sutil descendente).
+   */
+  async playPttDeactivate(volume: number = 50): Promise<void> {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") await ctx.resume();
+
+      const masterGain = ctx.createGain();
+      const vol = Math.max(0, Math.min(1, volume / 100));
+      masterGain.gain.setValueAtTime(vol * 0.18, ctx.currentTime);
+      masterGain.connect(ctx.destination);
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(950, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.04);
+
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05);
+
+      osc.connect(gain);
+      gain.connect(masterGain);
+
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.06);
+
+      setTimeout(() => {
+        void ctx.close().catch(() => {});
+      }, 200);
+    } catch {}
+  }
 }
 
 export const audioEngine = new AudioEngine();

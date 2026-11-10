@@ -241,6 +241,16 @@ export default function GuildSettingsModal({
   const prevOpenRef = useRef(false);
   const prevGuildIdRef = useRef<string | null>(null);
 
+  // Revoke blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
+      if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
+      if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
+      if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+    };
+  }, [rawIconUrl, rawBannerUrl, iconPreview, bannerPreview]);
+
   // Reset form only when modal opens or switches to a different guild
   useEffect(() => {
     if (open) {
@@ -248,12 +258,20 @@ export default function GuildSettingsModal({
       const isDifferentGuild = prevGuildIdRef.current !== guild.guildId;
 
       if (isNewlyOpened || isDifferentGuild) {
+        // Revoke old blob previews before overwriting with server URLs
+        if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
+        if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+        if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
+        if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
+
         setName(guild.name);
         setDescription(guild.description ?? "");
         setIconPreview(guild.avatarUrl ?? null);
         setBannerPreview(guild.bannerUrl ?? null);
         setIconFile(null);
         setBannerFile(null);
+        setRawIconUrl(null);
+        setRawBannerUrl(null);
         setErrorMessage(null);
         setStatusMessage(null);
         setActiveTab("overview");

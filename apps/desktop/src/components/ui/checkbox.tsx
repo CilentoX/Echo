@@ -1,5 +1,5 @@
 import * as React from "react"
-import { CheckIcon } from "lucide-react"
+import { Check } from "@phosphor-icons/react"
 import { Checkbox as CheckboxPrimitive } from "radix-ui"
 
 interface CheckboxProps extends Omit<React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>, "checked"> {
@@ -20,7 +20,7 @@ const Checkbox = React.forwardRef<
     {...props}
   >
     <CheckboxPrimitive.Indicator asChild>
-      <CheckIcon className="size-4" />
+      <Check className="size-4" weight="bold" />
     </CheckboxPrimitive.Indicator>
   </CheckboxPrimitive.Root>
 ))

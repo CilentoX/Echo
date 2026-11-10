@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import VoiceConnectionBar from "@/features/shell/VoiceConnectionBar";
@@ -46,6 +46,26 @@ describe("VoiceConnectionBar Component", () => {
 
     expect(useVoiceStore.getState().isConnected).toBe(false);
     expect(useVoiceStore.getState().activeVoiceChannelId).toBeNull();
+  });
+
+  it("dispara evento de compartilhamento de tela ao clicar no botão de tela", async () => {
+    useVoiceStore.setState({
+      isConnected: true,
+      isConnecting: false,
+      activeVoiceChannelId: "ch-1",
+      activeVoiceChannelName: "Voz Geral",
+    });
+
+    const listener = vi.fn();
+    window.addEventListener("echo:toggle-screenshare", listener);
+
+    render(<VoiceConnectionBar />);
+
+    const screenBtn = screen.getByRole("button", { name: "Compartilhar tela" });
+    await userEvent.click(screenBtn);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener("echo:toggle-screenshare", listener);
   });
 });
 

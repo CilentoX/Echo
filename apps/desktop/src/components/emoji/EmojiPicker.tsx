@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Smile } from "lucide-react";
+import { Smiley } from "@phosphor-icons/react";
 import { useThemeStore } from "@/stores/themeStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useSyncStore } from "@/stores/syncStore";
@@ -112,7 +112,7 @@ export function EmojiPicker({
             className="cursor-pointer p-1.5 dark:hover:bg-white/[0.06] hover:bg-black/[0.06] rounded-xl transition-colors text-mut hover:text-txt"
             aria-label="Escolher emoji"
           >
-            <Smile size={18} />
+            <Smiley size={18} />
           </button>
         )}
       </PopoverTrigger>
@@ -126,7 +126,7 @@ export function EmojiPicker({
         {/* Barra Superior Echo com Seletor de Tom de Pele Interativo no Hover */}
         <div className="flex items-center justify-between px-3.5 py-2 border-b border-bd-subtle bg-userbar-bg select-none">
           <div className="flex items-center gap-1.5">
-            <Smile size={14} className="text-acc" />
+            <Smiley size={14} className="text-acc" />
             <span className="text-[11px] font-bold uppercase tracking-wider text-txt/90">
               Emojis
             </span>

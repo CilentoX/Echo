@@ -58,14 +58,32 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
 
   const echoApi = useEchoApi();
 
+  // Revoke blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
+      if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
+      if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
+      if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+    };
+  }, [rawIconUrl, rawBannerUrl, iconPreview, bannerPreview]);
+
   useEffect(() => {
     if (open) {
+      // Revoke old blob previews before overwriting with server URLs
+      if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
+      if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+      if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
+      if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
+
       setName(guild.name);
       setDescription(guild.description ?? "");
       setIconPreview(guild.avatarUrl ?? null);
       setBannerPreview(guild.bannerUrl ?? null);
       setIconFile(null);
       setBannerFile(null);
+      setRawIconUrl(null);
+      setRawBannerUrl(null);
       setError(null);
     }
   }, [open, guild]);

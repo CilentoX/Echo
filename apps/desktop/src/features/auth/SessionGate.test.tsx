@@ -30,11 +30,6 @@ vi.mock("@/lib/storage/keyring", () => ({
   loadSession: vi.fn(),
   saveSession: vi.fn(),
   clearSession: vi.fn(),
-  useKeyring: {
-    getItem: vi.fn(async () => null),
-    setItem: vi.fn(async () => {}),
-    removeItem: vi.fn(async () => {}),
-  },
 }));
 vi.mock("@/lib/matrix/instance", () => ({
   matrixService: mockMatrixService,

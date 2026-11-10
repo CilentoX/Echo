@@ -117,19 +117,6 @@ async fn finish_sso_listener(port: u16) -> Result<String, String> {
     sso::finish_sso_listener(port).await
 }
 
-/// Starts a loopback HTTP listener on a random available port for the Spotify PKCE flow.
-/// Returns the port and the code verifier (to include in the auth URL).
-#[tauri::command]
-async fn begin_spotify_sso_listener() -> Result<(u16, String), String> {
-    sso::begin_spotify_sso_listener().await
-}
-
-/// Waits for the `code` captured by the Spotify PKCE listener on `port` (5 min timeout).
-#[tauri::command]
-async fn finish_spotify_listener(port: u16) -> Result<String, String> {
-    sso::finish_spotify_listener(port).await
-}
-
 /// Stores the full session in the OS keyring (service "eco", entry = userId).
 #[tauri::command]
 fn store_token(
@@ -259,8 +246,6 @@ pub fn run() {
             ack_close_and_exit,
             begin_sso_listener,
             finish_sso_listener,
-            begin_spotify_sso_listener,
-            finish_spotify_listener,
             store_token,
             load_token,
             clear_token,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Hash, ArrowDown, UploadSimple } from "@phosphor-icons/react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
@@ -205,22 +206,84 @@ export default function ChatPane({
     return () => ro.disconnect();
   }, []);
 
-  const handleScroll = () => {
+  const reactionsFor = (eventId: string) => reactionsByEvent[eventId] ?? [];
+
+  // Flatten groups into a single array for virtualization: each entry is either
+  // a "header" (hero banner) or a message event with its showHeader flag.
+  const virtualItems = useMemo(() => {
+    const items: Array<
+      | { kind: "hero"; id: string }
+      | { kind: "empty"; id: string }
+      | { kind: "message"; id: string; event: (typeof timeline)[number]; showHeader: boolean }
+    > = [];
+
+    if (activeFriend || (!isGuild && !activeFriend)) {
+      items.push({ kind: "hero", id: "hero" });
+    }
+
+    if (timeline.length === 0) {
+      items.push({ kind: "empty", id: "empty" });
+    } else {
+      for (const group of groups) {
+        for (let i = 0; i < group.events.length; i++) {
+          items.push({
+            kind: "message",
+            id: group.events[i].eventId,
+            event: group.events[i],
+            showHeader: i === 0,
+          });
+        }
+      }
+    }
+
+    return items;
+  }, [groups, timeline.length, activeFriend, isGuild]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: virtualItems.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 72,
+    overscan: 12,
+    getItemKey: (index) => virtualItems[index].id,
+  });
+
+  // Auto-scroll to bottom when new messages arrive and user is at bottom
+  useEffect(() => {
+    if (!atBottomRef.current) {
+      if (timeline.length > prevTimelineLenRef.current) {
+        setHasNewMessagesBelow(true);
+      }
+      prevTimelineLenRef.current = timeline.length;
+      return;
+    }
+
+    const totalItems = virtualItems.length;
+    if (totalItems > 0) {
+      rowVirtualizer.scrollToIndex(totalItems - 1, { align: "end" });
+    }
+    if (hasNewMessagesBelow) setHasNewMessagesBelow(false);
+    prevTimelineLenRef.current = timeline.length;
+  }, [timeline.length, virtualItems.length, hasNewMessagesBelow, rowVirtualizer]);
+
+  // Load older messages when scrolling near the top
+  const handleVirtualScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
+
     const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     const isAtBottom = distanceToBottom < 80;
     atBottomRef.current = isAtBottom;
+
     if (isAtBottom && hasNewMessagesBelow) {
       setHasNewMessagesBelow(false);
     }
 
-    if (el.scrollTop === 0 && activeChannelId && timeline.length >= 30) {
+    // Load more history when near the top
+    const firstVisible = rowVirtualizer.getVirtualItems()[0];
+    if (firstVisible && firstVisible.index < 5 && activeChannelId && timeline.length >= 30) {
       void loadHistory(activeChannelId, 30);
     }
-  };
-
-  const reactionsFor = (eventId: string) => reactionsByEvent[eventId] ?? [];
+  }, [hasNewMessagesBelow, activeChannelId, timeline.length, loadHistory, rowVirtualizer]);
 
   // Se um conteúdo customizado foi passado (ex: FriendsDashboard ou EmptyState), renderiza-o diretamente
   if (children) {
@@ -339,69 +402,124 @@ export default function ChatPane({
         onToggleMembers={onToggleMembers}
       />
 
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto py-4">
-        {/* Hero Banner: Amigo (DM) vs Canal de Guilda */}
-        {activeFriend ? (
-          <div className="px-6 pt-6 pb-4 mb-3">
-            <div className="relative mb-3 inline-block">
-              {activeFriend.avatarUrl ? (
-                <MxcImage
-                  mxcUrl={activeFriend.avatarUrl}
-                  alt={activeFriend.displayName}
-                  className="h-16 w-16 rounded-full object-cover shadow-md"
-                  width={64}
-                  height={64}
-                />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc/20 font-display text-2xl font-bold text-acc shadow-md">
-                  {activeFriend.displayName.slice(0, 1).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <h2 className="font-display text-2xl font-bold text-txt">
-              {activeFriend.displayName}
-            </h2>
-            <p className="font-mono text-xs text-mut mt-0.5">
-              {activeFriend.nickname ? `@${activeFriend.nickname}` : activeFriend.userId}
-            </p>
-            <p className="mt-2 text-xs text-mut max-w-lg leading-relaxed">
-              Este é o início da sua conversa direta com <strong className="text-txt">{activeFriend.displayName}</strong>. As mensagens trocadas aqui são criptografadas de ponta a ponta e privadas.
-            </p>
-            <div className="w-full h-[1px] bg-bd/40 mt-5" />
-          </div>
-        ) : (
-          <div className="px-4 pt-4 pb-3 mb-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surf2 border border-bd text-acc mb-2 shadow-sm">
-              <Hash size={24} weight="bold" />
-            </div>
-            <h2 className="font-display text-xl font-bold text-txt">
-              Bem-vindo a #{channelName ?? "geral"}!
-            </h2>
-            <p className="mt-0.5 text-xs text-mut max-w-lg">
-              Este é o início do canal #{channelName ?? "geral"}. Diga olá e comece a conversa!
-            </p>
-            <div className="w-full h-[1px] bg-bd/40 mt-3" />
-          </div>
-        )}
+      <div ref={scrollRef} onScroll={handleVirtualScroll} className="flex-1 min-h-0 overflow-y-auto">
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const item = virtualItems[virtualRow.index];
 
-        {timeline.length === 0 && (
-          <p className="px-6 text-sm text-mut">Nenhuma mensagem ainda. Diga olá!</p>
-        )}
-        {groups.map((group) =>
-          group.events.map((event, index) => (
-            <MessageBubble
-              key={event.eventId}
-              event={event}
-              showHeader={index === 0}
-              pending={event.eventId.startsWith("pending-")}
-              isBot={botSenders.includes(event.sender)}
-              reactions={reactionsFor(event.eventId)}
-              myUserId={myUserId ?? undefined}
-              threadReplies={threadReplies?.[event.eventId]}
-              onToggleReaction={sendReaction}
-            />
-          )),
-        )}
+            if (item.kind === "hero") {
+              return (
+                <div
+                  key={item.id}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  {activeFriend ? (
+                    <div className="px-6 pt-6 pb-4 mb-3">
+                      <div className="relative mb-3 inline-block">
+                        {activeFriend.avatarUrl ? (
+                          <MxcImage
+                            mxcUrl={activeFriend.avatarUrl}
+                            alt={activeFriend.displayName}
+                            className="h-16 w-16 rounded-full object-cover shadow-md"
+                            width={64}
+                            height={64}
+                          />
+                        ) : (
+                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-acc/20 font-display text-2xl font-bold text-acc shadow-md">
+                            {activeFriend.displayName.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <h2 className="font-display text-2xl font-bold text-txt">
+                        {activeFriend.displayName}
+                      </h2>
+                      <p className="font-mono text-xs text-mut mt-0.5">
+                        {activeFriend.nickname ? `@${activeFriend.nickname}` : activeFriend.userId}
+                      </p>
+                      <p className="mt-2 text-xs text-mut max-w-lg leading-relaxed">
+                        Este é o início da sua conversa direta com <strong className="text-txt">{activeFriend.displayName}</strong>. As mensagens trocadas aqui são criptografadas de ponta a ponta e privadas.
+                      </p>
+                      <div className="w-full h-[1px] bg-bd/40 mt-5" />
+                    </div>
+                  ) : (
+                    <div className="px-4 pt-4 pb-3 mb-2">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surf2 border border-bd text-acc mb-2 shadow-sm">
+                        <Hash size={24} weight="bold" />
+                      </div>
+                      <h2 className="font-display text-xl font-bold text-txt">
+                        Bem-vindo a #{channelName ?? "geral"}!
+                      </h2>
+                      <p className="mt-0.5 text-xs text-mut max-w-lg">
+                        Este é o início do canal #{channelName ?? "geral"}. Diga olá e comece a conversa!
+                      </p>
+                      <div className="w-full h-[1px] bg-bd/40 mt-3" />
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            if (item.kind === "empty") {
+              return (
+                <div
+                  key={item.id}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <p className="px-6 py-4 text-sm text-mut">Nenhuma mensagem ainda. Diga olá!</p>
+                </div>
+              );
+            }
+
+            // item.kind === "message"
+            return (
+              <div
+                key={item.id}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                <MessageBubble
+                  event={item.event}
+                  showHeader={item.showHeader}
+                  pending={item.event.eventId.startsWith("pending-")}
+                  isBot={botSenders.includes(item.event.sender)}
+                  reactions={reactionsFor(item.event.eventId)}
+                  myUserId={myUserId ?? undefined}
+                  threadReplies={threadReplies?.[item.event.eventId]}
+                  onToggleReaction={sendReaction}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <TypingIndicator names={typingUsers} />

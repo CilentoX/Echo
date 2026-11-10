@@ -6,14 +6,14 @@ import ImageEditor from "@/components/media/ImageEditor"
 import { useUiStore } from "@/stores/uiStore"
 import { mxcToHttp } from "@/lib/media/mxc"
 import { getImageSize } from "@/lib/media/imagePresets"
-import { UploadIcon } from "lucide-react"
+import { UploadSimple } from "@phosphor-icons/react"
 
 export interface ImageUploadWithEditProps {
   value: string | null
   label: string
   placeholder?: string
   initials?: string
-  onChange: (file: File) => void
+  onChange: (file: File) => void | Promise<void>
   onRemove?: () => void
   /** Tipo de imagem - define aspect ratio e tamanho de saída */
   type?: "avatar" | "banner" | "guild"
@@ -196,16 +196,28 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
     [maxSizeBytes, maxSizeMB, rawOriginalUrl],
   )
 
+  const [isUploading, setIsUploading] = useState(false)
+
   const handleEditorConfirm = useCallback(
-    (croppedFile: File) => {
+    async (croppedFile: File) => {
+      // Revoga preview anterior e cria novo para exibição imediata
       if (previewObjUrl && previewObjUrl !== rawOriginalUrl) {
         URL.revokeObjectURL(previewObjUrl)
       }
       const newUrl = URL.createObjectURL(croppedFile)
       setPreviewObjUrl(newUrl)
       setSelectedFile(croppedFile)
-      onChange(croppedFile)
       setEditorOpen(false)
+
+      // Aguarda o onChange assíncrono (upload) antes de liberar interações
+      try {
+        setIsUploading(true)
+        await onChange(croppedFile)
+      } catch (err) {
+        console.error("[ImageUploadWithEdit] Erro no onChange (upload):", err)
+      } finally {
+        setIsUploading(false)
+      }
     },
     [onChange, previewObjUrl, rawOriginalUrl],
   )
@@ -361,8 +373,8 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
               </div>
             )}
 
-            {uploading && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 z-20">
+            {(uploading || isUploading) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
                 <span className="text-xs text-white animate-pulse font-medium drop-shadow-lg">Enviando…</span>
               </div>
             )}
@@ -391,12 +403,12 @@ const ImageUploadWithEdit = function ImageUploadWithEdit({
                   </div>
                 ) : editable ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-mut">
-                    <UploadIcon size={24} className="opacity-70" />
+                    <UploadSimple size={24} className="opacity-70" />
                     <span className="text-xs font-medium">{placeholder || "Adicionar imagem"}</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 text-mut/50">
-                    <UploadIcon size={24} />
+                    <UploadSimple size={24} />
                     <span className="text-xs font-medium">{placeholder || "Sem imagem"}</span>
                   </div>
                 )}

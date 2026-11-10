@@ -9,11 +9,6 @@ vi.mock("@/lib/storage/keyring", () => ({
   loadSession: vi.fn(),
   saveSession: vi.fn(async () => {}),
   clearSession: vi.fn(async () => {}),
-  useKeyring: {
-    getItem: vi.fn(async () => null),
-    setItem: vi.fn(async () => {}),
-    removeItem: vi.fn(async () => {}),
-  },
 }));
 vi.mock("@/lib/matrix/wiring", () => ({
   startSyncWiring: vi.fn(),
