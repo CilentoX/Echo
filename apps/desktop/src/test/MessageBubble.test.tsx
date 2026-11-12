@@ -98,9 +98,10 @@ describe("MessageBubble v2", () => {
     replyBtn.click();
 
     expect(capturedReply).not.toBeNull();
-    expect(capturedReply?.eventId).toBe("e1");
-    expect(capturedReply?.sender).toBe("@outro:hs");
-    expect(capturedReply?.body).toBe("Olá, mundo!");
+    const reply = capturedReply as unknown as { eventId: string; sender: string; body: string };
+    expect(reply.eventId).toBe("e1");
+    expect(reply.sender).toBe("@outro:hs");
+    expect(reply.body).toBe("Olá, mundo!");
     window.removeEventListener("echo:reply-to", listener);
   });
 
