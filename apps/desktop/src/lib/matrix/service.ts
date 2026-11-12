@@ -65,14 +65,22 @@ export class MatrixService {
     // Echo API singleton token is cleared by the session gate
   }
 
-  /** Liga o sync loop aos handlers. Chamar uma única vez por sessão ativa. */
-  startSyncHandlers(_handlers: unknown): void {
-    // Echo API WebSocket sync is managed separately via connectSync()
-    // This is kept for compatibility; real sync uses connectSync()
+  /** Liga o sync loop aos handlers. Delega ao EchoApi que conecta via WebSocket /matrix/sync. */
+  startSyncHandlers(handlers: {
+    onStatus?: (status: string, error?: any) => void;
+    onEvent?: (event: any) => void;
+    onTyping?: (roomId: string, userIds: string[]) => void;
+    onPresence?: (userId: string, presence: any) => void;
+    onMembers?: (roomId: string, members: any[]) => void;
+    onReaction?: (reaction: any) => void;
+    onReadReceipt?: (roomId: string, userId: string, eventId: string) => void;
+    [key: string]: any;
+  }): void {
+    this.echoApi.startSyncHandlers(handlers);
   }
 
   stopSync(): void {
-    // Echo API WebSocket sync is managed separately
+    this.echoApi.stopSync();
   }
 
   /** Send an m.text message; resolves with the resulting event id. */
@@ -81,9 +89,20 @@ export class MatrixService {
   }
 
   /** Sends an m.file message: uploads the file, then sends m.message with m.file content. */
-  async sendFile(roomId: string, file: File, body?: string): Promise<string> {
+  async sendFile(
+    roomId: string,
+    file: File,
+    body?: string,
+    options?: { replyToEventId?: string },
+  ): Promise<string> {
     const mediaUri = await this.echoApi.uploadChatMedia(file);
-    return this.echoApi.sendMessage(roomId, body ?? mediaUri);
+    const isImage = file.type.startsWith("image/");
+    const isAudio = file.type.startsWith("audio/");
+    const msgtype = isImage ? "m.image" : isAudio ? "m.audio" : "m.file";
+    return this.echoApi.sendMessage(roomId, body ?? mediaUri, {
+      msgtype,
+      ...(options?.replyToEventId ? { replyToEventId: options.replyToEventId } : {}),
+    });
   }
 
   /** Envia uma reação m.reaction (m.annotation com m.relates_to) a um evento. */

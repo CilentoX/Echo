@@ -16,7 +16,12 @@ import { matrixService } from "@/lib/matrix/instance";
 export type SendMessageFn = (roomId: string, body: string, options?: { replyToEventId?: string }) => Promise<string>;
 
 /** Contrato de envio de anexo (Fase B/Multimídia). */
-export type SendFileFn = (roomId: string, file: File, body?: string) => Promise<string>;
+export type SendFileFn = (
+  roomId: string,
+  file: File,
+  body?: string,
+  options?: { replyToEventId?: string },
+) => Promise<string>;
 
 const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
@@ -448,7 +453,9 @@ export default function Composer({
         // NOT from the closure variable which may already be cleared by setReplyTo(null).
         const itemReplyTo = item.optimisticEvent?.replyTo;
         if (item.file && sendFile) {
-          realEventId = await sendFile(roomId, item.file, item.body);
+          realEventId = await sendFile(roomId, item.file, item.body, {
+            ...(itemReplyTo ? { replyToEventId: itemReplyTo.eventId } : {}),
+          });
         } else {
           realEventId = await sendMessage(roomId, item.body, {
             ...(itemReplyTo ? { replyToEventId: itemReplyTo.eventId } : {}),

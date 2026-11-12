@@ -230,6 +230,11 @@ export class EchoApi {
     [key: string]: any;
   } | null = null;
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
+  private syncWs: WebSocket | null = null;
+  private syncSince: string = "";
+  private syncReconnectAttempts = 0;
+  private readonly maxSyncReconnectAttempts = 10;
+  private syncReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor({ baseUrl, accessToken, apiKey, userId }: EchoApiInit) {
     this.baseUrl = baseUrl;
@@ -825,12 +830,20 @@ export class EchoApi {
   }
 
   /** Sends an m.file, m.image, or m.audio message: uploads the file, then sends the message. */
-  async sendFile(roomId: string, file: File, body?: string): Promise<string> {
+  async sendFile(
+    roomId: string,
+    file: File,
+    body?: string,
+    options?: { replyToEventId?: string },
+  ): Promise<string> {
     const mediaUri = await this.uploadChatMedia(file);
     const isImage = file.type.startsWith("image/");
     const isAudio = file.type.startsWith("audio/");
     const msgtype = isImage ? "m.image" : isAudio ? "m.audio" : "m.file";
-    return this.sendMessage(roomId, body || mediaUri, { msgtype });
+    return this.sendMessage(roomId, body || mediaUri, {
+      msgtype,
+      ...(options?.replyToEventId ? { replyToEventId: options.replyToEventId } : {}),
+    });
   }
 
   /** Load older history for a channel. */
@@ -1241,7 +1254,7 @@ export class EchoApi {
 
   // ── Sync compatibility methods ─────────────────────────────────────
 
-  /** Start sync handlers. Transiciona para "syncing" se a sessão já estiver autenticada. */
+  /** Start sync handlers. Conecta ao WebSocket /matrix/sync proxy e despacha eventos em tempo real. */
   startSyncHandlers(handlers: {
     onStatus?: (status: string, error?: any) => void;
     onEvent?: (event: any) => void;
@@ -1261,16 +1274,141 @@ export class EchoApi {
       this.syncTimer = setTimeout(() => {
         this.syncHandlers?.onStatus?.("syncing");
       }, 50);
+      // Inicia conexão WebSocket com o proxy /matrix/sync do echo-api
+      this.connectSyncWebSocket();
     }
   }
 
-  /** Stop sync. Limpa os timers e handlers de sincronização. */
+  /** Stop sync. Fecha o WebSocket e limpa os timers/handlers de sincronização. */
   stopSync(): void {
     if (this.syncTimer) {
       clearTimeout(this.syncTimer);
       this.syncTimer = null;
     }
+    if (this.syncReconnectTimer) {
+      clearTimeout(this.syncReconnectTimer);
+      this.syncReconnectTimer = null;
+    }
+    if (this.syncWs) {
+      try {
+        this.syncWs.close();
+      } catch {}
+      this.syncWs = null;
+    }
     this.syncHandlers = null;
+    this.syncSince = "";
+    this.syncReconnectAttempts = 0;
+  }
+
+  /**
+   * Conecta ao WebSocket proxy /matrix/sync do echo-api.
+   * O proxy repassa eventos brutos do Synapse /sync, incluindo content com m.relates_to.
+   * Eventos são parseados e despachados ao onEvent handler para normalização no wiring.ts.
+   */
+  private connectSyncWebSocket(): void {
+    if (this.syncWs || !this.accessToken) return;
+
+    const wsUrl = this.baseUrl.replace(/^http/, "ws") + "/matrix/sync";
+    const params = new URLSearchParams({
+      access_token: this.accessToken,
+      timeout: "30000",
+    });
+    if (this.syncSince) {
+      params.set("since", this.syncSince);
+    }
+
+    try {
+      this.syncWs = new WebSocket(`${wsUrl}?${params.toString()}`);
+    } catch {
+      this.scheduleSyncReconnect();
+      return;
+    }
+
+    this.syncWs.onopen = () => {
+      this.syncReconnectAttempts = 0;
+      this.syncHandlers?.onStatus?.("syncing");
+    };
+
+    this.syncWs.onmessage = (evt) => {
+      try {
+        const data = typeof evt.data === "string" ? JSON.parse(evt.data) : null;
+        if (!data) return;
+
+        // Atualiza token de sync para reconnect
+        if (data.next_batch) {
+          this.syncSince = data.next_batch;
+        }
+
+        // Processa eventos das rooms (timeline, ephemeral, state)
+        const rooms = data.rooms;
+        if (rooms) {
+          // Rooms joined: timeline events + ephemeral + state
+          if (rooms.join) {
+            for (const [roomId, roomData] of Object.entries(rooms.join as Record<string, any>)) {
+              // Timeline events (mensagens, edits, redactions)
+              const timelineEvents = roomData.timeline?.events ?? [];
+              for (const event of timelineEvents) {
+                // Anexa roomId ao evento para normalizeSyncEvent
+                event.roomId = event.room_id || roomId;
+                this.syncHandlers?.onEvent?.(event);
+              }
+
+              // Ephemeral events (typing, receipts)
+              const ephemeralEvents = roomData.ephemeral?.events ?? [];
+              for (const event of ephemeralEvents) {
+                event.roomId = event.room_id || roomId;
+                if (event.type === "m.typing") {
+                  this.syncHandlers?.onTyping?.(roomId, event.content?.user_ids ?? []);
+                } else if (event.type === "m.receipt") {
+                  const receiptContent = event.content ?? {};
+                  for (const [eventId, receiptData] of Object.entries(receiptContent as Record<string, any>)) {
+                    const readReceipts = receiptData?.["m.read"] ?? {};
+                    for (const userId of Object.keys(readReceipts)) {
+                      this.syncHandlers?.onReadReceipt?.(roomId, userId, eventId);
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // Rooms invited/leave podem ter eventos relevantes no futuro
+        }
+
+        // Presence events
+        const presenceEvents = data.presence?.events ?? [];
+        for (const event of presenceEvents) {
+          if (event.type === "m.presence" && event.sender) {
+            this.syncHandlers?.onPresence?.(event.sender, event.content);
+          }
+        }
+      } catch {
+        // Ignora mensagens malformadas; o proxy continua funcionando
+      }
+    };
+
+    this.syncWs.onerror = () => {
+      // Erro de conexão será tratado pelo onclose
+    };
+
+    this.syncWs.onclose = () => {
+      this.syncWs = null;
+      this.scheduleSyncReconnect();
+    };
+  }
+
+  /** Agenda reconexão do WebSocket sync com backoff exponencial. */
+  private scheduleSyncReconnect(): void {
+    if (this.syncReconnectAttempts >= this.maxSyncReconnectAttempts) return;
+    if (this.syncReconnectTimer) return;
+
+    const delay = Math.min(1000 * Math.pow(2, this.syncReconnectAttempts), 30000);
+    this.syncReconnectAttempts++;
+
+    this.syncReconnectTimer = setTimeout(() => {
+      this.syncReconnectTimer = null;
+      this.connectSyncWebSocket();
+    }, delay);
   }
 
   // ── Friends & DMs ───────────────────────────────────────────────
