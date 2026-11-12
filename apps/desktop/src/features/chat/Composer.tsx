@@ -444,11 +444,14 @@ export default function Composer({
       );
       try {
         let realEventId: string | undefined;
+        // Extract replyTo from the optimistic event captured at send time,
+        // NOT from the closure variable which may already be cleared by setReplyTo(null).
+        const itemReplyTo = item.optimisticEvent?.replyTo;
         if (item.file && sendFile) {
           realEventId = await sendFile(roomId, item.file, item.body);
         } else {
           realEventId = await sendMessage(roomId, item.body, {
-            ...(replyTo ? { replyToEventId: replyTo.eventId } : {}),
+            ...(itemReplyTo ? { replyToEventId: itemReplyTo.eventId } : {}),
           });
         }
         if (realEventId && typeof realEventId === "string") {
@@ -471,6 +474,8 @@ export default function Composer({
           resolveEvent(item.localId, {
             ...base,
             eventId: realEventId,
+            // Preserve replyTo from optimistic event when server event doesn't include it yet
+            ...(item.optimisticEvent?.replyTo && !base.replyTo ? { replyTo: item.optimisticEvent.replyTo } : {}),
           });
         } else {
           removeEvent(roomId, item.localId);
