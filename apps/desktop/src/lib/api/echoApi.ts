@@ -1308,8 +1308,13 @@ export class EchoApi {
   private connectSyncWebSocket(): void {
     if (!this.accessToken) return;
 
-    // Tear down any existing connection before creating a new one
-    // (handles React StrictMode double-invoke in development)
+    // If a connection already exists and is open or connecting, reuse it
+    // (prevents React StrictMode double-invoke from tearing down a live connection)
+    if (this.syncWs && (this.syncWs.readyState === WebSocket.OPEN || this.syncWs.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    // Tear down any stale/closed connection before creating a new one
     if (this.syncWs) {
       try {
         this.syncWs.onclose = null;
