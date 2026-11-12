@@ -5,6 +5,7 @@ import type { GuildSummary } from "@/lib/matrix/types";
 import CommunityRail from "@/features/shell/CommunityRail";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useUnreadStore } from "@/stores/unreadStore";
 
 function makeGuild(overrides: Partial<GuildSummary> = {}): GuildSummary {
   return {
@@ -24,6 +25,7 @@ function resetStores() {
     timelineByChannel: {},
   });
   useUiStore.setState({ activeGuildId: null, activeChannelId: null });
+  useUnreadStore.getState().resetAll();
 }
 
 describe("CommunityRail", () => {
@@ -40,15 +42,25 @@ describe("CommunityRail", () => {
     expect(screen.getByRole("button", { name: "Litteris" })).toBeTruthy();
   });
 
-  it("mostra badge de não-lidas quando unreadCount > 0", () => {
-    useSyncStore.getState().setGuilds([makeGuild({ unreadCount: 3 })]);
+  it("mostra badge de não-lidas quando unreadStore tem contagem > 0", () => {
+    const guild = makeGuild();
+    useSyncStore.getState().setGuilds([guild]);
+    // Popula unread via store (simula mensagem recebida)
+    useUnreadStore.setState({
+      unreadByChannel: { "ch-1": 3 },
+      mentionsByChannel: {},
+      unreadByDm: {},
+    });
+    useSyncStore.setState({
+      channelsByGuild: { [guild.guildId]: [{ channelId: "ch-1", name: "geral", unreadCount: 0 } as any] },
+    });
     render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
     expect(screen.getByText("3")).toBeTruthy();
   });
 
-  it("não mostra badge quando unreadCount === 0", () => {
-    useSyncStore.getState().setGuilds([makeGuild({ unreadCount: 0 })]);
+  it("não mostra badge quando unreadStore está vazio", () => {
+    useSyncStore.getState().setGuilds([makeGuild()]);
     render(<CommunityRail onOpenProfile={vi.fn()} onOpenSettings={vi.fn()} />);
 
     expect(screen.queryByText("0")).toBeNull();

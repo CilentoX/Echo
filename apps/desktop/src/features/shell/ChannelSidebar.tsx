@@ -22,6 +22,7 @@ import { useVoiceStore } from "@/stores/voiceStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useUnreadStore } from "@/stores/unreadStore";
 import { matrixService } from "@/lib/matrix/instance";
 import CreateChannelModal from "@/features/guild/CreateChannelModal";
 import CreateCategoryModal from "@/features/guild/CreateCategoryModal";
@@ -1343,14 +1344,21 @@ export default function ChannelSidebar({
                                         <BellSlash size={12} className="shrink-0 text-amber-400/80" />
                                       </span>
                                     )}
-                                    {channel.unreadCount > 0 && !isMuted && (
-                                      <span
-                                        aria-label={`${channel.unreadCount} não lidas em ${channel.name}`}
-                                        className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-err px-1 text-[10px] font-bold text-bg"
-                                      >
-                                        {channel.unreadCount}
-                                      </span>
-                                    )}
+                                    {!isMuted && (() => {
+                                      const chUnread = useUnreadStore.getState().unreadByChannel[channel.channelId] ?? 0;
+                                      const chMentions = useUnreadStore.getState().mentionsByChannel[channel.channelId] ?? 0;
+                                      if (chUnread <= 0 && chMentions <= 0) return null;
+                                      const count = chMentions > 0 ? chMentions : chUnread;
+                                      const colorClass = chMentions > 0 ? "bg-acc" : "bg-err/80";
+                                      return (
+                                        <span
+                                          aria-label={`${count} ${chMentions > 0 ? "menções" : "não lidas"} em ${channel.name}`}
+                                          className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-bg ${colorClass}`}
+                                        >
+                                          {count}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                   <div className="flex items-center gap-0.5 ml-1 shrink-0">
                                     <ChannelMutePopover

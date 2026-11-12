@@ -5,8 +5,9 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { useFriendsStore } from "@/stores/friendsStore";
+import { useUnreadStore } from "@/stores/unreadStore";
 import MxcImage from "@/components/media/MxcImage";
-import { CaretDown, Clock, Gear, Hash, Headphones, MagnifyingGlass, Microphone, MicrophoneSlash, ShieldCheck, X } from "@phosphor-icons/react";
+import { CaretDown, Clock, Gear, Hash, Headphones, MagnifyingGlass, Microphone, MicrophoneSlash, ShieldCheck, X, WifiHigh, WifiX, ArrowsClockwise, Star } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AudioDeviceQuickMenu from "./AudioDeviceQuickMenu";
 import PresenceQuickPopover from "./PresenceQuickPopover";
@@ -36,6 +37,8 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const setMicrophoneEnabled = useSettingsStore((s) => s.setMicrophoneEnabled);
   const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
   const setHeadphonesEnabled = useSettingsStore((s) => s.setHeadphonesEnabled);
+  const quickSwitchFavorites = useSettingsStore((s) => s.quickSwitchFavorites);
+  const toggleQuickSwitchFavorite = useSettingsStore((s) => s.toggleQuickSwitchFavorite);
 
   const isConnected = useVoiceStore((s) => s.isConnected);
   const setSpeaking = useVoiceStore((s) => s.setSpeaking);
@@ -50,9 +53,13 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const [presenceQuickOpen, setPresenceQuickOpen] = useState(false);
   const [quickSwitchOpen, setQuickSwitchOpen] = useState(false);
   const [quickSwitchQuery, setQuickSwitchQuery] = useState("");
+  const [quickSwitchSelectedIndex, setQuickSwitchSelectedIndex] = useState(0);
   const [sessionStart] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   const quickSwitchInputRef = useRef<HTMLInputElement>(null);
+
+  // Matrix sync status for connection indicator
+  const syncStatus = useSyncStore((s) => s.status);
 
   // Relógio + timer de sessão (atualiza a cada minuto)
   useEffect(() => {
@@ -60,14 +67,43 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
     return () => clearInterval(id);
   }, []);
 
-  // Foca no input do Quick Switch ao abrir
+  // Foca no input do Quick Switch ao abrir e reseta seleção
   useEffect(() => {
     if (quickSwitchOpen) {
+      setQuickSwitchSelectedIndex(0);
       setTimeout(() => quickSwitchInputRef.current?.focus(), 50);
     } else {
       setQuickSwitchQuery("");
+      setQuickSwitchSelectedIndex(0);
     }
   }, [quickSwitchOpen]);
+
+  // Atalho global Ctrl+K para abrir/fechar Quick Switch
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setQuickSwitchOpen((prev) => !prev);
+      }
+      if (e.key === "Escape" && quickSwitchOpen) {
+        e.preventDefault();
+        setQuickSwitchOpen(false);
+        setQuickSwitchQuery("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [quickSwitchOpen]);
+
+  const handleQuickSwitchSelect = useCallback((id: string, kind: "channel" | "dm") => {
+    setQuickSwitchOpen(false);
+    setQuickSwitchQuery("");
+    if (kind === "channel") {
+      useUiStore.getState().setActiveChannel(id);
+    } else {
+      useFriendsStore.getState().openDirectMessage(id);
+    }
+  }, []);
 
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const activeChannelId = useUiStore((s) => s.activeChannelId);
@@ -102,29 +138,70 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
 
   // Dados para Quick Switch: canais + DMs recentes, ordenados por menções primeiro
   const friends = useFriendsStore((s) => s.friends);
+  const unreadByChannel = useUnreadStore((s) => s.unreadByChannel);
+  const mentionsByChannel = useUnreadStore((s) => s.mentionsByChannel);
+  const unreadByDm = useUnreadStore((s) => s.unreadByDm);
+
   const allChannels = useMemo(() => {
     const items: Array<{ id: string; name: string; guildName?: string; kind: "channel" | "dm"; hasMention: boolean }> = [];
     // Canais de todas as guildas
     for (const g of guilds) {
       const channels = channelsByGuild[g.guildId] ?? [];
       for (const ch of channels) {
-        items.push({ id: ch.channelId, name: ch.name, guildName: g.name, kind: "channel", hasMention: false });
+        const hasMention = (mentionsByChannel[ch.channelId] ?? 0) > 0 || (unreadByChannel[ch.channelId] ?? 0) > 0;
+        items.push({ id: ch.channelId, name: ch.name, guildName: g.name, kind: "channel", hasMention });
       }
     }
     // DMs recentes
     for (const f of friends.slice(0, 10)) {
-      items.push({ id: f.userId, name: f.displayName, kind: "dm", hasMention: false });
+      const hasMention = (unreadByDm[f.userId] ?? 0) > 0;
+      items.push({ id: f.userId, name: f.displayName, kind: "dm", hasMention });
     }
     return items;
-  }, [guilds, channelsByGuild, friends]);
+  }, [guilds, channelsByGuild, friends, unreadByChannel, mentionsByChannel, unreadByDm]);
 
   const filteredQuickSwitch = useMemo(() => {
     const q = quickSwitchQuery.toLowerCase().trim();
-    if (!q) return allChannels.slice(0, 8);
-    return allChannels.filter(
-      (item) => item.name.toLowerCase().includes(q) || (item.guildName?.toLowerCase().includes(q)),
-    ).slice(0, 8);
-  }, [allChannels, quickSwitchQuery]);
+    const base = !q
+      ? allChannels
+      : allChannels.filter(
+          (item) => item.name.toLowerCase().includes(q) || (item.guildName?.toLowerCase().includes(q)),
+        );
+    // Favorites first, then non-favorites; each group preserves original order
+    const favSet = new Set(quickSwitchFavorites);
+    const favs = base.filter((item) => favSet.has(item.id));
+    const rest = base.filter((item) => !favSet.has(item.id));
+    return [...favs, ...rest].slice(0, 12);
+  }, [allChannels, quickSwitchQuery, quickSwitchFavorites]);
+
+  // Reseta índice selecionado quando os resultados filtrados mudam
+  useEffect(() => {
+    setQuickSwitchSelectedIndex(0);
+  }, [filteredQuickSwitch]);
+
+  // Navegação por teclado no Quick Switch (↑/↓/Enter)
+  const handleQuickSwitchKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setQuickSwitchSelectedIndex((prev) =>
+          prev < filteredQuickSwitch.length - 1 ? prev + 1 : 0,
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setQuickSwitchSelectedIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredQuickSwitch.length - 1,
+        );
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const selected = filteredQuickSwitch[quickSwitchSelectedIndex];
+        if (selected) {
+          handleQuickSwitchSelect(selected.id, selected.kind);
+        }
+      }
+    },
+    [filteredQuickSwitch, quickSwitchSelectedIndex, handleQuickSwitchSelect],
+  );
 
   // Formata timer de sessão
   const sessionElapsed = useMemo(() => {
@@ -138,17 +215,6 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const clockTime = useMemo(() => {
     return new Date(now).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   }, [now]);
-
-  const handleQuickSwitchSelect = useCallback((id: string, kind: "channel" | "dm") => {
-    setQuickSwitchOpen(false);
-    setQuickSwitchQuery("");
-    if (kind === "channel") {
-      useUiStore.getState().setActiveChannel(id);
-    } else {
-      // Para DMs, usa o friendsStore para abrir conversa
-      useFriendsStore.getState().openDirectMessage(id);
-    }
-  }, []);
 
   return (
     <footer
@@ -274,8 +340,15 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
           <CaretDown size={10} className="text-mut/50 group-hover:text-acc transition-colors" />
         </button>
 
-        {/* Relógio + Timer de Sessão */}
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] text-mut/70 font-mono select-none" title={`Sessão ativa há ${sessionElapsed}`}>
+        {/* Indicador de Conexão Matrix + Relógio + Timer de Sessão */}
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] text-mut/70 font-mono select-none" title={`Status: ${syncStatus} · Sessão ativa há ${sessionElapsed}`}>
+          {syncStatus === "syncing" ? (
+            <WifiHigh size={12} className="text-online" aria-label="Conectado" />
+          ) : syncStatus === "connecting" ? (
+            <ArrowsClockwise size={12} className="text-idle animate-spin" aria-label="Conectando" />
+          ) : (
+            <WifiX size={12} className="text-err" aria-label="Erro de conexão" />
+          )}
           <Clock size={12} className="text-acc/60" />
           <span>{clockTime}</span>
           <span className="text-bd/40">|</span>
@@ -284,7 +357,13 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
 
         {/* Painel Quick Switch flutuante */}
         {quickSwitchOpen && (
-          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-[420px] max-h-[380px] rounded-2xl bg-[#1a1f2e] border border-bd/60 shadow-2xl shadow-black/50 z-50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <>
+            {/* Backdrop para fechar ao clicar fora */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => { setQuickSwitchOpen(false); setQuickSwitchQuery(""); }}
+            />
+            <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-[420px] max-h-[380px] rounded-2xl bg-[#1a1f2e] border border-bd/60 shadow-2xl shadow-black/50 z-50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-bd/40">
               <MagnifyingGlass size={16} className="text-mut shrink-0" />
               <input
@@ -292,7 +371,15 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
                 type="text"
                 value={quickSwitchQuery}
                 onChange={(e) => setQuickSwitchQuery(e.target.value)}
+                onKeyDown={handleQuickSwitchKeyDown}
                 placeholder="Buscar canais, amigos..."
+                role="combobox"
+                aria-expanded={filteredQuickSwitch.length > 0}
+                aria-activedescendant={
+                  filteredQuickSwitch[quickSwitchSelectedIndex]
+                    ? `qs-${filteredQuickSwitch[quickSwitchSelectedIndex].kind}-${filteredQuickSwitch[quickSwitchSelectedIndex].id}`
+                    : undefined
+                }
                 className="flex-1 bg-transparent text-sm text-txt outline-none placeholder:text-mut/50"
               />
               <button
@@ -307,12 +394,17 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               {filteredQuickSwitch.length === 0 ? (
                 <div className="px-4 py-6 text-center text-xs text-mut/60">Nenhum resultado encontrado</div>
               ) : (
-                filteredQuickSwitch.map((item) => (
+                filteredQuickSwitch.map((item, idx) => (
                   <button
+                    id={`qs-${item.kind}-${item.id}`}
                     key={`${item.kind}-${item.id}`}
                     type="button"
+                    role="option"
+                    aria-selected={idx === quickSwitchSelectedIndex}
                     onClick={() => handleQuickSwitchSelect(item.id, item.kind)}
-                    className="cursor-pointer w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-white/[0.05] transition-colors group"
+                    className={`cursor-pointer w-full flex items-center gap-3 px-3 py-2 text-left transition-colors group ${
+                      idx === quickSwitchSelectedIndex ? "bg-acc/15" : "hover:bg-white/[0.05]"
+                    }`}
                   >
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
                       item.kind === "channel" ? "bg-acc/15 text-acc" : "bg-purple-500/15 text-purple-400"
@@ -326,6 +418,20 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
                       {item.guildName && <p className="text-[10px] text-mut/70 truncate">{item.guildName}</p>}
                     </div>
                     {item.hasMention && <span className="h-2 w-2 rounded-full bg-acc shrink-0 shadow-[0_0_6px_rgba(20,218,166,0.5)]" />}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); toggleQuickSwitchFavorite(item.id); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggleQuickSwitchFavorite(item.id); } }}
+                      title={quickSwitchFavorites.includes(item.id) ? "Remover dos favoritos" : "Fixar nos favoritos"}
+                      className={`cursor-pointer p-1 rounded-md transition-colors ${
+                        quickSwitchFavorites.includes(item.id)
+                          ? "text-acc hover:text-acc/80"
+                          : "text-mut/30 hover:text-acc/60 opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      <Star size={14} weight={quickSwitchFavorites.includes(item.id) ? "fill" : "regular"} />
+                    </span>
                   </button>
                 ))
               )}
@@ -335,6 +441,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
               <span>{filteredQuickSwitch.length} resultados</span>
             </div>
           </div>
+        </>
         )}
       </div>
 

@@ -45,7 +45,7 @@ describe("Composer (Fase B)", () => {
 
     await userEvent.type(screen.getByLabelText("Mensagem"), "olá mundo{Enter}");
 
-    expect(sendMessage).toHaveBeenCalledWith(ROOM, "olá mundo");
+    expect(sendMessage).toHaveBeenCalledWith(ROOM, "olá mundo", expect.anything());
     expect(
       (screen.getByLabelText("Mensagem") as HTMLTextAreaElement).value,
     ).toBe("");
@@ -137,7 +137,7 @@ describe("Composer (Fase B)", () => {
     await userEvent.type(screen.getByLabelText("Mensagem"), "via botão");
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
-    expect(sendMessage).toHaveBeenCalledWith(ROOM, "via botão");
+    expect(sendMessage).toHaveBeenCalledWith(ROOM, "via botão", expect.anything());
   });
 
   it("anexo: botão habilitado, seleção cria prévia e remover some a prévia", async () => {
@@ -163,7 +163,7 @@ describe("Composer (Fase B)", () => {
 
     await userEvent.type(screen.getByLabelText("Mensagem"), "olá{Enter}");
 
-    expect(sendMessage).toHaveBeenCalledWith(ROOM, "olá");
+    expect(sendMessage).toHaveBeenCalledWith(ROOM, "olá", expect.anything());
   });
 
   it("dois Enters seguidos enviam ambas as mensagens (fila de envio)", async () => {
@@ -176,8 +176,8 @@ describe("Composer (Fase B)", () => {
 
     // Ambas entram na fila e são enviadas.
     expect(sendMessage).toHaveBeenCalledTimes(2);
-    expect(sendMessage).toHaveBeenNthCalledWith(1, ROOM, "primeira");
-    expect(sendMessage).toHaveBeenNthCalledWith(2, ROOM, "segunda");
+    expect(sendMessage).toHaveBeenNthCalledWith(1, ROOM, "primeira", expect.anything());
+    expect(sendMessage).toHaveBeenNthCalledWith(2, ROOM, "segunda", expect.anything());
   });
 
   it("insere menção no composer ao receber evento echo:insert-mention", async () => {

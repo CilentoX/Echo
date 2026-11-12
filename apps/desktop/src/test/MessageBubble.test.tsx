@@ -85,20 +85,23 @@ describe("MessageBubble v2", () => {
     expect(screen.getByRole("button", { name: /Reagir com coração/ })).not.toBeNull();
   });
 
-  it("dispara evento echo:insert-mention ao clicar em Responder", () => {
-    let capturedMention: string | null = null;
+  it("dispara evento echo:reply-to ao clicar em Responder", () => {
+    let capturedReply: { eventId: string; sender: string; body: string } | null = null;
     const listener = (e: Event) => {
-      const custom = e as CustomEvent<{ mentionText: string }>;
-      capturedMention = custom.detail.mentionText;
+      const custom = e as CustomEvent<{ eventId: string; sender: string; body: string }>;
+      capturedReply = custom.detail;
     };
-    window.addEventListener("echo:insert-mention", listener);
+    window.addEventListener("echo:reply-to", listener);
 
     renderBubble();
     const replyBtn = screen.getByRole("button", { name: /Responder/ });
     replyBtn.click();
 
-    expect(capturedMention).toBe("@outro ");
-    window.removeEventListener("echo:insert-mention", listener);
+    expect(capturedReply).not.toBeNull();
+    expect(capturedReply?.eventId).toBe("e1");
+    expect(capturedReply?.sender).toBe("@outro:hs");
+    expect(capturedReply?.body).toBe("Olá, mundo!");
+    window.removeEventListener("echo:reply-to", listener);
   });
 
   it("mostra avatar inicial, nome e hora quando showHeader é true", () => {

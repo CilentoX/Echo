@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
+import { useUnreadStore } from "@/stores/unreadStore";
 import { Compass, PushPin, Plus, SignIn } from "@phosphor-icons/react";
 import CreateGuildModal from "@/features/guild/CreateGuildModal";
 import JoinGuildModal from "@/features/guild/JoinGuildModal";
@@ -30,6 +31,10 @@ function GuildButton({
   active: boolean;
   onSelect: (guildId: string) => void;
 }) {
+  // Reactive unread selectors — re-renders when counts change
+  const guildMentions = useUnreadStore((s) => s.getGuildMentions(guild.guildId));
+  const guildUnread = useUnreadStore((s) => s.getGuildUnread(guild.guildId));
+
   const handleClick = () => {
     // Left-click: apenas seleciona a guilda
     onSelect(guild.guildId);
@@ -41,6 +46,10 @@ function GuildButton({
       useUiStore.getState().setActiveChannel(null);
     }
   };
+
+  const hasUnread = guildMentions > 0 || guildUnread > 0;
+  const badgeCount = guildMentions > 0 ? guildMentions : guildUnread;
+  const badgeColor = guildMentions > 0 ? "bg-acc" : "bg-err";
 
   return (
     <div className="relative group flex items-center justify-center w-full">
@@ -80,12 +89,12 @@ function GuildButton({
         </button>
       </GuildContextMenu>
 
-      {guild.unreadCount > 0 && (
+      {hasUnread && (
         <span
-          aria-label={`${guild.unreadCount} não lidas em ${guild.name}`}
-          className="absolute right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-err px-1 text-[11px] font-bold text-bg shadow-sm pointer-events-none"
+          aria-label={`${badgeCount} ${guildMentions > 0 ? "menções" : "não lidas"} em ${guild.name}`}
+          className={`absolute right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-bg shadow-sm pointer-events-none ${badgeColor}`}
         >
-          {guild.unreadCount}
+          {badgeCount}
         </span>
       )}
     </div>

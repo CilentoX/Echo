@@ -37,8 +37,14 @@ export interface SettingsState {
   screenShareQuality: "auto" | "low" | "medium" | "high";
   screenShareContentHint: "auto" | "detail" | "motion" | "text";
 
+  /** Quick Switch Favorites — IDs de canais/guildas/DMs fixados pelo usuário */
+  quickSwitchFavorites: string[];
+
   /** Sessões */
   currentSessionDevice: string | null;
+
+  toggleQuickSwitchFavorite(id: string): void;
+  setQuickSwitchFavorites(ids: string[]): void;
 
   setScreenShareResolution(v: "720p" | "1080p"): void;
   setScreenShareFps(v: 30 | 60): void;
@@ -96,9 +102,24 @@ function persistAudioConfig(state: Partial<SettingsState>) {
 }
 
 export const useSettingsStore = create<SettingsState>()((set, get) => ({
-  nativeNotifications: true,
-  messageSound: true,
-  mentionOnly: false,
+  nativeNotifications: (() => {
+    try {
+      const raw = localStorage.getItem("echo:nativeNotifications");
+      return raw !== null ? JSON.parse(raw) : true;
+    } catch { return true; }
+  })(),
+  messageSound: (() => {
+    try {
+      const raw = localStorage.getItem("echo:messageSound");
+      return raw !== null ? JSON.parse(raw) : true;
+    } catch { return true; }
+  })(),
+  mentionOnly: (() => {
+    try {
+      const raw = localStorage.getItem("echo:mentionOnly");
+      return raw !== null ? JSON.parse(raw) : false;
+    } catch { return false; }
+  })(),
 
   microphoneEnabled: true,
   microphoneDevice: null,
@@ -126,7 +147,27 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   screenShareQuality: "auto",
   screenShareContentHint: "auto",
 
+  quickSwitchFavorites: (() => {
+    try {
+      const raw = localStorage.getItem("echo:quickSwitchFavorites");
+      return raw !== null ? JSON.parse(raw) : [];
+    } catch { return [] as string[]; }
+  })(),
+
   currentSessionDevice: null,
+
+  toggleQuickSwitchFavorite: (id) => {
+    const current = get().quickSwitchFavorites;
+    const next = current.includes(id)
+      ? current.filter((f) => f !== id)
+      : [...current, id];
+    set({ quickSwitchFavorites: next });
+    try { localStorage.setItem("echo:quickSwitchFavorites", JSON.stringify(next)); } catch {}
+  },
+  setQuickSwitchFavorites: (ids) => {
+    set({ quickSwitchFavorites: ids });
+    try { localStorage.setItem("echo:quickSwitchFavorites", JSON.stringify(ids)); } catch {}
+  },
 
   setScreenShareResolution: (v) => set({ screenShareResolution: v }),
   setScreenShareFps: (v) => set({ screenShareFps: v }),
@@ -134,9 +175,18 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setScreenShareQuality: (v) => set({ screenShareQuality: v }),
   setScreenShareContentHint: (v) => set({ screenShareContentHint: v }),
 
-  setNativeNotifications: (v) => set({ nativeNotifications: v }),
-  setMessageSound: (v) => set({ messageSound: v }),
-  setMentionOnly: (v) => set({ mentionOnly: v }),
+  setNativeNotifications: (v) => {
+    set({ nativeNotifications: v });
+    try { localStorage.setItem("echo:nativeNotifications", JSON.stringify(v)); } catch {}
+  },
+  setMessageSound: (v) => {
+    set({ messageSound: v });
+    try { localStorage.setItem("echo:messageSound", JSON.stringify(v)); } catch {}
+  },
+  setMentionOnly: (v) => {
+    set({ mentionOnly: v });
+    try { localStorage.setItem("echo:mentionOnly", JSON.stringify(v)); } catch {}
+  },
 
   setMicrophoneEnabled: (v) => {
     set({ microphoneEnabled: v });

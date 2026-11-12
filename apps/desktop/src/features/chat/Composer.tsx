@@ -13,7 +13,7 @@ import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import { matrixService } from "@/lib/matrix/instance";
 
 /** Contrato de envio de texto (P10/P12). */
-export type SendMessageFn = (roomId: string, body: string) => Promise<string>;
+export type SendMessageFn = (roomId: string, body: string, options?: { replyToEventId?: string }) => Promise<string>;
 
 /** Contrato de envio de anexo (Fase B/Multimídia). */
 export type SendFileFn = (roomId: string, file: File, body?: string) => Promise<string>;
@@ -73,6 +73,21 @@ export default function Composer({
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [placeholderTip, setPlaceholderTip] = useState(0);
   const [editMode, setEditMode] = useState<string | null>(null); // eventId da mensagem sendo editada
+  const [replyTo, setReplyTo] = useState<{ eventId: string; sender: string; body: string } | null>(null);
+
+  // Escuta evento echo:reply-to disparado pelo botão "Responder" em MessageBubble
+  useEffect(() => {
+    const handleReplyTo = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { eventId: string; sender: string; body: string } | undefined;
+      if (detail?.eventId) {
+        setReplyTo(detail);
+        // Foca no input após definir reply
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      }
+    };
+    window.addEventListener("echo:reply-to", handleReplyTo);
+    return () => window.removeEventListener("echo:reply-to", handleReplyTo);
+  }, []);
 
   // Placeholder rotativo a cada 8 segundos
   useEffect(() => {
@@ -413,6 +428,7 @@ export default function Composer({
               waveform,
             }
           : undefined,
+        ...(replyTo ? { replyTo: { eventId: replyTo.eventId, sender: replyTo.sender, body: replyTo.body } } : {}),
       };
       addEvent(event);
       return event;
@@ -431,7 +447,9 @@ export default function Composer({
         if (item.file && sendFile) {
           realEventId = await sendFile(roomId, item.file, item.body);
         } else {
-          realEventId = await sendMessage(roomId, item.body);
+          realEventId = await sendMessage(roomId, item.body, {
+            ...(replyTo ? { replyToEventId: replyTo.eventId } : {}),
+          });
         }
         if (realEventId && typeof realEventId === "string") {
           const base = item.optimisticEvent ?? {
@@ -510,6 +528,7 @@ export default function Composer({
         };
         setPending((list) => [...list, item]);
         setDraft("");
+        setReplyTo(null);
         void sendPending(item);
       }
     } finally {
@@ -587,6 +606,24 @@ export default function Composer({
           </p>
         )}
       </div>
+
+      {/* Reply-to chip — aparece quando o usuário clica "Responder" em uma mensagem */}
+      {replyTo && !isVoiceRecording && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border-l-2 border-acc bg-surf/60 px-3 py-2 text-xs">
+          <span className="font-semibold text-txt truncate">
+            Respondendo a {replyTo.sender.startsWith("@") ? replyTo.sender.slice(1).split(":")[0] : replyTo.sender}
+          </span>
+          <span className="text-mut truncate flex-1">{replyTo.body.slice(0, 80)}</span>
+          <button
+            type="button"
+            onClick={() => setReplyTo(null)}
+            className="cursor-pointer p-0.5 rounded hover:bg-white/[0.08] text-mut hover:text-txt transition-colors"
+            aria-label="Cancelar resposta"
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
+      )}
 
       {isVoiceRecording ? (
         <VoiceRecorder

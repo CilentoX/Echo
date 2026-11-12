@@ -44,6 +44,7 @@ export async function notifyNewMessage(
   roomName?: string,
   senderAvatarUrl?: string | null,
   senderUserId?: string,
+  isMention?: boolean,
 ): Promise<void> {
   const myUserId = useUiStore.getState().myUserId;
   // Não notifica mensagens enviadas pelo próprio usuário local
@@ -55,6 +56,23 @@ export async function notifyNewMessage(
   const presence = useProfileStore.getState().presence;
   if (presence === "dnd") return;
 
+  // Gate de mute: canais/guildas mutados não disparam notificações
+  const syncState = useSyncStore.getState();
+  const friends = useFriendsStore.getState().friends;
+  const isDm = friends.some((f) => f.directRoomId === roomId);
+  if (!isDm) {
+    for (const [gId, channels] of Object.entries(syncState.channelsByGuild)) {
+      if (channels.some((c) => c.channelId === roomId)) {
+        if (syncState.isChannelMuted(roomId, gId)) return;
+        break;
+      }
+    }
+  }
+
+  // Gate de mentionOnly: se ativado, só notifica menções (pula som e nativa, mantém toast)
+  const mentionOnly = useSettingsStore.getState().mentionOnly;
+  const shouldSuppressNonMention = mentionOnly && !isMention;
+
   // Se o canal já está ativo e a janela do app está focada, dispensa notificação intrusiva
   const ui = useUiStore.getState();
   const isChannelActive = ui.activeChannelId === roomId;
@@ -64,10 +82,12 @@ export async function notifyNewMessage(
     return;
   }
 
-  // Toca chime sonoro suave se habilitado nas configurações
-  const soundEnabled = useSettingsStore.getState().messageSound;
-  if (soundEnabled) {
-    playMessageChime(0.25);
+  // Toca chime sonoro suave se habilitado nas configurações (suprimido por mentionOnly)
+  if (!shouldSuppressNonMention) {
+    const soundEnabled = useSettingsStore.getState().messageSound;
+    if (soundEnabled) {
+      playMessageChime(0.25);
+    }
   }
 
   const displayTitle = roomName ? `${senderName} (#${roomName})` : senderName;
@@ -95,7 +115,9 @@ export async function notifyNewMessage(
     },
   });
 
-  // Notificação nativa do SO (se habilitada nas configurações)
+  // Notificação nativa do SO (se habilitada nas configurações; suprimida por mentionOnly)
+  if (shouldSuppressNonMention) return;
+
   const nativeEnabled = useSettingsStore.getState().nativeNotifications;
   if (!nativeEnabled) return;
 

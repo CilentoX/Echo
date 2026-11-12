@@ -806,7 +806,7 @@ export class EchoApi {
   async sendMessage(
     roomId: string,
     body: string,
-    options?: { msgtype?: string; mediaId?: string },
+    options?: { msgtype?: string; mediaId?: string; replyToEventId?: string },
   ): Promise<string> {
     const encodedId = encodeURIComponent(roomId);
     const res = await this.post(`/api/rooms/${encodedId}/messages`, {
@@ -814,6 +814,7 @@ export class EchoApi {
       body,
       ...(options?.msgtype ? { msgtype: options.msgtype } : {}),
       ...(options?.mediaId ? { mediaId: options.mediaId } : {}),
+      ...(options?.replyToEventId ? { replyToEventId: options.replyToEventId } : {}),
     });
     if (!res.ok) {
       const errTxt = await res.text();

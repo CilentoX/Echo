@@ -230,10 +230,9 @@ export default memo(function MessageBubble({
                 aria-label="Responder"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const cleanNick = name.replace(/\s+/g, "");
                   window.dispatchEvent(
-                    new CustomEvent("echo:insert-mention", {
-                      detail: { userId: event.sender, mentionText: `@${cleanNick} ` },
+                    new CustomEvent("echo:reply-to", {
+                      detail: { eventId: event.eventId, sender: event.sender, body: event.body },
                     }),
                   );
                 }}
@@ -332,6 +331,25 @@ export default memo(function MessageBubble({
             {showHeader && (
               <div className={`flex items-baseline gap-2 mb-1 ${isSender ? "flex-row-reverse" : "flex-row"}`}>
                 <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (isSender) {
+                      useUiStore.getState().setProfileOpen(true, "profile");
+                    } else {
+                      useUiStore.getState().setMemberProfileUserId(event.sender);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (isSender) {
+                        useUiStore.getState().setProfileOpen(true, "profile");
+                      } else {
+                        useUiStore.getState().setMemberProfileUserId(event.sender);
+                      }
+                    }
+                  }}
                   className={`truncate font-display text-sm font-semibold hover:underline cursor-pointer ${
                     isSender ? "text-acc" : "text-txt"
                   }`}

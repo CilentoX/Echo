@@ -4,6 +4,8 @@ import { useProfileStore } from "@/stores/profileStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { loadSession } from "@/lib/storage/keyring";
 import { notifyNewMessage, notifyFriendRequest } from "@/lib/notifications/nativeNotify";
+import { detectMention } from "@/lib/notifications/mentionDetector";
+import { useUnreadStore } from "@/stores/unreadStore";
 import { matrixService } from "./instance";
 import { desktopCache, desktopConfig } from "@/lib/storage/desktopConfig";
 
@@ -179,6 +181,8 @@ async function handleStatus(status: string, error?: { errcode: string }): Promis
       liveSyncSettleTimer = setTimeout(() => {
         isLiveSyncReady = true;
         liveSyncSettleTimer = null;
+        // Compute initial unreads from timeline vs stored read markers
+        useUnreadStore.getState().computeInitialUnreads();
       }, 1500);
     }
     return;
@@ -271,6 +275,22 @@ function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | nul
     (typeof event.getTs === "function" ? event.getTs() : undefined) ??
     event.origin_server_ts ??
     0;
+  // Extract reply relation from raw Matrix content (m.relates_to with m.in_reply_to)
+  const relatesTo = content?.["m.relates_to"];
+  let replyToData = event.replyTo;
+  if (!replyToData && relatesTo?.["m.in_reply_to"]?.event_id) {
+    const replyEventId = relatesTo["m.in_reply_to"].event_id;
+    // Try to resolve sender and body from timeline cache
+    const store = useSyncStore.getState();
+    const timeline = store.timelineByChannel[roomId] || [];
+    const repliedEvent = timeline.find((e: any) => e.eventId === replyEventId);
+    replyToData = {
+      eventId: replyEventId,
+      sender: repliedEvent?.sender || "",
+      body: repliedEvent?.body || "",
+    };
+  }
+
   return {
     eventId,
     roomId,
@@ -280,7 +300,7 @@ function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | nul
     msgtype: event.msgtype || content.msgtype || "m.text",
     url: event.url || content.url || null,
     info: event.info || content.info || undefined,
-    ...(event.replyTo && { replyTo: { eventId: event.replyTo.eventId, sender: event.replyTo.sender, body: event.replyTo.body } }),
+    ...(replyToData && { replyTo: { eventId: replyToData.eventId, sender: replyToData.sender, body: replyToData.body } }),
     ...(event.editedAt && { editedAt: event.editedAt }),
     ...(event.redacted && { redacted: event.redacted }),
     ...(event.senderAvatarUrl && { senderAvatarUrl: event.senderAvatarUrl }),
@@ -327,16 +347,48 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
         const isRecent = Date.now() - (normalized.originServerTs ?? 0) < 60_000;
         const isAfterBoot = normalized.originServerTs > sessionBootTimestamp;
         if (isLiveSyncReady && isNew && normalized.body && normalized.sender && isAfterBoot && isRecent) {
-          const senderName = findSenderDisplayName(normalized.roomId, normalized.sender);
-          const roomName = findChannelName(normalized.roomId);
-          void notifyNewMessage(
-            normalized.roomId,
-            senderName,
-            normalized.body,
-            roomName,
-            normalized.senderAvatarUrl,
-            normalized.sender,
-          );
+          const myUserId = useUiStore.getState().myUserId;
+          const isOwnMessage = normalized.sender === myUserId;
+
+          if (!isOwnMessage) {
+            const profileName = useProfileStore.getState().displayName;
+            const isMention = detectMention(
+              normalized.body,
+              myUserId ?? "",
+              profileName,
+              (normalized as any).formattedBody,
+            );
+
+            // Check mute state before incrementing unread or notifying
+            const syncState = useSyncStore.getState();
+            const friends = useFriendsStore.getState().friends;
+            const isDm = friends.some((f) => f.directRoomId === normalized.roomId);
+            let isMuted = false;
+            if (!isDm) {
+              for (const [gId, channels] of Object.entries(syncState.channelsByGuild)) {
+                if (channels.some((c) => c.channelId === normalized.roomId)) {
+                  isMuted = syncState.isChannelMuted(normalized.roomId, gId);
+                  break;
+                }
+              }
+            }
+
+            if (!isMuted) {
+              useUnreadStore.getState().incrementUnread(normalized.roomId, isMention);
+            }
+
+            const senderName = findSenderDisplayName(normalized.roomId, normalized.sender);
+            const roomName = findChannelName(normalized.roomId);
+            void notifyNewMessage(
+              normalized.roomId,
+              senderName,
+              normalized.body,
+              roomName,
+              normalized.senderAvatarUrl,
+              normalized.sender,
+              isMention,
+            );
+          }
         }
       }
     },
@@ -360,6 +412,10 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
     },
     onReadReceipt: (roomId: string, userId: string, eventId: string) => {
       useSyncStore.getState().markRead(roomId, userId, eventId);
+      // Only clear unreads for OUR read receipts
+      if (userId === useUiStore.getState().myUserId) {
+        useUnreadStore.getState().markRead(roomId, eventId);
+      }
     },
   });
 
@@ -405,6 +461,15 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
           });
         }
       } catch {}
+
+      // Auto-mark-read when navigating to a channel
+      if (state.activeChannelId && state.activeChannelId !== prev.activeChannelId) {
+        const timeline = useSyncStore.getState().timelineByChannel[state.activeChannelId];
+        if (timeline && timeline.length > 0) {
+          const lastEvent = timeline[timeline.length - 1];
+          void markAsRead(state.activeChannelId, (lastEvent as any).eventId);
+        }
+      }
     }
 
     if (state.activeGuildId && state.activeGuildId !== prev.activeGuildId) {
@@ -456,6 +521,7 @@ export function stopSyncWiring(): void {
     void desktopCache.clear();
   } catch {}
 
+  useUnreadStore.getState().resetAll();
   useSyncStore.getState().reset();
   const ui = useUiStore.getState();
   ui.setMyUserId(null);

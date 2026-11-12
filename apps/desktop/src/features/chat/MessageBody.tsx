@@ -64,7 +64,6 @@ export default function MessageBody({
       useUiStore.getState().setActiveChannel(channelId);
     } else if (mentionId) {
       useUiStore.getState().setMemberProfileUserId(mentionId);
-      useUiStore.getState().setProfileOpen(true, "profile");
     }
   }, []);
 
