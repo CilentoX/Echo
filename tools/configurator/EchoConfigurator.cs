@@ -105,6 +105,8 @@ namespace EchoConfigurator
 
         // Tab 3: Tools Controls
         private TextBlock txtMcpSummary;
+        private Button btnExportMcpConfig;
+        private Button btnImportMcpConfig;
         private TextBlock txtSessionsSummary;
         private Button btnCleanSessions;
         private Button btnExportKit;
@@ -719,10 +721,22 @@ namespace EchoConfigurator
                 Text = "Carregando servidores MCP...",
                 FontSize = 12,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8b9bb4")),
-                Margin = new Thickness(0, 4, 0, 6),
+                Margin = new Thickness(0, 4, 0, 10),
                 TextWrapping = TextWrapping.Wrap
             };
             mcpPanel.Children.Add(txtMcpSummary);
+
+            var mcpBtnGrid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 2) };
+
+            btnExportMcpConfig = CreateSmallButton("💾 Exportar Configurações MCP (.json)");
+            btnExportMcpConfig.Click += (s, e) => ExportMcpConfiguration();
+            mcpBtnGrid.Children.Add(btnExportMcpConfig);
+
+            btnImportMcpConfig = CreateSmallButton("📥 Importar Configurações MCP");
+            btnImportMcpConfig.Click += (s, e) => ImportMcpConfiguration();
+            mcpBtnGrid.Children.Add(btnImportMcpConfig);
+
+            mcpPanel.Children.Add(mcpBtnGrid);
 
             mcpCard.Child = mcpPanel;
             panel.Children.Add(mcpCard);
@@ -1304,6 +1318,119 @@ namespace EchoConfigurator
             }
         }
 
+        // ==================== MCP CONFIG IMPORT/EXPORT ====================
+        private string GetClaudeConfigPath()
+        {
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(userProfile, @"AppData\Local\Claude-3p\claude_desktop_config.json");
+        }
+
+        private void ExportMcpConfiguration()
+        {
+            try
+            {
+                string mcpConfig = GetClaudeConfigPath();
+                if (!File.Exists(mcpConfig))
+                {
+                    MessageBox.Show(
+                        "O arquivo claude_desktop_config.json ainda não existe.\nInicie o Claude Desktop pelo menos uma vez ou configure os MCPs.",
+                        "Configuração Não Encontrada",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
+                var sfd = new SaveFileDialog();
+                sfd.Title = "Exportar Configurações MCP do Claude Desktop";
+                sfd.Filter = "Arquivo JSON (*.json)|*.json|Todos os arquivos (*.*)|*.*";
+                sfd.FileName = string.Format("claude_desktop_mcp_backup_{0}.json", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                sfd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+
+                if (sfd.ShowDialog() == true)
+                {
+                    string content = File.ReadAllText(mcpConfig, Encoding.UTF8);
+                    File.WriteAllText(sfd.FileName, content, Encoding.UTF8);
+
+                    LogConsole(string.Format("Configurações MCP exportadas com sucesso para:\n  {0}", sfd.FileName));
+                    MessageBox.Show(
+                        string.Format("Configurações MCP exportadas com sucesso!\n\nSalvo em:\n{0}", sfd.FileName),
+                        "Exportação Concluída",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogConsole(string.Format("Erro ao exportar configurações MCP: {0}", ex.Message));
+                MessageBox.Show(
+                    string.Format("Falha ao exportar configurações MCP:\n{0}", ex.Message),
+                    "Erro na Exportação",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void ImportMcpConfiguration()
+        {
+            try
+            {
+                var ofd = new OpenFileDialog();
+                ofd.Title = "Selecionar Backup de Configuração MCP";
+                ofd.Filter = "Arquivo JSON (*.json)|*.json|Todos os arquivos (*.*)|*.*";
+                ofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+
+                if (ofd.ShowDialog() == true)
+                {
+                    string selectedFile = ofd.FileName;
+                    string content = File.ReadAllText(selectedFile, Encoding.UTF8);
+
+                    if (!content.Contains("mcpServers"))
+                    {
+                        var answer = MessageBox.Show(
+                            "O arquivo selecionado não parece conter a seção 'mcpServers'.\nDeseja importá-lo mesmo assim?",
+                            "Aviso de Validação",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning);
+                        if (answer != MessageBoxResult.Yes) return;
+                    }
+
+                    string targetFile = GetClaudeConfigPath();
+                    string targetDir = Path.GetDirectoryName(targetFile);
+                    if (!Directory.Exists(targetDir))
+                    {
+                        Directory.CreateDirectory(targetDir);
+                    }
+
+                    if (File.Exists(targetFile))
+                    {
+                        string bkp = targetFile + ".bak_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                        File.Copy(targetFile, bkp, true);
+                        LogConsole(string.Format("Backup da config atual salvo em: {0}", bkp));
+                    }
+
+                    File.WriteAllText(targetFile, content, Encoding.UTF8);
+
+                    LogConsole(string.Format("Configuração MCP importada com sucesso de: {0}", selectedFile));
+                    MessageBox.Show(
+                        "Configurações MCP importadas com sucesso no Claude Desktop!\n\nReinicie o Claude Desktop para aplicar.",
+                        "Importação Concluída",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    RefreshToolsTabInfo();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogConsole(string.Format("Erro ao importar configurações MCP: {0}", ex.Message));
+                MessageBox.Show(
+                    string.Format("Falha ao importar configurações MCP:\n{0}", ex.Message),
+                    "Erro na Importação",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
         // ==================== EXPORT DEPLOYMENT KIT ====================
         private void ExportDeploymentKit()
         {
@@ -1326,6 +1453,15 @@ namespace EchoConfigurator
                     "{{\n  \"inferenceProvider\": \"gateway\",\n  \"inferenceCredentialKind\": \"static\",\n  \"inferenceGatewayBaseUrl\": \"https://ghostcli.cloud\",\n  \"inferenceGatewayApiKey\": \"{0}\",\n  \"inferenceGatewayAuthScheme\": \"x-api-key\",\n  \"inferenceModels\": [\n    \"claude-sonnet-5\",\n    \"claude-opus-5-5\",\n    \"claude-fable-5.1\"\n  ]\n}}\n",
                     selectedProfile.ApiKey);
                 File.WriteAllText(Path.Combine(kitFolder, "Configuracao-Chave.json"), jsonConfig, Encoding.UTF8);
+
+                // 2.1 Copy MCP servers config if present
+                string mcpSource = GetClaudeConfigPath();
+                if (File.Exists(mcpSource))
+                {
+                    string mcpDest = Path.Combine(kitFolder, "claude_desktop_config.json");
+                    File.Copy(mcpSource, mcpDest, true);
+                    LogConsole("Configuração de MCPs incluída no kit.");
+                }
 
                 // 3. Instructions README
                 var sb = new StringBuilder();

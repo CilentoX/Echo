@@ -34,3 +34,4 @@ echo-api/uploads/**/*
 
 # Echo API - separate repository
 echo-api/
+.tauri-keys/

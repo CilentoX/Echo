@@ -1306,7 +1306,17 @@ export class EchoApi {
    * Eventos são parseados e despachados ao onEvent handler para normalização no wiring.ts.
    */
   private connectSyncWebSocket(): void {
-    if (this.syncWs || !this.accessToken) return;
+    if (!this.accessToken) return;
+
+    // Tear down any existing connection before creating a new one
+    // (handles React StrictMode double-invoke in development)
+    if (this.syncWs) {
+      try {
+        this.syncWs.onclose = null;
+        this.syncWs.close();
+      } catch {}
+      this.syncWs = null;
+    }
 
     const wsUrl = this.baseUrl.replace(/^http/, "ws") + "/matrix/sync";
     const params = new URLSearchParams({
@@ -1391,7 +1401,8 @@ export class EchoApi {
       // Erro de conexão será tratado pelo onclose
     };
 
-    this.syncWs.onclose = () => {
+    this.syncWs.onclose = (evt) => {
+      console.log(`[syncWs] closed: code=${evt.code} reason=${evt.reason || "(none)"} wasClean=${evt.wasClean}`);
       this.syncWs = null;
       this.scheduleSyncReconnect();
     };

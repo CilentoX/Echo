@@ -1,0 +1,11 @@
+{
+  "version": "0.1.25",
+  "notes": "Screen Share Studio com audio do sistema e controles completos, auto refresh token, modal de perfil de membro, tela de login redesenhada, correcoes de flash MXID e loading skeletons",
+  "pub_date": "2026-11-11T13:06:01Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHJzaWduIHNlY3JldCBrZXkKUlVUOWlNdnRBWk9JT0V4VWpnc0t5d2VLZTJaVTJSNmZRV3pHQitSb0dTRXZHd3VNcUkxTEFjSlh1eVBYSHV1c1BMVkxlL3ZKaTJhbHNpbDJUMkRLUGZRejN2YjNFY1hJQTQ9CnRydXN0ZWQgY29tbWVudDogdGltZXN0YW1wOjE3OTQ0MTMxNjEJZmlsZTpDOlxzdFxzaGFyZXN0cmVhbVxyZWxlYXNlXGJ1bmRsZVxuc2lzXEVjaG9fMC4xLjI1X3g2NC1zZXR1cC5leGUJcHJlaGFzaGVkCnI1dVZuNHVORDNRRm5sdE9xdllYZm1oS2xNMWxvZlhDeFV2RGpPM01TdWRCSWo5R2drc1VKVFhzS2IyWldFaktsL21zNGFxalRVRVhUQmpvYnpsR0RBPT0K",
+      "url": "https://github.com/CilentoX/Echo/releases/download/v0.1.25/Echo_0.1.25_x64-setup.exe"
+    }
+  }
+}
