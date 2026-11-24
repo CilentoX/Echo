@@ -211,4 +211,20 @@ describe("ChannelSidebar", () => {
     const voiceState = useVoiceStore.getState();
     expect(voiceState.activeVoiceChannelId).toMatch(/^temp-voice-/);
   });
+
+  it("exibe a alca de arrasto para o dono da guilda permitindo reordenar canais", () => {
+    useSyncStore.getState().setGuilds([{ ...GUILD, createdBy: "@lucas:hs" }]);
+    useSyncStore.getState().setChannels(GUILD.guildId, [
+      makeChannel({ channelId: "!c1:hs", name: "geral" }),
+      makeChannel({ channelId: "!c2:hs", name: "anuncios" }),
+    ]);
+    useUiStore.getState().setActiveGuild(GUILD.guildId);
+    useUiStore.setState({ myUserId: "@lucas:hs" });
+
+    render(<ChannelSidebar />);
+
+    const dragHandles = screen.getAllByTitle("Arrastar canal para reordenar");
+    expect(dragHandles.length).toBe(2);
+    expect(dragHandles[0].getAttribute("draggable")).toBe("true");
+  });
 });

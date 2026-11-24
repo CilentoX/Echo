@@ -1,10 +1,13 @@
 import {
+  ArrowDown,
+  ArrowUp,
   BellSlash,
   BellSimple,
   CaretDown,
   CaretRight,
   Copy,
   DotsSixVertical,
+  FolderSimple,
   Gear,
   Hash,
   Lock,
@@ -396,7 +399,7 @@ export default function ChannelSidebar({
     try {
       e.dataTransfer.setData("application/x-echo-channel", payload);
       e.dataTransfer.setData("text/plain", payload);
-      e.dataTransfer.effectAllowed = "all";
+      e.dataTransfer.effectAllowed = "move";
     } catch {}
     activeDragRef.current = { type: "channel", id: channel.channelId, category: categoryName };
     (window as any).__ECHO_ACTIVE_DRAG__ = { type: "channel", id: channel.channelId, category: categoryName };
@@ -404,6 +407,7 @@ export default function ChannelSidebar({
   };
   const handleChannelDragOver = (e: React.DragEvent, channel: ChannelSummary) => {
     e.preventDefault();
+    e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
 
     const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
@@ -1075,7 +1079,7 @@ export default function ChannelSidebar({
               if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
             }}
           >
-            {channelGroups.map((group) => {
+            {channelGroups.map((group, groupIndex) => {
               const isCollapsed = Boolean(collapsedCategories[group.name]);
               const isDefaultCategory = group.name === "Canais de texto" || group.name === "Canais de voz";
 
@@ -1309,11 +1313,24 @@ export default function ChannelSidebar({
                       >
                         <div className="flex items-center gap-1 min-w-0 pointer-events-none select-none">
                           {canManageChannels && (
-                            <DotsSixVertical
-                              size={12}
-                              weight="bold"
-                              className="pointer-events-none select-none opacity-20 group-hover:opacity-70 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0"
-                            />
+                            <span
+                              draggable={!channelSearch.trim()}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onDragStart={(e) => {
+                                e.stopPropagation();
+                                isDraggingRef.current = true;
+                                e.dataTransfer.setData("application/x-echo-category", group.name);
+                                e.dataTransfer.setData("text/plain", JSON.stringify({ type: "category", id: group.name }));
+                                e.dataTransfer.effectAllowed = "move";
+                                activeDragRef.current = { type: "category", id: group.name };
+                                (window as any).__ECHO_ACTIVE_DRAG__ = { type: "category", id: group.name };
+                                setDraggedCategory(group.name);
+                              }}
+                              title="Arrastar categoria para reordenar"
+                              className="select-none opacity-30 group-hover:opacity-80 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0 p-0.5 rounded hover:bg-white/[0.08] transition-all"
+                            >
+                              <DotsSixVertical size={12} weight="bold" />
+                            </span>
                           )}
                           {isCollapsed ? (
                             <CaretRight size={11} weight="bold" className="pointer-events-none select-none shrink-0 text-mut/60 group-hover:text-txt transition-transform" />
@@ -1422,6 +1439,38 @@ export default function ChannelSidebar({
                         <span>Copiar Nome da Categoria</span>
                       </ContextMenuItem>
 
+                      {canManageChannels && (
+                        <>
+                          <ContextMenuSeparator />
+                          {groupIndex > 0 && (
+                            <ContextMenuItem
+                              onClick={() => {
+                                const prevGroup = channelGroups[groupIndex - 1];
+                                if (prevGroup) {
+                                  handleReorderCategories(group.name, prevGroup.name, "before");
+                                }
+                              }}
+                            >
+                              <ArrowUp size={14} weight="bold" />
+                              <span>Mover Categoria para Cima</span>
+                            </ContextMenuItem>
+                          )}
+                          {groupIndex < channelGroups.length - 1 && (
+                            <ContextMenuItem
+                              onClick={() => {
+                                const nextGroup = channelGroups[groupIndex + 1];
+                                if (nextGroup) {
+                                  handleReorderCategories(group.name, nextGroup.name, "after");
+                                }
+                              }}
+                            >
+                              <ArrowDown size={14} weight="bold" />
+                              <span>Mover Categoria para Baixo</span>
+                            </ContextMenuItem>
+                          )}
+                        </>
+                      )}
+
                       {canManageChannels && !isDefaultCategory && (
                         <>
                           <ContextMenuSeparator />
@@ -1491,7 +1540,7 @@ export default function ChannelSidebar({
                           }
                         }}
                       >
-                      {group.channels.map((channel) => {
+                      {group.channels.map((channel, channelIdxInGroup) => {
                         const isVoice = channel.type === "voice";
                         const active = channel.channelId === activeChannelId;
                         const isPrivate = Boolean(channelPermissions[channel.channelId]?.isPrivate);
@@ -1536,6 +1585,10 @@ export default function ChannelSidebar({
                                     role="button"
                                     tabIndex={0}
                                     aria-current={active ? "true" : undefined}
+                                    draggable={canManageChannels && !channelSearch.trim()}
+                                    onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
+                                    onDragOver={(e) => handleChannelDragOver(e, channel)}
+                                    onDrop={(e) => handleChannelDrop(e, channel, group.name)}
                                     onClick={() => {
                                       if (isDraggingRef.current) return;
                                       setActiveChannel(channel.channelId);
@@ -1553,7 +1606,15 @@ export default function ChannelSidebar({
                                     }`}
                                   >
                                     {canManageChannels && (
-                                      <DotsSixVertical size={13} weight="bold" className="pointer-events-none select-none opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0 -ml-1 mr-0.5" />
+                                      <span
+                                        draggable={!channelSearch.trim()}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
+                                        title="Arrastar canal para reordenar"
+                                        className="select-none opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0 -ml-1 mr-0.5 p-0.5 rounded hover:bg-white/[0.08] transition-all"
+                                      >
+                                        <DotsSixVertical size={13} weight="bold" />
+                                      </span>
                                     )}
                                     <Hash size={15} className={`pointer-events-none select-none shrink-0 ${active ? "text-acc" : "text-mut/60"}`} aria-hidden />
                                     <span className={`pointer-events-none select-none truncate ${active ? "text-txt" : "text-mut"}`}>
@@ -1665,6 +1726,59 @@ export default function ChannelSidebar({
                                   </ContextMenuSubContent>
                                 </ContextMenuSub>
 
+                                {canManage && (
+                                  <>
+                                    <ContextMenuSeparator />
+                                    {channelIdxInGroup > 0 && (
+                                      <ContextMenuItem
+                                        onClick={() => {
+                                          const prevChannel = group.channels[channelIdxInGroup - 1];
+                                          if (prevChannel) {
+                                            handleDropChannelOnChannel(channel.channelId, prevChannel.channelId, group.name, "before");
+                                          }
+                                        }}
+                                      >
+                                        <ArrowUp size={14} weight="bold" />
+                                        <span>Mover para Cima</span>
+                                      </ContextMenuItem>
+                                    )}
+                                    {channelIdxInGroup < group.channels.length - 1 && (
+                                      <ContextMenuItem
+                                        onClick={() => {
+                                          const nextChannel = group.channels[channelIdxInGroup + 1];
+                                          if (nextChannel) {
+                                            handleDropChannelOnChannel(channel.channelId, nextChannel.channelId, group.name, "after");
+                                          }
+                                        }}
+                                      >
+                                        <ArrowDown size={14} weight="bold" />
+                                        <span>Mover para Baixo</span>
+                                      </ContextMenuItem>
+                                    )}
+                                    {channelGroups.length > 1 && (
+                                      <ContextMenuSub>
+                                        <ContextMenuSubTrigger>
+                                          <FolderSimple size={14} weight="bold" />
+                                          <span>Mover para Categoria</span>
+                                        </ContextMenuSubTrigger>
+                                        <ContextMenuSubContent className="w-48">
+                                          {channelGroups.map((g) => (
+                                            <ContextMenuItem
+                                              key={g.name}
+                                              disabled={g.name === group.name}
+                                              onClick={() => handleMoveChannelToCategory(channel.channelId, g.name)}
+                                            >
+                                              <span>{g.name}</span>
+                                            </ContextMenuItem>
+                                          ))}
+                                        </ContextMenuSubContent>
+                                      </ContextMenuSub>
+                                    )}
+                                  </>
+                                )}
+
+                                <ContextMenuSeparator />
+
                                 <ContextMenuItem onClick={() => navigator.clipboard.writeText(channel.channelId)}>
                                   <Copy size={14} weight="bold" />
                                   <span>Copiar ID do Canal</span>
@@ -1729,6 +1843,10 @@ export default function ChannelSidebar({
                                     role="button"
                                     tabIndex={0}
                                     aria-current={connected ? "true" : undefined}
+                                    draggable={canManageChannels && !channelSearch.trim()}
+                                    onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
+                                    onDragOver={(e) => handleChannelDragOver(e, channel)}
+                                    onDrop={(e) => handleChannelDrop(e, channel, group.name)}
                                     onClick={() => {
                                       if (isDraggingRef.current) return;
                                       handleConnectVoice(channel);
@@ -1750,11 +1868,15 @@ export default function ChannelSidebar({
                                     }`}
                                   >
                                     {canManageChannels && (
-                                      <DotsSixVertical
-                                        size={13}
-                                        weight="bold"
-                                        className="pointer-events-none select-none opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0 -ml-1 mr-0.5"
-                                      />
+                                      <span
+                                        draggable={!channelSearch.trim()}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
+                                        title="Arrastar canal de voz para reordenar"
+                                        className="select-none opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0 -ml-1 mr-0.5 p-0.5 rounded hover:bg-white/[0.08] transition-all"
+                                      >
+                                        <DotsSixVertical size={13} weight="bold" />
+                                      </span>
                                     )}
                                     <SpeakerHigh
                                       size={15}
@@ -1891,6 +2013,59 @@ export default function ChannelSidebar({
                                   <Gear size={14} weight="bold" />
                                   <span>Configurações do Canal</span>
                                 </ContextMenuItem>
+                              )}
+
+                              <ContextMenuSeparator />
+
+                              {canManage && (
+                                <>
+                                  <ContextMenuSeparator />
+                                  {channelIdxInGroup > 0 && (
+                                    <ContextMenuItem
+                                      onClick={() => {
+                                        const prevChannel = group.channels[channelIdxInGroup - 1];
+                                        if (prevChannel) {
+                                          handleDropChannelOnChannel(channel.channelId, prevChannel.channelId, group.name, "before");
+                                        }
+                                      }}
+                                    >
+                                      <ArrowUp size={14} weight="bold" />
+                                      <span>Mover para Cima</span>
+                                    </ContextMenuItem>
+                                  )}
+                                  {channelIdxInGroup < group.channels.length - 1 && (
+                                    <ContextMenuItem
+                                      onClick={() => {
+                                        const nextChannel = group.channels[channelIdxInGroup + 1];
+                                        if (nextChannel) {
+                                          handleDropChannelOnChannel(channel.channelId, nextChannel.channelId, group.name, "after");
+                                        }
+                                      }}
+                                    >
+                                      <ArrowDown size={14} weight="bold" />
+                                      <span>Mover para Baixo</span>
+                                    </ContextMenuItem>
+                                  )}
+                                  {channelGroups.length > 1 && (
+                                    <ContextMenuSub>
+                                      <ContextMenuSubTrigger>
+                                        <FolderSimple size={14} weight="bold" />
+                                        <span>Mover para Categoria</span>
+                                      </ContextMenuSubTrigger>
+                                      <ContextMenuSubContent className="w-48">
+                                        {channelGroups.map((g) => (
+                                          <ContextMenuItem
+                                            key={g.name}
+                                            disabled={g.name === group.name}
+                                            onClick={() => handleMoveChannelToCategory(channel.channelId, g.name)}
+                                          >
+                                            <span>{g.name}</span>
+                                          </ContextMenuItem>
+                                        ))}
+                                      </ContextMenuSubContent>
+                                    </ContextMenuSub>
+                                  )}
+                                </>
                               )}
 
                               <ContextMenuSeparator />
