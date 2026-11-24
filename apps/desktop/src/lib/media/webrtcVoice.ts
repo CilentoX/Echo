@@ -40,6 +40,7 @@ class WebRtcVoiceManager {
 
   private peers: Map<string, RTCPeerConnection> = new Map();
   private audioElements: Map<string, HTMLAudioElement> = new Map();
+  private screenAudioElements: Map<string, HTMLAudioElement> = new Map();
   private screenSenders: Map<string, RTCRtpSender> = new Map();
   private screenAudioSenders: Map<string, RTCRtpSender> = new Map();
   private cameraSenders: Map<string, RTCRtpSender> = new Map();
@@ -54,8 +55,10 @@ class WebRtcVoiceManager {
   private sseSource: EventSource | null = null;
   private peerVolumes: Map<string, number> = new Map();
   private peerAudioNodes: Map<string, { gain: GainNode; source: MediaStreamAudioSourceNode }> = new Map();
+  private screenAudioNodes: Map<string, { gain: GainNode; source: MediaStreamAudioSourceNode }> = new Map();
   private peerPanners: Map<string, StereoPannerNode | PannerNode> = new Map();
   private spatialAudioEnabled: boolean = false;
+  private masterOutputVolume: number = 100;
 
   private rtcConfig: RTCConfiguration = {
     iceServers: this.getIceServers(),
@@ -114,6 +117,37 @@ class WebRtcVoiceManager {
   public async setOutputDevice(deviceId: string | null): Promise<void> {
     for (const [, audio] of this.audioElements) {
       await this.applyOutputDeviceToElement(audio, deviceId);
+    }
+    for (const [, audio] of this.screenAudioElements) {
+      await this.applyOutputDeviceToElement(audio, deviceId);
+    }
+    if (this.audioContext && typeof (this.audioContext as any).setSinkId === "function") {
+      try {
+        await (this.audioContext as any).setSinkId(deviceId && deviceId !== "default" ? deviceId : "");
+      } catch (e) {
+        console.warn("[WebRtcVoice] audioContext.setSinkId falhou:", e);
+      }
+    }
+  }
+
+  private getEffectiveGain(peerId: string): number {
+    if (this.isDeafened) return 0;
+    const userVol = this.peerVolumes.get(peerId) ?? 100;
+    let masterVol = this.masterOutputVolume;
+    try {
+      const storeVol = (useSettingsStore as any)?.getState?.()?.outputVolume;
+      if (typeof storeVol === "number") masterVol = storeVol;
+    } catch {}
+    return Math.max(0, (userVol / 100) * (masterVol / 100));
+  }
+
+  public setMasterOutputVolume(volume: number) {
+    this.masterOutputVolume = volume;
+    for (const [peerId, node] of this.peerAudioNodes.entries()) {
+      node.gain.gain.value = this.getEffectiveGain(peerId);
+    }
+    for (const [peerId, node] of this.screenAudioNodes.entries()) {
+      node.gain.gain.value = this.getEffectiveGain(peerId);
     }
   }
 
@@ -653,9 +687,14 @@ class WebRtcVoiceManager {
     for (const audio of this.audioElements.values()) {
       audio.muted = deafened;
     }
+    for (const audio of this.screenAudioElements.values()) {
+      audio.muted = deafened;
+    }
     for (const [peerId, node] of this.peerAudioNodes.entries()) {
-      const userVol = this.peerVolumes.get(peerId) ?? 100;
-      node.gain.gain.value = deafened ? 0 : userVol / 100;
+      node.gain.gain.value = this.getEffectiveGain(peerId);
+    }
+    for (const [peerId, node] of this.screenAudioNodes.entries()) {
+      node.gain.gain.value = this.getEffectiveGain(peerId);
     }
     if (deafened) {
       this.setMicrophoneMuted(true);
@@ -664,13 +703,22 @@ class WebRtcVoiceManager {
 
   public setParticipantVolume(userId: string, volume: number) {
     this.peerVolumes.set(userId, volume);
+    const effective = this.getEffectiveGain(userId);
     const audio = this.audioElements.get(userId);
     if (audio) {
-      audio.volume = Math.max(0, Math.min(1, volume / 100));
+      audio.volume = Math.max(0, Math.min(1, effective));
+    }
+    const screenAudio = this.screenAudioElements.get(userId);
+    if (screenAudio) {
+      screenAudio.volume = Math.max(0, Math.min(1, effective));
     }
     const node = this.peerAudioNodes.get(userId);
     if (node) {
-      node.gain.gain.value = this.isDeafened ? 0 : Math.max(0, volume / 100);
+      node.gain.gain.value = effective;
+    }
+    const screenNode = this.screenAudioNodes.get(userId);
+    if (screenNode) {
+      screenNode.gain.gain.value = effective;
     }
   }
 
@@ -691,6 +739,16 @@ class WebRtcVoiceManager {
         audio.remove();
       } catch {}
       this.audioElements.delete(peerId);
+    }
+
+    const screenAudio = this.screenAudioElements.get(peerId);
+    if (screenAudio) {
+      try {
+        screenAudio.pause();
+        screenAudio.srcObject = null;
+        screenAudio.remove();
+      } catch {}
+      this.screenAudioElements.delete(peerId);
     }
 
     if (this.remoteAnalysers.has(peerId)) {
@@ -746,8 +804,8 @@ class WebRtcVoiceManager {
     }
   }
 
-  private cleanupRemoteAudioNodes(peerId: string) {
-    if (this.peerAudioNodes.has(peerId)) {
+  private cleanupRemoteAudioNodes(peerId: string, onlyScreen = false) {
+    if (!onlyScreen && this.peerAudioNodes.has(peerId)) {
       const node = this.peerAudioNodes.get(peerId)!;
       try {
         node.gain.disconnect();
@@ -755,21 +813,37 @@ class WebRtcVoiceManager {
       } catch {}
       this.peerAudioNodes.delete(peerId);
     }
-    const panner = this.peerPanners.get(peerId);
-    if (panner) {
-      try { panner.disconnect(); } catch {}
-      this.peerPanners.delete(peerId);
+    if (this.screenAudioNodes.has(peerId)) {
+      const sNode = this.screenAudioNodes.get(peerId)!;
+      try {
+        sNode.gain.disconnect();
+        sNode.source.disconnect();
+      } catch {}
+      this.screenAudioNodes.delete(peerId);
+    }
+    if (!onlyScreen) {
+      const panner = this.peerPanners.get(peerId);
+      if (panner) {
+        try { panner.disconnect(); } catch {}
+        this.peerPanners.delete(peerId);
+      }
     }
   }
 
-  private attachRemoteAudioPipeline(peerId: string, stream: MediaStream) {
-    this.cleanupRemoteAudioNodes(peerId);
+  private attachRemoteAudioPipeline(peerId: string, stream: MediaStream, isScreenAudio = false) {
+    this.cleanupRemoteAudioNodes(peerId, isScreenAudio);
 
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         if (!this.audioContext || this.audioContext.state === "closed") {
           this.audioContext = new AudioCtx();
+          try {
+            const devId = (useSettingsStore as any)?.getState?.()?.headphonesDevice;
+            if (devId && devId !== "default" && typeof (this.audioContext as any).setSinkId === "function") {
+              void (this.audioContext as any).setSinkId(devId).catch(() => {});
+            }
+          } catch {}
         }
         if (this.audioContext.state === "suspended") {
           void this.audioContext.resume().catch(() => {});
@@ -777,10 +851,9 @@ class WebRtcVoiceManager {
 
         const source = this.audioContext.createMediaStreamSource(stream);
         const gain = this.audioContext.createGain();
-        const userVol = this.peerVolumes.get(peerId) ?? 100;
-        gain.gain.value = this.isDeafened ? 0 : userVol / 100;
+        gain.gain.value = this.getEffectiveGain(peerId);
 
-        if (this.spatialAudioEnabled) {
+        if (!isScreenAudio && this.spatialAudioEnabled) {
           const peerIndex = Array.from(this.peers.keys()).indexOf(peerId);
           const totalPeers = Math.max(this.peers.size, 1);
           const position = computeSpatialPosition(peerIndex >= 0 ? peerIndex : 0, totalPeers);
@@ -790,24 +863,32 @@ class WebRtcVoiceManager {
           gain.connect(this.audioContext.destination);
         }
 
-        this.peerAudioNodes.set(peerId, { gain, source });
-
-        // Muta o HTMLAudioElement para evitar reprodução duplicada
-        const audio = this.audioElements.get(peerId);
-        if (audio) {
-          audio.muted = true;
+        if (isScreenAudio) {
+          this.screenAudioNodes.set(peerId, { gain, source });
+          const screenAudio = this.screenAudioElements.get(peerId);
+          if (screenAudio) screenAudio.muted = true;
+        } else {
+          this.peerAudioNodes.set(peerId, { gain, source });
+          // Muta o HTMLAudioElement para evitar reprodução duplicada
+          const audio = this.audioElements.get(peerId);
+          if (audio) {
+            audio.muted = true;
+          }
         }
       }
     } catch (e) {
       console.warn("[WebRtcVoice] Web Audio GainNode fallback:", e);
-      const audio = this.audioElements.get(peerId);
+      const targetMap = isScreenAudio ? this.screenAudioElements : this.audioElements;
+      const audio = targetMap.get(peerId);
       if (audio) {
         audio.muted = this.isDeafened;
-        audio.volume = Math.max(0, Math.min(1, (this.peerVolumes.get(peerId) ?? 100) / 100));
+        audio.volume = Math.max(0, Math.min(1, this.getEffectiveGain(peerId)));
       }
     }
 
-    this.attachRemoteVad(peerId, stream);
+    if (!isScreenAudio) {
+      this.attachRemoteVad(peerId, stream);
+    }
   }
 
   private optimizeSdp(sdp: string): string {
@@ -1263,26 +1344,65 @@ class WebRtcVoiceManager {
       if (!stream) return;
 
       if (track.kind === "audio") {
-        let audio = this.audioElements.get(peerId);
-        if (!audio) {
-          audio = document.createElement("audio");
-          audio.autoplay = true;
+        const primaryAudio = this.audioElements.get(peerId);
+        const isPrimaryLive =
+          primaryAudio &&
+          primaryAudio.srcObject instanceof MediaStream &&
+          primaryAudio.srcObject.getAudioTracks().some((t) => t.readyState === "live" && t.id !== track.id);
+
+        if (isPrimaryLive) {
+          // Faixa de áudio secundária (ex: áudio de compartilhamento de tela / sistema)
+          let screenAudio = this.screenAudioElements.get(peerId);
+          if (!screenAudio) {
+            screenAudio = document.createElement("audio");
+            screenAudio.autoplay = true;
+            screenAudio.muted = this.isDeafened;
+            screenAudio.volume = 1.0;
+            document.body.appendChild(screenAudio);
+            this.screenAudioElements.set(peerId, screenAudio);
+          }
+          screenAudio.srcObject = stream;
+          screenAudio.muted = this.isDeafened;
+          screenAudio.volume = 1.0;
+
+          void this.applyOutputDeviceToElement(screenAudio);
+          void screenAudio.play().catch(() => {});
+          this.attachRemoteAudioPipeline(peerId, stream, true);
+
+          track.onended = () => {
+            this.cleanupRemoteAudioNodes(peerId, true);
+            const el = this.screenAudioElements.get(peerId);
+            if (el) {
+              try {
+                el.pause();
+                el.srcObject = null;
+                el.remove();
+              } catch {}
+              this.screenAudioElements.delete(peerId);
+            }
+          };
+        } else {
+          let audio = this.audioElements.get(peerId);
+          if (!audio) {
+            audio = document.createElement("audio");
+            audio.autoplay = true;
+            audio.muted = this.isDeafened;
+            audio.volume = 1.0;
+            document.body.appendChild(audio);
+            this.audioElements.set(peerId, audio);
+          }
+          audio.srcObject = stream;
           audio.muted = this.isDeafened;
           audio.volume = 1.0;
-          document.body.appendChild(audio);
-          this.audioElements.set(peerId, audio);
+
+          // Aplica setSinkId para rotear áudio ao dispositivo de saída selecionado
+          void this.applyOutputDeviceToElement(audio);
+
+          void audio.play().catch(() => {});
+
+          // Pipeline Web Audio com GainNode (0-200% volume boost) e VAD em tempo real
+          this.attachRemoteAudioPipeline(peerId, stream, false);
         }
-        audio.srcObject = stream;
-        audio.muted = this.isDeafened;
-        audio.volume = 1.0;
-
-        // Aplica setSinkId para rotear áudio ao dispositivo de saída selecionado
-        void this.applyOutputDeviceToElement(audio);
-
-        void audio.play().catch(() => {});
-
-        // Pipeline Web Audio com GainNode (0-200% volume boost) e VAD em tempo real
-        this.attachRemoteAudioPipeline(peerId, stream);
       } else if (track.kind === "video") {
         // Transmissão remota de tela ou webcam — usa peerHasCamera do SSE para distinguir
         const videoStream = stream;

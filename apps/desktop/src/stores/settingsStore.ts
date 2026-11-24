@@ -233,6 +233,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setOutputVolume: (v) => {
     set({ outputVolume: v });
     persistAudioConfig({ outputVolume: v });
+    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+      webrtcVoice.setMasterOutputVolume(v);
+    }).catch(() => {});
   },
   setNoiseSuppression: (v) => {
     set({ noiseSuppression: v });
