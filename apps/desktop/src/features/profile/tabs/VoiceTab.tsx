@@ -44,6 +44,10 @@ export function VoiceTab() {
     setInputMode,
     pushToTalkKey,
     setPushToTalkKey,
+    vadAutoSensitivity,
+    setVadAutoSensitivity,
+    vadSensitivity,
+    setVadSensitivity,
   } = useSettingsStore();
 
   const [devices, setDevices] = useState<DeviceLists>(FALLBACK_DEVICES);
@@ -270,35 +274,81 @@ export function VoiceTab() {
           </span>
         </div>
 
-        {/* Barra de VU Meter Dinâmico com 24 segmentos */}
+        {/* Barra de VU Meter Dinâmico com 24 segmentos e Limiar de Sensibilidade */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs text-mut">
             <span>Sensibilidade do Microfone</span>
-            <span className={micLevel > 5 ? "text-acc font-semibold" : "text-mut/70"}>
-              {micLevel > 5 ? "Captando voz..." : "Aguardando áudio..."}
+            <span className={micLevel > (vadAutoSensitivity ? 5 : vadSensitivity) ? "text-acc font-semibold" : "text-mut/70"}>
+              {micLevel > (vadAutoSensitivity ? 5 : vadSensitivity)
+                ? "Transmitindo voz..."
+                : micLevel > 0
+                  ? "Ruído de fundo bloqueado"
+                  : "Aguardando áudio..."}
             </span>
           </div>
 
-          <div className="h-3 w-full rounded-full bg-bd-subtle/70 overflow-hidden flex items-center p-0.5 gap-0.5">
+          <div className="relative h-3.5 w-full rounded-full bg-bd-subtle/70 overflow-hidden flex items-center p-0.5 gap-0.5">
             {Array.from({ length: 24 }).map((_, i) => {
               const segmentThreshold = (i / 24) * 100;
               const isActive = micLevel > segmentThreshold;
-              // Gradiente suave de verde/teal para âmbar se estourar
               const isPeak = i >= 20;
+
+              // Se ativo e acima do limiar -> Teal (transmitindo voz)
+              // Se ativo mas abaixo do limiar -> Cinza translúcido (ruído bloqueado pelo gate)
+              const colorClass = isActive
+                ? vadAutoSensitivity || micLevel >= vadSensitivity
+                  ? isPeak
+                    ? "bg-err shadow-xs shadow-err/40"
+                    : "bg-acc shadow-xs shadow-acc/40"
+                  : "bg-mut/40"
+                : "bg-transparent opacity-20";
+
               return (
                 <div
                   key={i}
-                  className={`h-full flex-1 rounded-xs transition-all duration-75 ${
-                    isActive
-                      ? isPeak
-                        ? "bg-err shadow-xs shadow-err/40"
-                        : "bg-acc shadow-xs shadow-acc/40"
-                      : "bg-transparent opacity-20"
-                  }`}
+                  className={`h-full flex-1 rounded-xs transition-all duration-75 ${colorClass}`}
                 />
               );
             })}
+
+            {/* Marcador do Limiar de Sensibilidade Manual (Linha estilo Discord) */}
+            {!vadAutoSensitivity && (
+              <div
+                style={{ left: `${vadSensitivity}%` }}
+                className="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_8px_#ffffff] z-10 pointer-events-none rounded-full -ml-0.5"
+                title={`Limiar de corte: ${vadSensitivity}%`}
+              />
+            )}
           </div>
+
+          {/* Slider de Sensibilidade Manual (Estilo Discord) */}
+          {!vadAutoSensitivity && (
+            <div className="space-y-1 pt-1.5">
+              <div className="flex items-center justify-between text-[11px] text-mut font-mono">
+                <span>Muito Sensível (-80 dB)</span>
+                <span className="text-acc font-semibold">{vadSensitivity}% ({Math.round(-80 + (vadSensitivity / 100) * 60)} dB)</span>
+                <span>Pouco Sensível (-20 dB)</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={vadSensitivity}
+                onChange={(e) => setVadSensitivity(Number(e.target.value))}
+                className="w-full accent-acc cursor-pointer h-1.5 rounded-lg bg-bd-subtle"
+                aria-label="Sensibilidade de entrada manual"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Determinar Sensibilidade de Entrada Automaticamente */}
+        <div className="flex items-center justify-between pt-2 border-t border-bd-subtle">
+          <div>
+            <div className="text-xs font-medium text-txt">Determinar sensibilidade de entrada automaticamente</div>
+            <div className="text-[11px] text-mut">Ajusta o ponto de corte de ruído dinamicamente ao ambiente</div>
+          </div>
+          <Switch checked={vadAutoSensitivity} onCheckedChange={setVadAutoSensitivity} />
         </div>
 
         {/* Ações de Teste */}

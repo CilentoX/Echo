@@ -24,6 +24,8 @@ export interface AppAudioConfig {
   autoGainControl?: boolean;
   inputMode?: "voice_activity" | "push_to_talk";
   pushToTalkKey?: string;
+  vadAutoSensitivity?: boolean;
+  vadSensitivity?: number;
 }
 
 export interface AppNavigationConfig {

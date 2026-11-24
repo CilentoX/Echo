@@ -1,6 +1,7 @@
 import { useEchoApi } from "@/lib/api/echoApi";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
 import { computeSpatialPosition, applySpatialPanner } from "./spatialAudio";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export interface WebRtcCallbacks {
   onParticipantsUpdate?: (participants: any[]) => void;
@@ -115,6 +116,86 @@ class WebRtcVoiceManager {
     }
   }
 
+  /**
+   * Lê as restrições de áudio do settingsStore ou fallback padrão
+   */
+  public getAudioConstraints(overrides?: Partial<MediaTrackConstraints>): MediaTrackConstraints {
+    try {
+      const state = (useSettingsStore as any)?.getState?.();
+      if (state) {
+        return {
+          deviceId: state.microphoneDevice ? { exact: state.microphoneDevice } : undefined,
+          echoCancellation: state.echoCancellation ?? true,
+          noiseSuppression: state.noiseSuppression ?? true,
+          autoGainControl: state.autoGainControl ?? true,
+          ...overrides,
+        };
+      }
+    } catch {}
+    return {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      ...overrides,
+    };
+  }
+
+  /**
+   * Atualiza as configurações de captura de áudio (microfone, supressão de ruído, cancelamento de eco)
+   * e faz hot-swap via replaceTrack() nos peers WebRTC em tempo real sem reconexão.
+   */
+  public async updateAudioConstraints(overrides?: Partial<MediaTrackConstraints>): Promise<void> {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
+    const constraints = this.getAudioConstraints(overrides);
+
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: constraints,
+        video: false,
+      });
+      const newTrack = newStream.getAudioTracks()[0];
+      if (!newTrack) return;
+
+      newTrack.enabled = !this.isMuted;
+
+      // Substitui o track de áudio em cada peer connection ativo
+      for (const [peerId, pc] of this.peers) {
+        try {
+          const senders = pc.getSenders();
+          const audioSender = senders.find((s) => s.track?.kind === "audio");
+          if (audioSender) {
+            await audioSender.replaceTrack(newTrack);
+          }
+        } catch (err) {
+          console.warn(`[WebRtcVoice] Falha ao substituir track de áudio no peer ${peerId}:`, err);
+        }
+      }
+
+      // Interrompe faixas antigas para evitar vazamento de hardware
+      if (this.localStream) {
+        for (const track of this.localStream.getAudioTracks()) {
+          try {
+            track.stop();
+          } catch {}
+        }
+      }
+
+      this.localStream = newStream;
+      this.setPrewarmedStream(newStream);
+    } catch (err) {
+      console.warn("[WebRtcVoice] updateAudioConstraints falhou:", err);
+    }
+  }
+
+  /**
+   * Altera o microfone em uso imediatamente com hot-swap dos peers
+   */
+  public async switchMicrophone(deviceId: string | null): Promise<void> {
+    await this.updateAudioConstraints(
+      deviceId ? { deviceId: { exact: deviceId } } : { deviceId: undefined }
+    );
+  }
+
   public getCurrentGuildId() {
     return this.currentGuildId;
   }
@@ -185,12 +266,9 @@ class WebRtcVoiceManager {
           this.startVad();
         }
       } else if (!streamLive && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        const audioConstraints = this.getAudioConstraints();
         this.localStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
+          audio: audioConstraints,
           video: false,
         });
 

@@ -75,5 +75,17 @@ describe("VoiceTab Component", () => {
     await userEvent.click(stopMicBtn);
     expect(stopMicSpy).toHaveBeenCalled();
   });
+
+  it("exibe slider de sensibilidade manual e permite ajuste quando sensibilidade automática estiver desligada", async () => {
+    useSettingsStore.setState({ vadAutoSensitivity: false, vadSensitivity: 45 });
+    render(<VoiceTab />);
+
+    const slider = screen.getByLabelText("Sensibilidade de entrada manual");
+    expect(slider).toBeTruthy();
+    expect(screen.getByText(/45%/)).toBeTruthy();
+
+    useSettingsStore.getState().setVadSensitivity(60);
+    expect(useSettingsStore.getState().vadSensitivity).toBe(60);
+  });
 });
 

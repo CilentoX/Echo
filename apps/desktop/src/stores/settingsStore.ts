@@ -24,6 +24,8 @@ export interface SettingsState {
   inputMode: "voice_activity" | "push_to_talk";
   pushToTalkKey: string;
   pttActive: boolean;
+  vadAutoSensitivity: boolean;    // determinação automática de sensibilidade
+  vadSensitivity: number;         // limiar de sensibilidade manual (0 a 100)
 
   /** Privacidade */
   onlineStatusVisible: boolean;   // outros veem se você está online
@@ -71,6 +73,8 @@ export interface SettingsState {
   setInputMode(mode: "voice_activity" | "push_to_talk"): void;
   setPushToTalkKey(key: string): void;
   setPttActive(v: boolean): void;
+  setVadAutoSensitivity(v: boolean): void;
+  setVadSensitivity(v: number): void;
 
   setOnlineStatusVisible(v: boolean): void;
   setReadReceipts(v: boolean): void;
@@ -97,6 +101,8 @@ function persistAudioConfig(state: Partial<SettingsState>) {
       autoGainControl: state.autoGainControl !== undefined ? state.autoGainControl : existing.autoGainControl,
       inputMode: state.inputMode !== undefined ? state.inputMode : existing.inputMode,
       pushToTalkKey: state.pushToTalkKey !== undefined ? state.pushToTalkKey : existing.pushToTalkKey,
+      vadAutoSensitivity: state.vadAutoSensitivity !== undefined ? state.vadAutoSensitivity : existing.vadAutoSensitivity,
+      vadSensitivity: state.vadSensitivity !== undefined ? state.vadSensitivity : existing.vadSensitivity,
     });
   } catch {}
 }
@@ -136,6 +142,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   inputMode: "voice_activity",
   pushToTalkKey: "ControlLeft",
   pttActive: false,
+  vadAutoSensitivity: true,
+  vadSensitivity: 40,
 
   onlineStatusVisible: true,
   readReceipts: true,
@@ -195,6 +203,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setMicrophoneDevice: (id) => {
     set({ microphoneDevice: id });
     persistAudioConfig({ microphoneDevice: id });
+    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+      void webrtcVoice.switchMicrophone(id);
+    }).catch(() => {});
   },
   setCameraEnabled: (v) => set({ cameraEnabled: v }),
   setCameraDevice: (id) => set({ cameraDevice: id }),
@@ -222,14 +233,23 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setNoiseSuppression: (v) => {
     set({ noiseSuppression: v });
     persistAudioConfig({ noiseSuppression: v });
+    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+      void webrtcVoice.updateAudioConstraints({ noiseSuppression: v });
+    }).catch(() => {});
   },
   setEchoCancellation: (v) => {
     set({ echoCancellation: v });
     persistAudioConfig({ echoCancellation: v });
+    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+      void webrtcVoice.updateAudioConstraints({ echoCancellation: v });
+    }).catch(() => {});
   },
   setAutoGainControl: (v) => {
     set({ autoGainControl: v });
     persistAudioConfig({ autoGainControl: v });
+    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+      void webrtcVoice.updateAudioConstraints({ autoGainControl: v });
+    }).catch(() => {});
   },
   setInputMode: (mode) => {
     set({ inputMode: mode });
@@ -240,6 +260,14 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     persistAudioConfig({ pushToTalkKey: key });
   },
   setPttActive: (v) => set({ pttActive: v }),
+  setVadAutoSensitivity: (v) => {
+    set({ vadAutoSensitivity: v });
+    persistAudioConfig({ vadAutoSensitivity: v });
+  },
+  setVadSensitivity: (v) => {
+    set({ vadSensitivity: v });
+    persistAudioConfig({ vadSensitivity: v });
+  },
 
   setOnlineStatusVisible: (v) => set({ onlineStatusVisible: v }),
   setReadReceipts: (v) => set({ readReceipts: v }),
@@ -262,6 +290,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
           autoGainControl: audio.autoGainControl !== undefined ? audio.autoGainControl : get().autoGainControl,
           inputMode: audio.inputMode ?? get().inputMode,
           pushToTalkKey: audio.pushToTalkKey ?? get().pushToTalkKey,
+          vadAutoSensitivity: audio.vadAutoSensitivity !== undefined ? audio.vadAutoSensitivity : get().vadAutoSensitivity,
+          vadSensitivity: typeof audio.vadSensitivity === "number" ? audio.vadSensitivity : get().vadSensitivity,
         });
       }
     } catch {}
@@ -286,6 +316,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       inputMode: "voice_activity",
       pushToTalkKey: "ControlLeft",
       pttActive: false,
+      vadAutoSensitivity: true,
+      vadSensitivity: 40,
       onlineStatusVisible: true,
       readReceipts: true,
       typingVisible: true,

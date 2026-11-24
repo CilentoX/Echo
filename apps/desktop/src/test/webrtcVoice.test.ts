@@ -325,5 +325,37 @@ describe("WebRtcVoiceManager - SSE, Qualidade de Live e Boost 200%", () => {
       writable: true,
     });
   });
+
+  it("updateAudioConstraints e switchMicrophone realizam hot-swap via getUserMedia", async () => {
+    const mockTrack = { readyState: "live", stop: vi.fn(), kind: "audio", enabled: true };
+    const mockNewStream = {
+      getAudioTracks: () => [mockTrack],
+      getTracks: () => [mockTrack],
+    } as any;
+
+    const getUserMediaSpy = vi.fn().mockResolvedValue(mockNewStream);
+    const origMediaDevices = navigator.mediaDevices;
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia: getUserMediaSpy },
+      configurable: true,
+      writable: true,
+    });
+
+    await webrtcVoice.switchMicrophone("new-mic-id");
+
+    expect(getUserMediaSpy).toHaveBeenCalledWith({
+      audio: expect.objectContaining({
+        deviceId: { exact: "new-mic-id" },
+      }),
+      video: false,
+    });
+    expect(webrtcVoice.getLocalStream()).toBe(mockNewStream);
+
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: origMediaDevices,
+      configurable: true,
+      writable: true,
+    });
+  });
 });
 

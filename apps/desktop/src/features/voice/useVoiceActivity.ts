@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export interface UseVoiceActivityOptions {
   enabled: boolean;
@@ -74,14 +75,11 @@ async function startSharedAudio() {
       rtcStream && rtcStream.getAudioTracks().some((t) => t.readyState === "live"),
     );
 
+    const constraints = webrtcVoice.getAudioConstraints();
     const stream = hasActiveRtcStream && rtcStream
       ? rtcStream
       : await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
+          audio: constraints,
         });
 
     if (subscribers.size === 0) {
@@ -177,8 +175,17 @@ async function startSharedAudio() {
         }
 
         // 4. Limiares de Histerese (Schmitt Trigger):
-        // Attack Threshold: Deve superar o piso de ruído em pelo menos +8 dB e ter volume absoluto audível (> -45 dBFS)
-        const attackThresholdDb = Math.max(-45, ambientNoiseFloorDb + 8);
+        const settings = typeof window !== "undefined" ? (useSettingsStore as any)?.getState?.() : null;
+        const autoVad = settings?.vadAutoSensitivity ?? true;
+        const manualSens = typeof settings?.vadSensitivity === "number" ? settings.vadSensitivity : 40;
+
+        // Se autoVad for falso, converte manualSens (0 a 100) para limiar em dBFS:
+        // 0% -> -80 dBFS (super sensível); 100% -> -20 dBFS (menos sensível)
+        const manualThresholdDb = -80 + (manualSens / 100) * 60;
+        const attackThresholdDb = autoVad
+          ? Math.max(-45, ambientNoiseFloorDb + 8)
+          : manualThresholdDb;
+
         // Release Threshold: 6 dB abaixo do ataque para evitar cortes abruptos entre sílabas
         const releaseThresholdDb = attackThresholdDb - 6;
 
