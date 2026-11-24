@@ -414,7 +414,7 @@ export const useSyncStore = create<SyncState>()((set, get) => {
         const api = (matrixService as any).echoApi;
         if (api?.reorderChannels) {
           const currentChannels = get().channelsByGuild[guildId];
-          if (currentChannels) api.reorderChannels(guildId, currentChannels.map((c) => c.channelId)).catch(() => {});
+          if (currentChannels) api.reorderChannels(guildId, currentChannels.map((c) => ({ channelId: c.channelId, category: c.category }))).catch(() => {});
         }
       });
     },
@@ -429,7 +429,7 @@ export const useSyncStore = create<SyncState>()((set, get) => {
       // Persist to API
       import("@/lib/matrix/instance").then(({ matrixService }) => {
         const api = (matrixService as any).echoApi;
-        if (api?.reorderChannels) api.reorderChannels(guildId, orderedChannels.map((c) => c.channelId)).catch(() => {});
+        if (api?.reorderChannels) api.reorderChannels(guildId, orderedChannels.map((c) => ({ channelId: c.channelId, category: c.category }))).catch(() => {});
       });
     },
 

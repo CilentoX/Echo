@@ -389,7 +389,7 @@ export class EchoApi {
   }
 
   /** Reorder channels within a guild (requires MANAGE_CHANNELS). */
-  public async reorderChannels(guildId: string, orderedChannelIds: string[]): Promise<Response> {
+  public async reorderChannels(guildId: string, orderedChannelIds: (string | { channelId: string; category?: string })[]): Promise<Response> {
     return this.patch(`/api/guilds/${encodeURIComponent(guildId)}/channels/reorder`, { orderedChannelIds });
   }
 

@@ -402,6 +402,143 @@ export default function ChannelSidebar({
     (window as any).__ECHO_ACTIVE_DRAG__ = { type: "channel", id: channel.channelId, category: categoryName };
     setDraggedChannelId(channel.channelId);
   };
+  const handleChannelDragOver = (e: React.DragEvent, channel: ChannelSummary) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+
+    const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
+    const isMemberDrag =
+      channel.type === "voice" &&
+      (activeDrag?.type === "member" ||
+        activeDrag?.type === "voice-member" ||
+        Boolean(e.dataTransfer?.types?.includes("application/x-echo-voice-member")) ||
+        Boolean(e.dataTransfer?.types?.includes("application/x-echo-member")));
+
+    if (isMemberDrag) {
+      e.stopPropagation();
+      if (dragOverVoiceChannelId !== channel.channelId) {
+        setDragOverVoiceChannelId(channel.channelId);
+      }
+      return;
+    }
+
+    const isChannelDrag =
+      activeDrag?.type === "channel" ||
+      (!activeDrag && (
+        Boolean(e.dataTransfer?.types?.includes("application/x-echo-channel")) ||
+        Boolean(e.dataTransfer?.types?.includes("text/plain"))
+      ));
+
+    if (!isChannelDrag) return;
+    e.stopPropagation();
+
+    if (activeDrag?.id === channel.channelId) {
+      if (dragOverChannelId === channel.channelId) {
+        setDragOverChannelId(null);
+        setDragOverChannelPosition(null);
+      }
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const pos = typeof e.clientY === "number" && rect.height > 0 ? (e.clientY < midY ? "before" : "after") : "before";
+    dragOverChannelPositionRef.current = pos;
+    if (dragOverChannelId !== channel.channelId || dragOverChannelPosition !== pos) {
+      setDragOverChannelId(channel.channelId);
+      setDragOverChannelPosition(pos);
+    }
+  };
+
+  const handleChannelDrop = (
+    e: React.DragEvent,
+    targetChannel: ChannelSummary,
+    categoryName: string
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = dragOverChannelPositionRef.current ?? dragOverChannelPosition ?? "after";
+    if (dragOverVoiceChannelId === targetChannel.channelId) {
+      setDragOverVoiceChannelId(null);
+    }
+
+    const activeDrag = (window as any).__ECHO_ACTIVE_DRAG__ || activeDragRef.current;
+    if (activeDrag?.type === "member" && targetChannel.type === "voice") {
+      const { userId, username } = activeDrag.data || {};
+      const isMe = userId === "me" || userId === effectiveUserId || (myUserId ? userId === myUserId : false);
+      if (isMe) {
+        handleConnectVoice(targetChannel);
+      } else if (userId && username) {
+        handleAddMemberToVoiceChannel(userId, username, targetChannel);
+      }
+      activeDragRef.current = null;
+      (window as any).__ECHO_ACTIVE_DRAG__ = null;
+      return;
+    }
+    if (activeDrag?.type === "voice-member" && targetChannel.type === "voice") {
+      const { userId, username, isMe } = activeDrag.data || {};
+      if (userId) {
+        handleMoveVoiceMemberToChannel(userId, username, targetChannel, isMe);
+      }
+      activeDragRef.current = null;
+      (window as any).__ECHO_ACTIVE_DRAG__ = null;
+      return;
+    }
+
+    const voiceMemberRaw = e.dataTransfer.getData("application/x-echo-voice-member");
+    const memberRaw = e.dataTransfer.getData("application/x-echo-member");
+
+    if (voiceMemberRaw && targetChannel.type === "voice") {
+      try {
+        const { userId, username, isMe } = JSON.parse(voiceMemberRaw);
+        handleMoveVoiceMemberToChannel(userId, username, targetChannel, isMe);
+        return;
+      } catch {}
+    }
+
+    if (memberRaw && targetChannel.type === "voice") {
+      try {
+        const { userId, username } = JSON.parse(memberRaw);
+        const isMe = userId === "me" || userId === effectiveUserId || (myUserId ? userId === myUserId : false);
+        if (isMe) {
+          handleConnectVoice(targetChannel);
+        } else {
+          handleAddMemberToVoiceChannel(userId, username, targetChannel);
+        }
+        return;
+      } catch {}
+    }
+
+    const chanRaw =
+      (activeDragRef.current?.type === "channel"
+        ? JSON.stringify({
+            channelId: activeDragRef.current.id,
+            sourceCategory: activeDragRef.current.category,
+          })
+        : "") ||
+      e.dataTransfer.getData("application/x-echo-channel") ||
+      e.dataTransfer.getData("text/plain");
+
+    activeDragRef.current = null;
+    (window as any).__ECHO_ACTIVE_DRAG__ = null;
+    setDraggedChannelId(null);
+    setDragOverChannelId(null);
+    setDragOverChannelPosition(null);
+    setTimeout(() => {
+      isDraggingRef.current = false;
+    }, 150);
+
+    if (chanRaw) {
+      try {
+        const parsed = JSON.parse(chanRaw);
+        const sourceId = parsed.channelId || (parsed.type === "channel" ? parsed.id : null);
+        if (sourceId && sourceId !== targetChannel.channelId) {
+          handleDropChannelOnChannel(sourceId, targetChannel.channelId, categoryName, pos);
+        }
+      } catch {}
+    }
+  };
+
 
   const handleMoveVoiceMemberToChannel = (
     userId: string,
@@ -1079,6 +1216,82 @@ export default function ChannelSidebar({
                         onDragOver={(e) => {
                           e.preventDefault();
                           if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                          const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
+                          const isCat = activeDrag?.type === "category" || Boolean(e.dataTransfer?.types?.includes("application/x-echo-category"));
+                          const isChannel = !isCat && (activeDrag?.type === "channel" || Boolean(e.dataTransfer?.types?.includes("application/x-echo-channel")) || Boolean(e.dataTransfer?.types?.includes("text/plain")));
+
+                          if (isCat) {
+                            e.stopPropagation();
+                            if (activeDrag?.id === group.name) {
+                              if (dragOverCategory === group.name) {
+                                setDragOverCategory(null);
+                                setDragOverCategoryPosition(null);
+                              }
+                              return;
+                            }
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const midY = rect.top + rect.height / 2;
+                            const pos = e.clientY < midY ? "before" : "after";
+                            dragOverCategoryPositionRef.current = pos;
+                            if (dragOverCategory !== group.name || dragOverCategoryPosition !== pos) {
+                              setDragOverCategory(group.name);
+                              setDragOverCategoryPosition(pos);
+                            }
+                          } else if (isChannel) {
+                            e.stopPropagation();
+                            if (dragOverCategoryForChannel !== group.name) {
+                              setDragOverCategoryForChannel(group.name);
+                            }
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const pos = dragOverCategoryPositionRef.current ?? dragOverCategoryPosition ?? "after";
+                          setDragOverCategoryForChannel(null);
+                          setDragOverCategory(null);
+                          setDragOverCategoryPosition(null);
+
+                          const catData =
+                            (activeDragRef.current?.type === "category" ? activeDragRef.current.id : "") ||
+                            e.dataTransfer.getData("application/x-echo-category") ||
+                            (() => {
+                              try {
+                                const plain = e.dataTransfer.getData("text/plain");
+                                const parsed = plain ? JSON.parse(plain) : null;
+                                return parsed?.type === "category" ? parsed.id : "";
+                              } catch {
+                                return "";
+                              }
+                            })();
+
+                          const chanData =
+                            (activeDragRef.current?.type === "channel"
+                              ? JSON.stringify({
+                                  channelId: activeDragRef.current.id,
+                                  sourceCategory: activeDragRef.current.category,
+                                })
+                              : "") ||
+                            e.dataTransfer.getData("application/x-echo-channel") ||
+                            e.dataTransfer.getData("text/plain");
+
+                          activeDragRef.current = null;
+                          (window as any).__ECHO_ACTIVE_DRAG__ = null;
+                          setTimeout(() => {
+                            isDraggingRef.current = false;
+                          }, 150);
+
+                          if (catData && catData !== group.name) {
+                            handleReorderCategories(catData, group.name, pos);
+                          } else if (chanData) {
+                            try {
+                              const parsed = JSON.parse(chanData);
+                              const channelId = parsed.channelId || (parsed.type === "channel" ? parsed.id : null);
+                              if (channelId) {
+                                handleMoveChannelToCategory(channelId, group.name);
+                              }
+                            } catch {}
+                          }
                         }}
                         onClick={() => {
                           if (isDraggingRef.current) return;
@@ -1295,70 +1508,8 @@ export default function ChannelSidebar({
                                   }`}
                                   draggable={canManageChannels && !channelSearch.trim()}
                                   onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
-                                  onDragOver={(e) => {
-                                    e.preventDefault();
-                                    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-
-                                    const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
-                                    const isChannelDrag =
-                                      activeDrag?.type === "channel" ||
-                                      (!activeDrag && (
-                                        Boolean(e.dataTransfer?.types?.includes("application/x-echo-channel")) ||
-                                        Boolean(e.dataTransfer?.types?.includes("text/plain"))
-                                      ));
-
-                                    if (!isChannelDrag) return;
-                                    e.stopPropagation();
-                                    if (activeDrag?.id === channel.channelId) return;
-
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    const midY = rect.top + rect.height / 2;
-                                    const pos = typeof e.clientY === "number" && rect.height > 0 ? (e.clientY < midY ? "before" : "after") : "before";
-                                    dragOverChannelPositionRef.current = pos;
-                                    if (dragOverChannelId !== channel.channelId || dragOverChannelPosition !== pos) {
-                                      setDragOverChannelId(channel.channelId);
-                                      setDragOverChannelPosition(pos);
-                                    }
-                                  }}
-                                  onDragLeave={(e) => {
-                                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                                    if (dragOverChannelId === channel.channelId) {
-                                      setDragOverChannelId(null);
-                                      setDragOverChannelPosition(null);
-                                    }
-                                  }}
-                                  onDrop={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const raw =
-                                      (activeDragRef.current?.type === "channel"
-                                        ? JSON.stringify({
-                                            channelId: activeDragRef.current.id,
-                                            sourceCategory: activeDragRef.current.category,
-                                          })
-                                        : "") ||
-                                      e.dataTransfer.getData("application/x-echo-channel") ||
-                                      e.dataTransfer.getData("text/plain");
-                                    const pos = dragOverChannelPositionRef.current ?? dragOverChannelPosition ?? "after";
-                                    activeDragRef.current = null;
-                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
-                                    setDraggedChannelId(null);
-                                    setDragOverChannelId(null);
-                                    setDragOverChannelPosition(null);
-                                    setTimeout(() => {
-                                      isDraggingRef.current = false;
-                                    }, 150);
-
-                                    if (raw) {
-                                      try {
-                                        const parsed = JSON.parse(raw);
-                                        const sourceId = parsed.channelId || (parsed.type === "channel" ? parsed.id : null);
-                                        if (sourceId && sourceId !== channel.channelId) {
-                                          handleDropChannelOnChannel(sourceId, channel.channelId, group.name, pos);
-                                        }
-                                      } catch {}
-                                    }
-                                  }}
+                                  onDragOver={(e) => handleChannelDragOver(e, channel)}
+                                  onDrop={(e) => handleChannelDrop(e, channel, group.name)}
                                   onDragEnd={() => {
                                     activeDragRef.current = null;
                                     (window as any).__ECHO_ACTIVE_DRAG__ = null;
@@ -1384,12 +1535,6 @@ export default function ChannelSidebar({
                                   <div
                                     role="button"
                                     tabIndex={0}
-                                    draggable={canManageChannels && !channelSearch.trim()}
-                                    onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
-                                    onDragOver={(e) => {
-                                      e.preventDefault();
-                                      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-                                    }}
                                     aria-current={active ? "true" : undefined}
                                     onClick={() => {
                                       if (isDraggingRef.current) return;
@@ -1549,151 +1694,25 @@ export default function ChannelSidebar({
                           <ContextMenu key={channel.channelId}>
                             <ContextMenuTrigger asChild>
                               <li
-                                className={`group relative transition-all select-none ${
-                                  draggedChannelId === channel.channelId ? "opacity-30 scale-[0.98]" : ""
-                                }`}
-                                draggable={canManageChannels && !channelSearch.trim()}
-                                onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-
-                                  const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
-                                  const isMemberDrag =
-                                    activeDrag?.type === "member" ||
-                                    activeDrag?.type === "voice-member" ||
-                                    Boolean(e.dataTransfer?.types?.includes("application/x-echo-voice-member")) ||
-                                    Boolean(e.dataTransfer?.types?.includes("application/x-echo-member"));
-
-                                  if (isMemberDrag) {
-                                    e.stopPropagation();
-                                    if (dragOverVoiceChannelId !== channel.channelId) {
-                                      setDragOverVoiceChannelId(channel.channelId);
-                                    }
-                                    return;
-                                  }
-
-                                  const isChannelDrag =
-                                    activeDrag?.type === "channel" ||
-                                    (!activeDrag && (
-                                      Boolean(e.dataTransfer?.types?.includes("application/x-echo-channel")) ||
-                                      Boolean(e.dataTransfer?.types?.includes("text/plain"))
-                                    ));
-
-                                  if (!isChannelDrag) return;
-                                  e.stopPropagation();
-                                  if (activeDrag?.id === channel.channelId) return;
-
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  const midY = rect.top + rect.height / 2;
-                                  const pos = typeof e.clientY === "number" && rect.height > 0 ? (e.clientY < midY ? "before" : "after") : "before";
-                                  dragOverChannelPositionRef.current = pos;
-                                  if (dragOverChannelId !== channel.channelId || dragOverChannelPosition !== pos) {
-                                    setDragOverChannelId(channel.channelId);
-                                    setDragOverChannelPosition(pos);
-                                  }
-                                }}
-                                onDragLeave={(e) => {
-                                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                                  if (dragOverVoiceChannelId === channel.channelId) {
-                                    setDragOverVoiceChannelId(null);
-                                  }
-                                  if (dragOverChannelId === channel.channelId) {
+                                  className={`group relative transition-all select-none ${
+                                    draggedChannelId === channel.channelId ? "opacity-30 scale-[0.98]" : ""
+                                  }`}
+                                  draggable={canManageChannels && !channelSearch.trim()}
+                                  onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
+                                  onDragOver={(e) => handleChannelDragOver(e, channel)}
+                                  onDrop={(e) => handleChannelDrop(e, channel, group.name)}
+                                  onDragEnd={() => {
+                                    activeDragRef.current = null;
+                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
+                                    setDraggedChannelId(null);
                                     setDragOverChannelId(null);
                                     setDragOverChannelPosition(null);
-                                  }
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  const pos = dragOverChannelPositionRef.current ?? dragOverChannelPosition ?? "after";
-                                  if (dragOverVoiceChannelId === channel.channelId) {
                                     setDragOverVoiceChannelId(null);
-                                  }
-
-                                  const activeDrag = (window as any).__ECHO_ACTIVE_DRAG__;
-                                  if (activeDrag?.type === "member") {
-                                    const { userId, username } = activeDrag.data;
-                                    const isMe = userId === "me" || userId === effectiveUserId || (myUserId ? userId === myUserId : false);
-                                    if (isMe) {
-                                      handleConnectVoice(channel);
-                                    } else {
-                                      handleAddMemberToVoiceChannel(userId, username, channel);
-                                    }
-                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
-                                    return;
-                                  }
-                                  if (activeDrag?.type === "voice-member") {
-                                    const { userId, username, isMe } = activeDrag.data;
-                                    handleMoveVoiceMemberToChannel(userId, username, channel, isMe);
-                                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
-                                    return;
-                                  }
-
-                                  const voiceMemberRaw = e.dataTransfer.getData("application/x-echo-voice-member");
-                                  const memberRaw = e.dataTransfer.getData("application/x-echo-member");
-
-                                  if (voiceMemberRaw) {
-                                    try {
-                                      const { userId, username, isMe } = JSON.parse(voiceMemberRaw);
-                                      handleMoveVoiceMemberToChannel(userId, username, channel, isMe);
-                                      return;
-                                    } catch {}
-                                  }
-
-                                  if (memberRaw) {
-                                    try {
-                                      const { userId, username } = JSON.parse(memberRaw);
-                                      const isMe = userId === "me" || userId === effectiveUserId || (myUserId ? userId === myUserId : false);
-                                      if (isMe) {
-                                        handleConnectVoice(channel);
-                                      } else {
-                                        handleAddMemberToVoiceChannel(userId, username, channel);
-                                      }
-                                      return;
-                                    } catch {}
-                                  }
-
-                                  const chanRaw =
-                                    (activeDragRef.current?.type === "channel"
-                                      ? JSON.stringify({
-                                          channelId: activeDragRef.current.id,
-                                          sourceCategory: activeDragRef.current.category,
-                                        })
-                                      : "") ||
-                                    e.dataTransfer.getData("application/x-echo-channel") ||
-                                    e.dataTransfer.getData("text/plain");
-                                  activeDragRef.current = null;
-                                  (window as any).__ECHO_ACTIVE_DRAG__ = null;
-                                  setDraggedChannelId(null);
-                                  setDragOverChannelId(null);
-                                  setDragOverChannelPosition(null);
-                                  setTimeout(() => {
-                                    isDraggingRef.current = false;
-                                  }, 150);
-
-                                  if (chanRaw) {
-                                    try {
-                                      const parsed = JSON.parse(chanRaw);
-                                      const sourceId = parsed.channelId || (parsed.type === "channel" ? parsed.id : null);
-                                      if (sourceId && sourceId !== channel.channelId) {
-                                        handleDropChannelOnChannel(sourceId, channel.channelId, group.name, pos);
-                                      }
-                                    } catch {}
-                                  }
-                                }}
-                                onDragEnd={() => {
-                                  activeDragRef.current = null;
-                                  (window as any).__ECHO_ACTIVE_DRAG__ = null;
-                                  setDraggedChannelId(null);
-                                  setDragOverChannelId(null);
-                                  setDragOverChannelPosition(null);
-                                  setDragOverVoiceChannelId(null);
-                                  setTimeout(() => {
-                                    isDraggingRef.current = false;
-                                  }, 150);
-                                }}
-                              >
+                                    setTimeout(() => {
+                                      isDraggingRef.current = false;
+                                    }, 150);
+                                  }}
+                                >
                                 {/* Linha indicadora de posição estilo Discord */}
                                 {dragOverChannelId === channel.channelId && dragOverChannelPosition === "before" && (
                                   <div className="absolute left-1 right-1 -top-[2px] h-[2px] bg-acc rounded-full z-30 pointer-events-none shadow-[0_0_8px_#0fb9a8] flex items-center">
@@ -1709,12 +1728,6 @@ export default function ChannelSidebar({
                                   <div
                                     role="button"
                                     tabIndex={0}
-                                    draggable={canManageChannels && !channelSearch.trim()}
-                                    onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
-                                    onDragOver={(e) => {
-                                      e.preventDefault();
-                                      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-                                    }}
                                     aria-current={connected ? "true" : undefined}
                                     onClick={() => {
                                       if (isDraggingRef.current) return;
