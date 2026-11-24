@@ -8,6 +8,7 @@ import {
   Play,
   Sliders,
   SpeakerHigh,
+  Waveform,
 } from "@phosphor-icons/react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { audioEngine } from "@/lib/media/audioEngine";
@@ -31,6 +32,8 @@ export default function AudioDeviceQuickMenu({
     setInputVolume,
     outputVolume,
     setOutputVolume,
+    noiseSuppression,
+    setNoiseSuppression,
   } = useSettingsStore();
 
   const [devices, setDevices] = useState<DeviceLists>(FALLBACK_DEVICES);
@@ -196,6 +199,25 @@ export default function AudioDeviceQuickMenu({
             className="w-full accent-acc cursor-pointer h-1 rounded-lg bg-bd-subtle"
           />
         </div>
+      </div>
+
+      {/* Seção Supressão de Ruído Rápida (DSP) */}
+      <div className="flex items-center justify-between px-1 pt-1 border-t border-bd-subtle">
+        <div className="flex items-center gap-1.5 text-xs text-txt">
+          <Waveform size={14} className={noiseSuppression ? "text-acc" : "text-mut"} weight="bold" />
+          <span>Supressão de Ruído</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setNoiseSuppression(!noiseSuppression)}
+          className={`cursor-pointer px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${
+            noiseSuppression
+              ? "bg-acc/20 text-acc"
+              : "bg-surf text-mut hover:text-txt"
+          }`}
+        >
+          {noiseSuppression ? "Ativado" : "Desativado"}
+        </button>
       </div>
 
       {/* Link para Configurações Completas de Voz */}

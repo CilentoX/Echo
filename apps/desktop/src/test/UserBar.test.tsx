@@ -89,5 +89,18 @@ describe("UserBar Component", () => {
     avatarEl = screen.getByText("L");
     expect(avatarEl.className).toContain("ring-online");
   });
+
+  it("alterna a supressão de ruído ao clicar no botão de supressão na dock", async () => {
+    useSettingsStore.setState({ noiseSuppression: true });
+    render(<UserBar />);
+
+    const noiseBtn = screen.getByRole("button", { name: "Desativar supressão de ruído" });
+    await userEvent.click(noiseBtn);
+    expect(useSettingsStore.getState().noiseSuppression).toBe(false);
+
+    const activateNoiseBtn = screen.getByRole("button", { name: "Ativar supressão de ruído" });
+    await userEvent.click(activateNoiseBtn);
+    expect(useSettingsStore.getState().noiseSuppression).toBe(true);
+  });
 });
 

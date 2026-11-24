@@ -7,7 +7,7 @@ import { useSyncStore } from "@/stores/syncStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import { useUnreadStore } from "@/stores/unreadStore";
 import MxcImage from "@/components/media/MxcImage";
-import { CaretDown, Clock, Gear, Hash, Headphones, MagnifyingGlass, Microphone, MicrophoneSlash, ShieldCheck, X, WifiHigh, WifiX, ArrowsClockwise, Star } from "@phosphor-icons/react";
+import { CaretDown, Clock, Gear, Hash, Headphones, MagnifyingGlass, Microphone, MicrophoneSlash, ShieldCheck, X, WifiHigh, WifiX, ArrowsClockwise, Star, Waveform } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AudioDeviceQuickMenu from "./AudioDeviceQuickMenu";
 import PresenceQuickPopover from "./PresenceQuickPopover";
@@ -37,6 +37,8 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
   const setMicrophoneEnabled = useSettingsStore((s) => s.setMicrophoneEnabled);
   const headphonesEnabled = useSettingsStore((s) => s.headphonesEnabled);
   const setHeadphonesEnabled = useSettingsStore((s) => s.setHeadphonesEnabled);
+  const noiseSuppression = useSettingsStore((s) => s.noiseSuppression);
+  const setNoiseSuppression = useSettingsStore((s) => s.setNoiseSuppression);
   const quickSwitchFavorites = useSettingsStore((s) => s.quickSwitchFavorites);
   const toggleQuickSwitchFavorite = useSettingsStore((s) => s.toggleQuickSwitchFavorite);
 
@@ -502,6 +504,26 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
                 }`}
               >
                 <Headphones size={16} weight={headphonesEnabled ? "fill" : "regular"} />
+              </button>
+
+              <button
+                type="button"
+                aria-label={noiseSuppression ? "Desativar supressão de ruído" : "Ativar supressão de ruído"}
+                title={noiseSuppression ? "Supressão de Ruído Ativada (Clique para desativar, botão direito para opções)" : "Supressão de Ruído Desativada (Clique para ativar, botão direito para opções)"}
+                onClick={() => {
+                  setNoiseSuppression(!noiseSuppression);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setAudioQuickOpen(true);
+                }}
+                className={`cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                  noiseSuppression
+                    ? "text-acc bg-acc/10 hover:bg-acc/20 shadow-xs shadow-acc/20"
+                    : "text-mut hover:text-txt dark:hover:bg-white/[0.06] hover:bg-black/[0.06] opacity-60 hover:opacity-100"
+                }`}
+              >
+                <Waveform size={16} weight={noiseSuppression ? "bold" : "regular"} />
               </button>
             </div>
           </PopoverTrigger>
