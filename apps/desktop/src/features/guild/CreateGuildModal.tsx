@@ -132,8 +132,8 @@ export default function CreateGuildModal({
 
       const guild = await onCreate({
         name: trimmed,
-        iconUrl,
-        bannerUrl,
+        iconUrl: iconUrl || undefined,
+        bannerUrl: bannerUrl || undefined,
         description: description.trim() || undefined,
       });
       setName("");

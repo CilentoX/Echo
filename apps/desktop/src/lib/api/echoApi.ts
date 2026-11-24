@@ -595,7 +595,18 @@ export class EchoApi {
     avatarUrl: string | null;
     unreadCount: number;
   }> {
-    return this.post("/guilds", { ...data, createdBy }).then(
+    const payload: Record<string, any> = {
+      name: data.name,
+      createdBy,
+    };
+    if (data.iconUrl) {
+      payload.iconUrl = data.iconUrl;
+      payload.avatarUrl = data.iconUrl;
+    }
+    if (data.bannerUrl) payload.bannerUrl = data.bannerUrl;
+    if (data.description) payload.description = data.description;
+
+    return this.post("/guilds", payload).then(
       async (res) => {
         if (!res.ok) throw new Error(`Failed to create guild: ${res.status}`);
         return res.json();
