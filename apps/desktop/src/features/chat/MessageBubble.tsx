@@ -23,6 +23,8 @@ import EditedBadge from "./EditedBadge";
 import ReactionStack from "./ReactionStack";
 import MessageBody from "./MessageBody";
 import RichEmbed from "./RichEmbed";
+import WidgetRenderer from "./WidgetRenderer";
+import ThreadSummarizeButton from "./ThreadSummarizeButton";
 import MxcImage from "@/components/media/MxcImage";
 import AudioPlayer from "@/components/media/AudioPlayer";
 import MediaLightbox from "@/components/media/MediaLightbox";
@@ -38,6 +40,7 @@ import { mxcToHttp } from "@/lib/media/mxc";
 
 const EMPTY_MEMBERS: import("@/lib/matrix/types").MemberSummary[] = [];
 const EMPTY_PINNED: readonly string[] = Object.freeze([]);
+const EMPTY_TIMELINE: readonly NormalizedEvent[] = Object.freeze([]);
 
 export interface MessageBubbleProps {
   event: NormalizedEvent;
@@ -87,6 +90,11 @@ export default memo(function MessageBubble({
   const myNickname = useProfileStore((s) => s.nickname);
   const myDisplayName = useProfileStore((s) => s.displayName);
   const myAvatar = useProfileStore((s) => s.avatarUrl ?? s.appwriteAvatarUrl);
+  // Reactive timeline for the current room — ensures ReplyChip re-renders
+  // when prependEvents/appendEvent enriches replyTo sender/body after
+  // loadOlder delivers the replied-to message.
+  const rawTimeline = useSyncStore((s) => s.timelineByChannel[event.roomId]);
+  const roomTimeline = rawTimeline ?? EMPTY_TIMELINE;
 
   const rawRoomMembers = useSyncStore((s) => s.membersByRoom[event.roomId]);
   const roomMembers = rawRoomMembers ?? EMPTY_MEMBERS;
@@ -325,7 +333,32 @@ export default memo(function MessageBubble({
           {/* Conteúdo da mensagem (Alinhado à direita para o remetente, à esquerda para os outros) */}
           <div className={`flex flex-col min-w-0 max-w-[85%] sm:max-w-[75%] ${isSender ? "items-end" : "items-start"}`}>
             {/* Chip de reply-to (citação) */}
-            {event.replyTo && <ReplyChip replyTo={event.replyTo} />}
+            {event.replyTo && (() => {
+              // When loading history, replyTo.sender may be empty if the replied-to
+              // message wasn't in the same API chunk. The bidirectional enrichment
+              // in prependEvents/appendEvent should have resolved it already, but
+              // we keep this as a safety net using the reactive timeline prop.
+              let replySender = event.replyTo.sender;
+              if (!replySender && event.replyTo.eventId) {
+                const resolvedFromTimeline = roomTimeline.find(
+                  (e) => e.eventId === event.replyTo!.eventId,
+                );
+                if (resolvedFromTimeline?.sender) {
+                  replySender = resolvedFromTimeline.sender;
+                }
+              }
+              // Resolve display name using the same fallback chain as the message header:
+              // guild nick > own nick/displayName > room member > friend > MXID localpart
+              const replyIsSender = replySender === myUserId;
+              const replyGuildNick = replySender ? guildProfiles?.[replySender]?.nickname : undefined;
+              const replyRoomMember = replySender ? roomMembers.find((m) => m.userId === replySender) : undefined;
+              const replyFriend = replySender ? friends.find((f) => f.userId === replySender) : undefined;
+              const replyDisplayName =
+                replyGuildNick ||
+                (replyIsSender ? (myNickname || myDisplayName) : replyRoomMember?.displayName || replyFriend?.displayName) ||
+                (replySender ? senderLabel(replySender) : "…");
+              return <ReplyChip replyTo={event.replyTo} displayName={replyDisplayName} />;
+            })()}
 
             {/* Cabeçalho: nome, hora, selos (apenas no primeiro do grupo) */}
             {showHeader && (
@@ -469,6 +502,14 @@ export default memo(function MessageBubble({
                     }`}
                   >
                     <RichEmbed content={event.body} align={isSender ? "right" : "left"} />
+                    {event.widget && (
+                      <WidgetRenderer
+                        widget={event.widget}
+                        eventId={event.eventId}
+                        myUserId={myUserId}
+                        align={isSender ? "right" : "left"}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -490,19 +531,22 @@ export default memo(function MessageBubble({
                   eventId={event.eventId}
                 />
                 {(threadReplies ?? 0) > 0 && (
-                  <button
-                    type="button"
-                    aria-label="Abrir tópico"
-                    className="cursor-pointer flex items-center gap-1 rounded-full border border-bd bg-surf2 px-1.5 py-0.5 text-[11px] text-mut hover:border-acc/40 hover:text-txt active:scale-95"
-                    onClick={() => {
-                      // Fase D: abrir tópico de respostas
-                    }}
-                  >
-                    <Chats size={12} aria-hidden />
-                    <span>
-                      {threadReplies} {threadReplies === 1 ? "resposta" : "respostas"}
-                    </span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Abrir tópico"
+                      className="cursor-pointer flex items-center gap-1 rounded-full border border-bd bg-surf2 px-1.5 py-0.5 text-[11px] text-mut hover:border-acc/40 hover:text-txt active:scale-95"
+                      onClick={() => {
+                        // Fase D: abrir tópico de respostas
+                      }}
+                    >
+                      <Chats size={12} aria-hidden />
+                      <span>
+                        {threadReplies} {threadReplies === 1 ? "resposta" : "respostas"}
+                      </span>
+                    </button>
+                    <ThreadSummarizeButton roomId={event.roomId} eventId={event.eventId} />
+                  </>
                 )}
               </div>
             )}

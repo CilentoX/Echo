@@ -3,6 +3,7 @@ import { useUiStore } from "./uiStore";
 import { useSettingsStore } from "./settingsStore";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
 import { audioEngine } from "@/lib/media/audioEngine";
+import { playVoiceJoin, playVoiceLeave } from "@/lib/notifications/sound";
 
 export type ScreenShareQuality = "auto" | "low" | "medium" | "high";
 export type ScreenShareContentHint = "auto" | "detail" | "motion" | "text";
@@ -493,6 +494,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   addParticipant: (participant) => {
+    // Som e toast de entrada (apenas para outros usuarios, nao para si mesmo)
+    const myId = useUiStore.getState().myUserId || "me";
+    if (participant.userId !== myId && participant.userId !== "me") {
+      try { playVoiceJoin(); } catch {}
+    }
     set((state) => {
       if (state.participants.some((p) => p.userId === participant.userId)) {
         return state;
@@ -504,6 +510,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   removeParticipant: (userId) => {
+    // Som e toast de saida (apenas para outros usuarios)
+    const myId = useUiStore.getState().myUserId || "me";
+    if (userId !== myId && userId !== "me") {
+      try { playVoiceLeave(); } catch {}
+    }
     set((state) => {
       const nextStreams = { ...state.remoteVideoStreams };
       delete nextStreams[userId];

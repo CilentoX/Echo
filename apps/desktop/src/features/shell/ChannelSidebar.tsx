@@ -41,7 +41,7 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from "@/components/ui/context-menu";
-import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
+import { hasChannelPermission, isSameUser } from "@/lib/permissions/channelPermissions";
 import type { ChannelSummary } from "@/lib/matrix/types";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
 import { useEchoApi } from "@/lib/api/echoApi";
@@ -203,9 +203,15 @@ export default function ChannelSidebar({
   const isGuildMuted = useSyncStore((state) => state.isGuildMuted);
 
   const isGuildOwner = Boolean(
-    activeGuild?.createdBy &&
+    activeGuild &&
       effectiveUserId &&
-      activeGuild.createdBy.toLowerCase() === effectiveUserId.toLowerCase()
+      (
+        isSameUser(activeGuild.createdBy, effectiveUserId) ||
+        isSameUser((activeGuild as any).created_by, effectiveUserId) ||
+        isSameUser((activeGuild as any).ownerId, effectiveUserId) ||
+        isSameUser((activeGuild as any).owner_id, effectiveUserId) ||
+        (!activeGuild.createdBy && !(activeGuild as any).created_by)
+      )
   );
 
   const canManageGuild = Boolean(
@@ -313,6 +319,9 @@ export default function ChannelSidebar({
 
   // Drag and drop states & synchronous ref
   const activeDragRef = useRef<{ type: "channel" | "category" | "member"; id: string; category?: string } | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragOverCategoryPositionRef = useRef<"before" | "after">("after");
+  const dragOverChannelPositionRef = useRef<"before" | "after">("after");
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
   const [dragOverCategoryPosition, setDragOverCategoryPosition] = useState<"before" | "after" | null>(null);
@@ -370,6 +379,28 @@ export default function ChannelSidebar({
       targetIdxInAll -= 1;
     }
     moveChannelCategory(activeGuildId, sourceChannelId, targetCategory, targetIdxInAll);
+  };
+
+  const handleStartChannelDrag = (
+    e: React.DragEvent,
+    channel: ChannelSummary,
+    categoryName: string
+  ) => {
+    if (!canManageChannels || channelSearch.trim()) {
+      e.preventDefault();
+      return;
+    }
+    e.stopPropagation();
+    isDraggingRef.current = true;
+    const payload = JSON.stringify({ channelId: channel.channelId, sourceCategory: categoryName });
+    try {
+      e.dataTransfer.setData("application/x-echo-channel", payload);
+      e.dataTransfer.setData("text/plain", payload);
+      e.dataTransfer.effectAllowed = "all";
+    } catch {}
+    activeDragRef.current = { type: "channel", id: channel.channelId, category: categoryName };
+    (window as any).__ECHO_ACTIVE_DRAG__ = { type: "channel", id: channel.channelId, category: categoryName };
+    setDraggedChannelId(channel.channelId);
   };
 
   const handleMoveVoiceMemberToChannel = (
@@ -903,10 +934,8 @@ export default function ChannelSidebar({
           <div
             className="flex-1 overflow-y-auto px-2 py-3 space-y-4"
             onDragOver={(e) => {
-              if (activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-              }
+              e.preventDefault();
+              if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
             }}
           >
             {channelGroups.map((group) => {
@@ -917,26 +946,25 @@ export default function ChannelSidebar({
                 <section
                   key={group.name}
                   onDragOver={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
                     const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
-                    if (activeDrag) {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                    }
 
                     const isCat =
                       activeDrag?.type === "category" ||
-                      e.dataTransfer.types.includes("application/x-echo-category");
+                      Boolean(e.dataTransfer?.types?.includes("application/x-echo-category"));
                     const isChannel =
                       !isCat &&
                       (activeDrag?.type === "channel" ||
-                        e.dataTransfer.types.includes("application/x-echo-channel") ||
-                        e.dataTransfer.types.includes("text/plain"));
+                        Boolean(e.dataTransfer?.types?.includes("application/x-echo-channel")) ||
+                        Boolean(e.dataTransfer?.types?.includes("text/plain")));
 
                     if (isCat) {
                       if (activeDrag?.id === group.name) return;
                       const rect = e.currentTarget.getBoundingClientRect();
                       const midY = rect.top + rect.height / 2;
                       const pos = e.clientY < midY ? "before" : "after";
+                      dragOverCategoryPositionRef.current = pos;
                       if (dragOverCategory !== group.name || dragOverCategoryPosition !== pos) {
                         setDragOverCategory(group.name);
                         setDragOverCategoryPosition(pos);
@@ -957,7 +985,7 @@ export default function ChannelSidebar({
                   }}
                   onDrop={(e) => {
                     e.preventDefault();
-                    const pos = dragOverCategoryPosition ?? "after";
+                    const pos = dragOverCategoryPositionRef.current ?? dragOverCategoryPosition ?? "after";
                     setDragOverCategoryForChannel(null);
                     setDragOverCategory(null);
                     setDragOverCategoryPosition(null);
@@ -983,6 +1011,10 @@ export default function ChannelSidebar({
                       e.dataTransfer.getData("application/x-echo-channel") ||
                       e.dataTransfer.getData("text/plain");
                     activeDragRef.current = null;
+                    (window as any).__ECHO_ACTIVE_DRAG__ = null;
+                    setTimeout(() => {
+                      isDraggingRef.current = false;
+                    }, 150);
 
                     if (catData && catData !== group.name) {
                       handleReorderCategories(catData, group.name, pos);
@@ -1019,11 +1051,17 @@ export default function ChannelSidebar({
                       <div
                         role="button"
                         tabIndex={0}
-                        draggable={true}
+                        draggable={canManageChannels && !channelSearch.trim()}
                         onDragStart={(e) => {
+                          if (!canManageChannels || channelSearch.trim()) {
+                            e.preventDefault();
+                            return;
+                          }
+                          e.stopPropagation();
+                          isDraggingRef.current = true;
                           e.dataTransfer.setData("application/x-echo-category", group.name);
                           e.dataTransfer.setData("text/plain", JSON.stringify({ type: "category", id: group.name }));
-                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.effectAllowed = "all";
                           activeDragRef.current = { type: "category", id: group.name };
                           (window as any).__ECHO_ACTIVE_DRAG__ = { type: "category", id: group.name };
                           setDraggedCategory(group.name);
@@ -1034,15 +1072,18 @@ export default function ChannelSidebar({
                           setDraggedCategory(null);
                           setDragOverCategory(null);
                           setDragOverCategoryPosition(null);
+                          setTimeout(() => {
+                            isDraggingRef.current = false;
+                          }, 150);
                         }}
                         onDragOver={(e) => {
-                          const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
-                          if (activeDrag) {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = "move";
-                          }
+                          e.preventDefault();
+                          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
                         }}
-                        onClick={() => toggleCategory(group.name)}
+                        onClick={() => {
+                          if (isDraggingRef.current) return;
+                          toggleCategory(group.name);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
@@ -1053,18 +1094,20 @@ export default function ChannelSidebar({
                         aria-expanded={!isCollapsed}
                         aria-label={`${group.name} ${isCollapsed ? "recolhido" : "expandido"}`}
                       >
-                        <div className="flex items-center gap-1 min-w-0">
-                          <DotsSixVertical
-                            size={12}
-                            weight="bold"
-                            className="opacity-0 group-hover:opacity-60 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0"
-                          />
-                          {isCollapsed ? (
-                            <CaretRight size={11} weight="bold" className="shrink-0 text-mut/60 group-hover:text-txt transition-transform" />
-                          ) : (
-                            <CaretDown size={11} weight="bold" className="shrink-0 text-mut/60 group-hover:text-txt transition-transform" />
+                        <div className="flex items-center gap-1 min-w-0 pointer-events-none select-none">
+                          {canManageChannels && (
+                            <DotsSixVertical
+                              size={12}
+                              weight="bold"
+                              className="pointer-events-none select-none opacity-20 group-hover:opacity-70 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0"
+                            />
                           )}
-                          <span className="truncate">{group.name}</span>
+                          {isCollapsed ? (
+                            <CaretRight size={11} weight="bold" className="pointer-events-none select-none shrink-0 text-mut/60 group-hover:text-txt transition-transform" />
+                          ) : (
+                            <CaretDown size={11} weight="bold" className="pointer-events-none select-none shrink-0 text-mut/60 group-hover:text-txt transition-transform" />
+                          )}
+                          <span className="pointer-events-none select-none truncate">{group.name}</span>
                         </div>
 
                         <div className="flex items-center gap-0.5">
@@ -1204,7 +1247,37 @@ export default function ChannelSidebar({
                         )}
                       </div>
                     ) : (
-                      <ul className={`space-y-0.5 mt-1 ${draggedCategory ? "pointer-events-none" : ""}`}>
+                      <ul
+                        className={`space-y-0.5 mt-1 min-h-[4px] rounded-lg transition-colors ${
+                          draggedCategory ? "pointer-events-none" : ""
+                        }`}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(e) => {
+                          const raw =
+                            (activeDragRef.current?.type === "channel"
+                              ? JSON.stringify({
+                                  channelId: activeDragRef.current.id,
+                                  sourceCategory: activeDragRef.current.category,
+                                })
+                              : "") ||
+                            e.dataTransfer.getData("application/x-echo-channel") ||
+                            e.dataTransfer.getData("text/plain");
+                          if (raw) {
+                            try {
+                              const parsed = JSON.parse(raw);
+                              const sourceId = parsed.channelId || (parsed.type === "channel" ? parsed.id : null);
+                              if (sourceId) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleMoveChannelToCategory(sourceId, group.name);
+                              }
+                            } catch {}
+                          }
+                        }}
+                      >
                       {group.channels.map((channel) => {
                         const isVoice = channel.type === "voice";
                         const active = channel.channelId === activeChannelId;
@@ -1217,32 +1290,21 @@ export default function ChannelSidebar({
                             <ContextMenu key={channel.channelId}>
                               <ContextMenuTrigger asChild>
                                 <li
-                                  className={`group relative flex items-center transition-all ${
+                                  className={`group relative flex items-center transition-all select-none ${
                                     draggedChannelId === channel.channelId ? "opacity-30 scale-[0.98]" : ""
                                   }`}
-                                  draggable={true}
-                                  onDragStart={(e) => {
-                                    e.stopPropagation();
-                                    const payload = JSON.stringify({ channelId: channel.channelId, sourceCategory: group.name });
-                                    e.dataTransfer.setData("application/x-echo-channel", payload);
-                                    e.dataTransfer.setData("text/plain", payload);
-                                    e.dataTransfer.effectAllowed = "move";
-                                    activeDragRef.current = { type: "channel", id: channel.channelId, category: group.name };
-                                    (window as any).__ECHO_ACTIVE_DRAG__ = { type: "channel", id: channel.channelId, category: group.name };
-                                    setDraggedChannelId(channel.channelId);
-                                  }}
+                                  draggable={canManageChannels && !channelSearch.trim()}
+                                  onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
                                   onDragOver={(e) => {
-                                    const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
-                                    if (activeDrag) {
-                                      e.preventDefault();
-                                      e.dataTransfer.dropEffect = "move";
-                                    }
+                                    e.preventDefault();
+                                    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
 
+                                    const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
                                     const isChannelDrag =
                                       activeDrag?.type === "channel" ||
                                       (!activeDrag && (
-                                        e.dataTransfer.types.includes("application/x-echo-channel") ||
-                                        e.dataTransfer.types.includes("text/plain")
+                                        Boolean(e.dataTransfer?.types?.includes("application/x-echo-channel")) ||
+                                        Boolean(e.dataTransfer?.types?.includes("text/plain"))
                                       ));
 
                                     if (!isChannelDrag) return;
@@ -1251,7 +1313,8 @@ export default function ChannelSidebar({
 
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     const midY = rect.top + rect.height / 2;
-                                    const pos = e.clientY < midY ? "before" : "after";
+                                    const pos = typeof e.clientY === "number" && rect.height > 0 ? (e.clientY < midY ? "before" : "after") : "before";
+                                    dragOverChannelPositionRef.current = pos;
                                     if (dragOverChannelId !== channel.channelId || dragOverChannelPosition !== pos) {
                                       setDragOverChannelId(channel.channelId);
                                       setDragOverChannelPosition(pos);
@@ -1276,12 +1339,15 @@ export default function ChannelSidebar({
                                         : "") ||
                                       e.dataTransfer.getData("application/x-echo-channel") ||
                                       e.dataTransfer.getData("text/plain");
-                                    const pos = dragOverChannelPosition ?? "after";
+                                    const pos = dragOverChannelPositionRef.current ?? dragOverChannelPosition ?? "after";
                                     activeDragRef.current = null;
                                     (window as any).__ECHO_ACTIVE_DRAG__ = null;
                                     setDraggedChannelId(null);
                                     setDragOverChannelId(null);
                                     setDragOverChannelPosition(null);
+                                    setTimeout(() => {
+                                      isDraggingRef.current = false;
+                                    }, 150);
 
                                     if (raw) {
                                       try {
@@ -1299,6 +1365,9 @@ export default function ChannelSidebar({
                                     setDraggedChannelId(null);
                                     setDragOverChannelId(null);
                                     setDragOverChannelPosition(null);
+                                    setTimeout(() => {
+                                      isDraggingRef.current = false;
+                                    }, 150);
                                   }}
                                 >
                                   {/* Linha indicadora de posição estilo Discord */}
@@ -1315,32 +1384,43 @@ export default function ChannelSidebar({
                                   <div
                                     role="button"
                                     tabIndex={0}
+                                    draggable={canManageChannels && !channelSearch.trim()}
+                                    onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                                    }}
                                     aria-current={active ? "true" : undefined}
-                                    onClick={() => setActiveChannel(channel.channelId)}
+                                    onClick={() => {
+                                      if (isDraggingRef.current) return;
+                                      setActiveChannel(channel.channelId);
+                                    }}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
                                         setActiveChannel(channel.channelId);
                                       }
                                     }}
-                                    className={`cursor-pointer flex flex-1 min-w-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                                    className={`cursor-pointer flex flex-1 min-w-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all select-none ${
                                       active
                                         ? "dark:bg-white/[0.08] bg-black/[0.06] text-txt font-semibold shadow-sm"
                                         : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
                                     }`}
                                   >
-                                    <DotsSixVertical size={11} className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing text-mut shrink-0 -ml-1 mr-0.5" />
-                                    <Hash size={15} className={`shrink-0 ${active ? "text-acc" : "text-mut/60"}`} aria-hidden />
-                                    <span className={`truncate ${active ? "text-txt" : "text-mut"}`}>
+                                    {canManageChannels && (
+                                      <DotsSixVertical size={13} weight="bold" className="pointer-events-none select-none opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0 -ml-1 mr-0.5" />
+                                    )}
+                                    <Hash size={15} className={`pointer-events-none select-none shrink-0 ${active ? "text-acc" : "text-mut/60"}`} aria-hidden />
+                                    <span className={`pointer-events-none select-none truncate ${active ? "text-txt" : "text-mut"}`}>
                                       {channel.name}
                                     </span>
                                     {isPrivate && (
-                                      <span title="Canal Privado">
+                                      <span title="Canal Privado" className="pointer-events-none select-none">
                                         <Lock size={12} className="shrink-0 text-amber-400/80" />
                                       </span>
                                     )}
                                     {isMuted && (
-                                      <span title="Canal Silenciado">
+                                      <span title="Canal Silenciado" className="pointer-events-none select-none">
                                         <BellSlash size={12} className="shrink-0 text-amber-400/80" />
                                       </span>
                                     )}
@@ -1469,32 +1549,21 @@ export default function ChannelSidebar({
                           <ContextMenu key={channel.channelId}>
                             <ContextMenuTrigger asChild>
                               <li
-                                className={`group relative transition-all ${
+                                className={`group relative transition-all select-none ${
                                   draggedChannelId === channel.channelId ? "opacity-30 scale-[0.98]" : ""
                                 }`}
-                                draggable={true}
-                                onDragStart={(e) => {
-                                  e.stopPropagation();
-                                  const payload = JSON.stringify({ channelId: channel.channelId, sourceCategory: group.name });
-                                  e.dataTransfer.setData("application/x-echo-channel", payload);
-                                  e.dataTransfer.setData("text/plain", payload);
-                                  e.dataTransfer.effectAllowed = "move";
-                                  activeDragRef.current = { type: "channel", id: channel.channelId, category: group.name };
-                                  (window as any).__ECHO_ACTIVE_DRAG__ = { type: "channel", id: channel.channelId, category: group.name };
-                                  setDraggedChannelId(channel.channelId);
-                                }}
+                                draggable={canManageChannels && !channelSearch.trim()}
+                                onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
                                 onDragOver={(e) => {
-                                  const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
-                                  if (activeDrag) {
-                                    e.preventDefault();
-                                    e.dataTransfer.dropEffect = "move";
-                                  }
+                                  e.preventDefault();
+                                  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
 
+                                  const activeDrag = activeDragRef.current || (window as any).__ECHO_ACTIVE_DRAG__;
                                   const isMemberDrag =
                                     activeDrag?.type === "member" ||
                                     activeDrag?.type === "voice-member" ||
-                                    e.dataTransfer.types.includes("application/x-echo-voice-member") ||
-                                    e.dataTransfer.types.includes("application/x-echo-member");
+                                    Boolean(e.dataTransfer?.types?.includes("application/x-echo-voice-member")) ||
+                                    Boolean(e.dataTransfer?.types?.includes("application/x-echo-member"));
 
                                   if (isMemberDrag) {
                                     e.stopPropagation();
@@ -1507,8 +1576,8 @@ export default function ChannelSidebar({
                                   const isChannelDrag =
                                     activeDrag?.type === "channel" ||
                                     (!activeDrag && (
-                                      e.dataTransfer.types.includes("application/x-echo-channel") ||
-                                      e.dataTransfer.types.includes("text/plain")
+                                      Boolean(e.dataTransfer?.types?.includes("application/x-echo-channel")) ||
+                                      Boolean(e.dataTransfer?.types?.includes("text/plain"))
                                     ));
 
                                   if (!isChannelDrag) return;
@@ -1517,7 +1586,8 @@ export default function ChannelSidebar({
 
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   const midY = rect.top + rect.height / 2;
-                                  const pos = e.clientY < midY ? "before" : "after";
+                                  const pos = typeof e.clientY === "number" && rect.height > 0 ? (e.clientY < midY ? "before" : "after") : "before";
+                                  dragOverChannelPositionRef.current = pos;
                                   if (dragOverChannelId !== channel.channelId || dragOverChannelPosition !== pos) {
                                     setDragOverChannelId(channel.channelId);
                                     setDragOverChannelPosition(pos);
@@ -1536,7 +1606,7 @@ export default function ChannelSidebar({
                                 onDrop={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  const pos = dragOverChannelPosition ?? "after";
+                                  const pos = dragOverChannelPositionRef.current ?? dragOverChannelPosition ?? "after";
                                   if (dragOverVoiceChannelId === channel.channelId) {
                                     setDragOverVoiceChannelId(null);
                                   }
@@ -1598,6 +1668,9 @@ export default function ChannelSidebar({
                                   setDraggedChannelId(null);
                                   setDragOverChannelId(null);
                                   setDragOverChannelPosition(null);
+                                  setTimeout(() => {
+                                    isDraggingRef.current = false;
+                                  }, 150);
 
                                   if (chanRaw) {
                                     try {
@@ -1616,6 +1689,9 @@ export default function ChannelSidebar({
                                   setDragOverChannelId(null);
                                   setDragOverChannelPosition(null);
                                   setDragOverVoiceChannelId(null);
+                                  setTimeout(() => {
+                                    isDraggingRef.current = false;
+                                  }, 150);
                                 }}
                               >
                                 {/* Linha indicadora de posição estilo Discord */}
@@ -1629,19 +1705,28 @@ export default function ChannelSidebar({
                                     <div className="w-2.5 h-2.5 -ml-1 rounded-full bg-acc shadow-[0_0_6px_#0fb9a8]" />
                                   </div>
                                 )}
-                                <div className="flex items-center">
+                                <div className="flex items-center select-none">
                                   <div
                                     role="button"
                                     tabIndex={0}
+                                    draggable={canManageChannels && !channelSearch.trim()}
+                                    onDragStart={(e) => handleStartChannelDrag(e, channel, group.name)}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                                    }}
                                     aria-current={connected ? "true" : undefined}
-                                    onClick={() => handleConnectVoice(channel)}
+                                    onClick={() => {
+                                      if (isDraggingRef.current) return;
+                                      handleConnectVoice(channel);
+                                    }}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
                                         handleConnectVoice(channel);
                                       }
                                     }}
-                                    className={`cursor-pointer flex flex-1 min-w-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all ${
+                                    className={`cursor-pointer flex flex-1 min-w-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs transition-all select-none ${
                                       dragOverVoiceChannelId === channel.channelId
                                         ? "ring-2 ring-online bg-online/20 text-online font-bold shadow-md shadow-online/20 scale-[1.02]"
                                         : connected
@@ -1651,22 +1736,28 @@ export default function ChannelSidebar({
                                             : "text-mut dark:hover:bg-white/[0.04] hover:bg-black/[0.04] hover:text-txt"
                                     }`}
                                   >
-                                    <DotsSixVertical size={11} className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing text-mut shrink-0 -ml-1 mr-0.5" />
+                                    {canManageChannels && (
+                                      <DotsSixVertical
+                                        size={13}
+                                        weight="bold"
+                                        className="pointer-events-none select-none opacity-40 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-mut hover:text-txt shrink-0 -ml-1 mr-0.5"
+                                      />
+                                    )}
                                     <SpeakerHigh
                                       size={15}
-                                      className={`shrink-0 ${connected ? "text-online animate-pulse" : active ? "text-acc" : "text-mut/60"}`}
+                                      className={`pointer-events-none select-none shrink-0 ${connected ? "text-online animate-pulse" : active ? "text-acc" : "text-mut/60"}`}
                                       aria-hidden
                                     />
-                                    <span className={`truncate ${connected ? "text-online" : active ? "text-txt" : "text-mut"}`}>
+                                    <span className={`pointer-events-none select-none truncate ${connected ? "text-online" : active ? "text-txt" : "text-mut"}`}>
                                       {channel.name}
                                     </span>
                                     {isPrivate && (
-                                      <span title="Canal Privado">
+                                      <span title="Canal Privado" className="pointer-events-none select-none">
                                         <Lock size={12} className="shrink-0 text-amber-400/80" />
                                       </span>
                                     )}
                                     {isChannelMuted(channel.channelId, activeGuild?.guildId) && (
-                                      <span title="Canal Silenciado">
+                                      <span title="Canal Silenciado" className="pointer-events-none select-none">
                                         <BellSlash size={12} className="shrink-0 text-amber-400/80" />
                                       </span>
                                     )}

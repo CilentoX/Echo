@@ -32,6 +32,7 @@ tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync",
 keyring = { version = "3", features = ["windows-native"] }
 tauri-plugin-process = "2.4.0"
 tauri-plugin-notification = "2"
+tauri-plugin-global-shortcut = "2"
 xcap = "0.9.8"
 base64 = "0.22"
 rand = "0.8"
@@ -48,3 +49,4 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+

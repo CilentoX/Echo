@@ -26,6 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import ImageUploadWithEdit from "@/components/media/ImageUploadWithEdit";
 import { useEchoApi } from "@/lib/api/echoApi";
 import { matrixService } from "@/lib/matrix/instance";
+import { useNotificationStore } from "@/stores/notificationStore";
 
 interface ProfileTabProps {
   onClose: () => void;
@@ -139,6 +140,11 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             console.warn("[ProfileTab] Falha ao persistir avatar diretamente:", e);
           }
         }
+        useNotificationStore.getState().addNotification({
+          type: "system",
+          title: "Foto de perfil atualizada",
+          body: isEditing ? "Recorte aplicado com sucesso! Clique em 'Salvar' para concluir." : "Nova foto salva com sucesso no perfil!",
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Falha no upload do avatar";
         setAvatarError(msg);
@@ -176,6 +182,11 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             console.warn("[ProfileTab] Falha ao persistir banner diretamente:", e);
           }
         }
+        useNotificationStore.getState().addNotification({
+          type: "system",
+          title: "Banner atualizado",
+          body: isEditing ? "Recorte aplicado com sucesso! Clique em 'Salvar' para concluir." : "Novo banner salvo com sucesso no perfil!",
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Falha no upload do banner";
         setBannerError(msg);
@@ -219,8 +230,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
           preset="large"
           previewHeight="h-44 sm:h-48"
           editTitle="Editar banner do perfil"
-          editable={isOwnProfile && isEditing && !isSaving}
-          disabled={!isOwnProfile || !isEditing || isSaving}
+          editable={isOwnProfile && !isSaving}
+          disabled={!isOwnProfile || isSaving}
           maxSizeMB={5}
           appwriteUrl={currentBannerUrl}
           uploadError={bannerError}
@@ -241,8 +252,8 @@ export function ProfileTab({ onClose }: ProfileTabProps) {
             previewHeight="h-28"
             previewW="w-28"
             editTitle="Editar foto do perfil"
-            editable={isOwnProfile && isEditing && !isSaving}
-            disabled={!isOwnProfile || !isEditing || isSaving}
+            editable={isOwnProfile && !isSaving}
+            disabled={!isOwnProfile || isSaving}
             maxSizeMB={5}
             appwriteUrl={currentAvatarUrl}
             initials={initials}

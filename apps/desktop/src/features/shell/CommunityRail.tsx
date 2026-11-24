@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFriendsStore } from "@/stores/friendsStore";
@@ -9,6 +9,10 @@ import JoinGuildModal from "@/features/guild/JoinGuildModal";
 import GuildContextMenu from "@/features/guild/GuildContextMenu";
 import { matrixService } from "@/lib/matrix/instance";
 import MxcImage from "@/components/media/MxcImage";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { DragEndEvent } from "@dnd-kit/core";
 
 /** Iniciais do nome da guilda (até 2 palavras) — guildas sem avatar. */
 function initials(name: string): string {
@@ -22,15 +26,17 @@ function initials(name: string): string {
 }
 
 /** Botão de guilda individual com Context Menu completo (clique direito estilo Discord). */
-function GuildButton({
-  guild,
-  active,
-  onSelect,
+function SortableGuildButton({
+ guild,
+ active,
+ onSelect,
 }: {
-  guild: { guildId: string; name: string; avatarUrl: string | null; unreadCount: number };
-  active: boolean;
-  onSelect: (guildId: string) => void;
+ guild: { guildId: string; name: string; avatarUrl: string | null; unreadCount: number };
+ active: boolean;
+ onSelect: (guildId: string) => void;
 }) {
+ const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: guild.guildId });
+ const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : undefined };
   // Reactive unread selectors — re-renders when counts change
   const guildMentions = useUnreadStore((s) => s.getGuildMentions(guild.guildId));
   const guildUnread = useUnreadStore((s) => s.getGuildUnread(guild.guildId));
@@ -52,7 +58,7 @@ function GuildButton({
   const badgeColor = guildMentions > 0 ? "bg-acc" : "bg-err";
 
   return (
-    <div className="relative group flex items-center justify-center w-full">
+ <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative group flex items-center justify-center w-full">
       {/* Pill indicador ativo/hover */}
       <span
         className={`absolute left-0 w-1 rounded-r-full bg-txt transition-all duration-200 ${
@@ -115,6 +121,7 @@ export default function CommunityRail({
   onOpenJoin,
 }: CommunityRailProps) {
   const guilds = useSyncStore((s) => s.guilds);
+  const reorderGuilds = useSyncStore((s) => s.reorderGuilds);
   const activeGuildId = useUiStore((s) => s.activeGuildId);
   const setActiveGuild = useUiStore((s) => s.setActiveGuild);
   const setActiveChannel = useUiStore((s) => s.setActiveChannel);
@@ -134,10 +141,35 @@ export default function CommunityRail({
     return guilds.filter((g) => !pinnedSet.has(g.guildId));
   }, [guilds, pinnedGuildIds]);
 
+ // --- @dnd-kit server reordering ---
+ const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+ const handleDragEnd = useCallback((event: DragEndEvent) => {
+ const { active, over } = event;
+ if (!over || active.id === over.id) return;
+ const currentOrder = unpinnedGuilds.map((g) => g.guildId);
+ const oldIndex = currentOrder.indexOf(active.id as string);
+ const newIndex = currentOrder.indexOf(over.id as string);
+ if (oldIndex === -1 || newIndex === -1) return;
+ reorderGuilds(arrayMove(currentOrder, oldIndex, newIndex));
+ }, [unpinnedGuilds, reorderGuilds]);
+
+
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
 
-  const handleCreated = (guild: { guildId: string; name: string; avatarUrl?: string | null; bannerUrl?: string | null }) => {
+  const handleCreated = (guild: {
+    guildId: string;
+    name: string;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+    createdBy?: string | null;
+  }) => {
+    const effectiveCreator =
+      guild.createdBy ||
+      myUserId ||
+      (typeof matrixService?.getUserId === "function" ? matrixService.getUserId() : null) ||
+      null;
     useSyncStore.getState().setGuilds([
       ...guilds,
       {
@@ -145,6 +177,7 @@ export default function CommunityRail({
         avatarUrl: guild.avatarUrl ?? null,
         bannerUrl: guild.bannerUrl ?? null,
         unreadCount: 0,
+        createdBy: effectiveCreator,
       },
     ]);
     setActiveGuild(guild.guildId);
@@ -207,7 +240,7 @@ export default function CommunityRail({
           {pinnedGuilds.map((guild) => {
             const active = guild.guildId === activeGuildId;
             return (
-              <GuildButton
+              <SortableGuildButton
                 key={`pinned-${guild.guildId}`}
                 guild={guild}
                 active={active}
@@ -219,17 +252,21 @@ export default function CommunityRail({
         </>
       )}
 
-      {unpinnedGuilds.map((guild) => {
-        const active = guild.guildId === activeGuildId;
-        return (
-          <GuildButton
-            key={guild.guildId}
-            guild={guild}
-            active={active}
-            onSelect={setActiveGuild}
-          />
-        );
-      })}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+ <SortableContext items={unpinnedGuilds.map((g) => g.guildId)} strategy={verticalListSortingStrategy}>
+ {unpinnedGuilds.map((guild) => {
+ const active = guild.guildId === activeGuildId;
+ return (
+ <SortableGuildButton
+ key={guild.guildId}
+ guild={guild}
+ active={active}
+ onSelect={setActiveGuild}
+ />
+ );
+ })}
+ </SortableContext>
+ </DndContext>
 
       {/* Botão + cria guilda própria */}
       <button

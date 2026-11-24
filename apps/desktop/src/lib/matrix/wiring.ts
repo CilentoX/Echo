@@ -269,7 +269,15 @@ function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | nul
   const eventId = event.eventId || (typeof event.getId === "function" ? event.getId() : undefined);
   const roomId = event.roomId || (typeof event.getRoomId === "function" ? event.getRoomId() : undefined);
   const sender = event.sender || (typeof event.getSender === "function" ? event.getSender() : undefined);
-  if (typeof body !== "string" || !eventId || !roomId) return null;
+  if (typeof body !== "string" || !eventId || !roomId) {
+    console.debug("[normalizeSyncEvent] REJECTED event:", {
+      eventId,
+      roomId,
+      bodyType: typeof body,
+      hasBody: !!body,
+    });
+    return null;
+  }
   const originServerTs =
     event.originServerTs ??
     (typeof event.getTs === "function" ? event.getTs() : undefined) ??
@@ -278,20 +286,35 @@ function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | nul
   // Extract reply relation from raw Matrix content (m.relates_to with m.in_reply_to)
   const relatesTo = content?.["m.relates_to"];
   let replyToData = event.replyTo;
-  if (!replyToData && relatesTo?.["m.in_reply_to"]?.event_id) {
+  const hasReplyRelation = relatesTo?.["m.in_reply_to"]?.event_id;
+  if (!replyToData && hasReplyRelation) {
     const replyEventId = relatesTo["m.in_reply_to"].event_id;
-    // Try to resolve sender and body from timeline cache
+    // Try to resolve sender and body from timeline cache — search ALL rooms
+    // since the replied-to message may be in a different room's timeline or
+    // not yet loaded when the reply arrives via initial sync.
     const store = useSyncStore.getState();
-    const timeline = store.timelineByChannel[roomId] || [];
-    const repliedEvent = timeline.find((e: any) => e.eventId === replyEventId);
+    let repliedEvent: any = undefined;
+    for (const tl of Object.values(store.timelineByChannel)) {
+      repliedEvent = (tl as any[]).find((e: any) => e.eventId === replyEventId);
+      if (repliedEvent) break;
+    }
+    // Always create replyToData even if the replied-to message isn't in cache yet;
+    // this ensures replies persist across app restarts when loaded via sync.
     replyToData = {
       eventId: replyEventId,
       sender: repliedEvent?.sender || "",
       body: repliedEvent?.body || "",
     };
+    console.debug("[normalizeSyncEvent] REPLY EVENT detected:", {
+      eventId,
+      replyEventId,
+      hasRepliedEvent: !!repliedEvent,
+      sender: replyToData.sender,
+      bodyPreview: replyToData.body?.slice(0, 30),
+    });
   }
 
-  return {
+  const normalizedEvent = {
     eventId,
     roomId,
     sender,
@@ -305,6 +328,16 @@ function normalizeSyncEvent(event: any): import("./types").NormalizedEvent | nul
     ...(event.redacted && { redacted: event.redacted }),
     ...(event.senderAvatarUrl && { senderAvatarUrl: event.senderAvatarUrl }),
   };
+
+  if (hasReplyRelation) {
+    console.debug("[normalizeSyncEvent] Returning event with replyTo:", {
+      eventId: normalizedEvent.eventId,
+      hasReplyTo: !!normalizedEvent.replyTo,
+      replyToEventId: normalizedEvent.replyTo?.eventId,
+    });
+  }
+
+  return normalizedEvent;
 }
 
 function normalizeSyncReaction(reaction: any): import("./types").NormalizedReaction | null {
@@ -339,8 +372,39 @@ export async function startSyncWiring(onAuthFailure?: () => void): Promise<void>
   matrixService.startSyncHandlers({
     onStatus: (status: any, error?: any) => handleStatus(status, error),
     onEvent: (event: any) => {
+      // Debug: inspect raw event content for reply relations before normalization
+      const rawContent = event.content || {};
+      const rawRelatesTo = rawContent["m.relates_to"];
+      if (rawRelatesTo?.["m.in_reply_to"]?.event_id) {
+        console.warn("[sync:onEvent] RAW REPLY EVENT received:", {
+          eventId: event.event_id || event.eventId,
+          sender: event.sender,
+          relatesTo: JSON.stringify(rawRelatesTo),
+          hasContent: !!event.content,
+          contentType: typeof event.content,
+        });
+      }
+
       const normalized = normalizeSyncEvent(event);
       if (normalized) {
+        // Cache reply relations from live sync so loadOlder can enrich events
+        // when Synapse strips m.relates_to from /messages responses.
+        if (normalized.replyTo?.eventId) {
+          useSyncStore.getState().cacheReplyRelation(
+            normalized.eventId,
+            normalized.replyTo.eventId,
+            normalized.replyTo.sender || "",
+            normalized.replyTo.body || "",
+          );
+        }
+        if (normalized.replyTo) {
+          console.warn("[sync:onEvent] NORMALIZED with replyTo:", {
+            eventId: normalized.eventId,
+            replyToEventId: normalized.replyTo.eventId,
+            replyToSender: normalized.replyTo.sender || "(empty)",
+            replyToBody: normalized.replyTo.body?.slice(0, 30) || "(empty)",
+          });
+        }
         const store = useSyncStore.getState();
         const isNew = !store.timelineByChannel[normalized.roomId]?.some((e) => e.eventId === normalized.eventId);
         store.applyEvent(normalized);
@@ -540,7 +604,40 @@ if (typeof window !== "undefined") {
 export async function loadOlder(channelId: string, limit = 20): Promise<void> {
   const events = await matrixService.loadOlder(channelId, limit);
   if (events && events.length > 0) {
+    // Enrich events with reply data from the client-side reply cache.
+    // Synapse strips m.relates_to from /messages responses, so the backend
+    // cannot provide replyTo. The cache was populated during live sync when
+    // m.relates_to was still present in the event content.
+    const replyCache = useSyncStore.getState().replyCache;
+    let enrichedCount = 0;
+    for (const ev of events) {
+      if (!ev.replyTo?.eventId && replyCache[ev.eventId]) {
+        const cached = replyCache[ev.eventId];
+        (ev as any).replyTo = {
+          eventId: cached.parentEventId,
+          sender: cached.parentSender,
+          body: cached.parentBody,
+        };
+        enrichedCount++;
+      }
+    }
+
+    const withReply = events.filter((e: any) => e.replyTo?.eventId);
+    console.warn("[loadOlder] Received events:", {
+      channelId,
+      total: events.length,
+      withReplyTo: withReply.length,
+      enrichedFromCache: enrichedCount,
+      replySamples: withReply.slice(0, 3).map((e: any) => ({
+        eventId: e.eventId,
+        replyToEventId: e.replyTo?.eventId,
+        replyToSender: e.replyTo?.sender || "(empty)",
+        replyToBody: e.replyTo?.body?.slice(0, 30) || "(empty)",
+      })),
+    });
     useSyncStore.getState().prependEvents(channelId, events);
+  } else {
+    console.warn("[loadOlder] No events returned for channel:", channelId);
   }
 }
 

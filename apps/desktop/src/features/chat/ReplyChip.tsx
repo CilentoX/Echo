@@ -2,36 +2,44 @@ import type { NormalizedEvent } from "@/lib/matrix/types";
 
 export interface ReplyChipProps {
   replyTo: NormalizedEvent["replyTo"];
+  /** Nome de exibição já resolvido (guild nick > room display > friend > MXID localpart). */
+  displayName?: string;
 }
 
 /**
- * Chip de citação (reply-to): mostra avatar inicial do autor da
- * resposta + corpo truncado da mensagem citada. Clicar pode focar
- * a mensagem alvo (Fase D).
+ * Chip de citação (reply-to): mostra inicial do autor + nome + corpo truncado.
+ * O nome deve ser resolvido pelo pai (MessageBubble) usando a mesma cadeia
+ * de fallback do cabeçalho da mensagem, garantindo consistência visual.
  */
-export default function ReplyChip({ replyTo }: ReplyChipProps) {
+export default function ReplyChip({ replyTo, displayName }: ReplyChipProps) {
   if (!replyTo) return null;
 
-  const sender = replyTo.sender.startsWith("@")
-    ? replyTo.sender.slice(1).split(":")[0] || replyTo.sender
-    : replyTo.sender;
-  const initial = sender.slice(0, 1).toUpperCase();
-  const body = (replyTo.body ?? "").slice(0, 90);
+  const name = displayName || "…";
+  const initial = name.slice(0, 1).toUpperCase();
+  const body = (replyTo.body ?? "").slice(0, 120);
 
   return (
     <div
       data-testid="reply-chip"
-      className="mb-1 flex items-start gap-2 rounded-l border-l-2 border-acc pl-1.5 text-xs text-mut"
+      className="mb-1 flex max-w-full items-center gap-2 rounded-lg border border-acc/15 bg-srf/60 px-2.5 py-1.5 text-[11px] leading-snug backdrop-blur-sm transition-colors hover:bg-srf/80"
     >
+      {/* Barra lateral accent */}
+      <span aria-hidden="true" className="h-6 w-[3px] flex-shrink-0 rounded-full bg-acc" />
+
+      {/* Inicial do autor */}
       <span
         aria-hidden="true"
-        className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full bg-acc/15 flex items-center justify-center font-display font-semibold text-[10px] text-acc"
+        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-acc/15 font-display text-[9px] font-bold uppercase tracking-wide text-acc"
       >
         {initial}
       </span>
-      <div className="min-w-0 flex-1 leading-tight">
-        <span className="font-semibold text-txt truncate block">{sender}</span>
-        <span className="text-txt opacity-80 truncate block">{body}</span>
+
+      {/* Nome + preview do texto */}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <span className="mr-1.5 inline-block max-w-[120px] truncate font-semibold text-acc sm:max-w-[200px]">
+          {name}
+        </span>
+        <span className="inline-block truncate text-txt/60">{body || "…"}</span>
       </div>
     </div>
   );

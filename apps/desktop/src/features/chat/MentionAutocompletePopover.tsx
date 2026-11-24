@@ -41,6 +41,8 @@ export interface MentionAutocompletePopoverProps {
   onItemsChange?: (items: MentionItem[]) => void;
 }
 
+const EMPTY_LIST: any[] = [];
+
 export default function MentionAutocompletePopover({
   type,
   query,
@@ -50,10 +52,13 @@ export default function MentionAutocompletePopover({
   onSelect,
   onItemsChange,
 }: MentionAutocompletePopoverProps) {
-  const membersByRoom = useSyncStore((s) => s.membersByRoom[roomId] ?? []);
+  const rawMembers = useSyncStore((s) => s.membersByRoom[roomId]);
+  const membersByRoom = rawMembers ?? EMPTY_LIST;
   const guildProfiles = useSyncStore((s) => (guildId ? s.guildMemberProfiles[guildId] : undefined));
-  const guildRoles = useSyncStore((s) => (guildId ? s.guildRoles[guildId] ?? [] : []));
-  const channels = useSyncStore((s) => (guildId ? s.channelsByGuild[guildId] ?? [] : []));
+  const rawRoles = useSyncStore((s) => (guildId ? s.guildRoles[guildId] : undefined));
+  const guildRoles = rawRoles ?? EMPTY_LIST;
+  const rawChannels = useSyncStore((s) => (guildId ? s.channelsByGuild[guildId] : undefined));
+  const channels = rawChannels ?? EMPTY_LIST;
 
   const items = useMemo<MentionItem[]>(() => {
     const q = query.toLowerCase().trim();

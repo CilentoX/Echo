@@ -124,26 +124,29 @@ const ImageEditorContent = memo(function ImageEditorContent({
     setCroppedAreaPixels(areaPixels);
   }, []);
 
-  // Atalhos de teclado (Esc, R, H, Enter)
+  // Atalhos de teclado (Esc, R, H, Enter) com captura para impedir vazamento a modais pais
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      e.stopPropagation();
       if (e.key === "Escape") {
+        e.preventDefault();
         onClose();
       } else if (e.key === "r" || e.key === "R") {
         setRotation((prev) => (e.shiftKey ? (prev - 90 + 360) % 360 : (prev + 90) % 360));
       } else if (e.key === "h" || e.key === "H") {
         setFlipH((prev) => !prev);
       } else if (e.key === "Enter" && !isLoading) {
+        e.preventDefault();
         void handleConfirmCrop();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [open, isLoading, onClose]);
 
   const handleConfirmCrop = async () => {
-    if (!effectiveSrc || !croppedAreaPixels) return;
+    if (!effectiveSrc) return;
 
     setIsLoading(true);
     setError(null);
@@ -176,16 +179,23 @@ const ImageEditorContent = memo(function ImageEditorContent({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md select-none animate-in fade-in-0 duration-150"
+      className="fixed inset-0 z-[9999] pointer-events-auto flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none animate-in fade-in-0 duration-150"
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
       onClick={(e) => {
+        e.stopPropagation();
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
-        className="w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl border border-white/[0.08] bg-[#12161f] shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 text-txt"
+        className="w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl border border-white/[0.08] bg-[#12161f] shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 text-txt relative z-[10000] pointer-events-auto"
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho Superior Fixo (Padrão Guild Modal - Rule 4) */}
         <header className="flex items-center justify-between p-4 border-b border-white/[0.08] shrink-0">
@@ -241,7 +251,7 @@ const ImageEditorContent = memo(function ImageEditorContent({
         </header>
 
         {/* Viewport Interativa do react-easy-crop */}
-        <div className="relative w-full h-[360px] sm:h-[420px] bg-[#0b0e14] overflow-hidden flex items-center justify-center echo-cropper">
+        <div className="relative w-full h-[360px] sm:h-[420px] bg-[#0b0e14] overflow-hidden flex items-center justify-center echo-cropper pointer-events-auto">
           <Cropper
             image={effectiveSrc}
             crop={crop}
@@ -260,11 +270,13 @@ const ImageEditorContent = memo(function ImageEditorContent({
             style={{
               containerStyle: {
                 backgroundColor: "#0b0e14",
+                pointerEvents: "auto",
               },
               cropAreaStyle: {
                 borderColor: "#0FB9A8",
                 borderWidth: 2,
                 boxShadow: "0 0 0 9999px rgba(11, 14, 20, 0.75)",
+                pointerEvents: "auto",
               },
             }}
           />

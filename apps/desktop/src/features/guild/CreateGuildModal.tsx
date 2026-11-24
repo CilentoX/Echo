@@ -76,6 +76,7 @@ export default function CreateGuildModal({
       setError("Selecione um arquivo de imagem válido.");
       return;
     }
+    if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
     const url = URL.createObjectURL(file);
     setRawIconUrl(url);
     setIconEditorOpen(true);
@@ -84,7 +85,7 @@ export default function CreateGuildModal({
 
   const handleIconConfirm = (croppedFile: File) => {
     setIconFile(croppedFile);
-    if (iconPreview) URL.revokeObjectURL(iconPreview);
+    if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
     setIconPreview(URL.createObjectURL(croppedFile));
     setIconEditorOpen(false);
   };
@@ -96,6 +97,7 @@ export default function CreateGuildModal({
       setError("Selecione um arquivo de imagem válido.");
       return;
     }
+    if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
     const url = URL.createObjectURL(file);
     setRawBannerUrl(url);
     setBannerEditorOpen(true);
@@ -104,7 +106,7 @@ export default function CreateGuildModal({
 
   const handleBannerConfirm = (croppedFile: File) => {
     setBannerFile(croppedFile);
-    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
     setBannerPreview(URL.createObjectURL(croppedFile));
     setBannerEditorOpen(false);
   };
@@ -163,7 +165,11 @@ export default function CreateGuildModal({
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+          className={`w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0 ${
+            iconEditorOpen || bannerEditorOpen ? "pointer-events-none select-none opacity-40 transition-opacity" : ""
+          }`}
+          inert={iconEditorOpen || bannerEditorOpen ? true : undefined}
+          aria-hidden={iconEditorOpen || bannerEditorOpen ? true : undefined}
           onPointerDownOutside={(e) => {
             if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
           }}
@@ -238,7 +244,12 @@ export default function CreateGuildModal({
                         onClick={(e) => {
                           e.stopPropagation();
                           setBannerFile(null);
+                          if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
                           setBannerPreview(null);
+                          if (rawBannerUrl?.startsWith("blob:")) {
+                            URL.revokeObjectURL(rawBannerUrl);
+                            setRawBannerUrl(null);
+                          }
                         }}
                         className="cursor-pointer p-1.5 rounded-xl bg-red-500/20 text-red-300 hover:bg-red-500/40 transition-colors"
                         title="Remover banner"
@@ -251,31 +262,54 @@ export default function CreateGuildModal({
 
                 {/* Avatar Flutuante e Título Dinâmico */}
                 <div className="px-5 pb-3.5 -mt-9 flex items-end justify-between relative z-10">
-                  <div
-                    onClick={() => iconInputRef.current?.click()}
-                    className="relative h-20 w-20 rounded-2xl border-4 border-card-bg bg-surf2 cursor-pointer shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0"
-                  >
-                    {iconPreview ? (
-                      <img
-                        src={iconPreview}
-                        alt="Ícone da guilda"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-acc/20 to-acc/5 text-acc">
-                        <span className="font-display text-2xl font-bold tracking-wider">
-                          {getInitials(name)}
+                  <div className="relative">
+                    <div
+                      onClick={() => iconInputRef.current?.click()}
+                      className="relative h-20 w-20 rounded-2xl border-4 border-card-bg bg-surf2 cursor-pointer shadow-xl overflow-hidden group/avatar flex items-center justify-center shrink-0"
+                    >
+                      {iconPreview ? (
+                        <img
+                          src={iconPreview}
+                          alt="Ícone da guilda"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-acc/20 to-acc/5 text-acc">
+                          <span className="font-display text-2xl font-bold tracking-wider">
+                            {getInitials(name)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Overlay do Avatar no Hover */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center gap-1 text-white transition-opacity">
+                        <Camera size={18} />
+                        <span className="text-[9px] font-bold uppercase tracking-wider">
+                          {iconPreview ? "Trocar" : "Ícone"}
                         </span>
                       </div>
-                    )}
-
-                    {/* Overlay do Avatar no Hover */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center gap-1 text-white transition-opacity">
-                      <Camera size={18} />
-                      <span className="text-[9px] font-bold uppercase tracking-wider">
-                        {iconPreview ? "Trocar" : "Ícone"}
-                      </span>
                     </div>
+
+                    {iconPreview && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIconFile(null);
+                          if (iconPreview?.startsWith("blob:")) URL.revokeObjectURL(iconPreview);
+                          setIconPreview(null);
+                          if (rawIconUrl?.startsWith("blob:")) {
+                            URL.revokeObjectURL(rawIconUrl);
+                            setRawIconUrl(null);
+                          }
+                        }}
+                        className="absolute -top-1 -right-1 z-20 cursor-pointer p-1 rounded-full bg-red-600/90 text-white hover:bg-red-600 transition-colors shadow-md"
+                        title="Remover ícone"
+                        aria-label="Remover ícone"
+                      >
+                        <Trash size={12} weight="bold" />
+                      </button>
+                    )}
                   </div>
 
                   <div className="text-right pb-1 max-w-[240px] truncate">
@@ -422,6 +456,10 @@ export default function CreateGuildModal({
           outputHeight={512}
           onConfirm={handleIconConfirm}
           onClose={() => setIconEditorOpen(false)}
+          onSelectNewImage={(file) => {
+            if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
+            setRawIconUrl(URL.createObjectURL(file));
+          }}
         />
       )}
 
@@ -436,6 +474,10 @@ export default function CreateGuildModal({
           outputHeight={720}
           onConfirm={handleBannerConfirm}
           onClose={() => setBannerEditorOpen(false)}
+          onSelectNewImage={(file) => {
+            if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
+            setRawBannerUrl(URL.createObjectURL(file));
+          }}
         />
       )}
     </>

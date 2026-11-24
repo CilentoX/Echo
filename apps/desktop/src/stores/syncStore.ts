@@ -42,7 +42,13 @@ export interface SyncState {
   mutedGuilds: Record<string, MuteEntry>;
   guildEmojis: Record<string, CustomGuildEmoji[]>;
   guildCategories: Record<string, string[]>;
+  /** Cache of reply relations captured from live sync (eventId → parent info).
+   *  Survives app restart via localStorage. Used to enrich loadOlder results
+   *  when Synapse strips m.relates_to from /messages responses. */
+  replyCache: Record<string, { parentEventId: string; parentSender: string; parentBody: string }>;
+  cacheReplyRelation(eventId: string, parentEventId: string, parentSender: string, parentBody: string): void;
   setGuilds(list: GuildSummary[]): void;
+  reorderGuilds(orderedGuildIds: string[]): void;
   setChannels(guildId: string, list: ChannelSummary[]): void;
   setMembers(roomId: string, members: MemberSummary[]): void;
   setGuildMemberProfiles(guildId: string, profiles: GuildMemberProfile[]): void;
@@ -100,7 +106,26 @@ export const useSyncStore = create<SyncState>()((set, get) => {
   const appendEvent = (e: NormalizedEvent) =>
     set((state) => {
       const timeline = state.timelineByChannel[e.roomId] ?? [];
-      if (timeline.some((m) => m.eventId === e.eventId)) return state;
+      const existingIdx = timeline.findIndex((m) => m.eventId === e.eventId);
+
+      // If the event already exists, check if we need to enrich its replyTo
+      // (e.g., initial sync created replyTo with empty sender/body because the
+      // replied-to message wasn't in cache yet, but loadOlder later delivered
+      // the same event with resolved data).
+      if (existingIdx !== -1) {
+        const existing = timeline[existingIdx];
+        const needsReplyEnrichment =
+          existing.replyTo &&
+          !existing.replyTo.sender &&
+          e.replyTo?.sender;
+        if (!needsReplyEnrichment) return state;
+        const nextTimeline = [...timeline];
+        nextTimeline[existingIdx] = { ...existing, replyTo: e.replyTo };
+        return {
+          timelineByChannel: { ...state.timelineByChannel, [e.roomId]: nextTimeline },
+        };
+      }
+
       // Se este evento real é do próprio usuário e corresponde a um placeholder pendente recente:
       const pendingIdx = timeline.findIndex(
         (m) =>
@@ -110,7 +135,12 @@ export const useSyncStore = create<SyncState>()((set, get) => {
       );
       if (pendingIdx !== -1) {
         const nextTimeline = [...timeline];
-        nextTimeline[pendingIdx] = e;
+        // Preserve replyTo from the optimistic/resolved event when the real
+        // sync event doesn't carry it (normalizeSyncEvent may fail to resolve
+        // the replied-to message from the timeline cache).
+        const existing = timeline[pendingIdx];
+        const merged = e.replyTo || !existing?.replyTo ? e : { ...e, replyTo: existing.replyTo };
+        nextTimeline[pendingIdx] = merged;
         return {
           timelineByChannel: { ...state.timelineByChannel, [e.roomId]: nextTimeline },
         };
@@ -177,6 +207,29 @@ export const useSyncStore = create<SyncState>()((set, get) => {
         return {};
       }
     })(),
+
+    replyCache: (() => {
+      try {
+        const raw = localStorage.getItem("echo:replyCache");
+        if (!raw) return {};
+        try { return JSON.parse(raw); } catch { console.warn('[syncStore] Failed to parse echo:replyCache, resetting'); return {}; }
+      } catch {
+        return {};
+      }
+    })(),
+
+    cacheReplyRelation: (eventId, parentEventId, parentSender, parentBody) =>
+      set((state) => {
+        if (state.replyCache[eventId]?.parentEventId === parentEventId) return state;
+        const updated = {
+          ...state.replyCache,
+          [eventId]: { parentEventId, parentSender, parentBody },
+        };
+        try {
+          localStorage.setItem("echo:replyCache", JSON.stringify(updated));
+        } catch {}
+        return { replyCache: updated };
+      }),
 
     muteChannel: (channelId, durationMinutes) =>
       set((state) => {
@@ -317,38 +370,34 @@ export const useSyncStore = create<SyncState>()((set, get) => {
         return { guildCategories: updated };
       }),
 
-    reorderCategories: (guildId, orderedCategories) =>
+    reorderCategories: (guildId, orderedCategories) => {
+      // Optimistic UI update
       set((state) => {
-        const updated = {
-          ...state.guildCategories,
-          [guildId]: [...orderedCategories],
-        };
-        try {
-          localStorage.setItem("echo:guildCategories", JSON.stringify(updated));
-        } catch {}
+        const updated = { ...state.guildCategories, [guildId]: [...orderedCategories] };
+        try { localStorage.setItem("echo:guildCategories", JSON.stringify(updated)); } catch {}
         return { guildCategories: updated };
-      }),
+      });
+      // Persist to API
+      import("@/lib/matrix/instance").then(({ matrixService }) => {
+        const api = (matrixService as any).echoApi;
+        if (api?.reorderCategories) api.reorderCategories(guildId, orderedCategories).catch(() => {});
+      });
+    },
 
-    moveChannelCategory: (guildId, channelId, targetCategory, targetIndex) =>
+    moveChannelCategory: (guildId, channelId, targetCategory, targetIndex) => {
+      // Optimistic UI update
       set((state) => {
         const channels = state.channelsByGuild[guildId] ? [...state.channelsByGuild[guildId]] : [];
         const channelIndex = channels.findIndex((c) => c.channelId === channelId);
         if (channelIndex === -1) return state;
-
         const [channel] = channels.splice(channelIndex, 1);
         const updatedChannel = { ...channel, category: targetCategory };
-
         if (typeof targetIndex === "number" && targetIndex >= 0 && targetIndex <= channels.length) {
           channels.splice(targetIndex, 0, updatedChannel);
         } else {
           channels.push(updatedChannel);
         }
-
-        const updatedChannels = {
-          ...state.channelsByGuild,
-          [guildId]: channels,
-        };
-
+        const updatedChannels = { ...state.channelsByGuild, [guildId]: channels };
         try {
           const raw = localStorage.getItem("echo:channelOverrides");
           const map = raw ? JSON.parse(raw) : {};
@@ -356,30 +405,33 @@ export const useSyncStore = create<SyncState>()((set, get) => {
           guildMap[channelId] = { category: targetCategory };
           map[guildId] = guildMap;
           localStorage.setItem("echo:channelOverrides", JSON.stringify(map));
-
-          localStorage.setItem(
-            `echo:channelOrder:${guildId}`,
-            JSON.stringify(channels.map((c) => c.channelId))
-          );
+          localStorage.setItem(`echo:channelOrder:${guildId}`, JSON.stringify(channels.map((c) => c.channelId)));
         } catch {}
-
         return { channelsByGuild: updatedChannels };
-      }),
+      });
+      // Persist channel reorder to API
+      import("@/lib/matrix/instance").then(({ matrixService }) => {
+        const api = (matrixService as any).echoApi;
+        if (api?.reorderChannels) {
+          const currentChannels = get().channelsByGuild[guildId];
+          if (currentChannels) api.reorderChannels(guildId, currentChannels.map((c) => c.channelId)).catch(() => {});
+        }
+      });
+    },
 
-    reorderChannels: (guildId, orderedChannels) =>
+    reorderChannels: (guildId, orderedChannels) => {
+      // Optimistic UI update
       set((state) => {
-        const updatedChannels = {
-          ...state.channelsByGuild,
-          [guildId]: [...orderedChannels],
-        };
-        try {
-          localStorage.setItem(
-            `echo:channelOrder:${guildId}`,
-            JSON.stringify(orderedChannels.map((c) => c.channelId))
-          );
-        } catch {}
+        const updatedChannels = { ...state.channelsByGuild, [guildId]: [...orderedChannels] };
+        try { localStorage.setItem(`echo:channelOrder:${guildId}`, JSON.stringify(orderedChannels.map((c) => c.channelId))); } catch {}
         return { channelsByGuild: updatedChannels };
-      }),
+      });
+      // Persist to API
+      import("@/lib/matrix/instance").then(({ matrixService }) => {
+        const api = (matrixService as any).echoApi;
+        if (api?.reorderChannels) api.reorderChannels(guildId, orderedChannels.map((c) => c.channelId)).catch(() => {});
+      });
+    },
 
     pinMessage: (roomId, eventId) =>
       set((state) => {
@@ -410,6 +462,25 @@ export const useSyncStore = create<SyncState>()((set, get) => {
       }),
 
     setGuilds: (list) => set({ guilds: [...list] }),
+  reorderGuilds: (orderedGuildIds) => {
+    // Optimistic UI update
+    set((state) => {
+      const guildMap = new Map(state.guilds.map((g) => [g.guildId, g]));
+      const reordered = orderedGuildIds
+        .map((id) => guildMap.get(id))
+        .filter((g): g is NonNullable<typeof g> => Boolean(g));
+      // Append any guilds not in the new order (safety)
+      for (const g of state.guilds) {
+        if (!orderedGuildIds.includes(g.guildId)) reordered.push(g);
+      }
+      return { guilds: reordered };
+    });
+    // Persist to API
+    import("@/lib/matrix/instance").then(({ matrixService }) => {
+      const api = (matrixService as any).echoApi;
+      if (api?.setMyGuildOrder) api.setMyGuildOrder(orderedGuildIds).catch(() => {});
+    });
+  },
 
     setChannels: (guildId, list) =>
       set((state) => {
@@ -550,13 +621,80 @@ export const useSyncStore = create<SyncState>()((set, get) => {
     prependEvents: (channelId, events) =>
       set((state) => {
         const timeline = state.timelineByChannel[channelId] ?? [];
-        const existingIds = new Set(timeline.map((m) => m.eventId));
+        const timelineMap = new Map(timeline.map((m, i) => [m.eventId, i]));
         const newestFirst = [...events].reverse(); // eventos antigos primeiro → novos depois
-        // Keep existing timeline, prepend only new events not already present
-        const newEvents = newestFirst.filter((e) => !existingIds.has(e.eventId));
-        const merged = [...newEvents, ...timeline];
+
+        const toPrepend: NormalizedEvent[] = [];
+        let nextTimeline = [...timeline];
+        let changed = false;
+
+        // Build a lookup of newly prepended events so we can enrich
+        // existing replies whose replied-to message just arrived.
+        const newEventMap = new Map<string, NormalizedEvent>();
+
+        for (const e of newestFirst) {
+          const existingIdx = timelineMap.get(e.eventId);
+          if (existingIdx !== undefined) {
+            // Event already exists — enrich replyTo if the existing one has
+            // empty sender/body (common when initial sync created it before
+            // the replied-to message was in cache, but loadOlder resolved it).
+            const existing = nextTimeline[existingIdx];
+            if (existing.replyTo && !existing.replyTo.sender && e.replyTo?.sender) {
+              nextTimeline[existingIdx] = { ...existing, replyTo: e.replyTo };
+              changed = true;
+            }
+          } else {
+            toPrepend.push(e);
+            newEventMap.set(e.eventId, e);
+          }
+        }
+
+        // Bidirectional enrichment: when the replied-to message is among
+        // the newly prepended events, update any existing reply that has
+        // empty sender/body to point to the now-available data.
+        let enrichedCount = 0;
+        if (newEventMap.size > 0) {
+          for (let i = 0; i < nextTimeline.length; i++) {
+            const ev = nextTimeline[i];
+            if (ev.replyTo && !ev.replyTo.sender && ev.replyTo.eventId) {
+              const resolved = newEventMap.get(ev.replyTo.eventId);
+              if (resolved) {
+                nextTimeline[i] = {
+                  ...ev,
+                  replyTo: { ...ev.replyTo, sender: resolved.sender, body: resolved.body },
+                };
+                changed = true;
+                enrichedCount++;
+              }
+            }
+          }
+        }
+
+        // Debug: log prependEvents activity for reply diagnostics
+        const incomingWithReply = newestFirst.filter((e) => e.replyTo?.eventId).length;
+        const existingWithEmptyReply = timeline.filter(
+          (e) => e.replyTo?.eventId && !e.replyTo.sender,
+        ).length;
+        if (incomingWithReply > 0 || existingWithEmptyReply > 0 || enrichedCount > 0) {
+          console.warn("[prependEvents] Reply enrichment report:", {
+            channelId,
+            incomingTotal: newestFirst.length,
+            incomingWithReply,
+            existingTotal: timeline.length,
+            existingWithEmptyReply,
+            enrichedCount,
+            toPrependCount: toPrepend.length,
+          });
+        }
+
+        if (toPrepend.length > 0) {
+          nextTimeline = [...toPrepend, ...nextTimeline];
+          changed = true;
+        }
+
+        if (!changed) return state;
         return {
-          timelineByChannel: { ...state.timelineByChannel, [channelId]: merged },
+          timelineByChannel: { ...state.timelineByChannel, [channelId]: nextTimeline },
         };
       }),
 

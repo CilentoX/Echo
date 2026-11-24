@@ -187,8 +187,8 @@ export function GuildProfileTab({
           preset="large"
           previewHeight="h-44 sm:h-48"
           editTitle="Editar banner da guilda"
-          editable={isOwner && isEditing && !isSaving}
-          disabled={!isOwner || !isEditing || isSaving}
+          editable={isOwner && !isSaving}
+          disabled={!isOwner || isSaving}
           maxSizeMB={5}
           appwriteUrl={currentBannerUrl}
           initials={initials}
@@ -219,8 +219,8 @@ export function GuildProfileTab({
             previewHeight="h-28"
             previewW="w-28"
             editTitle="Editar foto da guilda"
-            editable={isOwner && isEditing && !isSaving}
-            disabled={!isOwner || !isEditing || isSaving}
+            editable={isOwner && !isSaving}
+            disabled={!isOwner || isSaving}
             maxSizeMB={2}
             appwriteUrl={currentAvatarUrl}
             initials={initials}

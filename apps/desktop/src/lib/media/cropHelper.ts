@@ -36,7 +36,7 @@ export function rotateSize(width: number, height: number, rotation: number) {
  */
 export async function getCroppedImg(
   imageSrc: string,
-  pixelCrop: Area,
+  pixelCrop?: Area | null,
   rotation = 0,
   flip = { horizontal: false, vertical: false },
   maxOutputWidth = 1920,
@@ -78,9 +78,15 @@ export async function getCroppedImg(
     throw new Error("Não foi possível inicializar canvas de recorte");
   }
 
+  // Fallback seguro se pixelCrop for omitido ou nulo
+  const crop: Area =
+    pixelCrop && pixelCrop.width > 0 && pixelCrop.height > 0
+      ? pixelCrop
+      : { x: 0, y: 0, width: canvas.width, height: canvas.height };
+
   // Dimensões pretendidas baseadas no recorte em pixels reais
-  let outW = Math.max(1, Math.round(pixelCrop.width));
-  let outH = Math.max(1, Math.round(pixelCrop.height));
+  let outW = Math.max(1, Math.round(crop.width));
+  let outH = Math.max(1, Math.round(crop.height));
 
   // Limite defensivo de resolução para não estourar memória do webview
   if (outW > maxOutputWidth || outH > maxOutputHeight) {
@@ -98,10 +104,10 @@ export async function getCroppedImg(
   // Desenha a porção recortada no canvas de saída final
   croppedCtx.drawImage(
     canvas,
-    Math.max(0, Math.round(pixelCrop.x)),
-    Math.max(0, Math.round(pixelCrop.y)),
-    Math.max(1, Math.round(pixelCrop.width)),
-    Math.max(1, Math.round(pixelCrop.height)),
+    Math.max(0, Math.round(crop.x)),
+    Math.max(0, Math.round(crop.y)),
+    Math.max(1, Math.round(crop.width)),
+    Math.max(1, Math.round(crop.height)),
     0,
     0,
     outW,

@@ -59,4 +59,32 @@ describe("CreateGuildModal", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toMatch(/não foi possível criar/i);
   });
-} );
+
+  it("abre o ImageEditor ao selecionar imagem e isola o modal pai com pointer-events-none", async () => {
+    const origCreate = globalThis.URL.createObjectURL;
+    const origRevoke = globalThis.URL.revokeObjectURL;
+    globalThis.URL.createObjectURL = vi.fn().mockReturnValue("blob:mock-url");
+    globalThis.URL.revokeObjectURL = vi.fn();
+
+    try {
+      renderModal();
+      const file = new File(["fake-image"], "avatar.png", { type: "image/png" });
+      const fileInputs = document.querySelectorAll<HTMLInputElement>('input[type="file"]');
+      expect(fileInputs.length).toBeGreaterThanOrEqual(2);
+
+      await userEvent.upload(fileInputs[0], file);
+
+      // ImageEditor abre
+      expect(await screen.findByRole("dialog", { name: /Recortar ícone da guilda/i })).toBeTruthy();
+
+      // Dialog pai fica desabilitado com pointer-events-none, inert e aria-hidden para não receber cliques
+      const parentDialog = document.querySelector('[data-slot="dialog-content"]');
+      expect(parentDialog?.classList.contains("pointer-events-none")).toBe(true);
+      expect(parentDialog?.hasAttribute("inert")).toBe(true);
+      expect(parentDialog?.getAttribute("aria-hidden")).toBe("true");
+    } finally {
+      globalThis.URL.createObjectURL = origCreate;
+      globalThis.URL.revokeObjectURL = origRevoke;
+    }
+  });
+});

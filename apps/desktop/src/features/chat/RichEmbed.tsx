@@ -15,13 +15,14 @@ import {
   SteamLogo,
   Play,
   FilmStrip,
-  MusicNotes,
+  SpeakerHigh,
   XLogo,
   TiktokLogo,
   InstagramLogo,
 } from "@phosphor-icons/react";
 import { launchAppProtocol } from "@/lib/appLauncher";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
+import { AudioWavePlayer } from "@/components/media/AudioWavePlayer";
 
 export interface RichEmbedProps {
   content: string;
@@ -862,25 +863,15 @@ export default function RichEmbed({ content, align = "left" }: RichEmbedProps) {
     );
   }
 
-  // ── DIRECT AUDIO EMBED (.mp3, .wav, .ogg, .m4a) ──
+  // ── DIRECT AUDIO EMBED (.mp3, .wav, .ogg, .m4a) COM FORMA DE ONDA MODERNA ──
   if (embed.type === "direct_audio") {
     return (
-      <div className={`mt-2.5 max-w-md w-full ${alignClass} rounded-2xl border border-white/[0.08] bg-[#12161f]/90 overflow-hidden shadow-xl animate-in fade-in-0 duration-150 p-3 text-left`}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5 text-xs text-acc font-medium">
-            <MusicNotes size={15} weight="bold" />
-            <span>Arquivo de Áudio</span>
-          </div>
-          <a
-            href={embed.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cursor-pointer text-mut hover:text-txt p-1 rounded-lg hover:bg-white/[0.06] transition-colors"
-          >
-            <ArrowSquareOut size={13} />
-          </a>
+      <div className={`mt-2.5 max-w-md w-full ${alignClass} animate-in fade-in-0 duration-150 text-left`}>
+        <div className="flex items-center gap-1.5 mb-1.5 text-xs font-semibold text-mut">
+          <SpeakerHigh size={14} className="text-acc" weight="bold" />
+          <span>Arquivo de Áudio</span>
         </div>
-        <audio src={embed.url} controls className="w-full" preload="metadata" />
+        <AudioWavePlayer url={embed.url} />
       </div>
     );
   }

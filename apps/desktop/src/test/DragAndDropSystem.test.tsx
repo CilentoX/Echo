@@ -7,12 +7,36 @@ import { useUiStore } from "@/stores/uiStore";
 import { useVoiceStore } from "@/stores/voiceStore";
 import type { ChannelSummary, GuildSummary } from "@/lib/matrix/types";
 
+vi.mock("@/lib/media/webrtcVoice", () => ({
+  webrtcVoice: {
+    join: vi.fn().mockResolvedValue(undefined),
+    leave: vi.fn().mockResolvedValue(undefined),
+    setMuted: vi.fn(),
+    setDeafened: vi.fn(),
+    onSpeakingChange: vi.fn(),
+    onParticipantsChange: vi.fn(),
+    onConnectionStateChange: vi.fn(),
+    getMyUserId: vi.fn().mockReturnValue("@admin:echo.litteris.online"),
+  },
+  webRtcVoice: {
+    join: vi.fn().mockResolvedValue(undefined),
+    leave: vi.fn().mockResolvedValue(undefined),
+    setMuted: vi.fn(),
+    setDeafened: vi.fn(),
+    onSpeakingChange: vi.fn(),
+    onParticipantsChange: vi.fn(),
+    onConnectionStateChange: vi.fn(),
+    getMyUserId: vi.fn().mockReturnValue("@admin:echo.litteris.online"),
+  },
+}));
+
 describe("Sistema Completo de Drag and Drop (Categorias, Canais, Membros e Arquivos)", () => {
   const mockGuild: GuildSummary = {
     guildId: "guild-dnd",
     name: "Comunidade DnD",
     avatarUrl: null,
     unreadCount: 0,
+    createdBy: "@admin:echo.litteris.online",
   };
 
   const initialChannels: ChannelSummary[] = [
@@ -143,6 +167,34 @@ describe("Sistema Completo de Drag and Drop (Categorias, Canais, Membros e Arqui
         const channels = useSyncStore.getState().channelsByGuild["guild-dnd"];
         const moved = channels.find((c) => c.channelId === "c-text-2");
         expect(moved?.category).toBe("Projetos");
+      });
+    });
+
+    it("dono da guilda tem canManageChannels ativo e permite reordenar canais arrastando um canal sobre outro", async () => {
+      render(<ChannelSidebar />);
+
+      const channelGeral = screen.getByText("geral").closest("li");
+      const channelAnuncios = screen.getByText("anúncios").closest("li");
+      expect(channelGeral).not.toBeNull();
+      expect(channelAnuncios).not.toBeNull();
+      expect(channelGeral?.getAttribute("draggable")).toBe("true");
+
+      // Simula drag over no topo de 'geral' (posição before) e drop de 'anúncios'
+      fireEvent.dragOver(channelGeral!, { clientY: -10, dataTransfer: { types: ["application/x-echo-channel"] } });
+      fireEvent.drop(channelGeral!, {
+        dataTransfer: {
+          types: ["application/x-echo-channel"],
+          getData: (type: string) =>
+            type === "application/x-echo-channel"
+              ? JSON.stringify({ channelId: "c-text-2", sourceCategory: "Canais de texto" })
+              : "",
+        },
+      });
+
+      await waitFor(() => {
+        const channels = useSyncStore.getState().channelsByGuild["guild-dnd"];
+        expect(channels[0].channelId).toBe("c-text-2");
+        expect(channels[1].channelId).toBe("c-text-1");
       });
     });
   });

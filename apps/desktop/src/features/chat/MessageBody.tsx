@@ -1,5 +1,6 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect, useState } from "react";
 import { renderMarkdown } from "@/lib/markdown";
+import { getEchoHighlighter } from "@/lib/highlighter";
 import { useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -22,6 +23,17 @@ export default function MessageBody({
   pending = false,
 }: MessageBodyProps) {
   const guildEmojis = useSyncStore((s) => s.guildEmojis);
+  const [highlighterReady, setHighlighterReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (body.includes("```")) {
+      getEchoHighlighter().then(() => {
+        if (active) setHighlighterReady(true);
+      }).catch(() => {});
+    }
+    return () => { active = false; };
+  }, [body]);
 
   const customEmojiMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -67,7 +79,9 @@ export default function MessageBody({
     }
   }, []);
 
-  const html = renderMarkdown(body, customEmojiMap);
+  const html = useMemo(() => {
+    return renderMarkdown(body, customEmojiMap);
+  }, [body, customEmojiMap, highlighterReady]);
   if (!html.trim()) {
     return null;
   }

@@ -23,7 +23,7 @@ const TOKENS: Record<string, string> = {
   "--surf2": "#1D222D",
   "--bd": "#2A3546",
   "--txt": "#E9EDF2",
-  "--mut": "#97A2B0",
+  "--mut": "#A8B2BF",
   "--acc": "#0FB9A8",
   "--acc-press": "#0D9E8A",
   "--online": "#34D399",

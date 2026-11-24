@@ -33,9 +33,43 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
       await onSession?.(session);
       setStatus("idle");
     } catch (err) {
-      const message = err instanceof SsoLoginError
-        ? (err.code === "listener" ? "Falha ao abrir o navegador para login. Tente novamente." : "Falha ao autenticar com o Google. Tente novamente.")
-        : "Erro inesperado no login. Tente novamente.";
+      let message = "Erro inesperado no login. Tente novamente.";
+
+      if (err instanceof SsoLoginError) {
+        const causeMsg = (err.cause instanceof Error ? err.cause.message : String(err.cause ?? "")).toLowerCase();
+
+        if (err.code === "listener") {
+          // Erros no listener loopback do Tauri
+          if (causeMsg.includes("timeout") || causeMsg.includes("timed out")) {
+            message = "Tempo esgotado aguardando o login. Verifique se o navegador abriu e tente novamente.";
+          } else if (causeMsg.includes("cancel") || causeMsg.includes("abort")) {
+            message = "Login cancelado. O navegador foi fechado antes da confirmação.";
+          } else if (causeMsg.includes("port") || causeMsg.includes("bind") || causeMsg.includes("address already in use")) {
+            message = "Não foi possível iniciar o listener local. Reinicie o Echo e tente novamente.";
+          } else {
+            message = "Falha ao abrir o navegador para login. Verifique seu navegador padrão e tente novamente.";
+          }
+        } else if (err.code === "login") {
+          // Erros na troca de código/token com a Echo API
+          if (causeMsg.includes("401") || causeMsg.includes("unauthorized") || causeMsg.includes("invalid_grant")) {
+            message = "Código de autenticação inválido ou expirado. Tente fazer login novamente.";
+          } else if (causeMsg.includes("403") || causeMsg.includes("forbidden")) {
+            message = "Conta não autorizada. Verifique se seu acesso está liberado.";
+          } else if (causeMsg.includes("network") || causeMsg.includes("fetch") || causeMsg.includes("econnrefused") || causeMsg.includes("enotfound")) {
+            message = "Sem conexão com o servidor. Verifique sua internet e tente novamente.";
+          } else if (causeMsg.includes("500") || causeMsg.includes("internal")) {
+            message = "Erro interno no servidor. Tente novamente em alguns instantes.";
+          } else {
+            message = "Falha ao autenticar com o Google. Tente novamente.";
+          }
+        }
+      } else if (err instanceof Error) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes("network") || msg.includes("fetch") || msg.includes("offline")) {
+          message = "Sem conexão com a internet. Verifique sua rede e tente novamente.";
+        }
+      }
+
       console.error("[GoogleLoginScreen] Login failed:", err);
       setErrorMessage(message);
       setStatus("error");

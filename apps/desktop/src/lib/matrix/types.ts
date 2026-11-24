@@ -41,6 +41,8 @@ export interface NormalizedEvent {
     h?: number;
     waveform?: number[];
   };
+  /** Widget interativo embutido na mensagem (poll, form, buttons, card, progress). */
+  widget?: import("@/features/chat/WidgetRenderer").WidgetData;
 }
 
 /** Reação m.reaction (m.annotation) normalizada. */

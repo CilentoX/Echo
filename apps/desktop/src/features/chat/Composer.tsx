@@ -11,6 +11,7 @@ import MentionAutocompletePopover, { type MentionItem } from "./MentionAutocompl
 import { optimizeImageForUpload } from "@/lib/media/imageOptimizer";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import { matrixService } from "@/lib/matrix/instance";
+import { enqueueMessage, drainOfflineQueue } from "@/lib/storage/offlineQueue";
 
 /** Contrato de envio de texto (P10/P12). */
 export type SendMessageFn = (roomId: string, body: string, options?: { replyToEventId?: string }) => Promise<string>;
@@ -27,15 +28,6 @@ const EMPTY_ROLES: string[] = [];
 const EMPTY_GUILD_ROLES: any[] = [];
 const MAX_MESSAGE_LENGTH = 4000;
 
-// Dicas contextuais rotativas para o placeholder
-const PLACEHOLDER_TIPS = [
-  "Use **negrito** ou *itálico* para formatar",
-  "Pressione ↑ para editar sua última mensagem",
-  "Arraste imagens ou use Ctrl+V para colar",
-  "Digite @ para mencionar alguém",
-  "Digite # para buscar canais",
-  "Shift+Enter para nova linha",
-];
 
 export interface ComposerProps {
   roomId: string;
@@ -60,6 +52,27 @@ interface PendingMessage {
   duration?: number;
   waveform?: number[];
   optimisticEvent?: NormalizedEvent;
+}
+
+const PLACEHOLDER_TIPS_GENERIC = [
+  "Use **negrito** ou *itálico* para formatar",
+  "Pressione ↑ para editar sua última mensagem",
+  "Arraste imagens ou use Ctrl+V para colar",
+  "Digite @ para mencionar alguém",
+  "Digite # para buscar canais",
+  "Shift+Enter para nova linha",
+];
+
+/** Placeholder contextual baseado em permissoes e tipo de canal. */
+function getContextualPlaceholder(canSend: boolean, canAttach: boolean, _channelName?: string): string[] {
+ if (!canSend) {
+ return ["Voce nao tem permissao para enviar mensagens neste canal"];
+ }
+ const tips = [...PLACEHOLDER_TIPS_GENERIC];
+ if (!canAttach) {
+ return tips.filter((t) => !t.includes("Ctrl+V") && !t.includes("Arraste"));
+ }
+ return tips;
 }
 
 export default function Composer({
@@ -94,10 +107,20 @@ export default function Composer({
     return () => window.removeEventListener("echo:reply-to", handleReplyTo);
   }, []);
 
+  // Drena queue offline ao montar e quando a conexão for restaurada
+  useEffect(() => {
+    const drain = () => {
+      void drainOfflineQueue(sendMessage).catch(() => {});
+    };
+    drain();
+    window.addEventListener("online", drain);
+    return () => window.removeEventListener("online", drain);
+  }, [sendMessage]);
+
   // Placeholder rotativo a cada 8 segundos
   useEffect(() => {
     const id = setInterval(() => {
-      setPlaceholderTip((prev) => (prev + 1) % PLACEHOLDER_TIPS.length);
+      setPlaceholderTip((prev) => (prev + 1) % contextualTips.length);
     }, 8000);
     return () => clearInterval(id);
   }, []);
@@ -175,6 +198,7 @@ export default function Composer({
           channelType: "text",
         });
 
+ const contextualTips = getContextualPlaceholder(canSend, canAttach, _channelName);
   // Atalho ↑ para editar última mensagem quando o input está vazio
   const handleEditLastMessage = useCallback(() => {
     if (draft.trim() !== "") return;
@@ -438,7 +462,7 @@ export default function Composer({
       addEvent(event);
       return event;
     },
-    [addEvent, myUserId, roomId],
+    [addEvent, myUserId, replyTo, roomId],
   );
 
   /** Envia um item pendente (texto ou arquivo). */
@@ -491,6 +515,13 @@ export default function Composer({
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Falha ao enviar";
+        // Enfileira mensagem na queue offline para reenvio automático
+        enqueueMessage({
+          id: item.localId,
+          roomId,
+          body: item.body,
+          replyToEventId: item.optimisticEvent?.replyTo?.eventId,
+        });
         setPending((list) =>
           list.map((p) =>
             p.localId === item.localId
@@ -571,27 +602,25 @@ export default function Composer({
 
   const retryPending = useCallback(
     (localId: string) => {
-      setPending((list) => {
-        const item = list.find((p) => p.localId === localId);
-        if (!item) return list;
-        const optEvent = buildOptimisticEvent(
-          item.localId,
-          item.body,
-          item.file,
-          item.waveform,
-          item.duration,
-        );
-        const updatedItem = {
-          ...item,
-          status: "sending" as const,
-          error: undefined,
-          optimisticEvent: optEvent,
-        };
-        void sendPending(updatedItem);
-        return list.map((p) => (p.localId === localId ? updatedItem : p));
-      });
+      const item = pending.find((p) => p.localId === localId);
+      if (!item) return;
+      const optEvent = buildOptimisticEvent(
+        item.localId,
+        item.body,
+        item.file,
+        item.waveform,
+        item.duration,
+      );
+      const updatedItem = {
+        ...item,
+        status: "sending" as const,
+        error: undefined,
+        optimisticEvent: optEvent,
+      };
+      setPending((list) => list.map((p) => (p.localId === localId ? updatedItem : p)));
+      void sendPending(updatedItem);
     },
-    [buildOptimisticEvent, sendPending],
+    [pending, buildOptimisticEvent, sendPending],
   );
 
   const cancelPending = useCallback(
@@ -686,11 +715,16 @@ export default function Composer({
             <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2 border-b border-white/[0.06]">
               <div className="flex items-center gap-2.5 bg-surf2 border border-bd rounded-xl px-3 py-1.5 shadow-sm">
                 {attachment.file.type.startsWith("image/") ? (
-                  <img
-                    src={attachment.preview}
-                    alt="Prévia"
-                    className="h-10 w-10 rounded-lg object-cover ring-1 ring-bd shrink-0"
-                  />
+                  <div className="relative group shrink-0 cursor-pointer" onClick={removeAttachment} title="Clique para remover">
+                    <img
+                      src={attachment.preview}
+                      alt="Prévia do anexo"
+                      className="h-16 w-16 rounded-lg object-cover ring-1 ring-bd transition-all group-hover:ring-err/50 group-hover:brightness-75"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X size={20} weight="bold" className="text-white drop-shadow-md" />
+                    </div>
+                  </div>
                 ) : (
                   <span className="text-[10px] uppercase font-mono px-1.5 py-1 rounded bg-bd text-mut font-bold shrink-0">
                     {attachment.file.name.split(".").pop() || "FILE"}
@@ -832,7 +866,7 @@ export default function Composer({
                     ? "🔒 Você não tem permissão para enviar mensagens neste canal."
                     : editMode
                       ? "Editando mensagem… (Esc para cancelar)"
-                      : PLACEHOLDER_TIPS[placeholderTip]
+                      : contextualTips[placeholderTip % contextualTips.length]
                 }
                 className={`max-h-40 min-h-[24px] py-1 w-full resize-none bg-transparent text-sm text-txt outline-none placeholder:text-mut/50 leading-relaxed overflow-y-hidden transition-colors duration-300 ${
                   !canSend ? "cursor-not-allowed" : editMode ? "placeholder:text-acc/60" : ""

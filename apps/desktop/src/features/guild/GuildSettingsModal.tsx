@@ -586,7 +586,11 @@ export default function GuildSettingsModal({
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="w-full sm:max-w-[780px] max-h-[88vh] overflow-hidden rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col gap-0 text-txt"
+          className={`w-full sm:max-w-[780px] max-h-[88vh] overflow-hidden rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col gap-0 text-txt ${
+            iconEditorOpen || bannerEditorOpen ? "pointer-events-none select-none opacity-40 transition-opacity" : ""
+          }`}
+          inert={iconEditorOpen || bannerEditorOpen ? true : undefined}
+          aria-hidden={iconEditorOpen || bannerEditorOpen ? true : undefined}
           onPointerDownOutside={(e) => {
             if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
           }}

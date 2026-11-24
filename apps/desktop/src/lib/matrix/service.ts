@@ -299,21 +299,23 @@ export class MatrixService {
   async listGuilds(): Promise<GuildSummary[]> {
     const rawGuilds = await this.echoApi.getGuilds();
     return rawGuilds.map((g: any) => ({
-      guildId: g.guildId,
+      guildId: g.guildId || g.id,
       name: g.name,
-      avatarUrl: g.avatarUrl ?? null,
-      bannerUrl: g.bannerUrl ?? null,
+      avatarUrl: g.avatarUrl ?? g.avatar_url ?? null,
+      bannerUrl: g.bannerUrl ?? g.banner_url ?? null,
       description: g.description ?? null,
       unreadCount: g.unreadCount ?? 0,
-      createdBy: g.createdBy ?? null,
+      createdBy: g.createdBy ?? g.created_by ?? g.ownerId ?? g.owner_id ?? null,
     }));
   }
 
   /** Cria uma nova guilda (Space m.space) com nome, ícone, banner e descrição. */
   async createGuild(
     data: { name: string; iconUrl?: string | null; bannerUrl?: string | null; description?: string | null },
+    creatorUserId?: string,
   ): Promise<GuildSummary> {
-    const res = await this.echoApi.createGuild(data, this.session?.userId ?? "");
+    const creator = creatorUserId || this.session?.userId || "";
+    const res = await this.echoApi.createGuild(data, creator);
     return {
       guildId: res.guildId,
       name: res.name,
@@ -321,7 +323,7 @@ export class MatrixService {
       bannerUrl: (res as any).bannerUrl ?? data.bannerUrl ?? null,
       description: (res as any).description ?? data.description ?? null,
       unreadCount: res.unreadCount ?? 0,
-      createdBy: (res as any).createdBy ?? this.session?.userId ?? null,
+      createdBy: (res as any).createdBy ?? (res as any).created_by ?? creator ?? null,
     };
   }
 

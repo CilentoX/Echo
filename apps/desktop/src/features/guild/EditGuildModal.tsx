@@ -189,7 +189,11 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent
           showCloseButton={false}
-          className="w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0"
+          className={`w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto scrollbar-thin rounded-2xl border border-bd-glass bg-card-bg p-0 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 gap-0 ${
+            iconEditorOpen || bannerEditorOpen ? "pointer-events-none select-none opacity-40 transition-opacity" : ""
+          }`}
+          inert={iconEditorOpen || bannerEditorOpen ? true : undefined}
+          aria-hidden={iconEditorOpen || bannerEditorOpen ? true : undefined}
           onPointerDownOutside={(e) => {
             if (iconEditorOpen || bannerEditorOpen) e.preventDefault();
           }}
@@ -472,6 +476,10 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
           outputHeight={512}
           onConfirm={handleIconConfirm}
           onClose={() => setIconEditorOpen(false)}
+          onSelectNewImage={(file) => {
+            if (rawIconUrl?.startsWith("blob:")) URL.revokeObjectURL(rawIconUrl);
+            setRawIconUrl(URL.createObjectURL(file));
+          }}
         />
       )}
 
@@ -486,6 +494,10 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
           outputHeight={720}
           onConfirm={handleBannerConfirm}
           onClose={() => setBannerEditorOpen(false)}
+          onSelectNewImage={(file) => {
+            if (rawBannerUrl?.startsWith("blob:")) URL.revokeObjectURL(rawBannerUrl);
+            setRawBannerUrl(URL.createObjectURL(file));
+          }}
         />
       )}
     </>

@@ -22,7 +22,8 @@ export type ChannelPermissionType =
   | "SPEAK"             // Falar no canal (desativado = modo ouvinte)
   | "MUTE_MEMBERS"      // Silenciar outros membros na sala
   | "DEAFEN_MEMBERS"    // Ensurdecer outros membros na sala
-  | "PRIORITY_SPEAKER"; // Reduz o volume dos demais quando falar
+  | "PRIORITY_SPEAKER"  // Reduz o volume dos demais quando falar
+  | "MOVE_MEMBERS";     // Mover membros entre canais de voz
 
 export type PermissionState = "allow" | "deny" | "inherit";
 
@@ -101,6 +102,12 @@ export const ALL_CHANNEL_PERMISSIONS: PermissionDefinition[] = [
     id: "PRIORITY_SPEAKER",
     name: "Voz Prioritária",
     description: "Abaixa o volume dos outros participantes quando este membro estiver falando.",
+    category: "voice",
+  },
+  {
+    id: "MOVE_MEMBERS",
+    name: "Mover Membros",
+    description: "Permite mover membros entre canais de voz.",
     category: "voice",
   },
 ];
@@ -186,7 +193,7 @@ export function hasChannelPermission(
 
   // Se não houver configuração customizada de canal, usa permissões padrão confortáveis
   if (!config || !config.overrides || config.overrides.length === 0) {
-    if (permission === "MANAGE_CHANNELS" || permission === "MANAGE_MESSAGES" || permission === "MUTE_MEMBERS" || permission === "DEAFEN_MEMBERS" || permission === "PRIORITY_SPEAKER") {
+    if (permission === "MANAGE_CHANNELS" || permission === "MANAGE_MESSAGES" || permission === "MUTE_MEMBERS" || permission === "DEAFEN_MEMBERS" || permission === "PRIORITY_SPEAKER" || permission === "MOVE_MEMBERS") {
       return false;
     }
     return true;
@@ -299,4 +306,18 @@ export function setOverrideState(
     allow,
     deny,
   };
+}
+
+/**
+ * Normaliza e compara dois identificadores de usuário (com ou sem '@', com ou sem domínio).
+ * Ex: isSameUser('@cilentox22:litteris.online', 'cilentox22') === true
+ */
+export function isSameUser(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  const sA = a.trim().toLowerCase().replace(/^@/, "");
+  const sB = b.trim().toLowerCase().replace(/^@/, "");
+  if (sA === sB) return true;
+  const localA = sA.split(":")[0];
+  const localB = sB.split(":")[0];
+  return Boolean(localA && localB && localA === localB);
 }

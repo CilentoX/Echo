@@ -388,6 +388,34 @@ export class EchoApi {
     return this.requestWithAutoRetry("PATCH", path, body);
   }
 
+  /** Reorder channels within a guild (requires MANAGE_CHANNELS). */
+  public async reorderChannels(guildId: string, orderedChannelIds: string[]): Promise<Response> {
+    return this.patch(`/api/guilds/${encodeURIComponent(guildId)}/channels/reorder`, { orderedChannelIds });
+  }
+
+  /** Reorder categories within a guild (requires MANAGE_CHANNELS). */
+  public async reorderCategories(guildId: string, orderedCategoryNames: string[]): Promise<Response> {
+    return this.patch(`/api/guilds/${encodeURIComponent(guildId)}/categories/reorder`, { orderedCategoryNames });
+  }
+
+  /** Save user's personal guild order preference. */
+  public async setMyGuildOrder(orderedGuildIds: string[]): Promise<Response> {
+    return this.put("/api/users/me/guilds/order", { orderedGuildIds });
+  }
+
+  /** Get user's personal guild order preference. */
+  public async getMyGuildOrder(): Promise<string[]> {
+    const res = await this.get("/api/users/me/guilds/order");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.orderedGuildIds) ? data.orderedGuildIds : [];
+  }
+
+  /** Move a member between voice channels (requires MOVE_MEMBERS). */
+  public async moveVoiceMember(channelId: string, userId: string, guildId: string): Promise<Response> {
+    return this.post(`/api/voice/channels/${encodeURIComponent(channelId)}/move-user`, { userId, guildId });
+  }
+
   /** DELETE request with auto-retry on 401. */
   public async delete(path: string): Promise<Response> {
     return this.requestWithAutoRetry("DELETE", path);
@@ -1636,6 +1664,56 @@ export class EchoApi {
     const encoded = encodeURIComponent(channelId);
     const res = await this.get(`/api/channels/${encoded}/voice/signals`);
     if (!res.ok) throw new Error(`Failed to get voice signals: ${res.status}`);
+    return res.json();
+  }
+
+  // ── AI Thread Summarization ─────────────────────────────────────
+
+  /** Generate a summary of a thread using the configured AI provider. */
+  async summarizeThread(
+    roomId: string,
+    eventId: string,
+  ): Promise<{ summary: string; messageCount: number; provider: string }> {
+    const encodedRoom = encodeURIComponent(roomId);
+    const encodedEvent = encodeURIComponent(eventId);
+    const res = await this.post(`/api/rooms/${encodedRoom}/threads/${encodedEvent}/summarize`, {});
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Failed to summarize thread: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  // ── Widget Interactions ─────────────────────────────────────────
+
+  /** Submit a widget interaction (poll vote, form submit, button click). */
+  async submitWidgetAction(
+    roomId: string,
+    eventId: string,
+    data: { actionId?: string; optionId?: string; formData?: Record<string, any> },
+  ): Promise<{ event_id: string; widget: any }> {
+    const encodedRoom = encodeURIComponent(roomId);
+    const encodedEvent = encodeURIComponent(eventId);
+    const res = await this.post(`/api/rooms/${encodedRoom}/widgets/${encodedEvent}/action`, data);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Widget action failed: ${res.status} ${errTxt}`);
+    }
+    return res.json();
+  }
+
+  /** Get the latest state of an interactive widget. */
+  async getWidgetState(
+    roomId: string,
+    eventId: string,
+  ): Promise<{ widget: any; eventId: string }> {
+    const encodedRoom = encodeURIComponent(roomId);
+    const encodedEvent = encodeURIComponent(eventId);
+    const res = await this.get(`/api/rooms/${encodedRoom}/widgets/${encodedEvent}/state`);
+    if (!res.ok) {
+      const errTxt = await res.text();
+      throw new Error(`Failed to get widget state: ${res.status} ${errTxt}`);
+    }
     return res.json();
   }
 }

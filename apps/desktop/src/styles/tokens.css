@@ -9,6 +9,8 @@
  */
 
 :root {
+ /* Transição suave ao trocar tema — evita flash branco */
+ transition: background-color 200ms ease, color 200ms ease;
   --bg: #0D1017;
   --rail: #12151C;
   --surf: #171B24;
@@ -19,7 +21,7 @@
   --bd-subtle: rgba(255, 255, 255, 0.06);
   --bd-glass: rgba(255, 255, 255, 0.1);
   --txt: #E9EDF2;
-  --mut: #97A2B0;
+  --mut: #A8B2BF;
   --acc: #0FB9A8;
   --acc-press: #0D9E8A;
   --acc-glow: rgba(15, 185, 168, 0.2);

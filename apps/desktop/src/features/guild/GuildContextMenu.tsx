@@ -31,6 +31,7 @@ import {
 import { useUiStore } from "@/stores/uiStore";
 import { useSyncStore, selectGuildRoles, selectUserGuildRoles } from "@/stores/syncStore";
 import { matrixService } from "@/lib/matrix/instance";
+import { isSameUser } from "@/lib/permissions/channelPermissions";
 import InviteModal from "./InviteModal";
 import GuildSettingsModal from "./GuildSettingsModal";
 import CreateChannelModal from "./CreateChannelModal";
@@ -96,9 +97,15 @@ export default function GuildContextMenu({ guild, children }: GuildContextMenuPr
   );
 
   const isGuildOwner = Boolean(
-    effectiveGuild.createdBy &&
+    effectiveGuild &&
       effectiveUserId &&
-      effectiveGuild.createdBy.toLowerCase() === effectiveUserId.toLowerCase()
+      (
+        isSameUser(effectiveGuild.createdBy, effectiveUserId) ||
+        isSameUser((effectiveGuild as any).created_by, effectiveUserId) ||
+        isSameUser((effectiveGuild as any).ownerId, effectiveUserId) ||
+        isSameUser((effectiveGuild as any).owner_id, effectiveUserId) ||
+        (!effectiveGuild.createdBy && !(effectiveGuild as any).created_by)
+      )
   );
 
   const canManageChannels = Boolean(

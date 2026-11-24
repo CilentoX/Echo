@@ -65,7 +65,7 @@ try {
 
 // 5. Localiza e copia os artefatos de saída
 console.log('\n4. Organizando artefatos na pasta release/...');
-const nsisDir = 'C:\\st\\sharestream\\release\\bundle\\nsis';
+const nsisDir = path.join(rootDir, 'src-tauri', 'target', 'release', 'bundle', 'nsis');
 const installerSrc = path.join(nsisDir, `Echo_${version}_x64-setup.exe`);
 const sigSrc = path.join(nsisDir, `Echo_${version}_x64-setup.exe.sig`);
 
@@ -107,4 +107,5 @@ execSync(`node "${path.join(__dirname, 'gen-latest-json.cjs')}" "${version}"${no
 console.log(`\n========================================`);
 console.log(`  BUILD v${version} CONCLUÍDO COM SUCESSO!`);
 console.log(`========================================\n`);
+
 

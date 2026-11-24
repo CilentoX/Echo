@@ -1,5 +1,6 @@
 import { useEchoApi } from "@/lib/api/echoApi";
 import { ECHO_API_CONFIG } from "@/lib/api/config";
+import { computeSpatialPosition, applySpatialPanner } from "./spatialAudio";
 
 export interface WebRtcCallbacks {
   onParticipantsUpdate?: (participants: any[]) => void;
@@ -51,6 +52,8 @@ class WebRtcVoiceManager {
   private sseSource: EventSource | null = null;
   private peerVolumes: Map<string, number> = new Map();
   private peerAudioNodes: Map<string, { gain: GainNode; source: MediaStreamAudioSourceNode }> = new Map();
+  private peerPanners: Map<string, StereoPannerNode | PannerNode> = new Map();
+  private spatialAudioEnabled: boolean = false;
 
   private rtcConfig: RTCConfiguration = {
     iceServers: this.getIceServers(),
@@ -639,6 +642,31 @@ class WebRtcVoiceManager {
     this.callbacks.onPeerDisconnected?.(peerId);
   }
 
+  /** Habilita ou desabilita spatial audio para todos os peers remotos. */
+  public setSpatialAudioEnabled(enabled: boolean) {
+    this.spatialAudioEnabled = enabled;
+    // Reconecta pipelines existentes com/sem panner
+    for (const [peerId, nodes] of this.peerAudioNodes.entries()) {
+      try {
+        nodes.gain.disconnect();
+      } catch {}
+      const existingPanner = this.peerPanners.get(peerId);
+      if (existingPanner) {
+        try { existingPanner.disconnect(); } catch {}
+        this.peerPanners.delete(peerId);
+      }
+      if (enabled && this.audioContext) {
+        const peerIndex = Array.from(this.peers.keys()).indexOf(peerId);
+        const totalPeers = Math.max(this.peers.size, 1);
+        const position = computeSpatialPosition(peerIndex >= 0 ? peerIndex : 0, totalPeers);
+        const panner = applySpatialPanner(this.audioContext, nodes.gain, this.audioContext.destination, position);
+        this.peerPanners.set(peerId, panner);
+      } else if (this.audioContext) {
+        nodes.gain.connect(this.audioContext.destination);
+      }
+    }
+  }
+
   private cleanupRemoteAudioNodes(peerId: string) {
     if (this.peerAudioNodes.has(peerId)) {
       const node = this.peerAudioNodes.get(peerId)!;
@@ -647,6 +675,11 @@ class WebRtcVoiceManager {
         node.source.disconnect();
       } catch {}
       this.peerAudioNodes.delete(peerId);
+    }
+    const panner = this.peerPanners.get(peerId);
+    if (panner) {
+      try { panner.disconnect(); } catch {}
+      this.peerPanners.delete(peerId);
     }
   }
 
@@ -668,8 +701,15 @@ class WebRtcVoiceManager {
         const userVol = this.peerVolumes.get(peerId) ?? 100;
         gain.gain.value = this.isDeafened ? 0 : userVol / 100;
 
-        source.connect(gain);
-        gain.connect(this.audioContext.destination);
+        if (this.spatialAudioEnabled) {
+          const peerIndex = Array.from(this.peers.keys()).indexOf(peerId);
+          const totalPeers = Math.max(this.peers.size, 1);
+          const position = computeSpatialPosition(peerIndex >= 0 ? peerIndex : 0, totalPeers);
+          const panner = applySpatialPanner(this.audioContext, gain, this.audioContext.destination, position);
+          this.peerPanners.set(peerId, panner);
+        } else {
+          gain.connect(this.audioContext.destination);
+        }
 
         this.peerAudioNodes.set(peerId, { gain, source });
 
@@ -929,8 +969,21 @@ class WebRtcVoiceManager {
       }, 400);
     }
 
-    // Heartbeat a cada 4 segundos (server tem timeout defensivo de 10s)
-    this.heartbeatInterval = setInterval(tick, 4000);
+    // Heartbeat adaptativo: 2s quando falando/tela, 4s em silencio (server timeout 10s)
+    let currentHeartbeatMs = 4000;
+    const setHeartbeatRate = (ms: number) => {
+      if (currentHeartbeatMs !== ms) {
+        currentHeartbeatMs = ms;
+        if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = setInterval(adaptiveTick, ms);
+      }
+    };
+    const adaptiveTick = () => {
+      tick();
+      const isActive = this.isSpeaking || this.isScreenSharing;
+      setHeartbeatRate(isActive ? 2000 : 4000);
+    };
+    this.heartbeatInterval = setInterval(adaptiveTick, 4000);
   }
 
   private syncPeers(participants: Array<{ userId: string }>) {
@@ -985,7 +1038,7 @@ class WebRtcVoiceManager {
       let hangTimer: any = null;
 
       const interval = setInterval(() => {
-        // Se o peer estiver mutado ou desconectado, NUNCA ativa o status de fala
+        // If peer is muted or disconnected, NEVER activate speaking status
         if (this.peerMutedStates.get(peerId)) {
           if (wasSpeaking) {
             wasSpeaking = false;
@@ -1004,8 +1057,9 @@ class WebRtcVoiceManager {
           sum += dataArray[i];
         }
         const avg = sum / bufferLength;
-        const attackThreshold = 14;
-        const releaseThreshold = 9;
+        // Optimized thresholds: attack=10 (was 14), release=6 (was 9)
+        const attackThreshold = 10;
+        const releaseThreshold = 6;
 
         if (avg > attackThreshold) {
           if (hangTimer) {
@@ -1022,10 +1076,10 @@ class WebRtcVoiceManager {
               wasSpeaking = false;
               hangTimer = null;
               this.callbacks.onParticipantSpeaking?.(peerId, false);
-            }, 250); // 250ms hang time
+            }, 180); // 180ms hang time (reduced from 250ms)
           }
         }
-      }, 70);
+      }, 50); // 50ms sample rate (~20fps, reduced from 70ms)
 
       this.remoteAnalysers.set(peerId, { analyser, source, interval, hangTimer });
     } catch {}

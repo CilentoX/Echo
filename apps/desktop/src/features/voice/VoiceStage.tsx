@@ -879,7 +879,7 @@ export default function VoiceStage({
                         alt={memberNick}
                         className={`h-20 w-20 rounded-full object-cover shadow-lg transition-all duration-150 ${
                           participantSpeaking
-                            ? "ring-4 ring-online shadow-online/60 animate-speaking-ring"
+                            ? "ring-4 ring-online shadow-[0_0_30px_rgba(16,185,129,0.5)] border-online/50 scale-[1.03] animate-speaking-ring"
                             : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
                         }`}
                         width={80}
@@ -889,7 +889,7 @@ export default function VoiceStage({
                       <div
                         className={`flex h-20 w-20 items-center justify-center rounded-full bg-acc text-bg font-display text-2xl font-black shadow-lg transition-all duration-150 ${
                           participantSpeaking
-                            ? "ring-4 ring-online shadow-online/60 animate-speaking-ring"
+                            ? "ring-4 ring-online shadow-[0_0_30px_rgba(16,185,129,0.5)] border-online/50 scale-[1.03] animate-speaking-ring"
                             : "ring-2 ring-bd-subtle group-hover:ring-acc/50"
                         }`}
                       >
@@ -1223,7 +1223,7 @@ export default function VoiceStage({
               webcamShape === "circle" ? "rounded-full aspect-square" : "rounded-2xl"
             } overflow-hidden shadow-2xl border-2 ${
               isSpeaking
-                ? "border-online ring-4 ring-online/40 shadow-online/30"
+                ? "border-online ring-4 ring-online/60 shadow-[0_0_25px_rgba(16,185,129,0.45)] scale-[1.02]"
                 : "border-white/30 hover:border-white/60"
             } bg-black/90 backdrop-blur-md`}
           >
@@ -1535,7 +1535,7 @@ export default function VoiceStage({
             <SoundboardPopover
               onPlaySound={(sound) => {
                 setLastSound(sound);
-                setTimeout(() => setLastSound((curr) => (curr?.id === sound.id ? null : curr)), 2500);
+                setTimeout(() => setLastSound((curr) => (curr?.id === sound.id ? null : curr)), 4000);
               }}
             />
 

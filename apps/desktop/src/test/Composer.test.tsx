@@ -19,6 +19,7 @@ function pendingCount(): number {
 }
 
 function resetStores() {
+  localStorage.clear();
   useSyncStore.setState({
     status: "syncing",
     guilds: [],

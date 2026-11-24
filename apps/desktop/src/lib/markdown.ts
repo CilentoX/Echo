@@ -1,3 +1,5 @@
+import { highlightCode } from "./highlighter";
+
 /**
  * Markdown renderer simples para mensagens do chat.
  *
@@ -28,15 +30,55 @@ export function renderMarkdown(text: string, customEmojis?: Record<string, strin
 
   let html = escapeHtml(text);
 
-  // Blocos de código (triple backticks) primeiro, protegidos com token seguro
+  // Blocos de código (triple backticks com linguagem opcional)
   const codeBlocks: string[] = [];
-  html = html.replace(/```([\s\S]*?)```/g, (_match, code) => {
+  html = html.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_match, rawLang, rawCode) => {
     const idx = codeBlocks.length;
-    codeBlocks.push(
-      `<pre class="bg-surf2 border border-bd rounded-md p-2 text-sm font-mono overflow-x-auto"><code>${escapeHtml(
-        code.trim(),
-      )}</code></pre>`,
-    );
+    const lang = (rawLang || "").trim();
+    const cleanCode = rawCode.trim();
+
+    // Tenta syntax highlighting moderno via Shiki
+    let highlightedHtml: string | null = null;
+    try {
+      highlightedHtml = highlightCode(cleanCode, lang);
+    } catch {}
+
+    if (highlightedHtml) {
+      codeBlocks.push(`
+        <div class="code-block-wrapper my-2.5 rounded-xl border border-white/[0.08] bg-[#0d1117] overflow-hidden shadow-lg select-text group/code">
+          <div class="flex items-center justify-between px-3.5 py-1.5 bg-white/[0.03] border-b border-white/[0.06] text-[11px] font-mono text-mut select-none">
+            <span class="font-semibold uppercase tracking-wider text-acc">${lang || "código"}</span>
+            <button
+              type="button"
+              onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(cleanCode)}')); this.textContent = 'Copiado!'; setTimeout(() => this.textContent = 'Copiar', 2000)"
+              class="cursor-pointer hover:text-txt hover:bg-white/[0.08] px-2 py-0.5 rounded-md transition-all text-[10px]"
+            >
+              Copiar
+            </button>
+          </div>
+          <div class="p-3 overflow-x-auto text-[13px] font-mono leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0">
+            ${highlightedHtml}
+          </div>
+        </div>
+      `);
+    } else {
+      codeBlocks.push(`
+        <div class="code-block-wrapper my-2.5 rounded-xl border border-white/[0.08] bg-[#0d1117] overflow-hidden shadow-lg select-text group/code">
+          <div class="flex items-center justify-between px-3.5 py-1.5 bg-white/[0.03] border-b border-white/[0.06] text-[11px] font-mono text-mut select-none">
+            <span class="font-semibold uppercase tracking-wider text-acc">${lang || "código"}</span>
+            <button
+              type="button"
+              onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(cleanCode)}')); this.textContent = 'Copiado!'; setTimeout(() => this.textContent = 'Copiar', 2000)"
+              class="cursor-pointer hover:text-txt hover:bg-white/[0.08] px-2 py-0.5 rounded-md transition-all text-[10px]"
+            >
+              Copiar
+            </button>
+          </div>
+          <pre class="p-3 text-[13px] font-mono overflow-x-auto text-txt leading-relaxed"><code>${escapeHtml(cleanCode)}</code></pre>
+        </div>
+      `);
+    }
+
     return `@@CODEBLOCK${idx}@@`;
   });
 
