@@ -41,9 +41,32 @@ export async function runSsoLogin(echoApi: EchoApi): Promise<Session> {
   console.log("[SSO] Redirect URL:", redirectUrl);
 
   // Build the SSO login URL via Echo API (async call to /auth/google)
-  const loginUrl = await echoApi.getSsoLoginUrl(redirectUrl, GOOGLE_IDP_ID);
-  console.log("[SSO] Login URL:", loginUrl);
-  await openUrl(loginUrl);
+  let loginUrl = "";
+  try {
+    loginUrl = await echoApi.getSsoLoginUrl(redirectUrl, GOOGLE_IDP_ID);
+  } catch (err) {
+    console.warn("[SSO] Erro ao consultar endpoint /auth/google na Echo API, usando fallback direto:", err);
+  }
+
+  // Fallback defensivo: se a API retornar vazio, 'undefined/...' ou uma URL inválida sem esquema http(s)
+  if (!loginUrl || loginUrl.includes("undefined") || (!loginUrl.startsWith("http://") && !loginUrl.startsWith("https://"))) {
+    console.warn("[SSO] URL de login inválida recebida ou ausente, normalizando para homeserver oficial:", loginUrl);
+    loginUrl = `${ECHO_HOMESERVER_URL}/_matrix/client/v3/login/sso/redirect/${GOOGLE_IDP_ID}?redirectUrl=${encodeURIComponent(
+      redirectUrl,
+    )}`;
+  }
+
+  console.log("[SSO] Login URL final:", loginUrl);
+  try {
+    await openUrl(loginUrl);
+  } catch (err) {
+    console.error("[SSO] Falha ao abrir navegador com a URL de login:", loginUrl, err);
+    throw new SsoLoginError(
+      `Não foi possível abrir o navegador para login: ${err instanceof Error ? err.message : String(err)}`,
+      "listener",
+      err,
+    );
+  }
   console.log("[SSO] Browser opened, waiting for callback...");
 
   let code: string;

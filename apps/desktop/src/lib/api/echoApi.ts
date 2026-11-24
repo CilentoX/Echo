@@ -1097,7 +1097,15 @@ export class EchoApi {
       throw new Error(`Failed to get SSO login URL: ${res.status} ${errTxt}`);
     }
     const data = await res.json();
-    return data.loginUrl;
+    let loginUrl = data?.loginUrl;
+    if (typeof loginUrl === "string") {
+      if (loginUrl.startsWith("undefined/")) {
+        loginUrl = loginUrl.replace("undefined/", "https://echo.litteris.online/");
+      } else if (loginUrl.includes("undefined")) {
+        loginUrl = loginUrl.replace(/https?:\/\/undefined\//, "https://echo.litteris.online/");
+      }
+    }
+    return loginUrl || "";
   }
 
   /**

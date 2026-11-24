@@ -127,6 +127,22 @@ describe("runSsoLogin", () => {
     expect((err as SsoLoginError).code).toBe("login");
   });
 
+  it("corrige automaticamente loginUrl contendo 'undefined/' para homeserver oficial", async () => {
+    mockedInvoke
+      .mockResolvedValueOnce(49155)
+      .mockResolvedValueOnce("AUTH_CODE_1");
+    const echoApi = makeEchoApi();
+    (echoApi.getSsoLoginUrl as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      "undefined/_matrix/client/v3/login/sso/redirect/oidc-google?redirectUrl=http%3A%2F%2F127.0.0.1%3A49155%2Fcallback",
+    );
+
+    await runSsoLogin(echoApi);
+
+    expect(mockedOpenUrl).toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/echo\.litteris\.online\/_matrix\/client\/v3\/login\/sso\/redirect\/oidc-google/),
+    );
+  });
+
   it("expõe o homeserver da rede Eco como constante única", () => {
     expect(ECHO_HOMESERVER_URL).toBe("https://echo.litteris.online");
   });
