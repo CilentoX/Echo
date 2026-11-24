@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { audioEngine } from "@/lib/media/audioEngine";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useSyncStore } from "@/stores/syncStore";
 import { useFriendsStore } from "@/stores/friendsStore";
@@ -459,6 +460,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
                 onClick={() => {
                   const next = !microphoneEnabled;
                   setMicrophoneEnabled(next);
+                  void audioEngine.playVoiceCue(next ? "unmute" : "mute");
                   if (myUserId) {
                     setParticipantMuted(myUserId, !next);
                   }
@@ -487,6 +489,7 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
                 onClick={() => {
                   const next = !headphonesEnabled;
                   setHeadphonesEnabled(next);
+                  void audioEngine.playVoiceCue(next ? "undeafen" : "deafen");
                   if (myUserId) {
                     setParticipantDeafened(myUserId, !next);
                   }
@@ -511,7 +514,9 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
                 aria-label={noiseSuppression ? "Desativar supressão de ruído" : "Ativar supressão de ruído"}
                 title={noiseSuppression ? "Supressão de Ruído Ativada (Clique para desativar, botão direito para opções)" : "Supressão de Ruído Desativada (Clique para ativar, botão direito para opções)"}
                 onClick={() => {
-                  setNoiseSuppression(!noiseSuppression);
+                  const next = !noiseSuppression;
+                  setNoiseSuppression(next);
+                  void audioEngine.playVoiceCue(next ? "noise_on" : "noise_off");
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PushPin, Trash, ChatText } from "@phosphor-icons/react";
+import { ArrowUpRight, PushPin, Trash, ChatText } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSyncStore } from "@/stores/syncStore";
 import type { NormalizedEvent } from "@/lib/matrix/types";
@@ -26,6 +26,24 @@ export default function PinnedMessagesPopover({ roomId }: PinnedMessagesPopoverP
   const pinnedEvents = useMemo(() => {
     return timeline.filter((e) => pinnedIds.includes(e.eventId));
   }, [timeline, pinnedIds]);
+
+  const handleJumpToMessage = (eventId: string) => {
+    setOpen(false);
+    const escaped =
+      typeof CSS !== "undefined" && typeof CSS.escape === "function"
+        ? CSS.escape(eventId)
+        : eventId.replace(/"/g, '\\"');
+    const el = document.querySelector(`[data-event-id="${escaped}"]`);
+    if (el) {
+      if (typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      el.classList.add("ring-2", "ring-acc", "bg-acc/10", "transition-all", "rounded-xl");
+      setTimeout(() => {
+        el.classList.remove("ring-2", "ring-acc", "bg-acc/10");
+      }, 1800);
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -88,7 +106,17 @@ export default function PinnedMessagesPopover({ roomId }: PinnedMessagesPopoverP
                     {event.body}
                   </p>
 
-                  <div className="flex items-center justify-end pt-1">
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleJumpToMessage(event.eventId)}
+                      title="Ir para mensagem"
+                      aria-label="Ir para mensagem"
+                      className="cursor-pointer flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium text-acc hover:bg-acc/10 transition-colors"
+                    >
+                      <ArrowUpRight size={12} weight="bold" />
+                      <span>Ir para mensagem</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => unpinMessage(roomId, event.eventId)}

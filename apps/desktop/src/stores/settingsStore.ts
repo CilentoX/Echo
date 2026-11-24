@@ -26,6 +26,7 @@ export interface SettingsState {
   pttActive: boolean;
   vadAutoSensitivity: boolean;    // determinação automática de sensibilidade
   vadSensitivity: number;         // limiar de sensibilidade manual (0 a 100)
+  voiceSoundsEnabled: boolean;    // reproduzir chimes ao entrar/sair/mutar
 
   /** Privacidade */
   onlineStatusVisible: boolean;   // outros veem se você está online
@@ -75,6 +76,7 @@ export interface SettingsState {
   setPttActive(v: boolean): void;
   setVadAutoSensitivity(v: boolean): void;
   setVadSensitivity(v: number): void;
+  setVoiceSoundsEnabled(v: boolean): void;
 
   setOnlineStatusVisible(v: boolean): void;
   setReadReceipts(v: boolean): void;
@@ -103,6 +105,7 @@ function persistAudioConfig(state: Partial<SettingsState>) {
       pushToTalkKey: state.pushToTalkKey !== undefined ? state.pushToTalkKey : existing.pushToTalkKey,
       vadAutoSensitivity: state.vadAutoSensitivity !== undefined ? state.vadAutoSensitivity : existing.vadAutoSensitivity,
       vadSensitivity: state.vadSensitivity !== undefined ? state.vadSensitivity : existing.vadSensitivity,
+      voiceSoundsEnabled: state.voiceSoundsEnabled !== undefined ? state.voiceSoundsEnabled : existing.voiceSoundsEnabled,
     });
   } catch {}
 }
@@ -144,6 +147,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   pttActive: false,
   vadAutoSensitivity: true,
   vadSensitivity: 40,
+  voiceSoundsEnabled: true,
 
   onlineStatusVisible: true,
   readReceipts: true,
@@ -268,6 +272,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({ vadSensitivity: v });
     persistAudioConfig({ vadSensitivity: v });
   },
+  setVoiceSoundsEnabled: (v) => {
+    set({ voiceSoundsEnabled: v });
+    persistAudioConfig({ voiceSoundsEnabled: v });
+  },
 
   setOnlineStatusVisible: (v) => set({ onlineStatusVisible: v }),
   setReadReceipts: (v) => set({ readReceipts: v }),
@@ -292,6 +300,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
           pushToTalkKey: audio.pushToTalkKey ?? get().pushToTalkKey,
           vadAutoSensitivity: audio.vadAutoSensitivity !== undefined ? audio.vadAutoSensitivity : get().vadAutoSensitivity,
           vadSensitivity: typeof audio.vadSensitivity === "number" ? audio.vadSensitivity : get().vadSensitivity,
+          voiceSoundsEnabled: audio.voiceSoundsEnabled !== undefined ? audio.voiceSoundsEnabled : get().voiceSoundsEnabled,
         });
       }
     } catch {}
@@ -318,6 +327,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       pttActive: false,
       vadAutoSensitivity: true,
       vadSensitivity: 40,
+      voiceSoundsEnabled: true,
       onlineStatusVisible: true,
       readReceipts: true,
       typingVisible: true,

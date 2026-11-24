@@ -73,5 +73,24 @@ describe("Pinned Messages (Mensagens Fixadas)", () => {
 
     expect(screen.getByTitle("Mensagem fixada")).toBeTruthy();
   });
+
+  it("exibe o botão Ir para mensagem no popover e fecha ao clicar", async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <ChatHeader roomId={roomId} channelName="regras" />
+        <MessageBubble event={event1} showHeader={true} />
+      </div>
+    );
+
+    const pinButton = screen.getByRole("button", { name: "Mensagens fixadas" });
+    await user.click(pinButton);
+
+    const jumpBtn = screen.getByRole("button", { name: "Ir para mensagem" });
+    expect(jumpBtn).toBeTruthy();
+
+    await user.click(jumpBtn);
+    expect(screen.queryByRole("button", { name: "Ir para mensagem" })).toBeNull();
+  });
 });
 

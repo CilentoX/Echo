@@ -41,7 +41,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import MemberDropdownContent from "@/features/shell/MemberDropdownContent";
 import MemberContextMenu from "@/features/shell/MemberContextMenu";
 import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
-import SoundboardPopover, { type SoundEffect } from "./SoundboardPopover";
+import SoundboardPopover, { playSoundboardById, type SoundEffect } from "./SoundboardPopover";
 import ScreenShareModal from "./ScreenShareModal";
 import type { ScreenShareConfig } from "@/stores/voiceStore";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
@@ -139,6 +139,32 @@ export default function VoiceStage({
   const [webcamOpacity, setWebcamOpacity] = useState(1);
   const [webcamMirrored, setWebcamMirrored] = useState(false);
   const [screenShareElapsed, setScreenShareElapsed] = useState(0);
+  const [activeSoundboardByUser, setActiveSoundboardByUser] = useState<Record<string, { emoji: string; name: string }>>({});
+
+  useEffect(() => {
+    const handleRemoteSoundboard = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ fromUserId: string; soundId: string }>).detail;
+      if (!detail?.soundId) return;
+      const effect = playSoundboardById(detail.soundId);
+      if (effect && detail.fromUserId) {
+        setActiveSoundboardByUser((prev) => ({
+          ...prev,
+          [detail.fromUserId]: { emoji: effect.emoji, name: effect.name },
+        }));
+        setTimeout(() => {
+          setActiveSoundboardByUser((prev) => {
+            const copy = { ...prev };
+            if (copy[detail.fromUserId]?.name === effect.name) {
+              delete copy[detail.fromUserId];
+            }
+            return copy;
+          });
+        }, 2000);
+      }
+    };
+    window.addEventListener("echo:soundboard-play", handleRemoteSoundboard);
+    return () => window.removeEventListener("echo:soundboard-play", handleRemoteSoundboard);
+  }, []);
   const screenShareStartRef = useRef<number | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -807,6 +833,20 @@ export default function VoiceStage({
                     : "bg-card-bg/70 hover:bg-card-bg/90 border border-bd-subtle hover:border-white/[0.15] shadow-sm hover:scale-[1.01]"
                 }`}
               >
+                {/* Badge animado do Soundboard */}
+                {(activeSoundboardByUser[memberUserId] || (isMe && activeSoundboardByUser["me"])) && (() => {
+                  const sb = activeSoundboardByUser[memberUserId] || activeSoundboardByUser["me"];
+                  return (
+                    <div
+                      className="absolute top-3 right-3 z-20 flex items-center gap-1 rounded-full bg-acc text-bg px-2.5 py-0.5 text-[11px] font-bold shadow-lg shadow-acc/30 animate-bounce"
+                      title={sb.name}
+                    >
+                      <span>{sb.emoji}</span>
+                      <span className="truncate max-w-[80px]">{sb.name}</span>
+                    </div>
+                  );
+                })()}
+
                 {/* Badge de Transmissão de Tela (AO VIVO) */}
                 {isSharingScreen && (
                   <div
@@ -1535,7 +1575,19 @@ export default function VoiceStage({
             <SoundboardPopover
               onPlaySound={(sound) => {
                 setLastSound(sound);
-                setTimeout(() => setLastSound((curr) => (curr?.id === sound.id ? null : curr)), 4000);
+                const uid = myUserId || "me";
+                setActiveSoundboardByUser((prev) => ({
+                  ...prev,
+                  [uid]: { emoji: sound.emoji, name: sound.name },
+                }));
+                setTimeout(() => {
+                  setLastSound((curr) => (curr?.id === sound.id ? null : curr));
+                  setActiveSoundboardByUser((prev) => {
+                    const copy = { ...prev };
+                    if (copy[uid]?.name === sound.name) delete copy[uid];
+                    return copy;
+                  });
+                }, 2500);
               }}
             />
 

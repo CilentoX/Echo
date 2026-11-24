@@ -26,6 +26,7 @@ export interface AppAudioConfig {
   pushToTalkKey?: string;
   vadAutoSensitivity?: boolean;
   vadSensitivity?: number;
+  voiceSoundsEnabled?: boolean;
 }
 
 export interface AppNavigationConfig {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SpeakerHigh, Sparkle } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { webrtcVoice } from "@/lib/media/webrtcVoice";
 
 export interface SoundEffect {
   id: string;
@@ -171,6 +172,15 @@ export const SOUNDBOARD_EFFECTS: SoundEffect[] = [
   { id: "gg", name: "GG Well Played", emoji: "💥", color: "from-sky-500/20 to-blue-500/20", play: playGG },
 ];
 
+export function playSoundboardById(soundId: string): SoundEffect | null {
+  const found = SOUNDBOARD_EFFECTS.find((s) => s.id === soundId);
+  if (found) {
+    found.play();
+    return found;
+  }
+  return null;
+}
+
 export interface SoundboardPopoverProps {
   onPlaySound?: (sound: SoundEffect) => void;
 }
@@ -183,6 +193,7 @@ export default function SoundboardPopover({ onPlaySound }: SoundboardPopoverProp
     sound.play();
     setActiveSoundId(sound.id);
     onPlaySound?.(sound);
+    void webrtcVoice.sendSoundboardEffect(sound.id);
     setTimeout(() => setActiveSoundId((curr) => (curr === sound.id ? null : curr)), 600);
   };
 

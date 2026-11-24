@@ -6,6 +6,16 @@
  * e integração com setSinkId para seleção de dispositivos de saída.
  */
 
+export type VoiceCueType =
+  | "join"
+  | "leave"
+  | "mute"
+  | "unmute"
+  | "deafen"
+  | "undeafen"
+  | "noise_on"
+  | "noise_off";
+
 export interface AudioMeterOptions {
   deviceId?: string | null;
   echoCancellation?: boolean;
@@ -402,6 +412,107 @@ export class AudioEngine {
       setTimeout(() => {
         void ctx.close().catch(() => {});
       }, 200);
+    } catch {}
+  }
+
+  /**
+   * Reproduz sinais sonoros táteis para ações de voz (entrar, sair, mutar, ensurdecer, supressão).
+   * Sintetizado 100% via Web Audio API sem arquivos externos.
+   */
+  async playVoiceCue(type: VoiceCueType): Promise<void> {
+    try {
+      const { useSettingsStore } = await import("@/stores/settingsStore");
+      const settings = useSettingsStore.getState();
+      if (settings.voiceSoundsEnabled === false) return;
+
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const ctx = new AudioCtx();
+      if (ctx.state === "suspended") await ctx.resume();
+
+      const outputDeviceId = settings.headphonesDevice;
+      if (
+        outputDeviceId &&
+        typeof (ctx as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId === "function"
+      ) {
+        try {
+          await (ctx as unknown as { setSinkId: (id: string) => Promise<void> }).setSinkId(outputDeviceId);
+        } catch {}
+      }
+
+      const masterGain = ctx.createGain();
+      const vol = Math.max(0, Math.min(1, (settings.outputVolume ?? 100) / 100));
+      masterGain.gain.setValueAtTime(vol * 0.22, ctx.currentTime);
+      masterGain.connect(ctx.destination);
+
+      type Tone = { freq: number; delay: number; dur: number; wave?: OscillatorType; endFreq?: number };
+      let tones: Tone[] = [];
+
+      switch (type) {
+        case "join":
+          tones = [
+            { freq: 440, delay: 0, dur: 0.09, wave: "sine" },
+            { freq: 659.25, delay: 0.07, dur: 0.14, wave: "sine" },
+          ];
+          break;
+        case "leave":
+          tones = [
+            { freq: 587.33, delay: 0, dur: 0.09, wave: "sine" },
+            { freq: 392.0, delay: 0.07, dur: 0.15, wave: "sine" },
+          ];
+          break;
+        case "mute":
+          tones = [{ freq: 420, endFreq: 280, delay: 0, dur: 0.08, wave: "sine" }];
+          break;
+        case "unmute":
+          tones = [{ freq: 340, endFreq: 520, delay: 0, dur: 0.08, wave: "sine" }];
+          break;
+        case "deafen":
+          tones = [
+            { freq: 480, delay: 0, dur: 0.06, wave: "triangle" },
+            { freq: 310, delay: 0.06, dur: 0.09, wave: "triangle" },
+          ];
+          break;
+        case "undeafen":
+          tones = [
+            { freq: 340, delay: 0, dur: 0.06, wave: "triangle" },
+            { freq: 540, delay: 0.06, dur: 0.09, wave: "triangle" },
+          ];
+          break;
+        case "noise_on":
+          tones = [{ freq: 587.33, endFreq: 880, delay: 0, dur: 0.09, wave: "triangle" }];
+          break;
+        case "noise_off":
+          tones = [{ freq: 520, endFreq: 350, delay: 0, dur: 0.09, wave: "triangle" }];
+          break;
+      }
+
+      const now = ctx.currentTime;
+      for (const t of tones) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = t.wave ?? "sine";
+        const start = now + t.delay;
+        osc.frequency.setValueAtTime(t.freq, start);
+        if (t.endFreq) {
+          osc.frequency.exponentialRampToValueAtTime(t.endFreq, start + t.dur);
+        }
+        gain.gain.setValueAtTime(0.001, start);
+        gain.gain.linearRampToValueAtTime(0.6, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + t.dur);
+
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(start);
+        osc.stop(start + t.dur + 0.02);
+      }
+
+      setTimeout(() => {
+        void ctx.close().catch(() => {});
+      }, 450);
     } catch {}
   }
 }

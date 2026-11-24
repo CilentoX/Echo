@@ -48,6 +48,8 @@ export function VoiceTab() {
     setVadAutoSensitivity,
     vadSensitivity,
     setVadSensitivity,
+    voiceSoundsEnabled,
+    setVoiceSoundsEnabled,
   } = useSettingsStore();
 
   const [devices, setDevices] = useState<DeviceLists>(FALLBACK_DEVICES);
@@ -459,6 +461,14 @@ export function VoiceTab() {
               <div className="text-[11px] text-mut">Equaliza o volume da sua voz de forma consistente</div>
             </div>
             <Switch checked={autoGainControl} onCheckedChange={setAutoGainControl} />
+          </div>
+
+          <div className="flex items-center justify-between py-1 border-t border-bd-subtle">
+            <div>
+              <div className="text-xs font-medium text-txt">Sinais Sonoros de Voz (Chimes)</div>
+              <div className="text-[11px] text-mut">Reproduz tons sutis ao mutar, desmutar ou alternar supressão de ruído</div>
+            </div>
+            <Switch checked={voiceSoundsEnabled} onCheckedChange={setVoiceSoundsEnabled} />
           </div>
         </div>
       </div>

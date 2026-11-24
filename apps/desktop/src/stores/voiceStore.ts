@@ -577,6 +577,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
           if (isMe) {
             webrtcVoice.setMicrophoneMuted(nextMuted);
             useSettingsStore.getState().setMicrophoneEnabled(!nextMuted);
+            void audioEngine.playVoiceCue(nextMuted ? "mute" : "unmute");
             void webrtcVoice.tickHeartbeat();
           }
           if (nextMuted) {
@@ -621,6 +622,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
               useSettingsStore.getState().setMicrophoneEnabled(false);
             }
             useSettingsStore.getState().setHeadphonesEnabled(!nextDeafened);
+            void audioEngine.playVoiceCue(nextDeafened ? "deafen" : "undeafen");
             void webrtcVoice.tickHeartbeat();
           }
           if (nextDeafened) {

@@ -13,6 +13,7 @@ export interface WebRtcCallbacks {
   onPeerConnected?: (userId: string) => void;
   onPeerDisconnected?: (userId: string) => void;
   onConnectionStateChange?: (state: "disconnected" | "connecting" | "connected") => void;
+  onSoundboardEffect?: (fromUserId: string, soundId: string) => void;
   onError?: (err: Error) => void;
 }
 
@@ -1604,6 +1605,32 @@ class WebRtcVoiceManager {
         }
         this.candidateQueues.get(fromUserId)!.push(signal.candidate);
       }
+    } else if (signal.type === "soundboard" && typeof signal.soundId === "string") {
+      if (!this.isDeafened) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("echo:soundboard-play", {
+              detail: { fromUserId, soundId: signal.soundId },
+            })
+          );
+        }
+        this.callbacks.onSoundboardEffect?.(fromUserId, signal.soundId);
+      }
+    }
+  }
+
+  /**
+   * Envia um efeito sonoro do Soundboard para todos os pares conectados na sala atual.
+   */
+  public async sendSoundboardEffect(soundId: string): Promise<void> {
+    if (!this.currentChannelId) return;
+    const api = useEchoApi();
+    if (typeof api?.sendVoiceSignal !== "function") return;
+    for (const peerId of this.peers.keys()) {
+      void api.sendVoiceSignal(this.currentChannelId, peerId, {
+        type: "soundboard",
+        soundId,
+      }).catch(() => {});
     }
   }
 }
