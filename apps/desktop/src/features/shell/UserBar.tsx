@@ -102,6 +102,13 @@ export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSett
     setQuickSwitchOpen(false);
     setQuickSwitchQuery("");
     if (kind === "channel") {
+      const channelsMap = useSyncStore.getState().channelsByGuild;
+      for (const [gId, list] of Object.entries(channelsMap)) {
+        if (list.some((c) => c.channelId === id)) {
+          useUiStore.getState().setActiveGuild(gId);
+          break;
+        }
+      }
       useUiStore.getState().setActiveChannel(id);
     } else {
       useFriendsStore.getState().openDirectMessage(id);

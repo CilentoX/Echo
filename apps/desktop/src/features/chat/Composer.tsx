@@ -93,6 +93,13 @@ export default function Composer({
   const [editMode, setEditMode] = useState<string | null>(null); // eventId da mensagem sendo editada
   const [replyTo, setReplyTo] = useState<{ eventId: string; sender: string; body: string } | null>(null);
 
+  // Limpa estados transitórios (edição/resposta/autocomplete) ao trocar de canal ou DM
+  useEffect(() => {
+    setEditMode(null);
+    setReplyTo(null);
+    setAutocomplete(null);
+  }, [roomId]);
+
   // Escuta evento echo:reply-to disparado pelo botão "Responder" em MessageBubble
   useEffect(() => {
     const handleReplyTo = (e: Event) => {

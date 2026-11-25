@@ -28,6 +28,8 @@ export default function VoiceRecorder({ onCancel, onSend }: VoiceRecorderProps) 
   const echoCancellation = useSettingsStore((s) => s.echoCancellation);
   const noiseSuppression = useSettingsStore((s) => s.noiseSuppression);
   const autoGainControl = useSettingsStore((s) => s.autoGainControl);
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
 
   const stopAudioCapture = useCallback(() => {
     if (timerIntervalRef.current) {
@@ -56,14 +58,17 @@ export default function VoiceRecorder({ onCancel, onSend }: VoiceRecorderProps) 
 
     const md = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
     if (!md?.getUserMedia) {
-      onCancel();
+      onCancelRef.current();
       return;
     }
 
     try {
       const stream = await md.getUserMedia({
         audio: {
-          deviceId: microphoneDevice ? { exact: microphoneDevice } : undefined,
+          deviceId:
+            microphoneDevice && microphoneDevice !== "default"
+              ? { ideal: microphoneDevice }
+              : undefined,
           echoCancellation,
           noiseSuppression,
           autoGainControl,
@@ -133,9 +138,9 @@ export default function VoiceRecorder({ onCancel, onSend }: VoiceRecorderProps) 
       }
     } catch {
       stopAudioCapture();
-      onCancel();
+      onCancelRef.current();
     }
-  }, [microphoneDevice, echoCancellation, noiseSuppression, autoGainControl, onCancel, stopAudioCapture]);
+  }, [microphoneDevice, echoCancellation, noiseSuppression, autoGainControl, stopAudioCapture]);
 
   useEffect(() => {
     void startRecording();

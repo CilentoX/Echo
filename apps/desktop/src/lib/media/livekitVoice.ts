@@ -72,13 +72,19 @@ class LiveKitVoiceManager {
       adaptiveStream: true,
       dynacast: true,
       audioCaptureDefaults: {
-        deviceId: settings.microphoneDevice ? { exact: settings.microphoneDevice } : undefined,
+        deviceId:
+          settings.microphoneDevice && settings.microphoneDevice !== "default"
+            ? { ideal: settings.microphoneDevice }
+            : undefined,
         echoCancellation: settings.echoCancellation ?? true,
         noiseSuppression: settings.noiseSuppression ?? true,
         autoGainControl: settings.autoGainControl ?? true,
       },
       videoCaptureDefaults: {
-        deviceId: settings.cameraDevice ? { exact: settings.cameraDevice } : undefined,
+        deviceId:
+          settings.cameraDevice && settings.cameraDevice !== "default"
+            ? { ideal: settings.cameraDevice }
+            : undefined,
       },
     });
 
@@ -93,7 +99,10 @@ class LiveKitVoiceManager {
 
       // Publica microfone inicial respeitando estado de mudo
       await room.localParticipant.setMicrophoneEnabled(!isMuted, {
-        deviceId: settings.microphoneDevice ? { exact: settings.microphoneDevice } : undefined,
+        deviceId:
+          settings.microphoneDevice && settings.microphoneDevice !== "default"
+            ? { ideal: settings.microphoneDevice }
+            : undefined,
         echoCancellation: settings.echoCancellation ?? true,
         noiseSuppression: settings.noiseSuppression ?? true,
         autoGainControl: settings.autoGainControl ?? true,

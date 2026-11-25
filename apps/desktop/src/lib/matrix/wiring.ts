@@ -586,6 +586,7 @@ export function stopSyncWiring(): void {
   } catch {}
 
   useUnreadStore.getState().resetAll();
+  useFriendsStore.getState().reset();
   useSyncStore.getState().reset();
   const ui = useUiStore.getState();
   ui.setMyUserId(null);

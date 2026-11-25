@@ -42,31 +42,36 @@ class VoiceTransportRouter {
     } catch {}
 
     if (useLiveKit && serverUrl && token) {
-      this.mode = "livekit";
-      await livekitVoice.join(
-        guildId,
-        channelId,
-        userId,
-        username,
-        avatarUrl,
-        isMuted,
-        isDeafened,
-        callbacks,
-        { serverUrl, token },
-      );
-    } else {
-      this.mode = "webrtc";
-      await webrtcVoice.join(
-        guildId,
-        channelId,
-        userId,
-        username,
-        avatarUrl,
-        isMuted,
-        isDeafened,
-        callbacks,
-      );
+      try {
+        this.mode = "livekit";
+        await livekitVoice.join(
+          guildId,
+          channelId,
+          userId,
+          username,
+          avatarUrl,
+          isMuted,
+          isDeafened,
+          callbacks,
+          { serverUrl, token },
+        );
+        return;
+      } catch (err) {
+        console.warn("[voiceTransport] Falha ao conectar ao LiveKit SFU, fazendo fallback para WebRTC:", err);
+      }
     }
+
+    this.mode = "webrtc";
+    await webrtcVoice.join(
+      guildId,
+      channelId,
+      userId,
+      username,
+      avatarUrl,
+      isMuted,
+      isDeafened,
+      callbacks,
+    );
   }
 
   public async leave(): Promise<void> {
