@@ -189,4 +189,52 @@ describe("ChatPane", () => {
     expect(screen.getByTestId("voice-stage")).toBeTruthy();
     expect(screen.getByText("Bate-Papo de Voz")).toBeTruthy();
   });
+
+  it("abre a barra de busca ao clicar no botão de busca e filtra as mensagens", async () => {
+    const user = userEvent.setup();
+    setTimeline([
+      ev({ eventId: "e1", body: "Primeira mensagem importante" }),
+      ev({ eventId: "e2", body: "Outra coisa qualquer" }),
+    ]);
+
+    render(<ChatPane sendMessage={vi.fn()} />);
+
+    expect(screen.getByText("Primeira mensagem importante")).toBeTruthy();
+    expect(screen.getByText("Outra coisa qualquer")).toBeTruthy();
+
+    const searchBtn = screen.getByLabelText("Buscar mensagens");
+    await user.click(searchBtn);
+
+    const searchInput = screen.getByPlaceholderText("Filtrar mensagens neste canal...");
+    expect(searchInput).toBeTruthy();
+
+    await user.type(searchInput, "importante");
+
+    expect(screen.getByText("Primeira mensagem importante")).toBeTruthy();
+    expect(screen.queryByText("Outra coisa qualquer")).toBeNull();
+    expect(screen.getByText("1 resultado")).toBeTruthy();
+
+    // Fecha a busca
+    const closeBtn = screen.getByLabelText("Limpar e fechar busca");
+    await user.click(closeBtn);
+
+    expect(screen.queryByPlaceholderText("Filtrar mensagens neste canal...")).toBeNull();
+    expect(screen.getByText("Outra coisa qualquer")).toBeTruthy();
+  });
+
+  it("exibe estado vazio de busca quando nenhum resultado é encontrado", async () => {
+    const user = userEvent.setup();
+    setTimeline([ev({ eventId: "e1", body: "Olá mundo" })]);
+
+    render(<ChatPane sendMessage={vi.fn()} />);
+
+    const searchBtn = screen.getByLabelText("Buscar mensagens");
+    await user.click(searchBtn);
+
+    const searchInput = screen.getByPlaceholderText("Filtrar mensagens neste canal...");
+    await user.type(searchInput, "termo_inexistente_xyz");
+
+    expect(screen.getByText("Nenhum resultado encontrado")).toBeTruthy();
+    expect(screen.getByText("0 resultados")).toBeTruthy();
+  });
 });

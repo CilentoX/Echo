@@ -24,6 +24,8 @@ export interface ChatHeaderProps {
   showMembersToggle?: boolean;
   onToggleSidebar?: () => void;
   onToggleMembers?: () => void;
+  onToggleSearch?: () => void;
+  isSearchOpen?: boolean;
 }
 
 export default function ChatHeader({
@@ -34,6 +36,8 @@ export default function ChatHeader({
   showMembersToggle = false,
   onToggleSidebar,
   onToggleMembers,
+  onToggleSearch,
+  isSearchOpen = false,
 }: ChatHeaderProps) {
   const friends = useFriendsStore((s) => s.friends);
   const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
@@ -242,11 +246,16 @@ export default function ChatHeader({
 
         <button
           type="button"
-          title="Buscar mensagens"
-          aria-label="Buscar mensagens"
-          className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-mut hover:bg-surf2 hover:text-txt transition-colors"
+          onClick={onToggleSearch}
+          title={isSearchOpen ? "Fechar busca (Esc)" : "Buscar mensagens (Ctrl+F)"}
+          aria-label={isSearchOpen ? "Fechar busca" : "Buscar mensagens"}
+          className={`cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+            isSearchOpen
+              ? "bg-acc/15 text-acc hover:bg-acc/25 shadow-xs"
+              : "text-mut hover:bg-surf2 hover:text-txt"
+          }`}
         >
-          <MagnifyingGlass size={18} />
+          <MagnifyingGlass size={18} weight={isSearchOpen ? "bold" : "regular"} />
         </button>
 
         {showMembersToggle && !isDm && (

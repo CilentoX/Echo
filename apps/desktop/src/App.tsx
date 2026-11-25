@@ -14,6 +14,7 @@ import { webrtcVoice } from "@/lib/media/webrtcVoice";
 import { stopSharedAudio } from "@/features/voice/useVoiceActivity";
 import { stopSyncWiring } from "@/lib/matrix/wiring";
 import { useVoiceStore } from "@/stores/voiceStore";
+import { useGlobalVoiceShortcuts } from "@/features/voice/useGlobalVoiceShortcuts";
 
 /** R2: envio real via MatrixService; o Composer cuida do envio síncrono (P10). */
 
@@ -27,6 +28,7 @@ const BOT_SENDERS = ["@eco:eco"];
 /** Shell autenticado: AppShell (T3) com o ChatPane real (T10) no slot de children. */
 function Shell() {
   const loadProfile = useProfileStore((s) => s.loadProfile);
+  useGlobalVoiceShortcuts();
 
   useEffect(() => {
     void initNotifications();

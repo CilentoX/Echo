@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Hash, ArrowDown, UploadSimple } from "@phosphor-icons/react";
+import { Hash, ArrowDown, UploadSimple, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { selectTimeline, useSyncStore } from "@/stores/syncStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -78,6 +78,50 @@ export default function ChatPane({
     useMemo(() => selectTimeline(activeChannelId ?? ""), [activeChannelId]),
   );
 
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Fecha busca ao trocar de canal ou guilda
+  useEffect(() => {
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  }, [activeChannelId, activeGuildId]);
+
+  // Atalho de teclado local para busca no chat: Ctrl+F / Cmd+F e Esc
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setIsSearchOpen((prev) => {
+          const next = !prev;
+          if (next) {
+            setTimeout(() => searchInputRef.current?.focus(), 50);
+          }
+          return next;
+        });
+        return;
+      }
+      if (e.key === "Escape" && isSearchOpen) {
+        e.preventDefault();
+        setIsSearchOpen(false);
+        setSearchQuery("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSearchOpen]);
+
+  const effectiveTimeline = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!isSearchOpen || !q) return timeline;
+    return timeline.filter((e) => {
+      const matchBody = e.body?.toLowerCase().includes(q);
+      const matchSender = e.sender?.toLowerCase().includes(q);
+      return matchBody || matchSender;
+    });
+  }, [timeline, isSearchOpen, searchQuery]);
+
   // Typing indicator do store (via wiring onTyping → uiStore.setTypingUsers)
   const typingUsers = useUiStore(
     useShallow((state) => (activeChannelId ? state.typingUsers[activeChannelId] ?? [] : [])),
@@ -102,7 +146,7 @@ export default function ChatPane({
     }
   };
 
-  const groups = useMemo(() => groupMessages(timeline), [timeline]);
+  const groups = useMemo(() => groupMessages(effectiveTimeline), [effectiveTimeline]);
 
   const roomMembers = useSyncStore((s) => (activeChannelId ? s.membersByRoom[activeChannelId] : undefined));
   const selectedFriendId = useFriendsStore((s) => s.selectedFriendId);
@@ -214,14 +258,17 @@ export default function ChatPane({
     const items: Array<
       | { kind: "hero"; id: string }
       | { kind: "empty"; id: string }
+      | { kind: "search_empty"; id: string }
       | { kind: "message"; id: string; event: (typeof timeline)[number]; showHeader: boolean }
     > = [];
 
-    if (activeFriend || (!isGuild && !activeFriend)) {
+    if (!isSearchOpen && (activeFriend || (!isGuild && !activeFriend))) {
       items.push({ kind: "hero", id: "hero" });
     }
 
-    if (timeline.length === 0) {
+    if (isSearchOpen && searchQuery.trim() && effectiveTimeline.length === 0) {
+      items.push({ kind: "search_empty", id: "search_empty" });
+    } else if (effectiveTimeline.length === 0) {
       items.push({ kind: "empty", id: "empty" });
     } else {
       for (const group of groups) {
@@ -237,7 +284,7 @@ export default function ChatPane({
     }
 
     return items;
-  }, [groups, timeline.length, activeFriend, isGuild]);
+  }, [groups, effectiveTimeline.length, activeFriend, isGuild, isSearchOpen, searchQuery]);
 
   const rowVirtualizer = useVirtualizer({
     count: virtualItems.length,
@@ -400,7 +447,51 @@ export default function ChatPane({
         showMembersToggle={showMembersToggle}
         onToggleSidebar={onToggleSidebar}
         onToggleMembers={onToggleMembers}
+        onToggleSearch={() => {
+          setIsSearchOpen((prev) => {
+            const next = !prev;
+            if (next) {
+              setTimeout(() => searchInputRef.current?.focus(), 50);
+            } else {
+              setSearchQuery("");
+            }
+            return next;
+          });
+        }}
+        isSearchOpen={isSearchOpen}
       />
+
+      {/* Barra de Pesquisa Rápida no Canal (Ctrl+F) */}
+      {isSearchOpen && (
+        <div className="flex items-center gap-2.5 px-4 py-2 border-b border-bd/80 bg-surf/80 backdrop-blur-md animate-in fade-in-0 slide-in-from-top-1 duration-150 z-10">
+          <MagnifyingGlass size={16} className="text-acc shrink-0" weight="bold" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filtrar mensagens neste canal..."
+            className="flex-1 bg-transparent border-none outline-none text-xs text-txt placeholder:text-mut/60"
+          />
+          {searchQuery && (
+            <span className="text-[11px] font-mono text-mut/80 shrink-0">
+              {effectiveTimeline.length} {effectiveTimeline.length === 1 ? "resultado" : "resultados"}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchOpen(false);
+              setSearchQuery("");
+            }}
+            title="Fechar busca (Esc)"
+            aria-label="Limpar e fechar busca"
+            className="cursor-pointer p-1 rounded-md text-mut hover:text-txt hover:bg-white/[0.06] active:scale-95 transition-all shrink-0"
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
+      )}
 
       <div ref={scrollRef} onScroll={handleVirtualScroll} className="flex-1 min-h-0 overflow-y-auto">
         <div
@@ -488,6 +579,32 @@ export default function ChatPane({
                   }}
                 >
                   <p className="px-6 py-4 text-sm text-mut">Nenhuma mensagem ainda. Diga olá!</p>
+                </div>
+              );
+            }
+
+            if (item.kind === "search_empty") {
+              return (
+                <div
+                  key={item.id}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className="px-6 py-8 flex flex-col items-center justify-center text-center text-mut"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-bd-subtle flex items-center justify-center mb-3 text-acc/70 shadow-inner">
+                    <MagnifyingGlass size={22} weight="bold" />
+                  </div>
+                  <p className="text-sm font-semibold text-txt">Nenhum resultado encontrado</p>
+                  <p className="text-xs text-mut/80 mt-1 max-w-xs">
+                    Nenhuma mensagem em <strong className="text-txt">#{channelName}</strong> corresponde a &ldquo;{searchQuery}&rdquo;.
+                  </p>
                 </div>
               );
             }
