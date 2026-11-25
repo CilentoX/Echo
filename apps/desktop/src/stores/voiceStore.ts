@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useUiStore } from "./uiStore";
 import { useSettingsStore } from "./settingsStore";
 import { webrtcVoice } from "@/lib/media/webrtcVoice";
+import { voiceTransport } from "@/lib/media/voiceTransport";
 import { audioEngine } from "@/lib/media/audioEngine";
 import { playVoiceJoin, playVoiceLeave } from "@/lib/notifications/sound";
 
@@ -172,7 +173,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     });
 
     // Inicia conexão WebRTC real e presença em rede
-    void webrtcVoice.join(
+    void voiceTransport.join(
       guildId,
       channelId,
       myUserId,
@@ -346,7 +347,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   disconnectVoice: () => {
-    void webrtcVoice.leave();
+    void voiceTransport.leave();
     void audioEngine.playVoiceDisconnected();
     set({
       activeVoiceGuildId: null,
@@ -562,7 +563,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   setPing: (pingMs) => set({ pingMs }),
 
   setParticipantVolume: (userId, volume) => {
-    webrtcVoice.setParticipantVolume(userId, volume);
+    voiceTransport.setParticipantVolume(userId, volume);
     set((state) => ({
       participants: state.participants.map((p) =>
         p.userId === userId ? { ...p, volume } : p,
@@ -658,10 +659,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
           const nextMuted = !p.isMuted;
           if (isMe) {
-            webrtcVoice.setMicrophoneMuted(nextMuted);
+            voiceTransport.setMicrophoneMuted(nextMuted);
             useSettingsStore.getState().setMicrophoneEnabled(!nextMuted);
             void audioEngine.playVoiceCue(nextMuted ? "mute" : "unmute");
-            void webrtcVoice.tickHeartbeat();
+            void voiceTransport.tickHeartbeat();
           }
           if (nextMuted) {
             nextIsSpeaking = false;
@@ -699,14 +700,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         if (p.userId === targetId || (targetId === "me" && p.userId === state.participants[0]?.userId)) {
           const nextDeafened = !p.isDeafened;
           if (isMe) {
-            webrtcVoice.setDeafened(nextDeafened);
+            voiceTransport.setDeafened(nextDeafened);
             if (nextDeafened) {
-              webrtcVoice.setMicrophoneMuted(true);
+              voiceTransport.setMicrophoneMuted(true);
               useSettingsStore.getState().setMicrophoneEnabled(false);
             }
             useSettingsStore.getState().setHeadphonesEnabled(!nextDeafened);
             void audioEngine.playVoiceCue(nextDeafened ? "deafen" : "undeafen");
-            void webrtcVoice.tickHeartbeat();
+            void voiceTransport.tickHeartbeat();
           }
           if (nextDeafened) {
             nextIsSpeaking = false;
@@ -737,9 +738,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       const myId = useUiStore.getState().myUserId || "me";
       const isMe = userId === "me" || userId === myId || userId === state.participants[0]?.userId;
       if (isMe) {
-        webrtcVoice.setMicrophoneMuted(isMuted);
+        voiceTransport.setMicrophoneMuted(isMuted);
         useSettingsStore.getState().setMicrophoneEnabled(!isMuted);
-        void webrtcVoice.tickHeartbeat();
+        void voiceTransport.tickHeartbeat();
       }
 
       const nextSpeakingMembers = isMuted
@@ -767,13 +768,13 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       const myId = useUiStore.getState().myUserId || "me";
       const isMe = userId === "me" || userId === myId || userId === state.participants[0]?.userId;
       if (isMe) {
-        webrtcVoice.setDeafened(isDeafened);
+        voiceTransport.setDeafened(isDeafened);
         if (isDeafened) {
-          webrtcVoice.setMicrophoneMuted(true);
+          voiceTransport.setMicrophoneMuted(true);
           useSettingsStore.getState().setMicrophoneEnabled(false);
         }
         useSettingsStore.getState().setHeadphonesEnabled(!isDeafened);
-        void webrtcVoice.tickHeartbeat();
+        void voiceTransport.tickHeartbeat();
       }
 
       const nextSpeakingMembers = isDeafened

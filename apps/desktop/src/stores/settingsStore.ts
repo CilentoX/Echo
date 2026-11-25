@@ -207,7 +207,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setMicrophoneDevice: (id) => {
     set({ microphoneDevice: id });
     persistAudioConfig({ microphoneDevice: id });
-    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+    import("@/lib/media/voiceTransport").then(({ voiceTransport: webrtcVoice }) => {
       void webrtcVoice.switchMicrophone(id);
     }).catch(() => {});
   },
@@ -221,7 +221,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({ headphonesDevice: id });
     persistAudioConfig({ headphonesDevice: id });
     // Aplica setSinkId em todos os peers remotos ativos via webrtcVoice
-    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+    import("@/lib/media/voiceTransport").then(({ voiceTransport: webrtcVoice }) => {
       void webrtcVoice.setOutputDevice(id);
     }).catch(() => {});
   },
@@ -233,28 +233,28 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setOutputVolume: (v) => {
     set({ outputVolume: v });
     persistAudioConfig({ outputVolume: v });
-    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+    import("@/lib/media/voiceTransport").then(({ voiceTransport: webrtcVoice }) => {
       webrtcVoice.setMasterOutputVolume(v);
     }).catch(() => {});
   },
   setNoiseSuppression: (v) => {
     set({ noiseSuppression: v });
     persistAudioConfig({ noiseSuppression: v });
-    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+    import("@/lib/media/voiceTransport").then(({ voiceTransport: webrtcVoice }) => {
       void webrtcVoice.updateAudioConstraints({ noiseSuppression: v });
     }).catch(() => {});
   },
   setEchoCancellation: (v) => {
     set({ echoCancellation: v });
     persistAudioConfig({ echoCancellation: v });
-    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+    import("@/lib/media/voiceTransport").then(({ voiceTransport: webrtcVoice }) => {
       void webrtcVoice.updateAudioConstraints({ echoCancellation: v });
     }).catch(() => {});
   },
   setAutoGainControl: (v) => {
     set({ autoGainControl: v });
     persistAudioConfig({ autoGainControl: v });
-    import("@/lib/media/webrtcVoice").then(({ webrtcVoice }) => {
+    import("@/lib/media/voiceTransport").then(({ voiceTransport: webrtcVoice }) => {
       void webrtcVoice.updateAudioConstraints({ autoGainControl: v });
     }).catch(() => {});
   },

@@ -44,7 +44,7 @@ import { hasChannelPermission } from "@/lib/permissions/channelPermissions";
 import SoundboardPopover, { playSoundboardById, type SoundEffect } from "./SoundboardPopover";
 import ScreenShareModal from "./ScreenShareModal";
 import type { ScreenShareConfig } from "@/stores/voiceStore";
-import { webrtcVoice } from "@/lib/media/webrtcVoice";
+import { voiceTransport } from "@/lib/media/voiceTransport";
 
 function RemoteParticipantVideo({ stream }: { stream: MediaStream }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -335,7 +335,7 @@ export default function VoiceStage({
       }
       setScreenSharing(false);
       setScreenShareConfig(null);
-      void webrtcVoice.setLocalScreenShare(null);
+      void voiceTransport.setLocalScreenShare(null);
       return;
     }
 
@@ -417,7 +417,7 @@ export default function VoiceStage({
             screenStreamRef.current = null;
             setScreenSharing(false);
             setScreenShareConfig(null);
-            void webrtcVoice.setLocalScreenShare(null);
+            void voiceTransport.setLocalScreenShare(null);
           };
         }
         if (screenVideoRef.current) {
@@ -425,7 +425,7 @@ export default function VoiceStage({
           screenVideoRef.current.play().catch(() => {});
         }
         setScreenSharing(true);
-        void webrtcVoice.setLocalScreenShare(stream, {
+        void voiceTransport.setLocalScreenShare(stream, {
           contentHint: config.contentHint,
           qualityPreset: config.qualityPreset,
         });
@@ -448,7 +448,7 @@ export default function VoiceStage({
       }
       globalCameraStream = null;
       setCameraOn(false);
-      void webrtcVoice.setLocalCamera(null);
+      void voiceTransport.setLocalCamera(null);
       return;
     }
 
@@ -468,11 +468,11 @@ export default function VoiceStage({
             cameraStreamRef.current = null;
             globalCameraStream = null;
             setCameraOn(false);
-            void webrtcVoice.setLocalCamera(null);
+            void voiceTransport.setLocalCamera(null);
           };
         }
         setCameraOn(true);
-        void webrtcVoice.setLocalCamera(stream!);
+        void voiceTransport.setLocalCamera(stream!);
       } else {
         setCameraOn(true);
       }
@@ -486,12 +486,12 @@ export default function VoiceStage({
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
         screenStreamRef.current = null;
-        void webrtcVoice.setLocalScreenShare(null);
+        void voiceTransport.setLocalScreenShare(null);
       }
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((t) => t.stop());
         cameraStreamRef.current = null;
-        void webrtcVoice.setLocalCamera(null);
+        void voiceTransport.setLocalCamera(null);
       }
     };
   }, []);
@@ -590,12 +590,12 @@ export default function VoiceStage({
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach((t) => t.stop());
       screenStreamRef.current = null;
-      void webrtcVoice.setLocalScreenShare(null);
+      void voiceTransport.setLocalScreenShare(null);
     }
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach((t) => t.stop());
       cameraStreamRef.current = null;
-      void webrtcVoice.setLocalCamera(null);
+      void voiceTransport.setLocalCamera(null);
     }
     disconnectVoice();
     if (channelId.startsWith("temp-voice-") && activeGuildId) {
@@ -664,9 +664,9 @@ export default function VoiceStage({
       const p = participants.find((part) => part.userId === activeStreamUserId);
       const stream =
         remoteScreenStreams[activeStreamUserId] ||
-        webrtcVoice.getRemoteScreenStream(activeStreamUserId) ||
+        voiceTransport.getRemoteScreenStream(activeStreamUserId) ||
         remoteVideoStreams[activeStreamUserId] ||
-        webrtcVoice.getRemoteVideoStream(activeStreamUserId);
+        voiceTransport.getRemoteVideoStream(activeStreamUserId);
       if (p || stream) {
         activeParticipant = {
           userId: activeStreamUserId,
@@ -693,9 +693,9 @@ export default function VoiceStage({
       const first = remoteSharers[0];
       const stream =
         remoteScreenStreams[first.userId] ||
-        webrtcVoice.getRemoteScreenStream(first.userId) ||
+        voiceTransport.getRemoteScreenStream(first.userId) ||
         remoteVideoStreams[first.userId] ||
-        webrtcVoice.getRemoteVideoStream(first.userId);
+        voiceTransport.getRemoteVideoStream(first.userId);
       activeParticipant = {
         userId: first.userId,
         username: guildProfiles?.[first.userId]?.nickname || first.username,
@@ -822,7 +822,7 @@ export default function VoiceStage({
 
     const remoteCamStream = !isMe
       ? remoteCameraStreams[participant.userId] ||
-        webrtcVoice.getRemoteCameraStream(participant.userId) ||
+        voiceTransport.getRemoteCameraStream(participant.userId) ||
         (!participant.isScreenSharing ? remoteVideoStreams[participant.userId] : undefined)
       : undefined;
 
@@ -1382,7 +1382,7 @@ export default function VoiceStage({
           activeParticipant &&
           !activeParticipant.isMe &&
           (remoteCameraStreams[activeParticipant.userId] ||
-            webrtcVoice.getRemoteCameraStream(activeParticipant.userId)) && (
+            voiceTransport.getRemoteCameraStream(activeParticipant.userId)) && (
             <div
               role="region"
               aria-label={`Webcam de ${activeParticipant.username}`}
@@ -1391,7 +1391,7 @@ export default function VoiceStage({
               <RemoteParticipantVideo
                 stream={
                   (remoteCameraStreams[activeParticipant.userId] ||
-                    webrtcVoice.getRemoteCameraStream(activeParticipant.userId))!
+                    voiceTransport.getRemoteCameraStream(activeParticipant.userId))!
                 }
               />
               <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/70 text-white text-[10px] font-semibold backdrop-blur-sm">

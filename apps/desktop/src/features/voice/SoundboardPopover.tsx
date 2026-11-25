@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { SpeakerHigh, Sparkle } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { webrtcVoice } from "@/lib/media/webrtcVoice";
+import { voiceTransport } from "@/lib/media/voiceTransport";
 
 export interface SoundEffect {
   id: string;
@@ -193,7 +193,7 @@ export default function SoundboardPopover({ onPlaySound }: SoundboardPopoverProp
     sound.play();
     setActiveSoundId(sound.id);
     onPlaySound?.(sound);
-    void webrtcVoice.sendSoundboardEffect(sound.id);
+    void voiceTransport.sendSoundboardEffect(sound.id);
     setTimeout(() => setActiveSoundId((curr) => (curr === sound.id ? null : curr)), 600);
   };
 

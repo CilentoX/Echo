@@ -1634,6 +1634,17 @@ export class EchoApi {
     return res.json();
   }
 
+  /** Requests a LiveKit SFU JWT token if LiveKit is enabled on the backend. */
+  async getVoiceToken(
+    channelId: string,
+    data?: { username?: string; avatarUrl?: string | null },
+  ): Promise<{ enabled: boolean; serverUrl: string | null; token: string | null; roomName?: string }> {
+    const encoded = encodeURIComponent(channelId);
+    const res = await this.post(`/api/channels/${encoded}/voice/token`, data ?? {});
+    if (!res.ok) return { enabled: false, serverUrl: null, token: null };
+    return res.json();
+  }
+
   /** Heartbeat for active voice session. */
   async voiceHeartbeat(
     channelId: string,
