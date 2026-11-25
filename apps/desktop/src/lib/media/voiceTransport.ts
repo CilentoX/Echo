@@ -98,6 +98,11 @@ class VoiceTransportRouter {
     else webrtcVoice.setParticipantVolume(userId, volume);
   }
 
+  public setScreenShareVolume(userId: string, volume: number) {
+    if (this.mode === "livekit") livekitVoice.setScreenShareVolume(userId, volume);
+    else webrtcVoice.setParticipantVolume(userId, volume);
+  }
+
   public setMasterOutputVolume(volume: number) {
     if (this.mode === "livekit") livekitVoice.setMasterOutputVolume(volume);
     else webrtcVoice.setMasterOutputVolume(volume);

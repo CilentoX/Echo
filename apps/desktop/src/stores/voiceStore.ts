@@ -83,6 +83,7 @@ export interface VoiceState {
   setParticipantSpeaking: (userId: string, isSpeaking: boolean) => void;
   setPing: (pingMs: number) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
+  setScreenShareVolume: (userId: string, volume: number) => void;
   addParticipant: (participant: VoiceParticipant) => void;
   removeParticipant: (userId: string) => void;
   moveParticipantToChannel: (
@@ -564,11 +565,17 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   setParticipantVolume: (userId, volume) => {
     voiceTransport.setParticipantVolume(userId, volume);
+    try { useSettingsStore.getState().setParticipantVolume(userId, volume); } catch {}
     set((state) => ({
       participants: state.participants.map((p) =>
         p.userId === userId ? { ...p, volume } : p,
       ),
     }));
+  },
+
+  setScreenShareVolume: (userId, volume) => {
+    voiceTransport.setScreenShareVolume(userId, volume);
+    try { useSettingsStore.getState().setScreenShareVolume(userId, volume); } catch {}
   },
 
   addParticipant: (participant) => {

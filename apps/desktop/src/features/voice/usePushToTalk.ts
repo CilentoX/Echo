@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useVoiceStore } from "@/stores/voiceStore";
 import { useUiStore } from "@/stores/uiStore";
-import { webrtcVoice } from "@/lib/media/webrtcVoice";
+import { voiceTransport } from "@/lib/media/voiceTransport";
 import { audioEngine } from "@/lib/media/audioEngine";
 
 /**
@@ -40,12 +40,12 @@ export function usePushToTalk() {
     if (inputMode === "push_to_talk") {
       // No modo PTT, o microfone fica mudo por padrão até pressionar a tecla
       if (!isHoldingKeyRef.current) {
-        webrtcVoice.setMicrophoneMuted(true);
+        voiceTransport.setMicrophoneMuted(true);
         setSpeaking(false);
       }
     } else {
       // No modo Voice Activity, respeita a preferência geral do microfone
-      webrtcVoice.setMicrophoneMuted(!microphoneEnabled || !headphonesEnabled);
+      voiceTransport.setMicrophoneMuted(!microphoneEnabled || !headphonesEnabled);
     }
   }, [isConnected, inputMode, microphoneEnabled, headphonesEnabled]);
 
@@ -89,7 +89,7 @@ export function usePushToTalk() {
         // Se o usuário estiver desmutado nas configurações globais
         if (microphoneEnabled && headphonesEnabled) {
           setPttActive(true);
-          webrtcVoice.setMicrophoneMuted(false);
+          voiceTransport.setMicrophoneMuted(false);
           setSpeaking(true);
           if (myUserId) {
             setParticipantSpeaking(myUserId, true);
@@ -111,7 +111,7 @@ export function usePushToTalk() {
 
         releaseTimerRef.current = setTimeout(() => {
           setPttActive(false);
-          webrtcVoice.setMicrophoneMuted(true);
+          voiceTransport.setMicrophoneMuted(true);
           setSpeaking(false);
           if (myUserId) {
             setParticipantSpeaking(myUserId, false);
@@ -128,7 +128,7 @@ export function usePushToTalk() {
       if (isHoldingKeyRef.current) {
         isHoldingKeyRef.current = false;
         setPttActive(false);
-        webrtcVoice.setMicrophoneMuted(true);
+        voiceTransport.setMicrophoneMuted(true);
         setSpeaking(false);
       }
     };

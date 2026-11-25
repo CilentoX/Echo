@@ -12,6 +12,7 @@ import { CaretDown, Clock, Gear, Hash, Headphones, MagnifyingGlass, Microphone, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AudioDeviceQuickMenu from "./AudioDeviceQuickMenu";
 import PresenceQuickPopover from "./PresenceQuickPopover";
+import { useGlobalVoiceShortcuts } from "@/features/voice/useGlobalVoiceShortcuts";
 
 export interface UserBarProps {
   onOpenProfile?: () => void;
@@ -26,6 +27,7 @@ export interface UserBarProps {
  * controles de áudio (microfone e fone com mute/deafen) e acesso a configurações.
  */
 export default function UserBar({ onOpenProfile, onOpenSettings, onOpenVoiceSettings }: UserBarProps) {
+  useGlobalVoiceShortcuts();
   const myUserId = useUiStore((s) => s.myUserId);
   const username = useProfileStore((s) => s.username);
   const nickname = useProfileStore((s) => s.nickname);

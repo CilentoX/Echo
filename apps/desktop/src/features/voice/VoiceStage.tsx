@@ -125,15 +125,23 @@ export default function VoiceStage({
   const activeStreamUserId = useVoiceStore((s) => s.activeStreamUserId);
   const setActiveStreamUserId = useVoiceStore((s) => s.setActiveStreamUserId);
   const setParticipantVolume = useVoiceStore((s) => s.setParticipantVolume);
+  const setScreenShareVolume = useVoiceStore((s) => s.setScreenShareVolume);
 
   const [screenShareModalOpen, setScreenShareModalOpen] = useState(false);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [availableMics, setAvailableMics] = useState<MediaDeviceInfo[]>([]);
   const [availableSpeakers, setAvailableSpeakers] = useState<MediaDeviceInfo[]>([]);
   const microphoneDevice = useSettingsStore((s) => s.microphoneDevice);
   const headphonesDevice = useSettingsStore((s) => s.headphonesDevice);
   const setMicrophoneDevice = useSettingsStore((s) => s.setMicrophoneDevice);
   const setHeadphonesDevice = useSettingsStore((s) => s.setHeadphonesDevice);
+  const participantVolumes = useSettingsStore((s) => s.participantVolumes);
+  const screenShareVolumes = useSettingsStore((s) => s.screenShareVolumes);
+  const noiseSuppression = useSettingsStore((s) => s.noiseSuppression);
+  const echoCancellation = useSettingsStore((s) => s.echoCancellation);
+  const autoGainControl = useSettingsStore((s) => s.autoGainControl);
+  const inputMode = useSettingsStore((s) => s.inputMode);
   const [webcamPosition, setWebcamPosition] = useState<{ xPercent: number; yPercent: number }>({
     xPercent: 74,
     yPercent: 60,
@@ -986,13 +994,13 @@ export default function VoiceStage({
                         min={0}
                         max={200}
                         step={5}
-                        defaultValue={participant.volume ?? 100}
+                        value={participant.volume ?? participantVolumes[memberUserId] ?? 100}
                         onChange={(e) => setParticipantVolume(memberUserId, Number(e.target.value))}
                         aria-label={`Volume de ${memberNick}`}
                         className="w-full h-1 accent-acc cursor-pointer"
                       />
                       <span className="text-[9px] font-mono text-mut w-7 text-right tabular-nums">
-                        {participant.volume ?? 100}%
+                        {participant.volume ?? participantVolumes[memberUserId] ?? 100}%
                       </span>
                     </div>
                   </div>
@@ -1169,6 +1177,26 @@ export default function VoiceStage({
                     <span>Cinema</span>
                   </button>
                 </div>
+
+                {/* Volume do Áudio da Transmissão de Tela (para quem assiste) */}
+                {!isCurrentActiveMe && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 border border-white/[0.12] backdrop-blur-md">
+                    <SpeakerHigh size={13} weight="bold" className="text-acc shrink-0" />
+                    <input
+                      type="range"
+                      min={0}
+                      max={200}
+                      step={5}
+                      value={screenShareVolumes[activeParticipant.userId] ?? 100}
+                      onChange={(e) => setScreenShareVolume(activeParticipant.userId, Number(e.target.value))}
+                      aria-label="Volume da transmissão de tela"
+                      className="w-16 sm:w-20 h-1 accent-acc cursor-pointer"
+                    />
+                    <span className="text-[10px] font-mono text-white/80 w-7 text-right tabular-nums">
+                      {screenShareVolumes[activeParticipant.userId] ?? 100}%
+                    </span>
+                  </div>
+                )}
 
                 {/* Botão Soltar Tela / Picture-in-Picture */}
                 <button
@@ -1437,11 +1465,81 @@ export default function VoiceStage({
                   <span>Conectando à voz...</span>
                 </span>
               ) : (
-                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-online/15 border border-online/30 text-[10px] font-semibold text-online shadow-xs">
-                  <ConnectionIcon size={14} weight="bold" className={connectionColor} />
-                  <span>Voz Conectada</span>
-                  <span className={`font-mono text-[9px] ml-1 ${connectionColor}`}>({pingMs}ms)</span>
-                </span>
+                <Popover open={diagnosticsOpen} onOpenChange={setDiagnosticsOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      title="Clique para ver detalhes de conexão e diagnóstico"
+                      aria-label="Diagnóstico da conexão de voz"
+                      className="cursor-pointer flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-online/15 border border-online/30 text-[10px] font-semibold text-online shadow-xs hover:bg-online/25 active:scale-95 transition-all"
+                    >
+                      <ConnectionIcon size={14} weight="bold" className={connectionColor} />
+                      <span>Voz Conectada</span>
+                      <span className={`font-mono text-[9px] ml-1 ${connectionColor}`}>({pingMs}ms)</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="bottom"
+                    align="start"
+                    sideOffset={6}
+                    className="w-72 p-3.5 rounded-2xl bg-[#12161f] border border-white/[0.08] text-txt shadow-2xl space-y-3 z-50 text-xs"
+                  >
+                    <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                      <span className="font-semibold text-txt flex items-center gap-1.5">
+                        <ConnectionIcon size={16} className={connectionColor} weight="bold" />
+                        Diagnóstico da Conexão
+                      </span>
+                      <span className={`font-mono text-[11px] font-bold ${connectionColor}`}>
+                        {pingMs}ms
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-mut">Transporte</span>
+                        <span className="font-medium text-acc">
+                          {voiceTransport.getMode() === "livekit" ? "LiveKit SFU" : "WebRTC Mesh"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-mut">Servidor SFU</span>
+                        <span className="font-mono text-txt/80">livekit.litteris.online</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-mut">Qualidade do Sinal</span>
+                        <span className="font-medium text-txt capitalize">{connectionQuality}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-mut">Codec de Voz</span>
+                        <span className="font-mono text-txt/80">Opus HD (48kHz)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-mut">Captura de Áudio</span>
+                        <span className="font-medium text-txt">
+                          {inputMode === "push_to_talk" ? "Push-to-Talk" : "Detecção de Voz (VAD)"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-mut">Filtro de Ruído</span>
+                        <span className={`font-medium ${noiseSuppression ? "text-online" : "text-mut"}`}>
+                          {noiseSuppression ? "Ativo" : "Desativado"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-mut">Cancelamento de Eco</span>
+                        <span className={`font-medium ${echoCancellation ? "text-online" : "text-mut"}`}>
+                          {echoCancellation ? "Ativo" : "Desativado"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-mut">Ganho Automático</span>
+                        <span className={`font-medium ${autoGainControl ? "text-online" : "text-mut"}`}>
+                          {autoGainControl ? "Ativo" : "Desativado"}
+                        </span>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               )}
               {!canSpeak && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-semibold text-amber-400">

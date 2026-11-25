@@ -43,11 +43,17 @@ export interface SettingsState {
   /** Quick Switch Favorites — IDs de canais/guildas/DMs fixados pelo usuário */
   quickSwitchFavorites: string[];
 
+  /** Volumes individuais persistidos (0 a 200) por participante e por transmissão de tela */
+  participantVolumes: Record<string, number>;
+  screenShareVolumes: Record<string, number>;
+
   /** Sessões */
   currentSessionDevice: string | null;
 
   toggleQuickSwitchFavorite(id: string): void;
   setQuickSwitchFavorites(ids: string[]): void;
+  setParticipantVolume(userId: string, volume: number): void;
+  setScreenShareVolume(userId: string, volume: number): void;
 
   setScreenShareResolution(v: "720p" | "1080p"): void;
   setScreenShareFps(v: 30 | 60): void;
@@ -166,7 +172,37 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     } catch { return [] as string[]; }
   })(),
 
+  participantVolumes: (() => {
+    try {
+      const raw = localStorage.getItem("echo:participantVolumes");
+      return raw !== null ? JSON.parse(raw) : {};
+    } catch { return {} as Record<string, number>; }
+  })(),
+
+  screenShareVolumes: (() => {
+    try {
+      const raw = localStorage.getItem("echo:screenShareVolumes");
+      return raw !== null ? JSON.parse(raw) : {};
+    } catch { return {} as Record<string, number>; }
+  })(),
+
   currentSessionDevice: null,
+
+  setParticipantVolume: (userId, volume) => {
+    set((s) => {
+      const next = { ...s.participantVolumes, [userId]: volume };
+      try { localStorage.setItem("echo:participantVolumes", JSON.stringify(next)); } catch {}
+      return { participantVolumes: next };
+    });
+  },
+
+  setScreenShareVolume: (userId, volume) => {
+    set((s) => {
+      const next = { ...s.screenShareVolumes, [userId]: volume };
+      try { localStorage.setItem("echo:screenShareVolumes", JSON.stringify(next)); } catch {}
+      return { screenShareVolumes: next };
+    });
+  },
 
   toggleQuickSwitchFavorite: (id) => {
     const current = get().quickSwitchFavorites;
@@ -334,6 +370,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       onlineStatusVisible: true,
       readReceipts: true,
       typingVisible: true,
+      participantVolumes: {},
+      screenShareVolumes: {},
       currentSessionDevice: null,
     }),
 }));

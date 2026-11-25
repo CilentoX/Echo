@@ -34,6 +34,7 @@ class LiveKitVoiceManager {
 
   private audioContext: AudioContext | null = null;
   private peerVolumes: Map<string, number> = new Map();
+  private screenVolumes: Map<string, number> = new Map();
   private peerAudioNodes: Map<string, { gain: GainNode; source: MediaStreamAudioSourceNode; stream: MediaStream }> =
     new Map();
   private screenAudioNodes: Map<string, { gain: GainNode; source: MediaStreamAudioSourceNode; stream: MediaStream }> =
@@ -274,9 +275,12 @@ class LiveKitVoiceManager {
     this.callbacks.onParticipantsUpdate?.(list);
   }
 
-  private getEffectiveGain(peerId: string): number {
+  private getEffectiveGain(peerId: string, isScreenAudio = false): number {
     if (this.isDeafened) return 0;
-    const userVol = this.peerVolumes.get(peerId) ?? 100;
+    const settings = useSettingsStore.getState();
+    const userVol = isScreenAudio
+      ? (this.screenVolumes.get(peerId) ?? settings.screenShareVolumes[peerId] ?? 100)
+      : (this.peerVolumes.get(peerId) ?? settings.participantVolumes[peerId] ?? 100);
     return Math.max(0, (userVol / 100) * (this.masterOutputVolume / 100));
   }
 
@@ -359,10 +363,10 @@ class LiveKitVoiceManager {
   public setDeafened(deafened: boolean) {
     this.isDeafened = deafened;
     for (const [pid, node] of this.peerAudioNodes.entries()) {
-      node.gain.gain.value = this.getEffectiveGain(pid);
+      node.gain.gain.value = this.getEffectiveGain(pid, false);
     }
     for (const [pid, node] of this.screenAudioNodes.entries()) {
-      node.gain.gain.value = this.getEffectiveGain(pid);
+      node.gain.gain.value = this.getEffectiveGain(pid, true);
     }
     for (const el of this.audioElements.values()) {
       el.muted = deafened;
@@ -374,9 +378,14 @@ class LiveKitVoiceManager {
 
   public setParticipantVolume(userId: string, volume: number) {
     this.peerVolumes.set(userId, volume);
-    const eff = this.getEffectiveGain(userId);
+    const eff = this.getEffectiveGain(userId, false);
     const micNode = this.peerAudioNodes.get(userId);
     if (micNode) micNode.gain.gain.value = eff;
+  }
+
+  public setScreenShareVolume(userId: string, volume: number) {
+    this.screenVolumes.set(userId, volume);
+    const eff = this.getEffectiveGain(userId, true);
     const scrNode = this.screenAudioNodes.get(userId);
     if (scrNode) scrNode.gain.gain.value = eff;
   }
@@ -384,10 +393,10 @@ class LiveKitVoiceManager {
   public setMasterOutputVolume(volume: number) {
     this.masterOutputVolume = volume;
     for (const [pid, node] of this.peerAudioNodes.entries()) {
-      node.gain.gain.value = this.getEffectiveGain(pid);
+      node.gain.gain.value = this.getEffectiveGain(pid, false);
     }
     for (const [pid, node] of this.screenAudioNodes.entries()) {
-      node.gain.gain.value = this.getEffectiveGain(pid);
+      node.gain.gain.value = this.getEffectiveGain(pid, true);
     }
   }
 
