@@ -1505,19 +1505,26 @@ class WebRtcVoiceManager {
         if (videoTrack) {
           if (existingVideoSender) {
             await existingVideoSender.replaceTrack(videoTrack);
+            this.tuneSender(existingVideoSender, this.screenShareBitrate);
             const tr = pc.getTransceivers().find((t) => t.sender === existingVideoSender);
             if (tr) tr.direction = "sendrecv";
             needsRenegotiate = true;
           } else {
-            // Reutiliza transceiver de vídeo existente se houver, ou associa a nova faixa
-            const tr = pc.getTransceivers().find((t) => t.receiver.track?.kind === "video" || t.sender.track === null);
+            // Reutiliza transceiver de vídeo existente (nunca áudio), ou associa a nova faixa
+            const tr = pc.getTransceivers().find(
+              (t) =>
+                t.receiver.track?.kind === "video" &&
+                (!t.sender.track || t.sender === this.screenSenders.get(peerId)),
+            );
             if (tr) {
               tr.direction = "sendrecv";
               await tr.sender.replaceTrack(videoTrack);
               this.screenSenders.set(peerId, tr.sender);
+              this.tuneSender(tr.sender, this.screenShareBitrate);
             } else {
               const sender = pc.addTrack(videoTrack, stream!);
               this.screenSenders.set(peerId, sender);
+              this.tuneSender(sender, this.screenShareBitrate);
             }
             needsRenegotiate = true;
           }

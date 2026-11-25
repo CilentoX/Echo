@@ -382,28 +382,30 @@ export default function VoiceStage({
             video: videoConstraints,
             audio: audioConstraints,
           } as MediaStreamConstraints);
-        } catch {
-          if (wantSystemAudio) {
-            // Fallback sem captura de áudio caso a plataforma/janela não suporte
-            console.warn("[VoiceStage] Captura de áudio do sistema falhou, tentando apenas vídeo");
-            try {
-              stream = await navigator.mediaDevices.getDisplayMedia({
-                video: videoConstraints,
-                audio: false,
-              } as MediaStreamConstraints);
-            } catch {
-              // Fallback sem sourceId caso o browser/runtime rejeite restrição de dispositivo específico
+        } catch (firstErr: any) {
+          if (firstErr?.name === "NotAllowedError" || firstErr?.name === "AbortError") {
+            throw firstErr;
+          }
+          // Fallback para standardConstraints mantendo áudio do sistema se solicitado
+          try {
+            stream = await navigator.mediaDevices.getDisplayMedia({
+              video: standardConstraints,
+              audio: audioConstraints,
+            } as MediaStreamConstraints);
+          } catch (secondErr: any) {
+            if (secondErr?.name === "NotAllowedError" || secondErr?.name === "AbortError") {
+              throw secondErr;
+            }
+            if (wantSystemAudio) {
+              // Último fallback sem captura de áudio caso a plataforma não suporte
+              console.warn("[VoiceStage] Captura de áudio do sistema falhou, tentando apenas vídeo");
               stream = await navigator.mediaDevices.getDisplayMedia({
                 video: standardConstraints,
                 audio: false,
               } as MediaStreamConstraints);
+            } else {
+              throw secondErr;
             }
-          } else {
-            // Usuário desativou áudio, fallback direto sem sourceId
-            stream = await navigator.mediaDevices.getDisplayMedia({
-              video: standardConstraints,
-              audio: false,
-            } as MediaStreamConstraints);
           }
         }
         screenStreamRef.current = stream;
