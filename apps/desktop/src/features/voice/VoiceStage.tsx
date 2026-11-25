@@ -120,6 +120,8 @@ export default function VoiceStage({
   const isScreenDetached = useVoiceStore((s) => s.isScreenDetached);
   const setScreenDetached = useVoiceStore((s) => s.setScreenDetached);
   const remoteVideoStreams = useVoiceStore((s) => s.remoteVideoStreams);
+  const remoteScreenStreams = useVoiceStore((s) => s.remoteScreenStreams);
+  const remoteCameraStreams = useVoiceStore((s) => s.remoteCameraStreams);
   const activeStreamUserId = useVoiceStore((s) => s.activeStreamUserId);
   const setActiveStreamUserId = useVoiceStore((s) => s.setActiveStreamUserId);
   const setParticipantVolume = useVoiceStore((s) => s.setParticipantVolume);
@@ -631,7 +633,7 @@ export default function VoiceStage({
   const remoteSharers = participants.filter((p) => {
     const isMe = p.userId === effectiveUserId || p.userId === "me" || p.userId === myUserId;
     if (isMe) return false;
-    return Boolean(p.isScreenSharing || remoteVideoStreams[p.userId]);
+    return Boolean(p.isScreenSharing || remoteScreenStreams[p.userId] || (!p.hasCamera && remoteVideoStreams[p.userId]));
   });
   const hasAnyScreenShare = localIsSharing || remoteSharers.length > 0;
 
@@ -661,6 +663,8 @@ export default function VoiceStage({
     } else {
       const p = participants.find((part) => part.userId === activeStreamUserId);
       const stream =
+        remoteScreenStreams[activeStreamUserId] ||
+        webrtcVoice.getRemoteScreenStream(activeStreamUserId) ||
         remoteVideoStreams[activeStreamUserId] ||
         webrtcVoice.getRemoteVideoStream(activeStreamUserId);
       if (p || stream) {
@@ -688,6 +692,8 @@ export default function VoiceStage({
     } else if (remoteSharers.length > 0) {
       const first = remoteSharers[0];
       const stream =
+        remoteScreenStreams[first.userId] ||
+        webrtcVoice.getRemoteScreenStream(first.userId) ||
         remoteVideoStreams[first.userId] ||
         webrtcVoice.getRemoteVideoStream(first.userId);
       activeParticipant = {
@@ -808,7 +814,17 @@ export default function VoiceStage({
 
     const isSharingScreen = isMe
       ? localIsSharing
-      : Boolean(participant.isScreenSharing || remoteVideoStreams[participant.userId]);
+      : Boolean(
+          participant.isScreenSharing ||
+            remoteScreenStreams[participant.userId] ||
+            (!participant.hasCamera && remoteVideoStreams[participant.userId]),
+        );
+
+    const remoteCamStream = !isMe
+      ? remoteCameraStreams[participant.userId] ||
+        webrtcVoice.getRemoteCameraStream(participant.userId) ||
+        (!participant.isScreenSharing ? remoteVideoStreams[participant.userId] : undefined)
+      : undefined;
 
     const isCurrentScreenFocus = activeParticipant?.userId === memberUserId;
 
@@ -904,9 +920,9 @@ export default function VoiceStage({
                       <span>Câmera ativa</span>
                     </div>
                   </div>
-                ) : !isMe && participant.hasCamera && remoteVideoStreams[participant.userId] && (!isCurrentScreenFocus || !hasAnyScreenShare) ? (
+                ) : !isMe && participant.hasCamera && remoteCamStream ? (
                   <div className="relative w-full h-36 rounded-xl overflow-hidden border border-white/[0.1] shadow-inner bg-black mb-2">
-                    <RemoteParticipantVideo stream={remoteVideoStreams[participant.userId]} />
+                    <RemoteParticipantVideo stream={remoteCamStream} />
                     <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[10px] text-white">
                       <VideoCamera size={12} weight="fill" className="text-online" />
                       <span>Câmera</span>
@@ -1360,6 +1376,30 @@ export default function VoiceStage({
             )}
           </div>
         )}
+
+        {/* Webcam Remota Sobreposta (Modo Estúdio Remoto) */}
+        {!isScreenDetached &&
+          activeParticipant &&
+          !activeParticipant.isMe &&
+          (remoteCameraStreams[activeParticipant.userId] ||
+            webrtcVoice.getRemoteCameraStream(activeParticipant.userId)) && (
+            <div
+              role="region"
+              aria-label={`Webcam de ${activeParticipant.username}`}
+              className="absolute bottom-4 right-4 z-30 w-44 h-28 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/30 bg-black/90 backdrop-blur-md"
+            >
+              <RemoteParticipantVideo
+                stream={
+                  (remoteCameraStreams[activeParticipant.userId] ||
+                    webrtcVoice.getRemoteCameraStream(activeParticipant.userId))!
+                }
+              />
+              <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/70 text-white text-[10px] font-semibold backdrop-blur-sm">
+                <VideoCamera size={10} weight="fill" className="text-online" />
+                <span className="truncate max-w-[100px]">{activeParticipant.username}</span>
+              </div>
+            </div>
+          )}
 
         {/* Studio Control Bar — aparece apenas no modo estúdio quando transmitindo */}
         {isCurrentActiveMe && isScreenSharing && !isScreenDetached && screenShareLayout === "studio" && (

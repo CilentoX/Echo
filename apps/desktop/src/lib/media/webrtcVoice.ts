@@ -46,10 +46,14 @@ class WebRtcVoiceManager {
   private cameraSenders: Map<string, RTCRtpSender> = new Map();
   private screenShareBitrate: number = 4_500_000;
   private remoteVideoStreams: Map<string, MediaStream> = new Map();
+  private remoteScreenStreams: Map<string, MediaStream> = new Map();
+  private remoteCameraStreams: Map<string, MediaStream> = new Map();
+  private remoteVideoMeta: Map<string, "screen" | "camera"> = new Map();
   private candidateQueues: Map<string, RTCIceCandidateInit[]> = new Map();
   private remoteAnalysers: Map<string, { analyser: AnalyserNode; source?: MediaStreamAudioSourceNode; interval: any; hangTimer?: any }> = new Map();
   private peerMutedStates: Map<string, boolean> = new Map();
   private peerHasCamera: Map<string, boolean> = new Map();
+  private peerIsScreenSharing: Map<string, boolean> = new Map();
   private hasNotifiedConnected: boolean = false;
   private callbacks: WebRtcCallbacks = {};
   private sseSource: EventSource | null = null;
@@ -430,9 +434,12 @@ class WebRtcVoiceManager {
                 this.callbacks.onParticipantSpeaking?.(data.userId, false);
               }
             }
-            // Rastreia estado de câmera remota para distinguir câmera vs screen share no ontrack
+            // Rastreia estado de câmera e screen share remotos para distinguir câmera vs screen share no ontrack
             if (typeof data.hasCamera === "boolean") {
               this.peerHasCamera.set(data.userId, data.hasCamera);
+            }
+            if (typeof data.isScreenSharing === "boolean") {
+              this.peerIsScreenSharing.set(data.userId, data.isScreenSharing);
             }
             this.callbacks.onParticipantUpdated?.(data.userId, {
               isSpeaking: data.isSpeaking,
@@ -446,8 +453,18 @@ class WebRtcVoiceManager {
               this.callbacks.onParticipantSpeaking?.(data.userId, speaking);
             }
             if (data.isScreenSharing === false) {
-              this.remoteVideoStreams.delete(data.userId);
+              this.remoteScreenStreams.delete(data.userId);
+              const fallbackCam = this.remoteCameraStreams.get(data.userId);
+              if (fallbackCam) this.remoteVideoStreams.set(data.userId, fallbackCam);
+              else this.remoteVideoStreams.delete(data.userId);
               this.callbacks.onRemoteVideoStream?.(data.userId, null, "screen");
+            }
+            if (data.hasCamera === false) {
+              this.remoteCameraStreams.delete(data.userId);
+              const fallbackScreen = this.remoteScreenStreams.get(data.userId);
+              if (fallbackScreen) this.remoteVideoStreams.set(data.userId, fallbackScreen);
+              else this.remoteVideoStreams.delete(data.userId);
+              this.callbacks.onRemoteVideoStream?.(data.userId, null, "camera");
             }
           }
         } catch {}
@@ -574,6 +591,11 @@ class WebRtcVoiceManager {
     this.screenAudioSenders.clear();
     this.cameraSenders.clear();
     this.remoteVideoStreams.clear();
+    this.remoteScreenStreams.clear();
+    this.remoteCameraStreams.clear();
+    this.remoteVideoMeta.clear();
+    this.peerHasCamera.clear();
+    this.peerIsScreenSharing.clear();
 
     if (this.audioContext) {
       try {
@@ -770,11 +792,16 @@ class WebRtcVoiceManager {
     this.cameraSenders.delete(peerId);
     this.candidateQueues.delete(peerId);
     this.remoteVideoStreams.delete(peerId);
+    this.remoteScreenStreams.delete(peerId);
+    this.remoteCameraStreams.delete(peerId);
     this.peerMutedStates.delete(peerId);
+    this.peerHasCamera.delete(peerId);
+    this.peerIsScreenSharing.delete(peerId);
 
     // Ao desconectar um peer, invocar onParticipantSpeaking(peerId, false) para remover do estado de fala
     this.callbacks.onParticipantSpeaking?.(peerId, false);
     this.callbacks.onRemoteVideoStream?.(peerId, null, "screen");
+    this.callbacks.onRemoteVideoStream?.(peerId, null, "camera");
 
     this.callbacks.onPeerDisconnected?.(peerId);
   }
@@ -1296,6 +1323,7 @@ class WebRtcVoiceManager {
             const sender = pc.addTrack(track, this.localScreenStream);
             this.screenSenders.set(peerId, sender);
             this.tuneSender(sender, this.screenShareBitrate);
+            void this.sendVideoMeta(peerId, this.localScreenStream.id, track.id, "screen");
           } catch {}
         }
       }
@@ -1316,6 +1344,7 @@ class WebRtcVoiceManager {
           try {
             const sender = pc.addTrack(track, this.localCameraStream);
             this.cameraSenders.set(peerId, sender);
+            void this.sendVideoMeta(peerId, this.localCameraStream.id, track.id, "camera");
           } catch {}
         }
       }
@@ -1404,20 +1433,62 @@ class WebRtcVoiceManager {
           this.attachRemoteAudioPipeline(peerId, stream, false);
         }
       } else if (track.kind === "video") {
-        // Transmissão remota de tela ou webcam — usa peerHasCamera do SSE para distinguir
+        // Transmissão remota de tela ou webcam — classifica via video-meta ou estado SSE
         const videoStream = stream;
-        const videoKind: "camera" | "screen" = this.peerHasCamera.get(peerId) ? "camera" : "screen";
-        this.remoteVideoStreams.set(peerId, videoStream);
-        this.callbacks.onRemoteVideoStream?.(peerId, videoStream, videoKind);
+        const resolveVideoKind = (): "camera" | "screen" => {
+          const fromMeta =
+            this.remoteVideoMeta.get(track.id) ?? this.remoteVideoMeta.get(videoStream.id);
+          if (fromMeta) return fromMeta;
+
+          const hasCam = Boolean(this.peerHasCamera.get(peerId));
+          const isSharing = Boolean(this.peerIsScreenSharing.get(peerId));
+
+          if (isSharing && !hasCam) return "screen";
+          if (hasCam && !isSharing) return "camera";
+
+          const existingScreen = this.remoteScreenStreams.get(peerId);
+          const existingCam = this.remoteCameraStreams.get(peerId);
+          if (existingScreen && existingScreen.id !== videoStream.id) return "camera";
+          if (existingCam && existingCam.id !== videoStream.id) return "screen";
+
+          return hasCam ? "camera" : "screen";
+        };
+
+        const videoKind = resolveVideoKind();
+        const storeRemoteVideo = (kind: "camera" | "screen") => {
+          if (kind === "camera") {
+            this.remoteCameraStreams.set(peerId, videoStream);
+          } else {
+            this.remoteScreenStreams.set(peerId, videoStream);
+          }
+          this.remoteVideoStreams.set(
+            peerId,
+            this.remoteScreenStreams.get(peerId) ?? videoStream,
+          );
+          this.callbacks.onRemoteVideoStream?.(peerId, videoStream, kind);
+        };
+
+        storeRemoteVideo(videoKind);
 
         track.onended = () => {
-          this.remoteVideoStreams.delete(peerId);
-          this.callbacks.onRemoteVideoStream?.(peerId, null, videoKind);
+          const kindNow = resolveVideoKind();
+          if (kindNow === "camera") {
+            this.remoteCameraStreams.delete(peerId);
+          } else {
+            this.remoteScreenStreams.delete(peerId);
+          }
+          const remaining =
+            this.remoteScreenStreams.get(peerId) ?? this.remoteCameraStreams.get(peerId);
+          if (remaining) {
+            this.remoteVideoStreams.set(peerId, remaining);
+          } else {
+            this.remoteVideoStreams.delete(peerId);
+          }
+          this.callbacks.onRemoteVideoStream?.(peerId, null, kindNow);
         };
 
         track.onunmute = () => {
-          this.remoteVideoStreams.set(peerId, videoStream);
-          this.callbacks.onRemoteVideoStream?.(peerId, videoStream, videoKind);
+          storeRemoteVideo(resolveVideoKind());
         };
 
         track.onmute = () => {
@@ -1560,6 +1631,10 @@ class WebRtcVoiceManager {
           needsRenegotiate = true;
         }
 
+        if (videoTrack && stream) {
+          void this.sendVideoMeta(peerId, stream.id, videoTrack.id, "screen");
+        }
+
         if (needsRenegotiate) {
           await this.renegotiateWithPeer(peerId);
         }
@@ -1581,11 +1656,12 @@ class WebRtcVoiceManager {
     for (const [peerId, pc] of this.peers.entries()) {
       try {
         const existingSender = this.cameraSenders.get(peerId);
-        if (track) {
+        if (track && stream) {
+          void this.sendVideoMeta(peerId, stream.id, track.id, "camera");
           if (existingSender) {
             await existingSender.replaceTrack(track);
           } else {
-            const sender = pc.addTrack(track, stream!);
+            const sender = pc.addTrack(track, stream);
             this.cameraSenders.set(peerId, sender);
             await this.renegotiateWithPeer(peerId);
           }
@@ -1604,8 +1680,35 @@ class WebRtcVoiceManager {
     void this.tickHeartbeat();
   }
 
+  private async sendVideoMeta(
+    peerId: string,
+    streamId: string,
+    trackId: string,
+    kind: "screen" | "camera",
+  ) {
+    if (!this.currentChannelId) return;
+    const api = useEchoApi();
+    if (typeof api?.sendVoiceSignal !== "function") return;
+    try {
+      await api.sendVoiceSignal(this.currentChannelId, peerId, {
+        type: "video-meta",
+        streamId,
+        trackId,
+        kind,
+      });
+    } catch {}
+  }
+
   public getRemoteVideoStream(peerId: string): MediaStream | null {
-    return this.remoteVideoStreams.get(peerId) ?? null;
+    return this.remoteScreenStreams.get(peerId) ?? this.remoteCameraStreams.get(peerId) ?? this.remoteVideoStreams.get(peerId) ?? null;
+  }
+
+  public getRemoteScreenStream(peerId: string): MediaStream | null {
+    return this.remoteScreenStreams.get(peerId) ?? null;
+  }
+
+  public getRemoteCameraStream(peerId: string): MediaStream | null {
+    return this.remoteCameraStreams.get(peerId) ?? null;
   }
 
   private async renegotiateWithPeer(peerId: string) {
@@ -1731,6 +1834,23 @@ class WebRtcVoiceManager {
           this.candidateQueues.set(fromUserId, []);
         }
         this.candidateQueues.get(fromUserId)!.push(signal.candidate);
+      }
+    } else if (signal.type === "video-meta" && (signal.kind === "screen" || signal.kind === "camera")) {
+      if (signal.trackId) this.remoteVideoMeta.set(signal.trackId, signal.kind);
+      if (signal.streamId) this.remoteVideoMeta.set(signal.streamId, signal.kind);
+      // Se o stream já chegou antes do sinal video-meta, reclassifica imediatamente
+      const wrongMap = signal.kind === "camera" ? this.remoteScreenStreams : this.remoteCameraStreams;
+      const rightMap = signal.kind === "camera" ? this.remoteCameraStreams : this.remoteScreenStreams;
+      const existing = wrongMap.get(fromUserId);
+      if (
+        existing &&
+        (existing.id === signal.streamId ||
+          existing.getVideoTracks().some((t) => t.id === signal.trackId))
+      ) {
+        wrongMap.delete(fromUserId);
+        rightMap.set(fromUserId, existing);
+        this.callbacks.onRemoteVideoStream?.(fromUserId, null, signal.kind === "camera" ? "screen" : "camera");
+        this.callbacks.onRemoteVideoStream?.(fromUserId, existing, signal.kind);
       }
     } else if (signal.type === "soundboard" && typeof signal.soundId === "string") {
       if (!this.isDeafened) {

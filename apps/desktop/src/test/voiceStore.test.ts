@@ -152,5 +152,26 @@ describe("voiceStore", () => {
     expect(useVoiceStore.getState().isConnected).toBe(true);
     expect(playSpy).toHaveBeenCalled();
   });
+
+  it("rastreia streams remotos de webcam e tela (live) simultaneamente sem colisão", () => {
+    const camStream = { id: "cam-1" } as unknown as MediaStream;
+    const screenStream = { id: "screen-1" } as unknown as MediaStream;
+    const uid = "@streamer:matrix";
+
+    useVoiceStore.getState().setRemoteVideoStream(uid, camStream, "camera");
+    useVoiceStore.getState().setRemoteVideoStream(uid, screenStream, "screen");
+
+    let state = useVoiceStore.getState();
+    expect(state.remoteCameraStreams[uid]).toBe(camStream);
+    expect(state.remoteScreenStreams[uid]).toBe(screenStream);
+    expect(state.activeStreamUserId).toBe(uid);
+
+    // Encerrar a live não remove a webcam
+    useVoiceStore.getState().setRemoteVideoStream(uid, null, "screen");
+    state = useVoiceStore.getState();
+    expect(state.remoteScreenStreams[uid]).toBeUndefined();
+    expect(state.remoteCameraStreams[uid]).toBe(camStream);
+    expect(state.activeStreamUserId).toBeNull();
+  });
 });
 

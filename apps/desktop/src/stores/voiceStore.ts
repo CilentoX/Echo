@@ -59,6 +59,8 @@ export interface VoiceState {
   webcamSize: WebcamSize;
   isScreenDetached: boolean;
   remoteVideoStreams: Record<string, MediaStream>;
+  remoteScreenStreams: Record<string, MediaStream>;
+  remoteCameraStreams: Record<string, MediaStream>;
   activeStreamUserId: string | null;
 
   connectVoice: (
@@ -93,7 +95,7 @@ export interface VoiceState {
   updateParticipant: (userId: string, partial: Partial<VoiceParticipant>) => void;
   setParticipantMuted: (userId: string, isMuted: boolean) => void;
   setParticipantDeafened: (userId: string, isDeafened: boolean) => void;
-  setRemoteVideoStream: (userId: string, stream: MediaStream | null) => void;
+  setRemoteVideoStream: (userId: string, stream: MediaStream | null, kind?: "screen" | "camera") => void;
   setActiveStreamUserId: (userId: string | null) => void;
 }
 
@@ -128,6 +130,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   webcamSize: "md",
   isScreenDetached: false,
   remoteVideoStreams: {},
+  remoteScreenStreams: {},
+  remoteCameraStreams: {},
   activeStreamUserId: null,
 
   connectVoice: (guildId, guildName, channelId, channelName, initialParticipants) => {
@@ -246,9 +250,25 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
               merged.length === state.participants.length &&
               merged.every((p, i) => p === state.participants[i]);
 
-            // Limpa remoteVideoStreams para participantes que saíram ou pararam de transmitir tela/câmera
+            // Limpa remoteVideoStreams, remoteScreenStreams e remoteCameraStreams para participantes que saíram ou pararam de transmitir
             const nextStreams = { ...state.remoteVideoStreams };
+            const nextScreenStreams = { ...state.remoteScreenStreams };
+            const nextCameraStreams = { ...state.remoteCameraStreams };
             let streamsChanged = false;
+            for (const streamUserId of Object.keys(nextScreenStreams)) {
+              const part = merged.find((p) => p.userId === streamUserId);
+              if (!part || !part.isScreenSharing) {
+                delete nextScreenStreams[streamUserId];
+                streamsChanged = true;
+              }
+            }
+            for (const streamUserId of Object.keys(nextCameraStreams)) {
+              const part = merged.find((p) => p.userId === streamUserId);
+              if (!part || !part.hasCamera) {
+                delete nextCameraStreams[streamUserId];
+                streamsChanged = true;
+              }
+            }
             for (const streamUserId of Object.keys(nextStreams)) {
               const part = merged.find((p) => p.userId === streamUserId);
               if (!part || (!part.isScreenSharing && !part.hasCamera)) {
@@ -262,7 +282,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
             if (activeStreamUserId) {
               const focusedPart = merged.find((p) => p.userId === activeStreamUserId);
               const stillSharing = focusedPart && (
-                (focusedPart.userId === currentRealId ? state.isScreenSharing : (focusedPart.isScreenSharing || Boolean(nextStreams[activeStreamUserId])))
+                (focusedPart.userId === currentRealId ? state.isScreenSharing : (focusedPart.isScreenSharing || Boolean(nextScreenStreams[activeStreamUserId]) || Boolean(nextStreams[activeStreamUserId])))
               );
               if (!stillSharing) {
                 activeStreamUserId = null;
@@ -293,12 +313,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
             return {
               participants: participantsUnchanged ? state.participants : merged,
               remoteVideoStreams: streamsChanged ? nextStreams : state.remoteVideoStreams,
+              remoteScreenStreams: streamsChanged ? nextScreenStreams : state.remoteScreenStreams,
+              remoteCameraStreams: streamsChanged ? nextCameraStreams : state.remoteCameraStreams,
               activeStreamUserId,
             };
           });
         },
-        onRemoteVideoStream: (userId, stream) => {
-          get().setRemoteVideoStream(userId, stream);
+        onRemoteVideoStream: (userId, stream, kind) => {
+          get().setRemoteVideoStream(userId, stream, kind);
         },
         onSpeakingChange: (speaking) => {
           get().setSpeaking(speaking);
@@ -341,6 +363,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       speakingMembers: [],
       participants: [],
       remoteVideoStreams: {},
+      remoteScreenStreams: {},
+      remoteCameraStreams: {},
       activeStreamUserId: null,
     });
   },
@@ -370,17 +394,57 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     });
   },
 
-  setRemoteVideoStream: (userId, stream) => {
+  setRemoteVideoStream: (userId, stream, kind) => {
     set((state) => {
       const next = { ...state.remoteVideoStreams };
+      const nextScreen = { ...state.remoteScreenStreams };
+      const nextCamera = { ...state.remoteCameraStreams };
+
       if (!stream) {
-        delete next[userId];
-        const nextActive = state.activeStreamUserId === userId ? null : state.activeStreamUserId;
-        return { remoteVideoStreams: next, activeStreamUserId: nextActive };
+        if (kind === "camera") {
+          delete nextCamera[userId];
+        } else if (kind === "screen") {
+          delete nextScreen[userId];
+        } else {
+          delete nextCamera[userId];
+          delete nextScreen[userId];
+        }
+
+        const remaining = nextScreen[userId] ?? nextCamera[userId];
+        if (remaining) {
+          next[userId] = remaining;
+        } else {
+          delete next[userId];
+        }
+
+        const shouldClearActive =
+          state.activeStreamUserId === userId && (!kind || kind === "screen");
+        const nextActive = shouldClearActive ? null : state.activeStreamUserId;
+        return {
+          remoteVideoStreams: next,
+          remoteScreenStreams: nextScreen,
+          remoteCameraStreams: nextCamera,
+          activeStreamUserId: nextActive,
+        };
       }
-      next[userId] = stream;
-      const nextActive = state.activeStreamUserId || userId;
-      return { remoteVideoStreams: next, activeStreamUserId: nextActive };
+
+      if (kind === "camera") {
+        nextCamera[userId] = stream;
+      } else {
+        nextScreen[userId] = stream;
+      }
+      next[userId] = nextScreen[userId] ?? nextCamera[userId] ?? stream;
+
+      const nextActive =
+        kind === "camera"
+          ? state.activeStreamUserId
+          : state.activeStreamUserId || userId;
+      return {
+        remoteVideoStreams: next,
+        remoteScreenStreams: nextScreen,
+        remoteCameraStreams: nextCamera,
+        activeStreamUserId: nextActive,
+      };
     });
   },
 
@@ -458,8 +522,19 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       });
 
       const nextStreams = { ...state.remoteVideoStreams };
-      if (partial.isScreenSharing === false && nextStreams[userId]) {
-        delete nextStreams[userId];
+      const nextScreenStreams = { ...state.remoteScreenStreams };
+      const nextCameraStreams = { ...state.remoteCameraStreams };
+      if (partial.isScreenSharing === false) {
+        delete nextScreenStreams[userId];
+      }
+      if (partial.hasCamera === false) {
+        delete nextCameraStreams[userId];
+      }
+      const remaining = nextScreenStreams[userId] ?? nextCameraStreams[userId];
+      if (remaining) {
+        nextStreams[userId] = remaining;
+      } else if (partial.isScreenSharing === false || partial.hasCamera === false) {
+        if (!remaining) delete nextStreams[userId];
       }
 
       let activeStreamUserId = state.activeStreamUserId;
@@ -475,6 +550,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       return {
         participants: nextParticipants,
         remoteVideoStreams: nextStreams,
+        remoteScreenStreams: nextScreenStreams,
+        remoteCameraStreams: nextCameraStreams,
         activeStreamUserId,
         speakingMembers: speaking,
         ...(isMe && isMutedNow ? { isSpeaking: false } : {}),
@@ -517,11 +594,17 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     }
     set((state) => {
       const nextStreams = { ...state.remoteVideoStreams };
+      const nextScreenStreams = { ...state.remoteScreenStreams };
+      const nextCameraStreams = { ...state.remoteCameraStreams };
       delete nextStreams[userId];
+      delete nextScreenStreams[userId];
+      delete nextCameraStreams[userId];
       return {
         participants: state.participants.filter((p) => p.userId !== userId),
         speakingMembers: state.speakingMembers.filter((id) => id !== userId),
         remoteVideoStreams: nextStreams,
+        remoteScreenStreams: nextScreenStreams,
+        remoteCameraStreams: nextCameraStreams,
         activeStreamUserId: state.activeStreamUserId === userId ? null : state.activeStreamUserId,
       };
     });
