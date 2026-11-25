@@ -49,11 +49,12 @@ beforeEach(() => {
 });
 
 describe("GoogleLoginScreen", () => {
-  it("renderiza a logo Echo e o botão 'Entrar com Google'", () => {
+  it("renderiza a logo Echo, rede Matrix e o botão 'Entrar com Google'", () => {
     render(<GoogleLoginScreen service={makeEchoApi()} />);
 
     expect(screen.getByRole("heading", { name: "Echo" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Entrar com Google/ })).toBeTruthy();
+    expect(screen.getByText(/echo\.litteris\.online/i)).toBeTruthy();
   });
 
   it("clicar no botão dispara runSsoLogin e chama onSession", async () => {

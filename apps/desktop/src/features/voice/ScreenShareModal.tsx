@@ -511,6 +511,11 @@ export default function ScreenShareModal({
         </div>
         </div>{/* fim da área rolável */}
 
+        {/* Dica de seleção no sistema quando há múltiplos monitores ou janelas */}
+        <div className="px-5 py-2 border-t border-white/[0.06] bg-white/[0.02] text-[11px] text-mut/80 text-center shrink-0">
+          Ao clicar em <span className="text-txt font-medium">Transmitir ao Vivo</span>, confirme a tela (ex.: Display 1 ou 2) ou janela no seletor do sistema.
+        </div>
+
         {/* Rodapé de Ações */}
         <div className="flex items-center gap-3 p-4 border-t border-white/[0.08] bg-black/20 shrink-0">
           <button

@@ -33,7 +33,10 @@ export class SsoLoginError extends Error {
  *    and the Rust listener captures the authorization code;
  * 5. we exchange the code for a Session via Echo API /auth/token.
  */
-export async function runSsoLogin(echoApi: EchoApi): Promise<Session> {
+export async function runSsoLogin(
+  echoApi: EchoApi,
+  options?: { onLoginUrl?: (url: string) => void },
+): Promise<Session> {
   console.log("[SSO] Starting SSO login flow...");
   const port = await invoke<number>("begin_sso_listener");
   console.log("[SSO] Listener started on port:", port);
@@ -57,6 +60,7 @@ export async function runSsoLogin(echoApi: EchoApi): Promise<Session> {
   }
 
   console.log("[SSO] Login URL final:", loginUrl);
+  options?.onLoginUrl?.(loginUrl);
   try {
     await openUrl(loginUrl);
   } catch (err) {

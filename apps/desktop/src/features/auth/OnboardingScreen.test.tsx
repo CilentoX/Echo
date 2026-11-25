@@ -14,5 +14,7 @@ describe("OnboardingScreen", () => {
   it("exibe texto 'Bem-vindo' na etapa welcome", () => {
     render(<OnboardingScreen {...defaultProps} />);
     expect(screen.getByText(/Bem-vindo|Welcome/i)).not.toBeNull();
+    expect(screen.getByText(/Etapa 1 de 2/i)).not.toBeNull();
+    expect(screen.getByText(/LiveKit SFU/i)).not.toBeNull();
   });
 });

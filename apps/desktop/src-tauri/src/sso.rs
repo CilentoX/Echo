@@ -26,11 +26,11 @@ const SSO_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const SSO_PORT: u16 = 1421;
 
 const CALLBACK_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\
-<title>Echo</title></head><body style=\"background:#0b0e14;color:#F1F5F9;font-family:sans-serif;\
+<title>Echo — Autenticação Concluída</title></head><body style=\"background:#0b0e14;color:#F1F5F9;font-family:system-ui,-apple-system,sans-serif;\
 display:grid;place-items:center;height:100vh;margin:0\">\
-<div style=\"text-align:center;\">\
-<h2 style=\"color:#0FB9A8;margin-bottom:8px;\">Login concluído</h2>\
-<p style=\"color:#94A3B8;\">Você já pode voltar ao aplicativo Echo.</p>\
+<div style=\"text-align:center;padding:32px;border-radius:16px;background:#12161f;border:1px solid rgba(255,255,255,0.08);max-width:380px;\">\
+<h2 style=\"color:#0FB9A8;margin:0 0 8px;\">Autenticação Matrix concluída</h2>\
+<p style=\"color:#94A3B8;margin:0;font-size:14px;line-height:1.5;\">Você já pode fechar esta aba e voltar ao aplicativo Echo.</p>\
 </div></body></html>";
 
 const MISSING_CODE_HTML: &str = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">\

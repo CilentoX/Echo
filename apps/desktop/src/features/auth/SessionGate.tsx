@@ -12,6 +12,7 @@ import { isNewAccount, isOnboardingCompleted, markOnboardingCompleted } from "@/
 import { useUiStore } from "@/stores/uiStore";
 import { useProfileStore } from "@/stores/profileStore";
 import { useVoiceStore } from "@/stores/voiceStore";
+import { useOnboardingStore } from "@/stores/onboardingStore";
 import { clearSession, loadSession, saveSession } from "@/lib/storage/keyring";
 import { isTauri, restartApp, runStartupUpdateCheck, setMainWindowMode } from "@/lib/updater";
 import { useUpdateStore } from "@/stores/updateStore";
@@ -40,6 +41,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   const rejectSession = useCallback(async () => {
     stopSyncWiring();
+    useOnboardingStore.getState().setCompleted(false);
     await clearSession().catch(() => { });
     setView("login");
   }, []);
@@ -94,9 +96,11 @@ export default function SessionGate({ shell }: SessionGateProps) {
         await saveSession(session);
         const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
         if (!alreadyCompleted) {
+          useOnboardingStore.getState().setCompleted(false);
           prepareSession(session, true);
           setView("onboarding");
         } else {
+          useOnboardingStore.getState().setCompleted(true);
           enterShell(session, true);
         }
       } catch (err) {
@@ -200,8 +204,10 @@ export default function SessionGate({ shell }: SessionGateProps) {
         const alreadyCompleted = isOnboardingCompleted(session.userId ?? "");
         const isNew = !alreadyCompleted || (await isNewAccount(matrixService));
         if (isNew) {
+          useOnboardingStore.getState().setCompleted(false);
           setView("onboarding");
         } else {
+          useOnboardingStore.getState().setCompleted(true);
           enterShell(session, true);
         }
       } catch (err) {
@@ -250,19 +256,17 @@ export default function SessionGate({ shell }: SessionGateProps) {
 
   if (view === "onboarding") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-bg font-ui">
-        <OnboardingScreen
-          onComplete={async () => {
-            const session = await loadSession();
-            if (session) {
-              markOnboardingCompleted(session.userId);
-              enterShell(session, true);
-            } else {
-              setView("login");
-            }
-          }}
-        />
-      </main>
+      <OnboardingScreen
+        onComplete={async () => {
+          const session = await loadSession();
+          if (session) {
+            markOnboardingCompleted(session.userId);
+            enterShell(session, true);
+          } else {
+            setView("login");
+          }
+        }}
+      />
     );
   }
 

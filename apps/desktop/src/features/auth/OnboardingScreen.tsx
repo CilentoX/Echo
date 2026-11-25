@@ -6,14 +6,17 @@ import {
   ArrowLeft,
   User,
   ShieldCheck,
-  Globe,
   Sparkle,
   Camera,
   Trash,
   Crop,
+  Headset,
+  UsersThree,
+  SignOut,
 } from "@phosphor-icons/react";
 import { matrixService } from "@/lib/matrix/instance";
-import { markOnboardingCompleted, triggerFullAccountReset } from "@/lib/onboarding";
+import { markOnboardingCompleted } from "@/lib/onboarding";
+import { performLogout } from "@/features/auth/logout";
 import { useEchoApi } from "@/lib/api/echoApi";
 import { useUiStore } from "@/stores/uiStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -70,25 +73,28 @@ export default function OnboardingScreen({
     }
   }, [onboardingDone, onComplete]);
 
-  // Pré-preenche o nickname e avatar caso já existam no Matrix ou Profile Store
+  // Pré-preenche o nickname e avatar uma única vez por usuário, sem sobrescrever edições manuais
+  const prefilledUserRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!myUserId || prefilledUserRef.current === myUserId) return;
+    prefilledUserRef.current = myUserId;
+
     const loadCurrentProfile = async () => {
-      if (!myUserId) return;
       try {
         const currentName = await matrixService.getDisplayName(myUserId);
-        if (currentName && !nickname.trim()) {
-          setNickname(currentName);
+        if (currentName) {
+          setNickname((prev) => (prev.trim() ? prev : currentName));
         }
         const storeAvatar = useProfileStore.getState().appwriteAvatarUrl ?? useProfileStore.getState().avatarUrl;
-        if (storeAvatar && !avatarPreview) {
-          setAvatarPreview(storeAvatar);
+        if (storeAvatar) {
+          setAvatarPreview((prev) => prev ?? storeAvatar);
         }
       } catch {
         // ignore falha defensiva
       }
     };
-    loadCurrentProfile();
-  }, [myUserId, nickname, avatarPreview]);
+    void loadCurrentProfile();
+  }, [myUserId]);
 
   // Limpeza de Object URLs ao desmontar
   useEffect(() => {
@@ -205,11 +211,9 @@ export default function OnboardingScreen({
     }
   }, [nickname, myUserId, avatarFile, avatarPreview, bannerFile, bannerPreview, echoApi]);
 
-  const handleAccountReset = useCallback(async () => {
-    if (window.confirm("Deseja apagar os dados da sua conta e recomeçar o onboarding do zero?")) {
-      await triggerFullAccountReset(echoApi);
-    }
-  }, [echoApi]);
+  const handleSwitchAccount = useCallback(async () => {
+    await performLogout();
+  }, []);
 
   if (onboardingDone) {
     return null;
@@ -245,6 +249,9 @@ export default function OnboardingScreen({
               </p>
             </div>
           </div>
+          <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-mut">
+            {step === "welcome" ? "Etapa 1 de 2" : "Etapa 2 de 2"}
+          </span>
         </div>
 
         {/* Conteúdo Dinâmico por Etapa */}
@@ -252,24 +259,33 @@ export default function OnboardingScreen({
           {step === "welcome" && (
             <div className="space-y-4">
               <p className="text-txt/90 text-sm leading-relaxed">
-                O Echo combina a ergonomia fluida e moderna com a segurança do protocolo aberto Matrix.
-                Converse em tempo real, compartilhe mídias e crie guildas personalizadas.
+                O Echo combina ergonomia moderna com a liberdade do protocolo aberto Matrix. Em poucos segundos seu perfil estará pronto:
               </p>
 
-              <div className="grid grid-cols-1 gap-2.5 pt-2">
+              <div className="grid grid-cols-1 gap-2.5 pt-1">
                 <div className="flex items-center gap-3 text-sm text-mut bg-white/[0.03] p-3.5 rounded-xl border border-white/[0.06]">
-                  <ShieldCheck size={20} weight="bold" className="text-acc shrink-0" />
+                  <UsersThree size={20} weight="bold" className="text-acc shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-txt">Criptografia de ponta a ponta</p>
-                    <p className="text-[11px] text-mut/70">Suas conversas e dados protegidos por padrão.</p>
+                    <p className="text-xs font-semibold text-txt">Guildas, Canais e Mensagens Diretas</p>
+                    <p className="text-[11px] text-mut/70">Converse em tempo real, envie arquivos, áudios e descubra novas pessoas.</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-sm text-mut bg-white/[0.03] p-3.5 rounded-xl border border-white/[0.06]">
-                  <Globe size={20} weight="bold" className="text-acc shrink-0" />
+                  <Headset size={20} weight="bold" className="text-acc shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-txt">Protocolo Descentralizado</p>
-                    <p className="text-[11px] text-mut/70">Comunicação aberta, sem servidores monopolistas.</p>
+                    <p className="text-xs font-semibold text-txt">Voz e Vídeo em HD (LiveKit SFU)</p>
+                    <p className="text-[11px] text-mut/70">Chamadas com supressão de ruído, transmissão de tela e webcam simultânea.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm text-mut bg-white/[0.03] p-3.5 rounded-xl border border-white/[0.06]">
+                  <ShieldCheck size={20} weight="bold" className="text-acc shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-txt">Privacidade e Rede Descentralizada</p>
+                    <p className="text-[11px] text-mut/70">
+                      Conectado em <span className="font-mono text-txt/80">echo.litteris.online</span> sem rastreamento comercial.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -477,11 +493,12 @@ export default function OnboardingScreen({
             <>
               <button
                 type="button"
-                onClick={handleAccountReset}
-                className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] text-mut hover:text-txt hover:bg-white/[0.08] active:scale-95 transition-all py-2.5 text-xs font-medium text-center"
-                title="Apaga os dados locais e reinicia a sessão"
+                onClick={handleSwitchAccount}
+                className="cursor-pointer flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] text-mut hover:text-txt hover:bg-white/[0.08] active:scale-95 transition-all py-2.5 text-xs font-medium flex items-center justify-center gap-1.5"
+                title="Voltar para a tela de login com outra conta"
               >
-                Redefinir conta
+                <SignOut size={14} weight="bold" />
+                <span>Trocar conta</span>
               </button>
               <button
                 type="button"

@@ -357,21 +357,12 @@ export default function VoiceStage({
     try {
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getDisplayMedia) {
         let stream: MediaStream;
-        const standardConstraints: any = {
+        const standardConstraints: DisplayMediaStreamOptions["video"] = {
           frameRate: { ideal: config.fps, max: config.fps },
           width: { ideal: config.resolution === "1080p" ? 1920 : 1280 },
           height: { ideal: config.resolution === "1080p" ? 1080 : 720 },
           displaySurface: config.sourceType === "screen" ? "monitor" : "window",
         };
-
-        const videoConstraints: any = config.sourceId
-          ? {
-              ...standardConstraints,
-              deviceId: { ideal: config.sourceId },
-              chromeMediaSource: "desktop",
-              chromeMediaSourceId: config.sourceId,
-            }
-          : standardConstraints;
 
         // Decide se tenta capturar áudio do sistema baseado na preferência do usuário
         const wantSystemAudio = config.shareAudio !== false;
@@ -381,33 +372,22 @@ export default function VoiceStage({
 
         try {
           stream = await navigator.mediaDevices.getDisplayMedia({
-            video: videoConstraints,
+            video: standardConstraints,
             audio: audioConstraints,
           } as MediaStreamConstraints);
         } catch (firstErr: any) {
           if (firstErr?.name === "NotAllowedError" || firstErr?.name === "AbortError") {
             throw firstErr;
           }
-          // Fallback para standardConstraints mantendo áudio do sistema se solicitado
-          try {
+          if (wantSystemAudio) {
+            // Fallback sem captura de áudio caso a plataforma não suporte
+            console.warn("[VoiceStage] Captura de áudio do sistema falhou, tentando apenas vídeo");
             stream = await navigator.mediaDevices.getDisplayMedia({
               video: standardConstraints,
-              audio: audioConstraints,
+              audio: false,
             } as MediaStreamConstraints);
-          } catch (secondErr: any) {
-            if (secondErr?.name === "NotAllowedError" || secondErr?.name === "AbortError") {
-              throw secondErr;
-            }
-            if (wantSystemAudio) {
-              // Último fallback sem captura de áudio caso a plataforma não suporte
-              console.warn("[VoiceStage] Captura de áudio do sistema falhou, tentando apenas vídeo");
-              stream = await navigator.mediaDevices.getDisplayMedia({
-                video: standardConstraints,
-                audio: false,
-              } as MediaStreamConstraints);
-            } else {
-              throw secondErr;
-            }
+          } else {
+            throw firstErr;
           }
         }
         screenStreamRef.current = stream;

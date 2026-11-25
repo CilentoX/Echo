@@ -1,7 +1,8 @@
-import { CircleNotch, GoogleLogo, LockKey, ShieldCheck } from "@phosphor-icons/react";
-import { useCallback, useMemo, useState } from "react";
+import { ArrowSquareOut, Check, CircleNotch, Copy, Globe, GoogleLogo, LockKey, ShieldCheck } from "@phosphor-icons/react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { EchoApi } from "@/lib/api/echoApi";
-import { runSsoLogin, SsoLoginError } from "@/lib/matrix/sso";
+import { ECHO_HOMESERVER_URL, runSsoLogin, SsoLoginError } from "@/lib/matrix/sso";
 import { echoApi } from "@/lib/matrix/instance";
 import type { Session } from "@/lib/matrix/types";
 
@@ -22,17 +23,37 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
 
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loginUrl, setLoginUrl] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const cancelledRef = useRef(false);
+
+  const homeserverHost = useMemo(() => {
+    try {
+      return new URL(ECHO_HOMESERVER_URL).host;
+    } catch {
+      return "echo.litteris.online";
+    }
+  }, []);
 
   const handleLogin = useCallback(async () => {
+    cancelledRef.current = false;
     setStatus("loading");
     setErrorMessage(null);
+    setLoginUrl(null);
+    setCopiedLink(false);
     try {
       // Fluxo SSO real via Rust loopback listener + Echo API
-      const session = await runSsoLogin(activeService);
+      const session = await runSsoLogin(activeService, {
+        onLoginUrl: (url) => {
+          if (!cancelledRef.current) setLoginUrl(url);
+        },
+      });
+      if (cancelledRef.current) return;
       echoApi.setAccessToken(session.accessToken ?? "", session.userId ?? undefined);
       await onSession?.(session);
       setStatus("idle");
     } catch (err) {
+      if (cancelledRef.current) return;
       let message = "Erro inesperado no login. Tente novamente.";
 
       if (err instanceof SsoLoginError) {
@@ -151,13 +172,62 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
                 </p>
               </div>
               {/* Skeleton bars */}
-              <div className="w-full space-y-2 mt-2">
+              <div className="w-full space-y-2 mt-1">
                 <div className="h-2 w-full rounded-full bg-white/[0.04] overflow-hidden">
                   <div className="h-full w-2/3 bg-acc/30 rounded-full animate-[shimmer_1.5s_ease-in-out_infinite]" />
                 </div>
                 <div className="h-2 w-3/4 mx-auto rounded-full bg-white/[0.03] overflow-hidden">
                   <div className="h-full w-1/2 bg-acc/20 rounded-full animate-[shimmer_1.5s_ease-in-out_infinite_0.2s]" />
                 </div>
+              </div>
+
+              {/* Ações auxiliares para o link Matrix SSO */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1 w-full">
+                {loginUrl && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void openUrl(loginUrl).catch(() => {})}
+                      className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-txt hover:bg-white/[0.08] active:scale-95 transition-all"
+                    >
+                      <ArrowSquareOut size={13} weight="bold" className="text-acc" />
+                      Reabrir navegador
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(loginUrl).then(() => {
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        });
+                      }}
+                      className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-txt hover:bg-white/[0.08] active:scale-95 transition-all"
+                    >
+                      {copiedLink ? (
+                        <>
+                          <Check size={13} weight="bold" className="text-acc" />
+                          Link copiado!
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} weight="bold" className="text-mut" />
+                          Copiar link Matrix
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    cancelledRef.current = true;
+                    setStatus("idle");
+                    setLoginUrl(null);
+                  }}
+                  className="cursor-pointer inline-flex items-center rounded-lg px-3 py-1.5 text-[11px] font-medium text-mut hover:text-txt hover:bg-white/[0.04] active:scale-95 transition-all"
+                >
+                  Cancelar
+                </button>
               </div>
             </div>
           ) : (
@@ -172,9 +242,15 @@ export default function GoogleLoginScreen({ service, onSession }: GoogleLoginScr
                 Entrar com Google
               </button>
 
-              <div className="flex items-center gap-2 text-[11px] text-mut/60">
-                <LockKey size={12} weight="bold" />
-                <span>Conexão criptografada de ponta a ponta</span>
+              <div className="flex flex-col items-center gap-1.5 text-[11px] text-mut/60">
+                <div className="flex items-center gap-2">
+                  <LockKey size={12} weight="bold" />
+                  <span>Conexão criptografada de ponta a ponta</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-mut/50">
+                  <Globe size={11} weight="bold" className="text-acc/70" />
+                  <span>Rede Matrix: <span className="font-mono text-txt/70">{homeserverHost}</span></span>
+                </div>
               </div>
             </div>
           )}
