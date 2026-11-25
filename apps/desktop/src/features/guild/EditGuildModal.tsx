@@ -137,8 +137,8 @@ export default function EditGuildModal({ open, onClose, guild, onSave }: EditGui
     setLoading(true);
     setError(null);
     try {
-      let iconUrl: string | undefined = iconPreview === null ? undefined : guild.avatarUrl ?? undefined;
-      let bannerUrl: string | undefined = bannerPreview === null ? undefined : guild.bannerUrl ?? undefined;
+      let iconUrl: string | null | undefined = iconPreview === null ? null : guild.avatarUrl ?? undefined;
+      let bannerUrl: string | null | undefined = bannerPreview === null ? null : guild.bannerUrl ?? undefined;
 
       if (iconFile) {
         iconUrl = await echoApi.uploadChatMedia(iconFile);

@@ -42,6 +42,7 @@ export default function SessionGate({ shell }: SessionGateProps) {
   const rejectSession = useCallback(async () => {
     stopSyncWiring();
     useOnboardingStore.getState().setCompleted(false);
+    useProfileStore.getState().reset();
     await clearSession().catch(() => { });
     setView("login");
   }, []);

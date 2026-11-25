@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useGuildProfileStore } from "@/stores/guildProfileStore";
+import { useSyncStore } from "@/stores/syncStore";
 import { matrixService } from "@/lib/matrix/instance";
 
 export interface GuildProfileEditorState {
@@ -79,6 +80,16 @@ export function useGuildProfileEditor(
   }, []);
 
   const saveChanges = useCallback(async () => {
+    const trimmedName = state.editName.trim();
+    if (!trimmedName) {
+      setState((prev) => ({
+        ...prev,
+        isSaving: false,
+        error: "O nome da guilda não pode ficar vazio.",
+      }));
+      return;
+    }
+
     setState((prev) => ({ ...prev, isSaving: true, error: null }));
 
     const userId = matrixService.getUserId();
@@ -93,20 +104,37 @@ export function useGuildProfileEditor(
 
     try {
       await matrixService.upsertGuildProfile(guildId, {
-        name: state.editName,
+        name: trimmedName,
         description: state.editDescription || null,
         avatarUrl: state.editAvatarUrl,
         bannerUrl: state.editBannerUrl,
       });
 
       setGuildProfile({
-        name: state.editName,
+        guildId,
+        name: trimmedName,
         description: state.editDescription || null,
         avatarUrl: state.editAvatarUrl,
         bannerUrl: state.editBannerUrl,
       });
 
-      setState((prev) => ({ ...prev, isEditing: false, isSaving: false }));
+      // Sincroniza nome, avatar e banner na lista de guildas da sidebar/rail
+      const syncState = useSyncStore.getState();
+      syncState.setGuilds(
+        syncState.guilds.map((g) =>
+          g.guildId === guildId
+            ? {
+                ...g,
+                name: trimmedName,
+                description: state.editDescription || null,
+                avatarUrl: state.editAvatarUrl,
+                bannerUrl: state.editBannerUrl,
+              }
+            : g,
+        ),
+      );
+
+      setState((prev) => ({ ...prev, editName: trimmedName, isEditing: false, isSaving: false }));
     } catch (err) {
       setState((prev) => ({
         ...prev,

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useProfileStore } from "@/stores/profileStore";
 import { matrixService } from "@/lib/matrix/instance";
 import { useEchoApi } from "@/lib/api/echoApi";
+import { desktopCache } from "@/lib/storage/desktopConfig";
 
 export interface ProfileEditorState {
   isEditing: boolean;
@@ -262,6 +263,17 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
       return;
     }
 
+    // Valida nome de exibição antes de salvar
+    const trimmedDisplayName = state.editDisplayName.trim();
+    if (!trimmedDisplayName) {
+      setState((prev) => ({
+        ...prev,
+        isSaving: false,
+        error: "O nome de exibição não pode ficar vazio.",
+      }));
+      return;
+    }
+
     // Valida username antes de salvar
     const cleanUsername = state.editUsername.toLowerCase().trim();
     const USERNAME_REGEX = /^[a-z0-9_.-]{3,32}$/;
@@ -284,15 +296,19 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
     }
 
     try {
-      if (state.editDisplayName !== displayName && typeof matrixService.setDisplayName === "function") {
-        await matrixService.setDisplayName(state.editDisplayName);
+      if (trimmedDisplayName !== displayName && typeof matrixService.setDisplayName === "function") {
+        await matrixService.setDisplayName(trimmedDisplayName);
+      }
+
+      if (state.editAvatarUrl !== (appwriteAvatarUrl ?? avatarUrl) && typeof matrixService.setAvatarUrl === "function") {
+        await matrixService.setAvatarUrl(state.editAvatarUrl ?? "");
       }
 
       if (typeof matrixService.patchUserProfile === "function") {
         await matrixService.patchUserProfile("", {
-          displayName: state.editDisplayName,
+          displayName: trimmedDisplayName,
           username: cleanUsername,
-          nickname: state.editDisplayName, // Apelido / Display name
+          nickname: trimmedDisplayName, // Apelido / Display name
           bio: state.editBio || null,
           avatarUrl: state.editAvatarUrl,
           bannerUrl: state.editBannerUrl,
@@ -300,22 +316,37 @@ export function useProfileEditor(): ProfileEditorState & ProfileEditorActions {
         });
       } else if (typeof matrixService.patchGlobalProfile === "function") {
         await matrixService.patchGlobalProfile({
-          nickname: state.editDisplayName,
+          nickname: trimmedDisplayName,
           bio: state.editBio || null,
           avatarUrl: state.editAvatarUrl,
           bannerUrl: state.editBannerUrl,
         });
       }
 
-      setDisplayName(state.editDisplayName);
+      setDisplayName(trimmedDisplayName);
       setUsername(cleanUsername);
-      setNickname(state.editDisplayName);
+      setNickname(trimmedDisplayName);
       setBio(state.editBio || null);
       setAvatarUrl(state.editAvatarUrl);
       setBannerUrl(state.editBannerUrl);
       setLinks(state.editLinks);
       useProfileStore.getState().setAppwriteAvatarUrl(state.editAvatarUrl);
       useProfileStore.getState().setAppwriteBannerUrl(state.editBannerUrl);
+
+      try {
+        localStorage.setItem("echo:cachedDisplayName", trimmedDisplayName);
+        localStorage.setItem("echo:cachedUsername", cleanUsername);
+        localStorage.setItem("echo:cachedNickname", trimmedDisplayName);
+        desktopCache.cacheUserProfile({
+          userId,
+          username: cleanUsername,
+          nickname: trimmedDisplayName,
+          displayName: trimmedDisplayName,
+          avatarUrl: state.editAvatarUrl,
+          bannerUrl: state.editBannerUrl,
+          bio: state.editBio || null,
+        });
+      } catch {}
 
       setState((prev) => ({ ...prev, isEditing: false, isSaving: false }));
     } catch (err) {

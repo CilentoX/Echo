@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, X, Users, Hash, ShieldCheck, Calendar } from "@phosphor-icons/react";
 import { useGuildProfileStore } from "@/stores/guildProfileStore";
+import { useSyncStore } from "@/stores/syncStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,23 +57,23 @@ export function GuildProfileTab({
       try {
         const profile = await matrixService.getGuildProfile(guildId);
         if (!cancelled) {
-          setProfileData(profile ? {
-            ...profile,
-            createdBy: (profile as any).createdBy ?? null,
-          } : {
-            name: guildName,
-            description: guildDescription,
-            avatarUrl: guildAvatarUrl,
-            bannerUrl: null,
-            createdBy: null,
-          });
-          setGuildProfile({
-            name: guildName,
-            description: guildDescription,
-            avatarUrl: guildAvatarUrl,
-            bannerUrl: null,
-            createdBy: null,
-          });
+          const resolved = profile
+            ? {
+                name: profile.name || guildName,
+                description: profile.description ?? guildDescription,
+                avatarUrl: profile.avatarUrl ?? guildAvatarUrl,
+                bannerUrl: profile.bannerUrl ?? null,
+                createdBy: (profile as any).createdBy ?? null,
+              }
+            : {
+                name: guildName,
+                description: guildDescription,
+                avatarUrl: guildAvatarUrl,
+                bannerUrl: null,
+                createdBy: null,
+              };
+          setProfileData(resolved);
+          setGuildProfile({ guildId, ...resolved });
         }
       } catch {
         if (!cancelled) {
@@ -151,9 +152,39 @@ export function GuildProfileTab({
 
   const isOwner = currentUserId ? profileData?.createdBy === currentUserId : false;
 
-  // URLs atuais para exibição (edit state tem prioridade)
-  const currentAvatarUrl = editAvatarUrl ?? profileData?.avatarUrl ?? guildAvatarUrl;
-  const currentBannerUrl = editBannerUrl ?? profileData?.bannerUrl ?? null;
+  // URLs atuais para exibição (em modo de edição, respeita null quando removido)
+  const currentAvatarUrl = isEditing ? editAvatarUrl : (profileData?.avatarUrl ?? guildAvatarUrl);
+  const currentBannerUrl = isEditing ? editBannerUrl : (profileData?.bannerUrl ?? null);
+
+  const persistGuildMediaDirectly = async (patch: { avatarUrl?: string | null; bannerUrl?: string | null }) => {
+    const base = profileData ?? {
+      name: guildName,
+      description: guildDescription,
+      avatarUrl: guildAvatarUrl,
+      bannerUrl: null,
+      createdBy: null,
+    };
+    const next = {
+      ...base,
+      ...patch,
+    };
+    await matrixService.upsertGuildProfile(guildId, {
+      name: next.name,
+      description: next.description,
+      avatarUrl: next.avatarUrl,
+      bannerUrl: next.bannerUrl,
+    });
+    setProfileData(next);
+    setGuildProfile({ guildId, ...next });
+    const syncState = useSyncStore.getState();
+    syncState.setGuilds(
+      syncState.guilds.map((g) =>
+        g.guildId === guildId
+          ? { ...g, avatarUrl: next.avatarUrl, bannerUrl: next.bannerUrl }
+          : g,
+      ),
+    );
+  };
 
   if (isLoading) {
     return (
@@ -177,12 +208,24 @@ export function GuildProfileTab({
               setBannerError(null);
               const url = await echoApi.uploadChatMedia(file);
               setEditBannerUrl(url);
+              if (!isEditing) {
+                await persistGuildMediaDirectly({ bannerUrl: url });
+              }
             } catch (err) {
               const msg = err instanceof Error ? err.message : "Falha no upload do banner";
               setBannerError(msg);
             }
           }}
-          onRemove={() => setEditBannerUrl(null)}
+          onRemove={async () => {
+            setEditBannerUrl(null);
+            if (!isEditing) {
+              try {
+                await persistGuildMediaDirectly({ bannerUrl: null });
+              } catch (err) {
+                setBannerError(err instanceof Error ? err.message : "Falha ao remover banner");
+              }
+            }
+          }}
           type="banner"
           preset="large"
           previewHeight="h-44 sm:h-48"
@@ -208,12 +251,24 @@ export function GuildProfileTab({
                 setAvatarError(null);
                 const url = await echoApi.uploadChatMedia(file);
                 setEditAvatarUrl(url);
+                if (!isEditing) {
+                  await persistGuildMediaDirectly({ avatarUrl: url });
+                }
               } catch (err) {
                 const msg = err instanceof Error ? err.message : "Falha no upload da foto";
                 setAvatarError(msg);
               }
             }}
-            onRemove={() => setEditAvatarUrl(null)}
+            onRemove={async () => {
+              setEditAvatarUrl(null);
+              if (!isEditing) {
+                try {
+                  await persistGuildMediaDirectly({ avatarUrl: null });
+                } catch (err) {
+                  setAvatarError(err instanceof Error ? err.message : "Falha ao remover foto");
+                }
+              }
+            }}
             type="guild"
             preset="large"
             previewHeight="h-28"

@@ -183,6 +183,7 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
         bannerUrl: banner,
         bio: userProfile?.bio ?? null,
         role: userProfile?.role ?? null,
+        links: Array.isArray((userProfile as any)?.links) ? (userProfile as any).links : get().links,
         appwriteAvatarUrl: avatar,
         appwriteBannerUrl: banner,
       });
@@ -221,6 +222,9 @@ export const useProfileStore = create<ProfileState>()((set, get) => ({
     localStorage.removeItem("echo:appwriteAvatarUrl");
     localStorage.removeItem("echo:appwriteBannerUrl");
     localStorage.removeItem("echo:customStatus");
+    localStorage.removeItem("echo:cachedDisplayName");
+    localStorage.removeItem("echo:cachedUsername");
+    localStorage.removeItem("echo:cachedNickname");
     try {
       desktopCache.cacheUserProfile(null);
     } catch {}
